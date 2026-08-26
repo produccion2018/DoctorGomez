@@ -17,10 +17,10 @@ export interface User {
   password: string;
   role: Role;
   activo: boolean;
-  telefono?: string;
-  documento?: string;
-  ultimoAcceso?: string;
-  doctorId?: string;
+  telefono?: string | undefined;
+  documento?: string | undefined;
+  ultimoAcceso?: string | undefined;
+  doctorId?: string | undefined;
   permisos: string[];
   creadoEl: string;
 }
@@ -50,7 +50,7 @@ export interface Appointment {
   hora: string; // HH:mm
   modalidad: "Presencial" | "Teleconsulta";
   estado: AppointmentStatus;
-  motivo?: string;
+  motivo?: string | undefined;
   importe: number;
   metodoPago: string;
   estadoPago: PaymentStatus;
@@ -58,7 +58,7 @@ export interface Appointment {
   creadoPorRol: Role;
   creadoEl: string;
   modificadoEl: string;
-  autorizadoPor?: string;
+  autorizadoPor?: string | undefined;
 }
 
 export interface Study {
@@ -97,7 +97,7 @@ export interface AuditLog {
 export interface Notification {
   id: string;
   rol: Role;
-  userId?: string;
+  userId?: string | undefined;
   titulo: string;
   mensaje: string;
   fecha: string;
