@@ -108,20 +108,33 @@ function Home() {
               <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
             </svg>
           </div>
-          <div className="grid gap-4 self-center sm:grid-cols-2">
+                  <div className="grid gap-6 self-end mt-16 sm:grid-cols-2 lg:mt-40 lg:gap-8">
             {[
               { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral" },
               { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección" },
               { icon: HeartPulse, t: "Cardiología", d: "Prevención y tratamiento" },
               { icon: Waves, t: "Ecocardiografía", d: "Diagnóstico por imágenes" },
-            ].map((c) => (
-              <div key={c.t} className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+            ].map((c, idx) => (
+              <div
+                key={c.t}
+                className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur animate-hero-float"
+                style={{ animationDelay: `${idx * 0.6}s` }}
+              >
                 <c.icon className="size-6 text-deep-foreground" />
                 <p className="mt-3 font-semibold text-deep-foreground">{c.t}</p>
                 <p className="text-sm text-deep-foreground/70">{c.d}</p>
               </div>
             ))}
           </div>
+          <style>{`
+            @keyframes hero-float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-10px); }
+            }
+            .animate-hero-float {
+              animation: hero-float 4.5s ease-in-out infinite;
+            }
+          `}</style>
         </div>
       </section>
 
