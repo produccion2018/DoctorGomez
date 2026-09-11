@@ -86,7 +86,13 @@ function Home() {
   return (
     <PublicLayout>
       <section className="relative overflow-hidden border-b border-border bg-deep">
-        <img src={heroDoctors} alt="Equipo médico de la clínica" width={1600} height={1000} className="absolute inset-0 size-full object-cover opacity-35" />
+        <img
+          src={heroDoctors}
+          alt="Equipo médico de la clínica"
+          width={1600}
+          height={1000}
+          className="absolute inset-0 size-full scale-90 object-cover object-top opacity-35"
+        />
         <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-20 lg:grid-cols-2 lg:px-8 lg:py-28">
           <div className="space-y-7">
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-deep-foreground">
@@ -108,7 +114,7 @@ function Home() {
               <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
             </svg>
           </div>
-                  <div className="grid gap-6 self-end mt-16 sm:grid-cols-2 lg:mt-40 lg:gap-8">
+          <div className="grid gap-6 self-end mt-4 sm:grid-cols-2 sm:mt-10 lg:mt-40 lg:gap-8">
             {[
               { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral" },
               { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección" },
