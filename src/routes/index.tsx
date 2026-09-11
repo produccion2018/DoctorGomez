@@ -92,6 +92,17 @@ function Home() {
             <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-deep-foreground">
               <ShieldCheck className="size-3.5" /> Clínica médica especializada
             </span>
+
+            {/* Foto de los doctores, visible SOLO en celular (nítida, no la de fondo) */}
+            <img
+              src={heroDoctors}
+              alt="Dr. Alberto y Dr. Alonso Gómez Bolaño"
+              width={800}
+              height={500}
+              className="block w-full rounded-2xl object-cover object-top sm:hidden"
+              style={{ maxHeight: "220px" }}
+            />
+
             <h1 className="text-4xl font-semibold leading-tight text-deep-foreground sm:text-5xl lg:text-6xl">
               Ciencia, experiencia y compromiso con tu salud.
             </h1>
@@ -108,7 +119,7 @@ function Home() {
               <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
             </svg>
           </div>
-                  <div className="grid gap-6 self-end mt-16 sm:grid-cols-2 lg:mt-40 lg:gap-8">
+          <div className="grid gap-6 self-end mt-4 sm:grid-cols-2 sm:mt-10 lg:mt-40 lg:gap-8">
             {[
               { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral" },
               { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección" },
