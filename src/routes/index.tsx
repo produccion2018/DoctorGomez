@@ -37,7 +37,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Clínica Gómez Bolaño | Medicina Interna, Nefrología y Cardiología" },
-      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online, portal del paciente y atención especializada en Medicina Interna, Nefrología y Cardiología." },
+      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online y atención especializada en Medicina Interna, Nefrología y Cardiología." },
       { property: "og:title", content: "Clínica Gómez Bolaño | Atención médica especializada" },
       { property: "og:description", content: "Medicina Interna, Nefrología, Cardiología, Cardiología Crítica y Ecocardiografía." },
     ],
@@ -237,7 +237,7 @@ function Home() {
             </div>
             <div className="animate-hero-float absolute border border-white/15 bg-deep/90 backdrop-blur-md -bottom-5 -left-1 hidden items-center gap-2.5 rounded-2xl px-3.5 py-2.5 shadow-lg sm:flex lg:-left-8" style={{ animationDelay: "1.2s" }}>
               <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
-              <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>En tu portal</span>
+              <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
             </div>
           </div>
 
@@ -479,16 +479,16 @@ function Home() {
           <div className="blob -bottom-16 right-0 size-72 bg-[var(--accent)] opacity-40" style={{ animationDelay: "-8s" }} />
           <div className="relative">
             <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground">
-              <Sparkles className="size-3.5" /> Portal del paciente
+              <Sparkles className="size-3.5" /> Atención personalizada
             </span>
             <h2 className="mt-5 text-3xl text-deep-foreground sm:text-5xl">Tu salud, con seguimiento real</h2>
             <p className="mx-auto mt-4 max-w-2xl text-deep-foreground/80">
-              Reservá tu turno online y accedé a tu portal del paciente para consultar estudios, documentos e historial de consultas.
+              Reservá tu turno online en minutos o escribinos por WhatsApp. Te acompañamos en cada control y estudio.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button asChild size="lg" variant="secondary" className="rounded-full px-7 transition-transform hover:-translate-y-0.5"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
               <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-7 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
-                <Link to="/login">Ingresar al portal</Link>
+                <Link to="/contacto">Contactanos</Link>
               </Button>
             </div>
           </div>

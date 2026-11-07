@@ -10,10 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as EspecialistasRouteImport } from './routes/especialistas'
+import { Route as ClinicaRouteImport } from './routes/clinica'
+import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
 import { Route as PanelRouteImport } from './routes/panel'
+import { Route as PreguntasFrecuentesRouteImport } from './routes/preguntas-frecuentes'
+import { Route as ServiciosRouteImport } from './routes/servicios'
+import { Route as TurnosRouteImport } from './routes/turnos'
+import { Route as EspecialidadesIndexRouteImport } from './routes/especialidades.index'
+import { Route as EspecialidadesSlugRouteImport } from './routes/especialidades.$slug'
+import { Route as EspecialistasIndexRouteImport } from './routes/especialistas.index'
 import { Route as EspecialistasIdRouteImport } from './routes/especialistas.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -21,9 +28,14 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EspecialistasRoute = EspecialistasRouteImport.update({
-  id: '/especialistas',
-  path: '/especialistas',
+const ClinicaRoute = ClinicaRouteImport.update({
+  id: '/clinica',
+  path: '/clinica',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactoRoute = ContactoRouteImport.update({
+  id: '/contacto',
+  path: '/contacto',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -41,70 +53,150 @@ const PanelRoute = PanelRouteImport.update({
   path: '/panel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PreguntasFrecuentesRoute = PreguntasFrecuentesRouteImport.update({
+  id: '/preguntas-frecuentes',
+  path: '/preguntas-frecuentes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServiciosRoute = ServiciosRouteImport.update({
+  id: '/servicios',
+  path: '/servicios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TurnosRoute = TurnosRouteImport.update({
+  id: '/turnos',
+  path: '/turnos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EspecialidadesIndexRoute = EspecialidadesIndexRouteImport.update({
+  id: '/especialidades/',
+  path: '/especialidades/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EspecialidadesSlugRoute = EspecialidadesSlugRouteImport.update({
+  id: '/especialidades/$slug',
+  path: '/especialidades/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EspecialistasIndexRoute = EspecialistasIndexRouteImport.update({
+  id: '/especialistas/',
+  path: '/especialistas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EspecialistasIdRoute = EspecialistasIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => EspecialistasRoute,
+  id: '/especialistas/$id',
+  path: '/especialistas/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/especialistas': typeof EspecialistasRouteWithChildren
+  '/clinica': typeof ClinicaRoute
+  '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
+  '/servicios': typeof ServiciosRoute
+  '/turnos': typeof TurnosRoute
+  '/especialidades/$slug': typeof EspecialidadesSlugRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
+  '/especialidades/': typeof EspecialidadesIndexRoute
+  '/especialistas/': typeof EspecialistasIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/especialistas': typeof EspecialistasRouteWithChildren
+  '/clinica': typeof ClinicaRoute
+  '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
+  '/servicios': typeof ServiciosRoute
+  '/turnos': typeof TurnosRoute
+  '/especialidades/$slug': typeof EspecialidadesSlugRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
+  '/especialidades': typeof EspecialidadesIndexRoute
+  '/especialistas': typeof EspecialistasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/especialistas': typeof EspecialistasRouteWithChildren
+  '/clinica': typeof ClinicaRoute
+  '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
+  '/servicios': typeof ServiciosRoute
+  '/turnos': typeof TurnosRoute
+  '/especialidades/$slug': typeof EspecialidadesSlugRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
+  '/especialidades/': typeof EspecialidadesIndexRoute
+  '/especialistas/': typeof EspecialistasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/especialistas'
+    | '/clinica'
+    | '/contacto'
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/preguntas-frecuentes'
+    | '/servicios'
+    | '/turnos'
+    | '/especialidades/$slug'
     | '/especialistas/$id'
+    | '/especialidades/'
+    | '/especialistas/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/especialistas'
+    | '/clinica'
+    | '/contacto'
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/preguntas-frecuentes'
+    | '/servicios'
+    | '/turnos'
+    | '/especialidades/$slug'
     | '/especialistas/$id'
+    | '/especialidades'
+    | '/especialistas'
   id:
     | '__root__'
     | '/'
-    | '/especialistas'
+    | '/clinica'
+    | '/contacto'
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/preguntas-frecuentes'
+    | '/servicios'
+    | '/turnos'
+    | '/especialidades/$slug'
     | '/especialistas/$id'
+    | '/especialidades/'
+    | '/especialistas/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  EspecialistasRoute: typeof EspecialistasRouteWithChildren
+  ClinicaRoute: typeof ClinicaRoute
+  ContactoRoute: typeof ContactoRoute
   LoginRoute: typeof LoginRoute
   NosotrosRoute: typeof NosotrosRoute
   PanelRoute: typeof PanelRoute
+  PreguntasFrecuentesRoute: typeof PreguntasFrecuentesRoute
+  ServiciosRoute: typeof ServiciosRoute
+  TurnosRoute: typeof TurnosRoute
+  EspecialidadesSlugRoute: typeof EspecialidadesSlugRoute
+  EspecialistasIdRoute: typeof EspecialistasIdRoute
+  EspecialidadesIndexRoute: typeof EspecialidadesIndexRoute
+  EspecialistasIndexRoute: typeof EspecialistasIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,11 +208,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/especialistas': {
-      id: '/especialistas'
-      path: '/especialistas'
-      fullPath: '/especialistas'
-      preLoaderRoute: typeof EspecialistasRouteImport
+    '/clinica': {
+      id: '/clinica'
+      path: '/clinica'
+      fullPath: '/clinica'
+      preLoaderRoute: typeof ClinicaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacto': {
+      id: '/contacto'
+      path: '/contacto'
+      fullPath: '/contacto'
+      preLoaderRoute: typeof ContactoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -144,34 +243,72 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/preguntas-frecuentes': {
+      id: '/preguntas-frecuentes'
+      path: '/preguntas-frecuentes'
+      fullPath: '/preguntas-frecuentes'
+      preLoaderRoute: typeof PreguntasFrecuentesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/servicios': {
+      id: '/servicios'
+      path: '/servicios'
+      fullPath: '/servicios'
+      preLoaderRoute: typeof ServiciosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/turnos': {
+      id: '/turnos'
+      path: '/turnos'
+      fullPath: '/turnos'
+      preLoaderRoute: typeof TurnosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/especialidades/': {
+      id: '/especialidades/'
+      path: '/especialidades'
+      fullPath: '/especialidades/'
+      preLoaderRoute: typeof EspecialidadesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/especialidades/$slug': {
+      id: '/especialidades/$slug'
+      path: '/especialidades/$slug'
+      fullPath: '/especialidades/$slug'
+      preLoaderRoute: typeof EspecialidadesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/especialistas/': {
+      id: '/especialistas/'
+      path: '/especialistas'
+      fullPath: '/especialistas/'
+      preLoaderRoute: typeof EspecialistasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/especialistas/$id': {
       id: '/especialistas/$id'
-      path: '/$id'
+      path: '/especialistas/$id'
       fullPath: '/especialistas/$id'
       preLoaderRoute: typeof EspecialistasIdRouteImport
-      parentRoute: typeof EspecialistasRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
 
-interface EspecialistasRouteChildren {
-  EspecialistasIdRoute: typeof EspecialistasIdRoute
-}
-
-const EspecialistasRouteChildren: EspecialistasRouteChildren = {
-  EspecialistasIdRoute: EspecialistasIdRoute,
-}
-
-const EspecialistasRouteWithChildren = EspecialistasRoute._addFileChildren(
-  EspecialistasRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  EspecialistasRoute: EspecialistasRouteWithChildren,
+  ClinicaRoute: ClinicaRoute,
+  ContactoRoute: ContactoRoute,
   LoginRoute: LoginRoute,
   NosotrosRoute: NosotrosRoute,
   PanelRoute: PanelRoute,
+  PreguntasFrecuentesRoute: PreguntasFrecuentesRoute,
+  ServiciosRoute: ServiciosRoute,
+  TurnosRoute: TurnosRoute,
+  EspecialidadesSlugRoute: EspecialidadesSlugRoute,
+  EspecialistasIdRoute: EspecialistasIdRoute,
+  EspecialidadesIndexRoute: EspecialidadesIndexRoute,
+  EspecialistasIndexRoute: EspecialistasIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -84,7 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Clínica privada especializada en Medicina Interna, Nefrología y Cardiología. Turnos online, portal del paciente y atención personalizada.",
+          "Clínica privada especializada en Medicina Interna, Nefrología y Cardiología. Turnos online y atención personalizada.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -1,4 +1,69 @@
 import type { Doctor } from "@/lib/clinic/types";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  ClipboardCheck,
+  Droplets,
+  Dumbbell,
+  FlaskConical,
+  Gauge,
+  HeartPulse,
+  ScanLine,
+  Stethoscope,
+  TestTube,
+  Video,
+  Watch,
+  Waves,
+} from "lucide-react";
+import fotoAlberto from "@/assets/doctor-alberto.jpg";
+import fotoAlonso from "@/assets/doctor-alonso.jpg";
+import imgInterna from "@/assets/medicina-interna.jpg";
+import imgNefro from "@/assets/nefrologia.jpg";
+import imgCardio from "@/assets/cardiologia.jpg";
+import imgClinica from "@/assets/clinica.jpg";
+
+const ICONOS: Record<string, LucideIcon> = {
+  stethoscope: Stethoscope,
+  kidney: Droplets,
+  heart: HeartPulse,
+  activity: Activity,
+  waves: Waves,
+  gauge: Gauge,
+  flask: FlaskConical,
+  watch: Watch,
+  scan: ScanLine,
+  "test-tube": TestTube,
+  clipboard: ClipboardCheck,
+  dumbbell: Dumbbell,
+  video: Video,
+};
+
+export function iconoEspecialidad(key: string): LucideIcon {
+  return ICONOS[key] ?? Stethoscope;
+}
+
+export function fotoDoctor(foto: "alberto" | "alonso") {
+  return foto === "alberto" ? fotoAlberto : fotoAlonso;
+}
+
+const IMG_ESP: Record<string, string> = {
+  "medicina-interna": imgInterna,
+  nefrologia: imgNefro,
+  cardiologia: imgCardio,
+  "cardiologia-critica": imgCardio,
+  ecocardiografia: imgCardio,
+  "holter-mapa": imgCardio,
+  "medicina-deporte": imgCardio,
+  "hipertension-arterial": imgInterna,
+  "diabetes-metabolismo": imgInterna,
+  "chequeos-preventivos": imgInterna,
+  laboratorio: imgNefro,
+  "diagnostico-por-imagenes": imgNefro,
+};
+
+export function imagenEspecialidad(slug: string) {
+  return IMG_ESP[slug] ?? imgClinica;
+}
 
 export const CLINICA = {
   nombre: "Clínica Gómez Bolaño",
@@ -372,12 +437,18 @@ export const SERVICIOS = [
 ];
 
 export const FAQS = [
-  { q: "¿Cómo solicito un turno?", a: "Podés reservar desde la sección Turnos eligiendo especialidad, profesional, fecha y horario. Recibirás la confirmación en tu portal de paciente." },
+  { q: "¿Cómo solicito un turno?", a: "Podés reservar desde la sección Turnos eligiendo especialidad, profesional, fecha y horario. La clínica te contacta para confirmarlo." },
   { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Podés consultar directamente con Medicina Interna, Nefrología o Cardiología." },
-  { q: "¿Cuánto demora la entrega de estudios?", a: "Los estudios cardiológicos se informan el mismo día y quedan disponibles en la sección Estudios del portal." },
-  { q: "¿Puedo reprogramar o cancelar mi turno?", a: "Sí. Desde Mis turnos podés cancelar o reprogramar; el horario liberado vuelve a quedar disponible automáticamente." },
+  { q: "¿Cuánto demora la entrega de estudios?", a: "Los estudios cardiológicos se informan el mismo día y se entregan en la clínica o por correo electrónico." },
+  { q: "¿Puedo reprogramar o cancelar mi turno?", a: "Sí. Escribinos por WhatsApp o llamanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
   { q: "¿Atienden teleconsulta?", a: "Sí, la modalidad de teleconsulta está disponible para controles y seguimiento de enfermedades crónicas." },
   { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que estés tomando." },
+  { q: "¿Trabajan con obras sociales y prepagas?", a: "Sí. Consultá por WhatsApp o teléfono si tu cobertura está incluida y si el estudio requiere autorización previa." },
+  { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Vení con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
+  { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Te confirmamos las indicaciones al reservar." },
+  { q: "¿Qué medios de pago aceptan?", a: "Efectivo, tarjetas de débito y crédito, y transferencia bancaria." },
+  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico; los cardiológicos suelen estar el mismo día." },
+  { q: "¿Atienden urgencias?", a: "No somos un servicio de guardia. Ante una emergencia llamá al 107 o acudí a la guardia más cercana." },
 ];
 
 export const HORARIOS_BASE = [
