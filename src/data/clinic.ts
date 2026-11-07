@@ -179,6 +179,182 @@ export const ESPECIALIDADES = [
     seguimiento:
       "Informe entregado el mismo día en el portal del paciente y revisión con el cardiólogo tratante.",
   },
+  {
+    slug: "hipertension-arterial",
+    nombre: "Unidad de Hipertensión",
+    icono: "gauge",
+    doctorIds: ["d1", "d2"],
+    descripcion:
+      "Abordaje conjunto clínico, renal y cardiológico de la presión arterial elevada y sus complicaciones.",
+    aborda: [
+      "Hipertensión esencial y secundaria",
+      "Hipertensión resistente",
+      "Daño de órgano blanco",
+      "Ajuste de tratamiento antihipertensivo",
+    ],
+    cuando: [
+      "Presión mayor a 140/90 en varios controles",
+      "Hipertensión que no baja con medicación",
+      "Dolor de cabeza o mareos frecuentes",
+    ],
+    estudios: ["MAPA 24h", "Función renal", "Fondo de ojo", "Ecocardiograma"],
+    seguimiento:
+      "Controles mensuales hasta lograr metas y luego trimestrales, con registro domiciliario de presión.",
+  },
+  {
+    slug: "diabetes-metabolismo",
+    nombre: "Diabetes y Metabolismo",
+    icono: "flask",
+    doctorIds: ["d1"],
+    descripcion:
+      "Prevención y control de la diabetes, la obesidad y las alteraciones del colesterol y triglicéridos.",
+    aborda: [
+      "Diabetes tipo 2 y prediabetes",
+      "Síndrome metabólico",
+      "Dislipemias",
+      "Protección renal en el paciente diabético",
+    ],
+    cuando: [
+      "Glucemia o hemoglobina glicosilada elevadas",
+      "Sobrepeso con antecedentes familiares",
+      "Colesterol o triglicéridos altos",
+    ],
+    estudios: ["Hemoglobina glicosilada", "Perfil lipídico", "Microalbuminuria", "Curva de glucemia"],
+    seguimiento:
+      "Plan personalizado con metas claras y controles cada 3 meses, coordinado con nefrología.",
+  },
+  {
+    slug: "holter-mapa",
+    nombre: "Holter y MAPA",
+    icono: "watch",
+    doctorIds: ["d2"],
+    descripcion:
+      "Monitoreo ambulatorio del ritmo cardíaco y de la presión arterial durante 24 horas, en tu vida diaria.",
+    aborda: [
+      "Detección de arritmias",
+      "Palpitaciones y desmayos",
+      "Hipertensión de guardapolvo blanco",
+      "Control de eficacia de tratamientos",
+    ],
+    cuando: [
+      "Palpitaciones o latidos irregulares",
+      "Mareos o pérdida de conocimiento",
+      "Valores de presión variables",
+    ],
+    estudios: ["Holter de ritmo 24h", "MAPA 24h", "Electrocardiograma de 12 derivaciones"],
+    seguimiento:
+      "Colocación en el consultorio, retiro al día siguiente e informe revisado por el cardiólogo.",
+  },
+  {
+    slug: "diagnostico-por-imagenes",
+    nombre: "Diagnóstico por Imágenes",
+    icono: "scan",
+    doctorIds: ["d1", "d2"],
+    descripcion:
+      "Ecografías y estudios doppler de alta resolución realizados e interpretados por los especialistas tratantes.",
+    aborda: [
+      "Ecografía renal y abdominal",
+      "Doppler de vasos del cuello",
+      "Doppler venoso y arterial",
+      "Doppler de arterias renales",
+    ],
+    cuando: [
+      "Indicación médica de estudio por imágenes",
+      "Control de patología renal o vascular",
+      "Evaluación prequirúrgica",
+    ],
+    estudios: ["Ecografía renal", "Ecografía abdominal", "Doppler vascular", "Doppler renal"],
+    seguimiento:
+      "Imágenes e informe disponibles en el portal del paciente, con revisión en la siguiente consulta.",
+  },
+  {
+    slug: "laboratorio",
+    nombre: "Laboratorio Clínico",
+    icono: "test-tube",
+    doctorIds: ["d1"],
+    descripcion:
+      "Extracciones en la clínica y resultados online para agilizar el diagnóstico y el seguimiento.",
+    aborda: [
+      "Análisis de rutina",
+      "Función renal y hepática",
+      "Perfil hormonal y metabólico",
+      "Marcadores cardíacos",
+    ],
+    cuando: [
+      "Chequeo anual",
+      "Control de enfermedades crónicas",
+      "Pedido de tu médico",
+    ],
+    estudios: ["Hemograma", "Química completa", "Orina completa", "Perfil tiroideo"],
+    seguimiento:
+      "Resultados en 24 a 48 hs en el portal, con aviso si algún valor requiere consulta prioritaria.",
+  },
+  {
+    slug: "chequeos-preventivos",
+    nombre: "Chequeos Preventivos",
+    icono: "clipboard",
+    doctorIds: ["d1", "d2"],
+    descripcion:
+      "Evaluación completa en una sola jornada para detectar a tiempo factores de riesgo clínicos y cardiovasculares.",
+    aborda: [
+      "Chequeo ejecutivo",
+      "Chequeo cardiovascular",
+      "Evaluación prequirúrgica",
+      "Control de salud anual",
+    ],
+    cuando: [
+      "Mayores de 40 años sin control reciente",
+      "Antecedentes familiares de enfermedad",
+      "Antes de una cirugía programada",
+    ],
+    estudios: ["Laboratorio completo", "Electrocardiograma", "Ergometría", "Ecografía abdominal"],
+    seguimiento:
+      "Informe integral con recomendaciones personalizadas y plan de controles para el año.",
+  },
+  {
+    slug: "medicina-deporte",
+    nombre: "Cardiología del Deporte",
+    icono: "dumbbell",
+    doctorIds: ["d2"],
+    descripcion:
+      "Evaluación cardiovascular para practicar actividad física de forma segura, desde aficionados hasta competidores.",
+    aborda: [
+      "Apto físico",
+      "Evaluación precompetitiva",
+      "Prescripción de ejercicio",
+      "Corazón de atleta",
+    ],
+    cuando: [
+      "Antes de empezar un deporte o gimnasio",
+      "Competencias o maratones",
+      "Síntomas durante el ejercicio",
+    ],
+    estudios: ["Electrocardiograma", "Ergometría", "Ecocardiograma"],
+    seguimiento:
+      "Certificado de apto físico y controles anuales según el nivel de actividad.",
+  },
+  {
+    slug: "teleconsulta",
+    nombre: "Teleconsulta",
+    icono: "video",
+    doctorIds: ["d1", "d2"],
+    descripcion:
+      "Consultas por videollamada para controles, lectura de estudios y seguimiento de enfermedades crónicas.",
+    aborda: [
+      "Controles de seguimiento",
+      "Revisión de estudios",
+      "Ajuste de medicación",
+      "Segunda opinión",
+    ],
+    cuando: [
+      "Vivís lejos de la clínica",
+      "Necesitás un control rápido",
+      "Querés mostrar resultados de estudios",
+    ],
+    estudios: ["Revisión de estudios previos", "Receta electrónica"],
+    seguimiento:
+      "Indicaciones y recetas enviadas al portal del paciente al finalizar la videollamada.",
+  },
 ];
 
 export const SERVICIOS = [

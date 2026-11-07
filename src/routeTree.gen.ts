@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EspecialistasRouteImport } from './routes/especialistas'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
+import { Route as PanelRouteImport } from './routes/panel'
 import { Route as EspecialistasIdRouteImport } from './routes/especialistas.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -24,9 +26,19 @@ const EspecialistasRoute = EspecialistasRouteImport.update({
   path: '/especialistas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NosotrosRoute = NosotrosRouteImport.update({
   id: '/nosotros',
   path: '/nosotros',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PanelRoute = PanelRouteImport.update({
+  id: '/panel',
+  path: '/panel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EspecialistasIdRoute = EspecialistasIdRouteImport.update({
@@ -38,34 +50,61 @@ const EspecialistasIdRoute = EspecialistasIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/especialistas': typeof EspecialistasRouteWithChildren
+  '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
+  '/panel': typeof PanelRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/especialistas': typeof EspecialistasRouteWithChildren
+  '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
+  '/panel': typeof PanelRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/especialistas': typeof EspecialistasRouteWithChildren
+  '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
+  '/panel': typeof PanelRoute
   '/especialistas/$id': typeof EspecialistasIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/especialistas' | '/nosotros' | '/especialistas/$id'
+  fullPaths:
+    | '/'
+    | '/especialistas'
+    | '/login'
+    | '/nosotros'
+    | '/panel'
+    | '/especialistas/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/especialistas' | '/nosotros' | '/especialistas/$id'
-  id: '__root__' | '/' | '/especialistas' | '/nosotros' | '/especialistas/$id'
+  to:
+    | '/'
+    | '/especialistas'
+    | '/login'
+    | '/nosotros'
+    | '/panel'
+    | '/especialistas/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/especialistas'
+    | '/login'
+    | '/nosotros'
+    | '/panel'
+    | '/especialistas/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EspecialistasRoute: typeof EspecialistasRouteWithChildren
+  LoginRoute: typeof LoginRoute
   NosotrosRoute: typeof NosotrosRoute
+  PanelRoute: typeof PanelRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -84,11 +123,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EspecialistasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/nosotros': {
       id: '/nosotros'
       path: '/nosotros'
       fullPath: '/nosotros'
       preLoaderRoute: typeof NosotrosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/panel': {
+      id: '/panel'
+      path: '/panel'
+      fullPath: '/panel'
+      preLoaderRoute: typeof PanelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/especialistas/$id': {
@@ -116,7 +169,9 @@ const EspecialistasRouteWithChildren = EspecialistasRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EspecialistasRoute: EspecialistasRouteWithChildren,
+  LoginRoute: LoginRoute,
   NosotrosRoute: NosotrosRoute,
+  PanelRoute: PanelRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
