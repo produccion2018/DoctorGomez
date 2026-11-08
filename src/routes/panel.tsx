@@ -4,6 +4,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  X,
+  Menu,
   ArrowDownLeft,
   ArrowUpRight,
   Ban,
@@ -279,6 +281,7 @@ function Panel() {
   const navigate = useNavigate();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [tab, setTab] = useState<Tab>("resumen");
+  const [menu, setMenu] = useState(false);
   const [turnos, setTurnos] = usePersist<Turno[]>("gb_turnos", SEED_TURNOS);
   const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
   const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
@@ -338,6 +341,101 @@ function Panel() {
   const fechaLarga = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
+  const irTab = (t: Tab) => {
+    setTab(t);
+    setMenu(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const interiorSidebar = (
+    <>
+        <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
+        <div className="pn-orb pointer-events-none absolute -bottom-20 -left-16 size-64 rounded-full bg-sky-300/10 blur-3xl" style={{ animationDelay: "-5s" }} />
+
+        <div className="relative flex items-center justify-between gap-3 px-5 pb-2 pt-5 lg:px-6 lg:pt-6">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
+              <Activity className="size-5" />
+            </span>
+            <div className="leading-tight">
+              <p className="text-sm font-semibold">Gómez Bolaño</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-deep-foreground/65">Administración</p>
+            </div>
+          </div>
+          <button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-deep-foreground/80 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40 lg:hidden">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="relative mx-4 mt-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              {foto ? (
+                <img src={foto} alt={user.nombre} className="size-12 rounded-xl object-cover object-top ring-2 ring-white/30" />
+              ) : (
+                <span className="flex size-12 items-center justify-center rounded-xl bg-white/20 text-sm font-semibold">{iniciales(user.nombre)}</span>
+              )}
+              <span className="pn-online absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-[var(--deep)]" />
+            </div>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-semibold">{corto}</p>
+              <p className="truncate text-[11px] text-deep-foreground/70">{user.nombre.replace(/^Dr\.\s*/, "")}</p>
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em]">
+                <ShieldCheck className="size-3" /> Administrador
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p className="relative px-7 pb-2 pt-6 text-[10px] [@media(max-height:700px)]:pt-3 font-semibold uppercase tracking-[0.22em] text-deep-foreground/50">Gestión</p>
+        <nav className="pn-noscroll relative flex flex-1 flex-col gap-1.5 overflow-y-auto px-4">
+          {NAV.map((n) => {
+            const activo = tab === n.id;
+            const badge = badges[n.id];
+            return (
+              <button
+                key={n.id}
+                onClick={() => irTab(n.id)}
+                aria-current={activo ? "page" : undefined}
+                className={`group relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-white/40 ${
+                  activo
+                    ? "bg-white text-[var(--deep)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]"
+                    : "text-deep-foreground/75 hover:translate-x-1 hover:bg-white/10 hover:text-deep-foreground"
+                }`}
+              >
+                <span className={`flex size-8 items-center justify-center rounded-lg transition-colors ${activo ? "gradient-deep text-white" : "bg-white/10 text-deep-foreground group-hover:bg-white/15"}`}>
+                  <n.icon className="size-4" />
+                </span>
+                <span className="pr-1">{n.label}</span>
+                {n.id === "asistente" && !activo && (
+                  <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-2 py-0.5 text-[10px] font-bold text-white">IA</span>
+                )}
+                {!!badge && (
+                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${activo ? "bg-[var(--deep)] text-white" : "bg-white/20 text-deep-foreground"}`}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="relative space-y-3 p-4">
+          <div className="rounded-2xl bg-black/15 p-4 ring-1 ring-white/10 [@media(max-height:760px)]:hidden">
+            <p className="font-display text-2xl font-semibold tabular-nums">{hora}</p>
+            <p className="text-xs capitalize text-deep-foreground/70">{fechaLarga}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline" className="flex-1 rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
+              <Link to="/"><ExternalLink className="size-4" /> Ver sitio</Link>
+            </Button>
+            <Button size="sm" variant="outline" onClick={salir} className="flex-1 rounded-xl !border-red-300/30 !bg-red-500/15 text-deep-foreground hover:!bg-red-500/30 hover:text-deep-foreground">
+              <LogOut className="size-4" /> Salir
+            </Button>
+          </div>
+        </div>
+          </>
+  );
+
   return (
     <div className="isolate min-h-screen bg-[#f4f7fc] lg:grid lg:grid-cols-[280px_1fr]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
       <style>{`
@@ -385,98 +483,55 @@ function Panel() {
         @media (prefers-reduced-motion: reduce) { .pn-up, .pn-orb, .pn-wave, .pn-dot, .pn-bar, .pn-sheen::after, .pn-online::after, .pn-ecg, .pn-draw, .pn-area, .pn-beat, .pn-scan, .pn-pulse, .pn-ripple { animation: none; } }
       `}</style>
 
-      {/* ───────── SIDEBAR ───────── */}
-      <aside className="pn-noscroll relative overflow-hidden gradient-deep text-deep-foreground lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
-        <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
-        <div className="pn-orb pointer-events-none absolute -bottom-20 -left-16 size-64 rounded-full bg-sky-300/10 blur-3xl" style={{ animationDelay: "-5s" }} />
+      {/* ───────── SIDEBAR (escritorio) ───────── */}
+      <aside className="pn-noscroll relative hidden overflow-hidden gradient-deep text-deep-foreground lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+        {interiorSidebar}
+      </aside>
 
-        <div className="relative flex items-center justify-between gap-3 px-5 pb-2 pt-5 lg:px-6 lg:pt-6">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
-              <Activity className="size-5" />
-            </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold">Gómez Bolaño</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-deep-foreground/65">Administración</p>
-            </div>
-          </div>
-          <button onClick={salir} aria-label="Cerrar sesión" className="rounded-lg p-2 text-deep-foreground/80 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40 lg:hidden">
-            <LogOut className="size-5" />
-          </button>
+      {/* ───────── BARRA SUPERIOR (celular) ───────── */}
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 gradient-deep px-4 py-3 text-white shadow-lg lg:hidden">
+        <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="flex size-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20"><Menu className="size-5" /></button>
+        <div className="min-w-0 flex-1 leading-tight">
+          <p className="truncate text-sm font-semibold">{titulo}</p>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">Gómez Bolaño · Panel</p>
         </div>
+        {foto ? <img src={foto} alt="" className="size-10 rounded-xl object-cover object-top ring-2 ring-white/25" /> : null}
+      </div>
 
-        <div className="relative mx-4 mt-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              {foto ? (
-                <img src={foto} alt={user.nombre} className="size-12 rounded-xl object-cover object-top ring-2 ring-white/30" />
-              ) : (
-                <span className="flex size-12 items-center justify-center rounded-xl bg-white/20 text-sm font-semibold">{iniciales(user.nombre)}</span>
-              )}
-              <span className="pn-online absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-[var(--deep)]" />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-semibold">{corto}</p>
-              <p className="truncate text-[11px] text-deep-foreground/70">{user.nombre.replace(/^Dr\.\s*/, "")}</p>
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em]">
-                <ShieldCheck className="size-3" /> Administrador
-              </span>
-            </div>
-          </div>
+      {/* ───────── MENÚ LATERAL (celular) ───────── */}
+      {menu && (
+        <div className="fixed inset-0 z-[80] lg:hidden">
+          <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setMenu(false)} />
+          <aside className="pn-noscroll absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-y-auto gradient-deep text-deep-foreground shadow-2xl animate-in slide-in-from-left duration-300">
+            {interiorSidebar}
+          </aside>
         </div>
+      )}
 
-        <p className="relative hidden px-7 pb-2 pt-6 text-[10px] [@media(max-height:700px)]:pt-3 font-semibold uppercase tracking-[0.22em] text-deep-foreground/50 lg:block">Gestión</p>
-        <nav className="pn-noscroll relative flex gap-1.5 overflow-x-auto px-3 py-3 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-4 lg:py-0">
-          {NAV.map((n) => {
-            const activo = tab === n.id;
-            const badge = badges[n.id];
+      {/* ───────── NAVEGACIÓN INFERIOR (celular) ───────── */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          {([...NAV.filter((n) => ["resumen", "turnos", "pacientes", "finanzas"].includes(n.id))] as typeof NAV).map((n) => {
+            const on = tab === n.id;
+            const b = badges[n.id];
             return (
-              <button
-                key={n.id}
-                onClick={() => setTab(n.id)}
-                aria-current={activo ? "page" : undefined}
-                className={`group relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-white/40 ${
-                  activo
-                    ? "bg-white text-[var(--deep)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]"
-                    : "text-deep-foreground/75 hover:translate-x-1 hover:bg-white/10 hover:text-deep-foreground"
-                }`}
-              >
-                <span className={`flex size-8 items-center justify-center rounded-lg transition-colors ${activo ? "gradient-deep text-white" : "bg-white/10 text-deep-foreground group-hover:bg-white/15"}`}>
-                  <n.icon className="size-4" />
-                </span>
-                <span className="pr-1">{n.label}</span>
-                {n.id === "asistente" && !activo && (
-                  <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-2 py-0.5 text-[10px] font-bold text-white">IA</span>
-                )}
-                {!!badge && (
-                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${activo ? "bg-[var(--deep)] text-white" : "bg-white/20 text-deep-foreground"}`}>
-                    {badge}
-                  </span>
-                )}
+              <button key={n.id} onClick={() => irTab(n.id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-colors ${on ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
+                <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-all ${on ? "bg-[rgba(var(--acc),.12)]" : ""}`}><n.icon className="size-5" /></span>
+                {n.id === "pacientes" ? "Pacientes" : n.label}
+                {!!b && <span className="absolute right-2 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">{b}</span>}
               </button>
             );
           })}
-        </nav>
-
-        <div className="relative hidden space-y-3 p-4 lg:block">
-          <div className="rounded-2xl bg-black/15 p-4 ring-1 ring-white/10 [@media(max-height:760px)]:hidden">
-            <p className="font-display text-2xl font-semibold tabular-nums">{hora}</p>
-            <p className="text-xs capitalize text-deep-foreground/70">{fechaLarga}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button asChild size="sm" variant="outline" className="flex-1 rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
-              <Link to="/"><ExternalLink className="size-4" /> Ver sitio</Link>
-            </Button>
-            <Button size="sm" variant="outline" onClick={salir} className="flex-1 rounded-xl !border-red-300/30 !bg-red-500/15 text-deep-foreground hover:!bg-red-500/30 hover:text-deep-foreground">
-              <LogOut className="size-4" /> Salir
-            </Button>
-          </div>
+          <button onClick={() => setMenu(true)} className="flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold text-muted-foreground">
+            <span className="flex h-8 w-12 items-center justify-center rounded-full"><Menu className="size-5" /></span>
+            Más
+          </button>
         </div>
-      </aside>
+      </nav>
 
       {/* ───────── CONTENIDO ───────── */}
       <FondoModulo tab={tab} />
-      <main className="relative min-w-0 p-4 sm:p-8">
+      <main className="relative min-w-0 p-4 pb-28 sm:p-8 sm:pb-28 lg:pb-8">
         <div className="pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
           <div className="pn-orb pointer-events-none absolute -right-10 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />

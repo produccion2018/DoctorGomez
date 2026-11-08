@@ -25,6 +25,7 @@ import {
   Home,
   KeyRound,
   LogOut,
+  Menu,
   MessageCircle,
   Pill,
   Plus,
@@ -353,6 +354,7 @@ type Ctx = {
 function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePortal; onSalir: () => void; vista?: boolean }) {
   const [sec, setSec] = useState<Seccion>("inicio");
   const [campana, setCampana] = useState(false);
+  const [menu, setMenu] = useState(false);
   const [todosT, setTurnos] = useDato<TurnoClinica[]>(KEY_TURNOS, []);
   const [todasA, setAuts] = useDato<Autorizacion[]>(KEY_AUT, []);
   const [todosC, setControles] = useDato<Control[]>(KEY_CONTROLES, []);
@@ -386,6 +388,47 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
   const badge = (s: Seccion) =>
     s === "autorizaciones" ? ctx.auts.filter((a) => a.estado === "Pendiente" && a.origen === "Clínica").length : s === "pagos" ? (ctx.cobros.some((c) => saldoDe(c) > 0) ? 1 : 0) : 0;
 
+  const interiorSidebar = (
+    <>
+          <div className="flex items-center justify-between gap-2 px-6 pb-4 pt-6"><Link to="/" className="flex items-center gap-2.5">
+            <span className="flex size-10 items-center justify-center rounded-xl gradient-deep text-white shadow-lg"><Activity className="size-5" /></span>
+            <span className="leading-tight"><span className="block text-sm font-bold">Gómez Bolaño</span><span className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
+          </Link><button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-muted-foreground hover:bg-secondary lg:hidden"><X className="size-5" /></button></div>
+          <div className="mx-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-background/60 p-3 dark:bg-white/5">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-violet-600 text-sm font-bold text-white shadow-md">{iniciales}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{paciente.nombre}</p>
+              <p className="text-xs text-muted-foreground">DNI {paciente.dni}</p>
+            </div>
+          </div>
+          <nav className="pn-noscroll mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
+            {grupos.map((g) => (
+              <div key={g}>
+                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">{g}</p>
+                {SECCIONES.filter((s) => s.grupo === g).map((s) => {
+                  const on = sec === s.id;
+                  const n = badge(s.id);
+                  return (
+                    <button key={s.id} onClick={() => { ctx.ir(s.id); setMenu(false); }}
+                      className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${on ? "gradient-deep text-white shadow-[0_10px_24px_-10px_rgba(20,50,120,.8)]" : "text-muted-foreground hover:bg-secondary hover:text-foreground dark:hover:bg-white/5"}`}>
+                      <s.icon className={`size-[18px] ${on ? "" : "transition-transform group-hover:scale-110"}`} />
+                      <span className="flex-1 text-left">{s.label}</span>
+                      {n > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${on ? "bg-white/25" : "bg-amber-400 text-amber-950"}`}>{s.id === "pagos" ? "!" : n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+          <div className="space-y-2 border-t border-border/60 p-4">
+            <a href={waLink(`Hola, soy ${paciente.nombre} (DNI ${paciente.dni}). Tengo una consulta.`)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-[#25D366]/20 dark:text-emerald-300">
+              <MessageCircle className="size-4" /> Escribir a la clínica
+            </a>
+            <button onClick={onSalir} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"><LogOut className="size-4" /> Salir</button>
+          </div>
+            </>
+  );
+
   return (
     <div className="min-h-screen bg-[#f5f7fb] dark:bg-[#070d1a]">
       {/* fondo */}
@@ -404,53 +447,28 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
       )}
 
       <div className="relative lg:grid lg:grid-cols-[272px_1fr]">
-        {/* Sidebar */}
+        {/* Sidebar (escritorio) */}
         <aside className={`hidden border-r border-border/60 bg-card/70 backdrop-blur-xl lg:sticky lg:flex lg:h-screen lg:flex-col dark:bg-white/[0.03] ${vista ? "lg:top-10 lg:h-[calc(100vh-2.5rem)]" : "lg:top-0"}`}>
-          <Link to="/" className="flex items-center gap-2.5 px-6 pb-4 pt-6">
-            <span className="flex size-10 items-center justify-center rounded-xl gradient-deep text-white shadow-lg"><Activity className="size-5" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold">Gómez Bolaño</span><span className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
-          </Link>
-          <div className="mx-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-background/60 p-3 dark:bg-white/5">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-violet-600 text-sm font-bold text-white shadow-md">{iniciales}</span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{paciente.nombre}</p>
-              <p className="text-xs text-muted-foreground">DNI {paciente.dni}</p>
-            </div>
-          </div>
-          <nav className="pn-noscroll mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
-            {grupos.map((g) => (
-              <div key={g}>
-                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">{g}</p>
-                {SECCIONES.filter((s) => s.grupo === g).map((s) => {
-                  const on = sec === s.id;
-                  const n = badge(s.id);
-                  return (
-                    <button key={s.id} onClick={() => ctx.ir(s.id)}
-                      className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${on ? "gradient-deep text-white shadow-[0_10px_24px_-10px_rgba(20,50,120,.8)]" : "text-muted-foreground hover:bg-secondary hover:text-foreground dark:hover:bg-white/5"}`}>
-                      <s.icon className={`size-[18px] ${on ? "" : "transition-transform group-hover:scale-110"}`} />
-                      <span className="flex-1 text-left">{s.label}</span>
-                      {n > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${on ? "bg-white/25" : "bg-amber-400 text-amber-950"}`}>{s.id === "pagos" ? "!" : n}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-          <div className="space-y-2 border-t border-border/60 p-4">
-            <a href={waLink(`Hola, soy ${paciente.nombre} (DNI ${paciente.dni}). Tengo una consulta.`)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-[#25D366]/20 dark:text-emerald-300">
-              <MessageCircle className="size-4" /> Escribir a la clínica
-            </a>
-            <button onClick={onSalir} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"><LogOut className="size-4" /> Salir</button>
-          </div>
+          {interiorSidebar}
         </aside>
+
+        {/* Menú lateral (celular) */}
+        {menu && (
+          <div className="fixed inset-0 z-[80] lg:hidden">
+            <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setMenu(false)} />
+            <aside className="absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-y-auto bg-background shadow-2xl animate-in slide-in-from-left duration-300 dark:bg-[#0b1324]">
+              {interiorSidebar}
+            </aside>
+          </div>
+        )}
 
         <div className="min-w-0">
           {/* Barra superior */}
           <header className={`sticky z-30 border-b border-border/50 bg-background/70 backdrop-blur-xl ${vista ? "top-10" : "top-0"}`}>
             <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-8">
-              <div className="flex items-center gap-2.5 lg:hidden">
-                <span className="flex size-9 items-center justify-center rounded-xl gradient-deep text-white"><Activity className="size-4" /></span>
-                <span className="text-sm font-bold">Mi portal</span>
+              <div className="flex min-w-0 items-center gap-2.5 lg:hidden">
+                <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="flex size-10 shrink-0 items-center justify-center rounded-xl gradient-deep text-white shadow-md"><Menu className="size-5" /></button>
+                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-bold">{SECCIONES.find((x) => x.id === sec)?.label}</span><span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mi portal</span></span>
               </div>
               <p className="hidden text-sm text-muted-foreground lg:block">
                 <span className="capitalize">{new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</span>
@@ -476,16 +494,29 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                 )}
               </div>
             </div>
-            <nav className="pn-noscroll flex gap-1 overflow-x-auto px-4 pb-2 lg:hidden" style={{ scrollbarWidth: "none" }}>
-              {SECCIONES.map((s) => (
-                <button key={s.id} onClick={() => ctx.ir(s.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${sec === s.id ? "gradient-deep text-white" : "bg-secondary text-muted-foreground"}`}>
-                  <s.icon className="size-3.5" /> {s.label}
-                </button>
-              ))}
-            </nav>
+
           </header>
 
-          <main key={sec} inert={vista} className="mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-8">
+          <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
+            <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+              {SECCIONES.filter((x) => ["inicio", "turnos", "controles", "estudios"].includes(x.id)).map((x) => {
+                const on = sec === x.id;
+                return (
+                  <button key={x.id} onClick={() => ctx.ir(x.id)} className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-colors ${on ? "text-primary dark:text-sky-400" : "text-muted-foreground"}`}>
+                    <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-all ${on ? "bg-primary/10 dark:bg-sky-400/15" : ""}`}><x.icon className="size-5" /></span>
+                    {x.id === "controles" ? "Presión" : x.id === "estudios" ? "Estudios" : x.id === "turnos" ? "Turnos" : x.label}
+                  </button>
+                );
+              })}
+              <button onClick={() => setMenu(true)} className="relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold text-muted-foreground">
+                <span className="flex h-8 w-12 items-center justify-center rounded-full"><Menu className="size-5" /></span>
+                Más
+                {(badge("autorizaciones") > 0 || badge("pagos") > 0) && <span className="absolute right-3 top-1 size-2 rounded-full bg-amber-400" />}
+              </button>
+            </div>
+          </nav>
+
+          <main key={sec} inert={vista} className="mx-auto max-w-6xl px-4 pb-28 pt-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-8 lg:pb-8">
             {sec === "inicio" && <Inicio ctx={ctx} />}
             {sec === "turnos" && <Turnos ctx={ctx} />}
             {sec === "controles" && <Controles ctx={ctx} />}
