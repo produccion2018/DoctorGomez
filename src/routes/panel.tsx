@@ -287,7 +287,7 @@ function Panel() {
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="isolate min-h-screen bg-[#f4f7fc] lg:grid lg:grid-cols-[280px_1fr]">
+    <div className="isolate min-h-screen bg-[#f4f7fc] lg:grid lg:grid-cols-[280px_1fr]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
       <style>{`
         @keyframes pn-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pn-orb { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18px,-24px) scale(1.15); } }
@@ -307,9 +307,15 @@ function Panel() {
         .pn-sheen::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.18), transparent); transform: translateX(-100%); animation: pn-shine 6s ease-in-out infinite; pointer-events: none; }
         .pn-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
         .pn-noscroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
-        .pn-card { border: 1px solid transparent; -webkit-backdrop-filter: blur(14px) saturate(160%); backdrop-filter: blur(14px) saturate(160%); background: linear-gradient(color-mix(in oklab, var(--color-card) 84%, transparent), color-mix(in oklab, var(--color-card) 74%, transparent)) padding-box, linear-gradient(140deg, rgba(56,132,246,.35), rgba(148,163,184,.18) 35%, rgba(148,163,184,.12) 65%, rgba(139,92,246,.3)) border-box; transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
-        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,35,80,.04), 0 16px 40px -18px rgba(15,35,80,.18); }
-        .pn-card:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,35,80,.05), 0 28px 56px -18px rgba(30,64,175,.25); }
+        .pn-card { border: 1px solid transparent; background: linear-gradient(var(--color-card), color-mix(in oklab, var(--color-card) 96%, rgb(var(--acc))) ) padding-box, linear-gradient(160deg, rgba(var(--acc),.45), rgba(203,213,225,.7) 28%, rgba(226,232,240,.8) 72%, rgba(var(--acc),.28)) border-box; transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
+        .pn-card::before { content: ""; position: absolute; top: 0; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, transparent, rgba(var(--acc),.8), transparent); pointer-events: none; }
+        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 1px rgba(15,23,42,.04), 0 2px 6px rgba(15,23,42,.04), 0 14px 28px -10px rgba(15,23,42,.10), 0 34px 70px -30px rgba(var(--acc),.35); }
+        @keyframes pn-pulse { from { stroke-dashoffset: 1180; } to { stroke-dashoffset: 0; } }
+        .pn-pulse { stroke-dasharray: 80 1100; animation: pn-pulse 3.2s linear infinite; }
+        @keyframes pn-ripple { 0% { transform: scale(.85); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
+        .pn-ripple { animation: pn-ripple 2.4s ease-out infinite; }
+        .pn-acc-tile { background: linear-gradient(135deg, rgb(var(--acc)), rgba(var(--acc),.62)); box-shadow: 0 8px 18px -8px rgba(var(--acc),.8), inset 0 1px 0 rgba(255,255,255,.35); }
+        .pn-card:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 1px rgba(15,23,42,.05), 0 4px 10px rgba(15,23,42,.05), 0 24px 44px -14px rgba(15,23,42,.14), 0 40px 80px -30px rgba(var(--acc),.45); }
         .pn-lift:hover { transform: translateY(-4px); }
         .pn-cross { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M12 9h4v3h3v4h-3v3h-4v-3H9v-4h3z' fill='%23ffffff' fill-opacity='.06'/%3E%3C/svg%3E"); }
         .pn-cross-dark { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M12 9h4v3h3v4h-3v3h-4v-3H9v-4h3z' fill='%231e40af' fill-opacity='.045'/%3E%3C/svg%3E"); }
@@ -324,7 +330,7 @@ function Panel() {
         @keyframes pn-scan { from { transform: translateX(-30%); } to { transform: translateX(130%); } }
         .pn-scan { animation: pn-scan 3.2s linear infinite; }
         .pn-donut { transition: stroke-dasharray 1.4s cubic-bezier(.22,1,.36,1); }
-        @media (prefers-reduced-motion: reduce) { .pn-up, .pn-orb, .pn-wave, .pn-dot, .pn-bar, .pn-sheen::after, .pn-online::after, .pn-ecg, .pn-draw, .pn-area, .pn-beat, .pn-scan { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .pn-up, .pn-orb, .pn-wave, .pn-dot, .pn-bar, .pn-sheen::after, .pn-online::after, .pn-ecg, .pn-draw, .pn-area, .pn-beat, .pn-scan, .pn-pulse, .pn-ripple { animation: none; } }
       `}</style>
 
       {/* ───────── SIDEBAR ───────── */}
@@ -451,9 +457,23 @@ function Panel() {
           </div>
         </div>
 
-        <div key={tab} className="pn-up mb-6">
-          <h2 className="text-2xl font-semibold sm:text-3xl">{titulo}</h2>
-          <p className="text-sm text-muted-foreground">{subtitulo}</p>
+        <div key={tab} className="pn-up mb-7 flex flex-wrap items-end justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="pn-acc-tile flex size-12 items-center justify-center rounded-2xl text-white">
+              {(() => {
+                const I = NAV.find((n) => n.id === tab)!.icon;
+                return <I className="size-5" />;
+              })()}
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: `rgb(${FONDOS[tab].a})` }}>Panel · {titulo}</p>
+              <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">{titulo}</h2>
+              <p className="text-sm text-muted-foreground">{subtitulo}</p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs text-muted-foreground shadow-sm backdrop-blur">
+            <span className="pn-online relative size-2 rounded-full bg-emerald-500" /> Datos actualizados
+          </span>
         </div>
 
         {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
@@ -474,7 +494,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   finanzas: { a: "16,185,129", b: "14,165,233", c: "20,184,166" },
   permisos: { a: "139,92,246", b: "79,70,229", c: "56,132,246" },
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
-  auditoria: { a: "71,85,105", b: "56,132,246", c: "100,116,139" },
+  auditoria: { a: "79,70,229", b: "56,132,246", c: "100,116,139" },
 };
 
 function FondoModulo({ tab }: { tab: Tab }) {
@@ -577,13 +597,13 @@ function Seccion({
 }) {
   return (
     <section className={`pn-card pn-up p-6 ${className}`} style={{ animationDelay: `${delay}s` }}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-5">
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary ring-1 ring-primary/10">
+          <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white">
             <Icon className="size-[18px]" />
           </span>
           <div>
-            <h3 className="text-base font-semibold">{titulo}</h3>
+            <h3 className="text-[15px] font-semibold tracking-tight">{titulo}</h3>
             {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
           </div>
         </div>
@@ -626,13 +646,14 @@ function Kpi({
         </span>
       </div>
       <svg viewBox="0 0 300 36" preserveAspectRatio="none" className="relative mt-4 h-8 w-full opacity-70 transition-opacity group-hover:opacity-100" aria-hidden="true">
+        <polyline points="0,20 60,20 75,20 85,8 95,30 105,20 170,20 180,20 190,3 200,34 210,20 300,20" fill="none" stroke={TONO_HEX[tono]} strokeOpacity=".22" strokeWidth="2" strokeLinejoin="round" />
         <polyline
-          className="pn-ecg"
-          style={{ animationDelay: `${delay * 4}s`, animationDuration: "4s" }}
+          className="pn-pulse"
+          style={{ animationDelay: `${delay * 4}s`, filter: `drop-shadow(0 0 4px ${TONO_HEX[tono]})` }}
           points="0,20 60,20 75,20 85,8 95,30 105,20 170,20 180,20 190,3 200,34 210,20 300,20"
           fill="none"
           stroke={TONO_HEX[tono]}
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -659,11 +680,17 @@ function Campo({ label, children, className = "" }: { label: string; children: R
   );
 }
 
-function Vacio({ icon: Icon, texto }: { icon: LucideIcon; texto: string }) {
+function Vacio({ icon: Icon, texto, titulo, accion }: { icon: LucideIcon; texto: string; titulo?: string; accion?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-2 py-10 text-center text-sm text-muted-foreground">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-secondary"><Icon className="size-5" /></span>
-      {texto}
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <div className="relative mb-5 flex size-24 items-center justify-center">
+        <span className="pn-ripple absolute inset-0 rounded-full" style={{ background: "rgba(var(--acc),.14)" }} />
+        <span className="absolute inset-3 rounded-full" style={{ background: "rgba(var(--acc),.10)" }} />
+        <span className="pn-acc-tile relative flex size-14 items-center justify-center rounded-2xl text-white"><Icon className="size-6" /></span>
+      </div>
+      {titulo && <p className="font-semibold">{titulo}</p>}
+      <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">{texto}</p>
+      {accion && <div className="mt-5">{accion}</div>}
     </div>
   );
 }
@@ -733,7 +760,7 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
       <div className="grid gap-6 xl:grid-cols-5">
         <Seccion icon={CalendarCheck} titulo="Próximos turnos" sub="Pendientes y confirmados" delay={0.25} className="xl:col-span-3"
           acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("turnos")}>Ver agenda <ArrowUpRight className="size-4" /></Button>}>
-          {proximos.length === 0 && <Vacio icon={CalendarDays} texto="Todavía no hay turnos. Los que se reserven desde la web o se creen acá van a aparecer en esta lista." />}
+          {proximos.length === 0 && <Vacio icon={CalendarDays} titulo="Agenda libre" texto="Todavía no hay turnos. Los que se reserven desde la web o se creen acá van a aparecer en esta lista." accion={<Button onClick={() => irA("turnos")} className="rounded-xl"><Plus className="size-4" /> Crear turno</Button>} />}
           <div className="space-y-2">
             {proximos.map((t) => (
               <div key={t.id} className="flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-colors hover:border-border hover:bg-secondary/40">
@@ -754,6 +781,36 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
 
         <div className="space-y-6 xl:col-span-2">
           <Seccion icon={Activity} titulo="Estado de la agenda" sub={`${turnos.length} turnos en total`} delay={0.3}>
+            <div className="mb-5 flex items-center gap-5">
+              <div
+                className="relative size-24 shrink-0 rounded-full"
+                style={{
+                  background: turnos.length
+                    ? `conic-gradient(${(() => {
+                        const col: Record<Estado, string> = { Pendiente: "#f59e0b", Confirmado: "#0ea5e9", Atendido: "#10b981", Cancelado: "#ef4444" };
+                        let acc = 0;
+                        return conteo
+                          .map(({ e, n }) => {
+                            const a = acc;
+                            acc += (n / totalT) * 100;
+                            return `${col[e]} ${a}% ${acc}%`;
+                          })
+                          .join(",");
+                      })()})`
+                    : "conic-gradient(#e2e8f0 0 100%)",
+                }}
+              >
+                <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full bg-card shadow-inner">
+                  <span className="font-display text-2xl font-semibold leading-none">{turnos.length}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">turnos</span>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {turnos.length
+                  ? `${Math.round((conteo.find((c) => c.e === "Confirmado")!.n / totalT) * 100)}% de la agenda está confirmada.`
+                  : "Cuando haya turnos vas a ver acá cómo se reparten por estado."}
+              </p>
+            </div>
             <div className="space-y-3">
               {conteo.map(({ e, n }) => (
                 <div key={e}>
@@ -771,7 +828,7 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
 
           <Seccion icon={ClipboardList} titulo="Actividad reciente" delay={0.35}
             acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("auditoria")}>Ver todo</Button>}>
-            {audit.length === 0 && <Vacio icon={ClipboardList} texto="Todavía no hay actividad." />}
+            {audit.length === 0 && <Vacio icon={ClipboardList} titulo="Sin actividad" texto="Acá vas a ver cada acción del panel." />}
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border">
               {audit.slice(0, 5).map((e) => {
                 const { icon: I, clase } = iconoEvento(e.accion);
@@ -835,7 +892,7 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
         <form onSubmit={agregar} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <Campo label="Fecha"><input type="date" required value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} className={inp} /></Campo>
           <Campo label="Hora"><input type="time" required value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp} /></Campo>
-          <Campo label="Paciente" className="lg:col-span-2"><input required placeholder="Nombre y apellido" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
+          <Campo label="Paciente" className="lg:col-span-2"><input id="nt-paciente" required placeholder="Nombre y apellido" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
           <Campo label="Profesional" className="lg:col-span-2">
             <select value={f.doctor} onChange={(e) => setF({ ...f, doctor: e.target.value })} className={inp}>
               {ADMINS.map((a) => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
@@ -878,7 +935,13 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
             </thead>
             <tbody>
               {lista.length === 0 && (
-                <tr><td colSpan={5}><Vacio icon={CalendarDays} texto="No hay turnos con ese filtro." /></td></tr>
+                <tr><td colSpan={5}>
+                  {turnos.length === 0 ? (
+                    <Vacio icon={CalendarDays} titulo="Sin turnos todavía" texto="Creá el primero arriba o esperá las reservas que lleguen desde la web." accion={<Button variant="outline" className="rounded-xl" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); window.setTimeout(() => document.getElementById("nt-paciente")?.focus(), 400); }}><Plus className="size-4" /> Crear el primer turno</Button>} />
+                  ) : (
+                    <Vacio icon={Search} titulo="Sin resultados" texto="No hay turnos con ese filtro o búsqueda." />
+                  )}
+                </td></tr>
               )}
               {lista.map((t) => (
                 <tr key={t.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40">
@@ -1577,6 +1640,24 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
               </div>
             </div>
           ))}
+          {msgs.length === 1 && !pensando && (
+            <div className="grid gap-3 pt-2 sm:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-500">
+              {[
+                { icon: CalendarDays, t: "Agenda de hoy", q: "¿Cuántos turnos hay hoy?" },
+                { icon: Clock, t: "Pendientes", q: "¿Qué turnos están pendientes?" },
+                { icon: Wallet, t: "Finanzas", q: "¿Cómo está el balance?" },
+                { icon: KeyRound, t: "Permisos", q: "Permisos de Recepción" },
+              ].map((c) => (
+                <button key={c.t} onClick={() => enviar(c.q)} className="pn-card group flex items-center gap-3 p-4 text-left transition-transform hover:-translate-y-0.5">
+                  <span className="pn-acc-tile flex size-10 shrink-0 items-center justify-center rounded-xl text-white transition-transform group-hover:scale-110"><c.icon className="size-4" /></span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{c.t}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{c.q}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
           {pensando && (
             <div className="flex gap-3">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-sky-500 text-white"><Bot className="size-4" /></span>
