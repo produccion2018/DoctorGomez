@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -497,7 +498,8 @@ function Panel() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CampanaPanel turnos={turnos} user={user} irA={setTab} />
               <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
               </Button>
@@ -536,6 +538,117 @@ function Panel() {
         {tab === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
         {tab === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
       </main>
+    </div>
+  );
+}
+
+/* ---------- Campana de notificaciones de los doctores ---------- */
+type Notif = { id: string; titulo: string; texto: string; icon: LucideIcon; tono: Tono; tab: Tab; fecha: string };
+
+function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUser; irA: (t: Tab) => void }) {
+  const [abierta, setAbierta] = useState(false);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [auts] = useDato<Autorizacion[]>(KEY_AUT, []);
+  const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
+  const [pacientes] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [cierres] = useDato<CierreCaja[]>(KEY_CIERRES, []);
+  const [vistas, setVistas] = useDato<string[]>(`gb_notif_vistas_${user.id}`, []);
+
+  const ahora = Date.now();
+  const nombreP = (id: string) => pacientes.find((p) => p.id === id)?.nombre ?? "Paciente";
+  const items: Notif[] = [
+    ...turnos
+      .filter((t) => t.estado === "Pendiente" && (t.origen === "web" || t.origen === "portal") && t.fecha >= hoy())
+      .map((t) => ({ id: `turno-${t.id}`, titulo: `Nuevo turno ${t.origen === "portal" ? "desde el portal" : "desde la web"}`, texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora} · ${nombreCorto(t.doctor)}`, icon: CalendarCheck, tono: "azul" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${t.hora}` })),
+    ...auts
+      .filter((a) => a.estado === "Pendiente" && a.origen === "Paciente")
+      .map((a) => ({ id: `aut-${a.id}`, titulo: "Pedido de autorización", texto: `${a.paciente} · ${a.titulo}`, icon: ShieldCheck, tono: "violeta" as Tono, tab: "pacientes" as Tab, fecha: a.fecha })),
+    ...auts
+      .filter((a) => a.origen === "Clínica" && a.estado !== "Pendiente" && a.fechaRespuesta && ahora - new Date(a.fechaRespuesta).getTime() < 7 * 86400000)
+      .map((a) => ({ id: `autresp-${a.id}`, titulo: `El paciente ${a.estado === "Autorizada" ? "autorizó" : "rechazó"}`, texto: `${a.paciente} · ${a.titulo}`, icon: a.estado === "Autorizada" ? Check : Ban, tono: (a.estado === "Autorizada" ? "verde" : "rojo") as Tono, tab: "pacientes" as Tab, fecha: a.fechaRespuesta! })),
+    ...controles
+      .filter((c) => ahora - new Date(c.fecha).getTime() < 14 * 86400000)
+      .map((c) => ({ c, k: clasificarPresion(c.sistolica, c.diastolica) }))
+      .filter((x) => x.k.tono === "rojo" || x.k.tono === "critico")
+      .map(({ c, k }) => ({ id: `pa-${c.id}`, titulo: k.tono === "critico" ? "¡Crisis hipertensiva!" : "Presión alta registrada", texto: `${nombreP(c.pacienteId)} · ${c.sistolica}/${c.diastolica} mmHg`, icon: HeartPulse, tono: "rojo" as Tono, tab: "pacientes" as Tab, fecha: c.fecha })),
+    ...pacientes
+      .filter((p) => p.ultimoIngreso && p.estado === "Activo" && ahora - new Date(p.ultimoIngreso).getTime() < 2 * 86400000 && ahora - new Date(p.fecha).getTime() < 14 * 86400000)
+      .map((p) => ({ id: `ingreso-${p.id}`, titulo: "Paciente activó su portal", texto: p.nombre, icon: LogIn, tono: "verde" as Tono, tab: "pacientes" as Tab, fecha: p.ultimoIngreso! })),
+    ...cobros
+      .filter((c) => c.anulado && ahora - new Date(c.anulado.fecha).getTime() < 7 * 86400000)
+      .map((c) => ({ id: `anul-${c.id}`, titulo: "Cobro anulado", texto: `${c.paciente} · ${dinero(pagadoDe(c))} · ${c.anulado!.motivo}`, icon: Ban, tono: "rojo" as Tono, tab: "finanzas" as Tab, fecha: c.anulado!.fecha })),
+    ...cierres
+      .filter((c) => c.declarado !== c.esperado && ahora - new Date(c.creado).getTime() < 7 * 86400000)
+      .map((c) => ({ id: `caja-${c.id}`, titulo: "Diferencia de caja", texto: `${c.persona} · ${dinero(c.declarado - c.esperado)} el ${fechaCorta(c.fecha)}`, icon: Wallet, tono: "ambar" as Tono, tab: "finanzas" as Tab, fecha: c.creado })),
+  ].sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const nuevas = items.filter((n) => !vistas.includes(n.id));
+  const marcarTodas = () => setVistas((v) => Array.from(new Set([...v, ...items.map((n) => n.id)])).slice(-500));
+  const abrir = (n: Notif) => {
+    setVistas((v) => (v.includes(n.id) ? v : [...v, n.id].slice(-500)));
+    setAbierta(false);
+    irA(n.tab);
+  };
+  const TONO_N: Record<Tono, string> = {
+    azul: "bg-sky-100 text-sky-700",
+    ambar: "bg-amber-100 text-amber-700",
+    verde: "bg-emerald-100 text-emerald-700",
+    violeta: "bg-violet-100 text-violet-700",
+    rojo: "bg-rose-100 text-rose-700",
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setPos({ top: r.bottom + 10, right: Math.max(12, window.innerWidth - r.right) });
+          setAbierta((v) => !v);
+        }}
+        aria-label="Notificaciones"
+        className={`relative flex size-10 items-center justify-center rounded-xl ring-1 transition-all ${abierta ? "bg-white text-[var(--deep)] ring-white" : "bg-white/10 text-white ring-white/25 hover:bg-white/20"}`}
+      >
+        <Bell className={`size-5 ${nuevas.length ? "origin-top animate-[pn-wave_1.6s_ease-in-out_2]" : ""}`} />
+        {nuevas.length > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-[var(--deep)]">
+            {nuevas.length > 9 ? "9+" : nuevas.length}
+          </span>
+        )}
+      </button>
+      {abierta && createPortal(
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={() => setAbierta(false)} />
+          <div style={{ top: pos.top, right: pos.right }} className="fixed z-[100] w-[min(22rem,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-popover text-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <p className="font-semibold">Notificaciones {nuevas.length > 0 && <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{nuevas.length}</span>}</p>
+              {nuevas.length > 0 && <button onClick={marcarTodas} className="text-xs font-semibold text-primary hover:underline">Marcar todas como leídas</button>}
+            </div>
+            <div className="max-h-[26rem] overflow-y-auto pn-noscroll">
+              {items.length === 0 && (
+                <div className="flex flex-col items-center gap-2 px-6 py-10 text-center text-sm text-muted-foreground">
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-secondary"><Bell className="size-5" /></span>
+                  No hay novedades por ahora.
+                </div>
+              )}
+              {items.slice(0, 30).map((n) => {
+                const nueva = !vistas.includes(n.id);
+                return (
+                  <button key={n.id} onClick={() => abrir(n)} className={`flex w-full gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors last:border-0 hover:bg-secondary/60 ${nueva ? "bg-sky-50/60" : ""}`}>
+                    <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${TONO_N[n.tono]}`}><n.icon className="size-4" /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 text-sm font-semibold">{n.titulo}{nueva && <span className="size-2 rounded-full bg-sky-500" />}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{n.texto}</span>
+                      <span className="block text-[10px] text-muted-foreground/70">{fechaHora(n.fecha.length > 16 ? n.fecha : n.fecha + ":00")}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>,
+        document.body,
+      )}
     </div>
   );
 }
