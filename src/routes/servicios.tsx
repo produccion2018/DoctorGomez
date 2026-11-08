@@ -24,8 +24,8 @@ import { DOCTORS, SERVICIOS, fotoDoctor } from "@/data/clinic";
 export const Route = createFileRoute("/servicios")({
   head: () => ({
     meta: [
-      { title: "Servicios y aranceles | Clínica Gómez Bolaño" },
-      { name: "description", content: "Consultas, evaluaciones y estudios con duración y arancel. Reservá tu turno online." },
+      { title: "Servicios | Clínica Gómez Bolaño" },
+      { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reservá tu turno online." },
     ],
   }),
   component: Servicios,
@@ -59,7 +59,7 @@ function Servicios() {
       <PageHero
         kicker="Servicios"
         title={<>Consultas y estudios con <span className="text-shine italic">turno online</span></>}
-        text="Aranceles particulares de referencia. Consultá por la cobertura de tu obra social o prepaga."
+        text="Consultas y estudios de cada especialidad. El arancel y la cobertura de tu obra social o prepaga te los confirmamos al reservar."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Servicios" }]}
       />
 
@@ -105,8 +105,7 @@ function Servicios() {
                   </div>
                   <div className="flex items-center gap-5 md:gap-6">
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</span>
-                    <p className="ml-auto font-display text-2xl font-semibold tabular-nums md:w-32 md:text-right">${s.precio.toLocaleString("es-AR")}</p>
-                    <Button asChild size="sm" className="rounded-full px-4"><Link to="/turnos" search={{ doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
+                    <Button asChild size="sm" className="ml-auto rounded-full px-4"><Link to="/turnos" search={{ doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
                   </div>
                 </div>
               );

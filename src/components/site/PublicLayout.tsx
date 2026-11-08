@@ -223,7 +223,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <ul className="mt-4 space-y-2.5 text-sm text-deep-foreground/80">
               <li><Link to="/turnos" className="hover:text-white">Solicitar turno</Link></li>
               <li><Link to="/portal" className="hover:text-white">Portal del paciente</Link></li>
-              <li><Link to="/servicios" className="hover:text-white">Servicios y aranceles</Link></li>
+              <li><Link to="/servicios" className="hover:text-white">Servicios y estudios</Link></li>
               <li><Link to="/preguntas-frecuentes" className="hover:text-white">Preguntas frecuentes</Link></li>
               <li><Link to="/contacto" className="hover:text-white">Contacto</Link></li>
             </ul>

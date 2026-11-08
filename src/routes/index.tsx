@@ -572,9 +572,8 @@ function Home() {
               </div>
               <div className="flex items-center gap-4 sm:gap-6">
                 <span className="hidden rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground md:inline">{s.especialidad}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</span>
-                <p className="ml-auto font-display text-xl font-semibold tabular-nums sm:w-28 sm:text-right">${s.precio.toLocaleString("es-AR")}</p>
-                <Button asChild size="sm" variant="outline" className="rounded-full transition-all group-hover:border-transparent group-hover:bg-primary group-hover:text-primary-foreground">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground sm:w-20"><Clock className="size-3.5" /> {s.duracion} min</span>
+                <Button asChild size="sm" variant="outline" className="ml-auto rounded-full transition-all group-hover:border-transparent group-hover:bg-primary group-hover:text-primary-foreground">
                   <Link to="/turnos" search={{ doctor: s.doctorId }}>Reservar</Link>
                 </Button>
               </div>
