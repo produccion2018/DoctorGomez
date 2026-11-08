@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-provider";
 import {
   ADMINS,
   auditar,
@@ -437,7 +438,7 @@ function Panel() {
   );
 
   return (
-    <div className="isolate min-h-screen bg-[#f4f7fc] lg:grid lg:grid-cols-[280px_1fr]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
+    <div className="pn-root isolate min-h-screen bg-[#f4f7fc] text-foreground lg:grid lg:grid-cols-[280px_1fr] dark:bg-[#070d1a]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
       <style>{`
         @keyframes pn-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pn-orb { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18px,-24px) scale(1.15); } }
@@ -480,6 +481,44 @@ function Panel() {
         @keyframes pn-scan { from { transform: translateX(-30%); } to { transform: translateX(130%); } }
         .pn-scan { animation: pn-scan 3.2s linear infinite; }
         .pn-donut { transition: stroke-dasharray 1.4s cubic-bezier(.22,1,.36,1); }
+        .dark .pn-root .bg-emerald-50, .dark .pn-root .bg-emerald-100 { background-color: rgb(16 185 129 / .14); }
+        .dark .pn-root .text-emerald-700, .dark .pn-root .text-emerald-800, .dark .pn-root .text-emerald-900 { color: rgb(110 231 183); }
+        .dark .pn-root .ring-emerald-100, .dark .pn-root .ring-emerald-200 { --tw-ring-color: rgb(16 185 129 / .3); }
+        .dark .pn-root .bg-amber-50, .dark .pn-root .bg-amber-100 { background-color: rgb(245 158 11 / .14); }
+        .dark .pn-root .text-amber-700, .dark .pn-root .text-amber-800, .dark .pn-root .text-amber-900 { color: rgb(252 211 77); }
+        .dark .pn-root .ring-amber-100, .dark .pn-root .ring-amber-200 { --tw-ring-color: rgb(245 158 11 / .3); }
+        .dark .pn-root .bg-rose-50, .dark .pn-root .bg-rose-100 { background-color: rgb(244 63 94 / .14); }
+        .dark .pn-root .text-rose-700, .dark .pn-root .text-rose-800, .dark .pn-root .text-rose-900 { color: rgb(253 164 175); }
+        .dark .pn-root .ring-rose-100, .dark .pn-root .ring-rose-200 { --tw-ring-color: rgb(244 63 94 / .3); }
+        .dark .pn-root .bg-red-50, .dark .pn-root .bg-red-100 { background-color: rgb(239 68 68 / .14); }
+        .dark .pn-root .text-red-700, .dark .pn-root .text-red-800, .dark .pn-root .text-red-900 { color: rgb(252 165 165); }
+        .dark .pn-root .ring-red-100, .dark .pn-root .ring-red-200 { --tw-ring-color: rgb(239 68 68 / .3); }
+        .dark .pn-root .bg-sky-50, .dark .pn-root .bg-sky-100 { background-color: rgb(14 165 233 / .14); }
+        .dark .pn-root .text-sky-700, .dark .pn-root .text-sky-800, .dark .pn-root .text-sky-900 { color: rgb(125 211 252); }
+        .dark .pn-root .ring-sky-100, .dark .pn-root .ring-sky-200 { --tw-ring-color: rgb(14 165 233 / .3); }
+        .dark .pn-root .bg-violet-50, .dark .pn-root .bg-violet-100 { background-color: rgb(139 92 246 / .14); }
+        .dark .pn-root .text-violet-700, .dark .pn-root .text-violet-800, .dark .pn-root .text-violet-900 { color: rgb(196 181 253); }
+        .dark .pn-root .ring-violet-100, .dark .pn-root .ring-violet-200 { --tw-ring-color: rgb(139 92 246 / .3); }
+        .dark .pn-root .bg-pink-50, .dark .pn-root .bg-pink-100 { background-color: rgb(236 72 153 / .14); }
+        .dark .pn-root .text-pink-700, .dark .pn-root .text-pink-800, .dark .pn-root .text-pink-900 { color: rgb(249 168 212); }
+        .dark .pn-root .ring-pink-100, .dark .pn-root .ring-pink-200 { --tw-ring-color: rgb(236 72 153 / .3); }
+        .dark .pn-root .bg-orange-50, .dark .pn-root .bg-orange-100 { background-color: rgb(249 115 22 / .14); }
+        .dark .pn-root .text-orange-700, .dark .pn-root .text-orange-800, .dark .pn-root .text-orange-900 { color: rgb(253 186 116); }
+        .dark .pn-root .ring-orange-100, .dark .pn-root .ring-orange-200 { --tw-ring-color: rgb(249 115 22 / .3); }
+        .dark .pn-root .bg-teal-50, .dark .pn-root .bg-teal-100 { background-color: rgb(20 184 166 / .14); }
+        .dark .pn-root .text-teal-700, .dark .pn-root .text-teal-800, .dark .pn-root .text-teal-900 { color: rgb(94 234 212); }
+        .dark .pn-root .ring-teal-100, .dark .pn-root .ring-teal-200 { --tw-ring-color: rgb(20 184 166 / .3); }
+        .dark .pn-root .bg-indigo-50, .dark .pn-root .bg-indigo-100 { background-color: rgb(99 102 241 / .14); }
+        .dark .pn-root .text-indigo-700, .dark .pn-root .text-indigo-800, .dark .pn-root .text-indigo-900 { color: rgb(165 180 252); }
+        .dark .pn-root .ring-indigo-100, .dark .pn-root .ring-indigo-200 { --tw-ring-color: rgb(99 102 241 / .3); }
+        .dark .pn-root .bg-cyan-50, .dark .pn-root .bg-cyan-100 { background-color: rgb(6 182 212 / .14); }
+        .dark .pn-root .text-cyan-700, .dark .pn-root .text-cyan-800, .dark .pn-root .text-cyan-900 { color: rgb(103 232 249); }
+        .dark .pn-root .ring-cyan-100, .dark .pn-root .ring-cyan-200 { --tw-ring-color: rgb(6 182 212 / .3); }
+        .dark .pn-root .bg-slate-100 { background-color: rgb(148 163 184 / .14); }
+        .dark .pn-root .text-slate-500, .dark .pn-root .text-slate-600 { color: rgb(203 213 225); }
+        .dark .pn-root .bg-white:not(.pn-keep) { background-color: rgb(255 255 255 / .92); }
+        .dark .pn-card { background: linear-gradient(rgb(17 26 46 / .92), rgb(12 20 38 / .92)) padding-box, linear-gradient(160deg, rgba(var(--acc),.5), rgba(255,255,255,.06) 30%, rgba(255,255,255,.04) 70%, rgba(var(--acc),.3)) border-box; box-shadow: 0 20px 50px -25px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.02); }
+        .dark .pn-card::before { opacity: .6; }
         @media (prefers-reduced-motion: reduce) { .pn-up, .pn-orb, .pn-wave, .pn-dot, .pn-bar, .pn-sheen::after, .pn-online::after, .pn-ecg, .pn-draw, .pn-area, .pn-beat, .pn-scan, .pn-pulse, .pn-ripple { animation: none; } }
       `}</style>
 
@@ -554,6 +593,7 @@ function Panel() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
               <CampanaPanel turnos={turnos} user={user} irA={setTab} />
               <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
@@ -974,7 +1014,7 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
               </ul>
             </div>
           </div>
-          <Button onClick={() => irA("asistente")} className="rounded-xl !bg-white text-indigo-700 hover:!bg-white/90">
+          <Button onClick={() => irA("asistente")} className="rounded-xl !bg-white text-[#4338ca] hover:!bg-white/90">
             Hacer una consulta
           </Button>
         </div>
@@ -3278,7 +3318,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
             <p className="mt-1 text-lg font-semibold">1. Creás el acceso · 2. Le enviás la invitación por WhatsApp o email · 3. El paciente entra con su DNI y el código y saca sus turnos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-fuchsia-700 hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
+            <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-[#a21caf] hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
             <Button onClick={() => document.getElementById("inv-nombre")?.focus()} variant="outline" className="rounded-xl !border-white/30 !bg-white/10 text-white hover:!bg-white/20 hover:text-white"><Send className="size-4" /> Invitar paciente</Button>
           </div>
         </div>
