@@ -511,6 +511,9 @@ function useAvisos(ctx: Ctx) {
   const prox = proximos(ctx.turnos)[0];
   if (prox) out.push({ titulo: `Turno ${cuandoFalta(prox.fecha, prox.hora)}`, texto: `${fechaCorta(prox.fecha)} ${prox.hora} · ${doctorDePanel(prox.doctor)?.nombre ?? prox.doctor}`, icon: CalendarCheck, tono: "azul", ir: "turnos" });
   ctx.auts.filter((a) => a.estado === "Pendiente" && a.origen === "Clínica").forEach((a) => out.push({ titulo: "Autorización pendiente", texto: a.titulo, icon: ShieldCheck, tono: "ambar", ir: "autorizaciones" }));
+  ctx.auts
+    .filter((a) => a.origen === "Paciente" && a.estado !== "Pendiente" && a.fechaRespuesta && Date.now() - new Date(a.fechaRespuesta).getTime() < 7 * 86400000)
+    .forEach((a) => out.push({ titulo: a.estado === "Autorizada" ? "¡Te autorizaron!" : "Tu pedido fue rechazado", texto: a.titulo + (a.respuesta ? ` · ${a.respuesta}` : ""), icon: a.estado === "Autorizada" ? CheckCircle2 : Ban, tono: a.estado === "Autorizada" ? "verde" : "rojo", ir: "autorizaciones" }));
   const saldo = ctx.cobros.reduce((a, c) => a + saldoDe(c), 0);
   if (saldo > 0) out.push({ titulo: "Tenés un saldo pendiente", texto: ars(saldo), icon: Wallet, tono: "naranja", ir: "pagos" });
   const ahora = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
@@ -1483,11 +1486,45 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
           ))}
         </div>
       </Tarjeta>
-      {resto.length > 0 && (
+      {ctx.auts.some((a) => a.origen === "Paciente") && (
+        <Tarjeta>
+          <Subtitulo icon={ShieldCheck}>Tus pedidos a la clínica</Subtitulo>
+          <div className="space-y-3">
+            {ctx.auts.filter((a) => a.origen === "Paciente").map((a) => (
+              <div key={a.id} className={`rounded-2xl p-4 ring-1 ${a.estado === "Autorizada" ? TONO.verde : a.estado === "Rechazada" ? TONO.rojo : "bg-secondary/40 ring-border dark:bg-white/[0.03] dark:ring-white/10"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{a.titulo}</p>
+                    <p className="text-xs text-muted-foreground">{a.tipo} · pedido el {new Date(a.fecha).toLocaleDateString("es-AR")}</p>
+                  </div>
+                  <Pastilla tono={a.estado === "Autorizada" ? "verde" : a.estado === "Rechazada" ? "rojo" : "ambar"}>
+                    {a.estado === "Autorizada" ? <><CheckCircle2 className="size-3.5" /> Autorizada</> : a.estado === "Rechazada" ? <><Ban className="size-3.5" /> Rechazada</> : <><Clock className="size-3.5" /> En revisión</>}
+                  </Pastilla>
+                </div>
+                {/* Línea de tiempo del pedido */}
+                <div className="mt-3 flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                  <span className="flex items-center gap-1"><Check className="size-3 text-emerald-500" /> Enviado</span>
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="flex items-center gap-1"><Check className="size-3 text-emerald-500" /> Recibido por la clínica</span>
+                  <span className="h-px flex-1 bg-border" />
+                  <span className={`flex items-center gap-1 ${a.estado === "Pendiente" ? "opacity-50" : ""}`}>{a.estado === "Pendiente" ? <Clock className="size-3" /> : <Check className="size-3 text-emerald-500" />} Respondido</span>
+                </div>
+                {a.estado !== "Pendiente" && (
+                  <p className="mt-3 rounded-xl bg-background/70 px-3 py-2 text-sm text-foreground dark:bg-white/5">
+                    <b>{a.respondidoPor ?? "La clínica"}</b>{a.fechaRespuesta ? ` · ${new Date(a.fechaRespuesta).toLocaleDateString("es-AR")}` : ""}{a.respuesta ? `: ${a.respuesta}` : a.estado === "Autorizada" ? ": autorizado." : ": no autorizado."}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Tarjeta>
+      )}
+
+      {resto.filter((a) => a.origen !== "Paciente").length > 0 && (
         <Tarjeta>
           <Subtitulo icon={Clock}>Historial</Subtitulo>
           <div className="space-y-3">
-            {resto.map((a) => (
+            {resto.filter((a) => a.origen !== "Paciente").map((a) => (
               <div key={a.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/70 p-4 dark:border-white/10">
                 <div className="min-w-0"><p className="font-medium">{a.titulo}</p><p className="text-xs text-muted-foreground">{a.tipo} · {a.origen === "Paciente" ? "Pedida por vos" : `Pedida por ${a.solicitadoPor}`}</p>{a.respuesta && <p className="mt-1 text-xs"><b>Respuesta de la clínica:</b> {a.respuesta}</p>}</div>
                 <Pastilla tono={TONO_A[a.estado]}>{a.estado === "Pendiente" ? "En revisión" : a.estado}</Pastilla>

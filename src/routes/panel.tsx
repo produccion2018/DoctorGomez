@@ -6,6 +6,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Ban,
+  Bell,
   Bot,
   Building2,
   CalendarCheck,
@@ -57,6 +58,7 @@ import {
   leerAuditoria,
   sesionActual,
   useDato,
+  leerDato,
   agendaDe,
   horariosDelDia,
   atiendeEl,
@@ -330,7 +332,8 @@ function Panel() {
   const corto = nombreCorto(user.nombre);
   const pendientes = turnos.filter((t) => t.estado === "Pendiente").length;
   const eventosHoy = audit.filter((e) => new Date(e.fecha).toDateString() === new Date().toDateString()).length;
-  const badges: Partial<Record<Tab, number>> = { turnos: pendientes, auditoria: eventosHoy };
+  const pedidosPacientes = leerDato<Autorizacion[]>(KEY_AUT, []).filter((x) => x.estado === "Pendiente" && x.origen === "Paciente").length;
+  const badges: Partial<Record<Tab, number>> = { turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy };
   const fechaLarga = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
@@ -3008,7 +3011,9 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
   const [respuesta, setRespuesta] = useState<Record<string, string>>({});
 
   const lista = pacientes.filter((p) => norm(`${p.nombre} ${p.dni} ${p.email}`).includes(norm(q)));
-  const autsLista = auts.filter((a) => (verAut === "pendientes" ? a.estado === "Pendiente" : a.estado !== "Pendiente"));
+  const autsLista = auts
+    .filter((a) => (verAut === "pendientes" ? a.estado === "Pendiente" : a.estado !== "Pendiente"))
+    .sort((x, y) => Number(y.origen === "Paciente") - Number(x.origen === "Paciente") || y.fecha.localeCompare(x.fecha));
 
   const invitar = (e: FormEvent) => {
     e.preventDefault();
@@ -3228,6 +3233,9 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                 </div>
                 {a.detalle && <p className="mt-2 text-sm text-muted-foreground">{a.detalle}</p>}
                 {a.respuesta && <p className="mt-2 rounded-xl bg-secondary/60 px-3 py-2 text-xs"><b>Respuesta:</b> {a.respuesta}</p>}
+                {a.estado === "Pendiente" && a.origen === "Paciente" && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-semibold text-pink-700 ring-1 ring-pink-100"><Bell className="size-3" /> Pedido del paciente desde su portal: respondé acá</p>
+                )}
                 {a.estado === "Pendiente" && a.origen === "Paciente" && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     <input placeholder="Comentario (opcional)" value={respuesta[a.id] ?? ""} onChange={(e) => setRespuesta({ ...respuesta, [a.id]: e.target.value })} className={inp + " h-9 flex-1"} />
