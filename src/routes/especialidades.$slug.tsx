@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import type { LucideIcon } from "lucide-react";
 import { ArrowRight, CalendarPlus, CheckCircle2, Clock, FlaskConical, HeartPulse, MessageCircle, Stethoscope, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
@@ -19,6 +21,72 @@ export const Route = createFileRoute("/especialidades/$slug")({
   component: Detalle,
 });
 
+type Bloque = { icon: LucideIcon; titulo: string; sub: string; items: readonly string[]; color: string; glow: string; dot: string };
+
+/* Panel con pestañas animadas: Qué abordamos / Cuándo consultar / Estudios */
+function BloquesInfo({ bloques }: { bloques: Bloque[] }) {
+  const [act, setAct] = useState(0);
+  const b = bloques[act]!;
+  return (
+    <div data-reveal className="relative overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-2 text-white shadow-[0_50px_100px_-50px_rgba(10,25,70,.9)] ring-1 ring-white/10">
+      {/* brillo que cambia de color según la pestaña */}
+      <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full blur-3xl transition-all duration-700" style={{ background: b.glow }} />
+      <div className="pointer-events-none absolute -bottom-32 -left-20 size-72 rounded-full bg-sky-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-grid opacity-20 [mask-image:radial-gradient(ellipse_at_top_right,#000_15%,transparent_70%)]" />
+
+      {/* Pestañas */}
+      <div role="tablist" className="relative grid grid-cols-3 gap-1 rounded-[1.6rem] bg-white/5 p-1.5 ring-1 ring-white/10">
+        {bloques.map((x, i) => {
+          const on = i === act;
+          return (
+            <button
+              key={x.titulo}
+              role="tab"
+              aria-selected={on}
+              onClick={() => setAct(i)}
+              onMouseEnter={() => setAct(i)}
+              className={`group relative flex flex-col items-center gap-2 rounded-[1.25rem] px-2 py-3.5 text-center transition-all duration-500 sm:flex-row sm:gap-3 sm:px-4 sm:text-left ${on ? "bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,.12)]" : "hover:bg-white/5"}`}
+            >
+              <span
+                className={`flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${x.color} transition-all duration-500 ${on ? "scale-110" : "opacity-60 grayscale-[40%] group-hover:opacity-100"}`}
+                style={on ? { boxShadow: `0 12px 30px -8px ${x.glow}` } : undefined}
+              >
+                <x.icon className={`size-5 ${on ? "animate-pulse" : ""}`} />
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-xs font-semibold transition-colors sm:text-sm ${on ? "text-white" : "text-white/55"}`}>{x.titulo}</span>
+                <span className="hidden text-[11px] text-white/40 sm:block">{x.items.length} ítems</span>
+              </span>
+              {on && <span className={`absolute inset-x-6 -bottom-px h-0.5 rounded-full bg-gradient-to-r ${x.color} animate-in fade-in zoom-in-50 duration-500`} />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Contenido */}
+      <div key={act} className="relative px-5 pb-6 pt-7 sm:px-8 sm:pb-8">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <h2 className="font-display text-2xl text-white sm:text-3xl">{b.titulo}</h2>
+          <p className="mt-1 text-sm text-white/55">{b.sub}</p>
+        </div>
+        <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+          {b.items.map((it, i) => (
+            <li
+              key={it}
+              style={{ animationDelay: `${120 + i * 70}ms`, animationFillMode: "both" }}
+              className="group flex items-center gap-3 rounded-2xl bg-white/[0.04] px-4 py-3.5 ring-1 ring-white/10 transition-all duration-300 animate-in fade-in slide-in-from-bottom-3 hover:-translate-y-0.5 hover:bg-white/[0.09] hover:ring-white/25"
+            >
+              <span className="font-display text-xs tabular-nums text-white/35">{String(i + 1).padStart(2, "0")}</span>
+              <CheckCircle2 className={`size-[18px] shrink-0 ${b.dot} transition-transform duration-300 group-hover:scale-125`} />
+              <span className="text-sm leading-snug text-white/85">{it}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function Detalle() {
   const esp = Route.useLoaderData();
   useReveal(esp.slug);
@@ -28,9 +96,9 @@ function Detalle() {
   const otras = ESPECIALIDADES.filter((e) => e.slug !== esp.slug).slice(0, 4);
 
   const bloques = [
-    { icon: Target, titulo: "Qué abordamos", items: esp.aborda, color: "from-sky-500 to-blue-700" },
-    { icon: HeartPulse, titulo: "Cuándo consultar", items: esp.cuando, color: "from-rose-500 to-red-600" },
-    { icon: FlaskConical, titulo: "Estudios", items: esp.estudios, color: "from-emerald-400 to-teal-600" },
+    { icon: Target, titulo: "Qué abordamos", sub: "Enfermedades y situaciones que tratamos", items: esp.aborda, color: "from-sky-500 to-blue-700", glow: "rgba(56,189,248,.55)", dot: "text-sky-400" },
+    { icon: HeartPulse, titulo: "Cuándo consultar", sub: "Señales para pedir un turno", items: esp.cuando, color: "from-rose-500 to-red-600", glow: "rgba(244,63,94,.55)", dot: "text-rose-400" },
+    { icon: FlaskConical, titulo: "Estudios", sub: "Estudios que podés hacer en la clínica", items: esp.estudios, color: "from-emerald-400 to-teal-600", glow: "rgba(16,185,129,.55)", dot: "text-emerald-400" },
   ];
 
   return (
@@ -62,19 +130,7 @@ function Detalle() {
             </div>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-3">
-            {bloques.map((b, i) => (
-              <div key={b.titulo} data-reveal style={{ transitionDelay: `${i * 90}ms` }} className="card-lift rounded-3xl border border-border bg-card p-6 shadow-card">
-                <span className={`flex size-11 items-center justify-center rounded-xl bg-gradient-to-br ${b.color} text-white shadow-md`}><b.icon className="size-5" /></span>
-                <h2 className="mt-4 font-sans text-base font-semibold">{b.titulo}</h2>
-                <ul className="mt-3 space-y-2">
-                  {b.items.map((it) => (
-                    <li key={it} className="flex gap-2 text-sm text-muted-foreground"><CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--clinic)]" /> {it}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <BloquesInfo bloques={bloques} />
 
           <div data-reveal className="rounded-3xl border border-border bg-secondary/50 p-7">
             <h2 className="flex items-center gap-2 font-sans text-base font-semibold"><Clock className="size-5 text-primary" /> Seguimiento</h2>
