@@ -2875,6 +2875,14 @@ const ESTADO_AUT: Record<EstadoAut, string> = {
   Rechazada: "bg-rose-100 text-rose-700 ring-rose-200",
 };
 
+function verPortal(id: string) {
+  window.open(`/portal?vista=${encodeURIComponent(id)}`, "_blank", "noopener");
+}
+
+function mailInvitacion(p: PacientePortal) {
+  return `mailto:${p.email}?subject=${encodeURIComponent("Tu acceso al Portal del paciente · Clínica Gómez Bolaño")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
+}
+
 function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; turnos: Turno[] }) {
   const [pacientes, setPacientes] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
   const [auts, setAuts] = useDato<Autorizacion[]>(KEY_AUT, []);
@@ -2975,6 +2983,20 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
         <Kpi icon={ShieldCheck} label="Autorizaciones" value={String(autPend)} hint="Pendientes" tono="violeta" delay={0.2} />
       </div>
 
+      <div className="pn-up pn-sheen relative overflow-hidden rounded-[1.25rem] bg-gradient-to-br from-pink-600 via-fuchsia-700 to-violet-700 p-6 text-white shadow-elevated sm:p-7">
+        <div className="pn-cross pointer-events-none absolute inset-0" />
+        <div className="relative flex flex-wrap items-center justify-between gap-5">
+          <div className="max-w-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Cómo funciona</p>
+            <p className="mt-1 text-lg font-semibold">1. Creás el acceso · 2. Le enviás la invitación por WhatsApp o email · 3. El paciente entra con su DNI y el código y saca sus turnos.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-fuchsia-700 hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
+            <Button onClick={() => document.getElementById("inv-nombre")?.focus()} variant="outline" className="rounded-xl !border-white/30 !bg-white/10 text-white hover:!bg-white/20 hover:text-white"><Send className="size-4" /> Invitar paciente</Button>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-5">
         <Seccion icon={Send} titulo="Enviar acceso al portal" sub="El paciente recibe un código para entrar y sacar sus turnos" className="xl:col-span-2" delay={0.1}>
           {recien ? (
@@ -2989,18 +3011,22 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                   <a href={waPaciente(recien.telefono, mensajeInvitacion(recien))} target="_blank" rel="noreferrer"><Send className="size-4" /> Enviar por WhatsApp</a>
                 </Button>
                 <Button variant="outline" className="rounded-xl" onClick={() => copiar(mensajeInvitacion(recien))}><ClipboardList className="size-4" /> Copiar mensaje</Button>
+                {recien.email && (
+                  <Button asChild variant="outline" className="rounded-xl"><a href={mailInvitacion(recien)}><Send className="size-4" /> Enviar por email</a></Button>
+                )}
+                <Button variant="outline" className="rounded-xl" onClick={() => verPortal(recien.id)}><Eye className="size-4" /> Ver su portal</Button>
               </div>
               <Button variant="ghost" className="w-full rounded-xl" onClick={() => setRecien(null)}><Plus className="size-4" /> Invitar a otro paciente</Button>
             </div>
           ) : (
             <form onSubmit={invitar} className="space-y-4">
-              <Campo label="Nombre y apellido"><input required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
+              <Campo label="Nombre y apellido"><input id="inv-nombre" required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="DNI"><input required inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
                 <Campo label="WhatsApp"><input required type="tel" placeholder="11 1234-5678" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
               </div>
               <Campo label="Email (opcional)"><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></Campo>
-              <Button type="submit" className="h-11 w-full rounded-xl"><Send className="size-4" /> Crear acceso</Button>
+              <Button type="submit" className="h-11 w-full rounded-xl"><Send className="size-4" /> Crear acceso y enviar invitación</Button>
             </form>
           )}
         </Seccion>
@@ -3022,7 +3048,9 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                     <span className="rounded-lg bg-secondary px-2.5 py-1 font-mono text-sm tracking-widest">{p.codigo}</span>
                   </div>
                   <div className="mt-2.5 flex flex-wrap gap-1.5 pl-[52px]">
-                    <a href={waPaciente(p.telefono, mensajeInvitacion(p))} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
+                    <a href={waPaciente(p.telefono, mensajeInvitacion(p))} target="_blank" rel="noreferrer" onClick={() => log("Invitación enviada", `${p.nombre} · WhatsApp`)} className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#1ebe5b]"><Send className="size-3" /> Enviar invitación</a>
+                    {p.email && <a href={mailInvitacion(p)} onClick={() => log("Invitación enviada", `${p.nombre} · email`)} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100">Email</a>}
+                    <button onClick={() => verPortal(p.id)} className="inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100"><Eye className="size-3" /> Ver su portal</button>
                     <button onClick={() => copiar(mensajeInvitacion(p))} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Copiar</button>
                     <button onClick={() => cambiarPaciente(p.id, { codigo: nuevoCodigo() }, "Nuevo código de portal")} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Nuevo código</button>
                     {p.estado === "Revocado" ? (

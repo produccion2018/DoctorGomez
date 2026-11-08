@@ -51,6 +51,7 @@ import {
   nuevoId,
   proximosDias,
   resumenAgenda,
+  sesionActual,
   useDato,
   type Agendas,
   type Autorizacion,
@@ -107,14 +108,33 @@ const ESTADO_A: Record<Autorizacion["estado"], string> = {
 function Portal() {
   const [montado, setMontado] = useState(false);
   const [sesion, setSesion] = useState<string | null>(null);
+  const [vista, setVista] = useState<string | null>(null);
   const [pacientes] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
 
   useEffect(() => {
     setSesion(localStorage.getItem(KEY_SESION_PACIENTE));
+    // Vista previa: solo si hay un doctor con sesión iniciada en el panel
+    const v = new URLSearchParams(window.location.search).get("vista");
+    if (v && sesionActual()) setVista(v);
     setMontado(true);
   }, []);
 
   if (!montado) return <div className="min-h-screen bg-background" />;
+  if (vista) {
+    const real = pacientes.find((p) => p.id === vista);
+    const ejemplo: PacientePortal = {
+      id: "__ejemplo",
+      nombre: "Paciente de ejemplo",
+      dni: "30123456",
+      telefono: "11 5555-0000",
+      email: "paciente@ejemplo.com",
+      codigo: "000000",
+      estado: "Activo",
+      invitadoPor: "",
+      fecha: new Date().toISOString(),
+    };
+    return <Interior paciente={real ?? ejemplo} vista onSalir={() => window.close()} />;
+  }
   const paciente = pacientes.find((p) => p.id === sesion && p.estado !== "Revocado");
   if (!paciente) return <Login onOk={(id) => setSesion(id)} />;
   return (
@@ -216,7 +236,7 @@ type Ctx = {
   ir: (s: Seccion) => void;
 };
 
-function Interior({ paciente, onSalir }: { paciente: PacientePortal; onSalir: () => void }) {
+function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePortal; onSalir: () => void; vista?: boolean }) {
   const [sec, setSec] = useState<Seccion>("inicio");
   const [todos, setTodos] = useDato<TurnoClinica[]>(KEY_TURNOS, []);
   const [autsTodas, setAuts] = useDato<Autorizacion[]>(KEY_AUT, []);
@@ -227,7 +247,14 @@ function Interior({ paciente, onSalir }: { paciente: PacientePortal; onSalir: ()
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,rgba(56,132,246,.12),transparent_55%),radial-gradient(ellipse_at_bottom_left,rgba(219,39,119,.06),transparent_50%)] bg-secondary/30">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+      {vista && (
+        <div className="sticky top-0 z-40 bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 text-center text-sm font-semibold text-amber-950 shadow">
+          <Eye className="mr-1.5 inline size-4 -translate-y-px" />
+          Vista previa del portal {paciente.id === "__ejemplo" ? "con un paciente de ejemplo" : `de ${paciente.nombre}`}. Podés recorrerlo, pero no se guarda nada.
+          <button onClick={onSalir} className="ml-3 rounded-lg bg-amber-950/10 px-2.5 py-0.5 text-xs hover:bg-amber-950/20">Cerrar vista</button>
+        </div>
+      )}
+      <header className={`sticky ${vista ? "top-10" : "top-0"} z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl`}>
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 lg:px-6">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-9 items-center justify-center rounded-xl gradient-deep text-white"><Activity className="size-4" /></span>
@@ -249,7 +276,7 @@ function Interior({ paciente, onSalir }: { paciente: PacientePortal; onSalir: ()
         </nav>
       </header>
 
-      <main key={sec} className="mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-6">
+      <main key={sec} inert={vista} className="mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-6">
         {sec === "inicio" && <Inicio ctx={ctx} />}
         {sec === "turnos" && <Turnos ctx={ctx} />}
         {sec === "pagos" && <Pagos ctx={ctx} />}
