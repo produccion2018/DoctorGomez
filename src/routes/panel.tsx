@@ -58,6 +58,7 @@ import {
   useDato,
   agendaDe,
   horariosDelDia,
+  atiendeEl,
   proximosDias,
   resumenAgenda,
   nuevoCodigo,
@@ -895,7 +896,22 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
 
 /* ---------- Turnos ---------- */
 function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn }) {
-  const [f, setF] = useState({ fecha: hoy(), hora: "09:00", paciente: "", doctor: ADMINS[0]!.nombre, motivo: "" });
+  const [f, setF] = useState({ fecha: hoy(), hora: "", paciente: "", telefono: "", doctor: ADMINS[0]!.nombre, motivo: "" });
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const [otraHora, setOtraHora] = useState(false);
+  const adminSel = ADMINS.find((a) => a.nombre === f.doctor) ?? ADMINS[0]!;
+  const agendaSel = agendaDe(agendas, adminSel.id);
+  const diasRapidos = Array.from({ length: 10 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return isoDe(d);
+  });
+  const atiende = atiendeEl(agendaSel, f.fecha);
+  const slots = horariosDelDia(agendaSel).map((h) => ({
+    h,
+    ocupado: turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === h && t.estado !== "Cancelado"),
+  }));
+  const MOTIVOS = ["Consulta", "Control", "Primera vez", "Ecocardiograma", "Electrocardiograma", "Lectura de estudios"];
   const [filtro, setFiltro] = useState<"Todos" | Estado>("Todos");
   const [q, setQ] = useState("");
 
@@ -910,11 +926,29 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
 
   const agregar = (e: FormEvent) => {
     e.preventDefault();
-    const nuevo: Turno = { id: uid(), ...f, paciente: f.paciente.trim(), motivo: f.motivo.trim(), estado: "Pendiente", origen: "panel" };
+    if (!f.hora) {
+      toast.error("Elegí un horario.");
+      return;
+    }
+    if (turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === f.hora && t.estado !== "Cancelado")) {
+      toast.error("Ese horario ya está ocupado para ese profesional.");
+      return;
+    }
+    const nuevo: Turno = {
+      id: uid(),
+      fecha: f.fecha,
+      hora: f.hora,
+      paciente: f.paciente.trim(),
+      doctor: f.doctor,
+      motivo: f.motivo.trim(),
+      estado: "Pendiente",
+      origen: "panel",
+      ...(f.telefono.trim() ? { telefono: f.telefono.trim() } : {}),
+    };
     setTurnos((p) => [...p, nuevo]);
     log("Turno creado", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${nuevo.hora} · ${nuevo.doctor}`);
     toast.success("Turno creado.");
-    setF({ ...f, paciente: "", motivo: "" });
+    setF({ ...f, hora: "", paciente: "", telefono: "", motivo: "" });
   };
 
   const cambiarEstado = (t: Turno, estado: Estado) => {
@@ -931,20 +965,139 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
 
   return (
     <div className="space-y-6">
-      <Seccion icon={Plus} titulo="Nuevo turno" sub="Se crea como pendiente hasta confirmarlo">
-        <form onSubmit={agregar} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <Campo label="Fecha"><input type="date" required value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} className={inp} /></Campo>
-          <Campo label="Hora"><input type="time" required value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp} /></Campo>
-          <Campo label="Paciente" className="lg:col-span-2"><input id="nt-paciente" required placeholder="Nombre y apellido" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
-          <Campo label="Profesional" className="lg:col-span-2">
-            <select value={f.doctor} onChange={(e) => setF({ ...f, doctor: e.target.value })} className={inp}>
-              {ADMINS.map((a) => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Motivo de la consulta" className="sm:col-span-2 lg:col-span-5"><input required placeholder="Ej: control cardiológico" value={f.motivo} onChange={(e) => setF({ ...f, motivo: e.target.value })} className={inp} /></Campo>
-          <div className="flex items-end"><Button type="submit" className="h-11 w-full rounded-xl"><Plus className="size-4" /> Crear turno</Button></div>
+      <section className="pn-card pn-up overflow-hidden">
+        <form onSubmit={agregar} className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0 space-y-6 p-6 sm:p-7">
+            <div className="flex items-center gap-3">
+              <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarCheck className="size-5" /></span>
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight">Nuevo turno</h3>
+                <p className="text-xs text-muted-foreground">Elegí profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
+              </div>
+            </div>
+
+            {/* 1. Profesional */}
+            <div>
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">1</span> Profesional</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {ADMINS.map((a) => {
+                  const on = f.doctor === a.nombre;
+                  const ag = agendaDe(agendas, a.id);
+                  const foto = fotoDe(a.id);
+                  return (
+                    <button key={a.id} type="button" onClick={() => setF({ ...f, doctor: a.nombre, hora: "" })}
+                      className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-300 ${on ? "border-transparent bg-[rgba(var(--acc),.07)] shadow-md ring-2 ring-[rgba(var(--acc),.55)]" : "border-border hover:border-[rgba(var(--acc),.4)] hover:bg-secondary/40"}`}>
+                      {foto && <img src={foto} alt="" className="size-12 rounded-xl object-cover object-top" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{a.nombre}</span>
+                        <span className="block truncate text-[11px] text-muted-foreground">{resumenAgenda(ag)}</span>
+                      </span>
+                      {on && <Check className="size-5 shrink-0" style={{ color: `rgb(var(--acc))` }} />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 2. Día */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">2</span> Día</p>
+                <input type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value, hora: "" })} className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus:border-primary" />
+              </div>
+              <div className="pn-noscroll flex gap-2 overflow-x-auto pb-1">
+                {diasRapidos.map((d) => {
+                  const fecha = new Date(d + "T12:00:00");
+                  const on = f.fecha === d;
+                  const abre = atiendeEl(agendaSel, d);
+                  return (
+                    <button key={d} type="button" onClick={() => setF({ ...f, fecha: d, hora: "" })}
+                      className={`relative flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 transition-all duration-300 ${on ? "pn-acc-tile border-transparent text-white" : abre ? "border-border bg-card hover:border-[rgba(var(--acc),.45)]" : "border-dashed border-border bg-secondary/40 text-muted-foreground/60"}`}>
+                      <span className="text-[10px] font-semibold uppercase opacity-80">{d === hoy() ? "Hoy" : fecha.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                      <span className="font-display text-xl font-semibold leading-tight">{fecha.getDate()}</span>
+                      <span className={`mt-0.5 size-1.5 rounded-full ${abre ? (on ? "bg-white" : "bg-emerald-500") : "bg-slate-300"}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Horario */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">3</span> Horario</p>
+                <button type="button" onClick={() => setOtraHora((v) => !v)} className="text-xs font-semibold hover:underline" style={{ color: `rgb(var(--acc))` }}>{otraHora ? "Ver horarios de la agenda" : "Otro horario (sobreturno)"}</button>
+              </div>
+              {otraHora ? (
+                <input type="time" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp + " sm:w-48"} />
+              ) : !atiende ? (
+                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elegí otro día o usá "Otro horario".</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
+                  {slots.map(({ h, ocupado }) => (
+                    <button key={h} type="button" disabled={ocupado} onClick={() => setF({ ...f, hora: h })}
+                      className={`rounded-xl border py-2 text-sm font-semibold tabular-nums transition-all duration-200 ${ocupado ? "cursor-not-allowed border-border bg-secondary/40 text-muted-foreground/40 line-through" : f.hora === h ? "pn-acc-tile scale-105 border-transparent text-white" : "border-border bg-card hover:border-[rgba(var(--acc),.5)]"}`}>
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 4. Paciente */}
+            <div>
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">4</span> Paciente y motivo</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="relative">
+                  <Users className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input id="nt-paciente" required placeholder="Nombre y apellido" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp + " pl-10"} />
+                </div>
+                <div className="relative">
+                  <Send className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input type="tel" placeholder="WhatsApp (opcional)" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp + " pl-10"} />
+                </div>
+                <div className="relative sm:col-span-2">
+                  <Stethoscope className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input required placeholder="Motivo de la consulta" value={f.motivo} onChange={(e) => setF({ ...f, motivo: e.target.value })} className={inp + " pl-10"} />
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {MOTIVOS.map((m) => (
+                  <button key={m} type="button" onClick={() => setF({ ...f, motivo: m })} className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${f.motivo === m ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Resumen */}
+          <aside className="relative flex flex-col justify-between gap-6 overflow-hidden gradient-deep p-6 text-white sm:p-7">
+            <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-24 h-10 w-full text-sky-300/30" aria-hidden="true">
+              <polyline className="pn-ecg" points="0,20 70,20 85,20 95,6 105,34 115,20 190,20 200,20 210,2 220,38 230,20 300,20" fill="none" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            <div className="relative space-y-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Resumen del turno</p>
+              <div className="flex items-center gap-3">
+                {fotoDe(adminSel.id) && <img src={fotoDe(adminSel.id)!} alt="" className="size-12 rounded-xl object-cover object-top ring-2 ring-white/25" />}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{nombreCorto(adminSel.nombre)}</p>
+                  <p className="text-xs text-white/65">{agendaSel.consultorio}</p>
+                </div>
+              </div>
+              <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
+                <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</span></p>
+                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elegí un horario</span>}</p>
+                <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
+                <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
+              </div>
+              {atiende && !otraHora && <p className="text-xs text-white/60">{slots.filter((x) => !x.ocupado).length} horarios libres este día</p>}
+            </div>
+            <Button type="submit" className="relative h-12 w-full rounded-xl !bg-white text-[var(--deep)] shadow-lg hover:!bg-white/90">
+              <Plus className="size-4" /> Crear turno
+            </Button>
+          </aside>
         </form>
-      </Seccion>
+      </section>
 
       <Seccion icon={CalendarDays} titulo="Agenda" sub={`${lista.length} turno${lista.length === 1 ? "" : "s"}`} delay={0.08}
         acciones={
