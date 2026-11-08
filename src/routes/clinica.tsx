@@ -83,9 +83,9 @@ function Clinica() {
             <span className="text-xs font-semibold uppercase tracking-[0.22em] text-clinic">Tecnología</span>
             <h2 className="mt-3 text-3xl sm:text-4xl">Equipamiento y servicios</h2>
           </div>
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
             {EQUIPAMIENTO.map((e, i) => (
-              <div key={e.t} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }} className="card-lift group rounded-3xl border border-border bg-card p-7 shadow-card">
+              <div key={e.t} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }} className="group relative border-t border-border pt-8 transition-colors hover:border-[var(--clinic)]">
                 <span className="flex size-12 items-center justify-center rounded-2xl bg-secondary text-primary transition-all duration-500 group-hover:bg-gradient-to-br group-hover:from-[var(--clinic)] group-hover:to-[var(--deep)] group-hover:text-white">
                   <e.icon className="size-5" />
                 </span>

@@ -80,38 +80,39 @@ function Servicios() {
 
         {lista.length === 0 && <p className="py-20 text-center text-muted-foreground">No hay servicios con esa búsqueda.</p>}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {lista.map((s, i) => {
-            const Icon = ICONOS[s.icono] ?? Stethoscope;
-            const doc = DOCTORS.find((d) => d.id === s.doctorId);
-            return (
-              <div key={s.id} data-reveal style={{ transitionDelay: `${(i % 3) * 80}ms` }} className="card-lift group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-card">
-                <div className="pointer-events-none absolute -right-12 -top-12 size-40 rounded-full bg-[var(--clinic)]/10 blur-2xl transition-transform duration-700 group-hover:scale-150" />
-                <div className="relative flex items-start justify-between">
-                  <span className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--clinic)] to-[var(--deep)] text-white shadow-lg transition-transform duration-500 group-hover:rotate-6 group-hover:scale-105">
-                    <Icon className="size-6" />
+        {lista.length > 0 && (
+          <div className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/70 shadow-[0_30px_70px_-45px_rgba(10,25,70,.5)] backdrop-blur-xl">
+            {lista.map((s, i) => {
+              const Icon = ICONOS[s.icono] ?? Stethoscope;
+              const doc = DOCTORS.find((d) => d.id === s.doctorId);
+              return (
+                <div key={s.id} data-reveal style={{ transitionDelay: `${Math.min(i, 6) * 50}ms` }} className="group relative flex flex-col gap-4 border-b border-border/60 px-6 py-6 transition-colors last:border-0 hover:bg-secondary/40 md:flex-row md:items-center md:gap-6 md:px-8">
+                  <span className="absolute inset-y-5 left-0 w-[3px] rounded-full bg-gradient-to-b from-[var(--clinic)] to-rose-500 opacity-0 transition-opacity group-hover:opacity-100" />
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary transition-all duration-500 group-hover:bg-gradient-to-br group-hover:from-[var(--clinic)] group-hover:to-[var(--deep)] group-hover:text-white group-hover:shadow-lg">
+                    <Icon className="size-5" />
                   </span>
-                  <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{s.especialidad}</span>
-                </div>
-                <h2 className="relative mt-6 font-sans text-lg font-semibold">{s.nombre}</h2>
-                <p className="relative mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.descripcion}</p>
-                {doc && (
-                  <div className="relative mt-5 flex items-center gap-2.5 text-xs text-muted-foreground">
-                    <img src={fotoDoctor(doc.foto)} alt="" className="size-7 rounded-full object-cover object-top" />
-                    {doc.nombre}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-sans text-base font-semibold sm:text-lg">{s.nombre}</h2>
+                      <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-medium text-secondary-foreground">{s.especialidad}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{s.descripcion}</p>
+                    {doc && (
+                      <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <img src={fotoDoctor(doc.foto)} alt="" className="size-5 rounded-full object-cover object-top" /> {doc.nombre}
+                      </p>
+                    )}
                   </div>
-                )}
-                <div className="relative mt-5 flex items-end justify-between border-t border-border pt-5">
-                  <div>
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</p>
-                    <p className="font-display text-2xl font-semibold">${s.precio.toLocaleString("es-AR")}</p>
+                  <div className="flex items-center gap-5 md:gap-6">
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</span>
+                    <p className="ml-auto font-display text-2xl font-semibold tabular-nums md:w-32 md:text-right">${s.precio.toLocaleString("es-AR")}</p>
+                    <Button asChild size="sm" className="rounded-full px-4"><Link to="/turnos" search={{ doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
                   </div>
-                  <Button asChild size="sm" className="rounded-full px-4"><Link to="/turnos" search={{ doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </PublicLayout>
   );

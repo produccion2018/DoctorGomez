@@ -1,9 +1,9 @@
-import { useState, type MouseEvent } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, CalendarPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
-import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
+import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
 export const Route = createFileRoute("/especialidades/")({
   head: () => ({
@@ -14,12 +14,6 @@ export const Route = createFileRoute("/especialidades/")({
   }),
   component: Especialidades,
 });
-
-function spot(e: MouseEvent<HTMLElement>) {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-}
 
 function Especialidades() {
   const [q, setQ] = useState("");
@@ -66,42 +60,44 @@ function Especialidades() {
 
         {lista.length === 0 && <p className="py-20 text-center text-muted-foreground">No encontramos especialidades con esa búsqueda.</p>}
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid auto-rows-[340px] gap-5 sm:grid-cols-2 lg:grid-flow-dense lg:grid-cols-3">
           {lista.map((e, idx) => {
             const Icon = iconoEspecialidad(e.icono);
             const docs = DOCTORS.filter((d) => e.doctorIds.includes(d.id));
+            const grande = !q && idx % 7 === 0;
             return (
               <Link
                 key={e.slug}
                 to="/especialidades/$slug"
                 params={{ slug: e.slug }}
-                onMouseMove={spot}
                 data-reveal
                 style={{ transitionDelay: `${(idx % 3) * 80}ms` }}
-                className="spotlight card-lift group flex flex-col overflow-hidden rounded-3xl border border-border bg-card p-7 shadow-card"
+                className={`group relative overflow-hidden rounded-[1.75rem] shadow-[0_35px_70px_-45px_rgba(10,25,70,.9)] ring-1 ring-black/5 ${grande ? "lg:col-span-2" : ""}`}
               >
-                <div className="flex items-start justify-between">
-                  <span className="flex size-14 items-center justify-center rounded-2xl bg-secondary text-primary transition-all duration-500 group-hover:rotate-6 group-hover:bg-gradient-to-br group-hover:from-[var(--clinic)] group-hover:to-[var(--deep)] group-hover:text-white group-hover:shadow-[var(--shadow-glow)]">
-                    <Icon className="size-6" />
-                  </span>
-                  <span className="font-display text-sm text-muted-foreground/50">{String(idx + 1).padStart(2, "0")}</span>
-                </div>
-                <h2 className="mt-6 font-sans text-xl font-semibold">{e.nombre}</h2>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{e.descripcion}</p>
-                <div className="mt-5 flex flex-wrap gap-1.5">
-                  {e.aborda.slice(0, 3).map((a) => (
-                    <span key={a} className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-secondary-foreground">{a}</span>
-                  ))}
-                </div>
-                <div className="mt-6 flex items-center justify-between border-t border-border pt-5">
-                  <div className="flex -space-x-2">
-                    {docs.map((d) => (
-                      <img key={d.id} src={fotoDoctor(d.foto)} alt={d.nombre} title={d.nombre} className="size-8 rounded-full object-cover object-top ring-2 ring-card" />
-                    ))}
+                <img src={imagenEspecialidad(e.slug)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.14_0.05_262)] via-[oklch(0.16_0.05_262/0.72)] to-[oklch(0.16_0.05_262/0.15)] transition-opacity duration-500" />
+                <div className="absolute -bottom-20 -left-16 size-64 rounded-full bg-sky-500/25 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100" />
+                <div className="relative flex h-full flex-col p-7 text-white">
+                  <div className="flex items-start justify-between">
+                    <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-md transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110">
+                      <Icon className="size-5" />
+                    </span>
+                    <span className="font-display text-sm text-white/50">{String(idx + 1).padStart(2, "0")}</span>
                   </div>
-                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-primary">
-                    Ver detalle <ArrowUpRight className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </span>
+                  <div className="mt-auto">
+                    <h2 className="font-display text-2xl font-semibold leading-tight">{e.nombre}</h2>
+                    <p className={`mt-2 text-sm leading-relaxed text-white/75 ${grande ? "line-clamp-3 max-w-xl" : "line-clamp-2"}`}>{e.descripcion}</p>
+                    <div className="mt-5 flex items-center justify-between">
+                      <div className="flex -space-x-2">
+                        {docs.map((d) => (
+                          <img key={d.id} src={fotoDoctor(d.foto)} alt={d.nombre} title={d.nombre} className="size-8 rounded-full object-cover object-top ring-2 ring-white/70" />
+                        ))}
+                      </div>
+                      <span className="flex size-10 items-center justify-center rounded-full bg-white text-[oklch(0.25_0.08_260)] transition-transform duration-500 group-hover:rotate-45">
+                        <ArrowUpRight className="size-5" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </Link>
             );

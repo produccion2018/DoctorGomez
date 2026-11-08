@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicLayout } from "@/components/site/PublicLayout";
-import { DOCTORS, ESPECIALIDADES, SERVICIOS } from "@/data/clinic";
+import { DOCTORS, ESPECIALIDADES, SERVICIOS, imagenEspecialidad } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import imgInterna from "@/assets/medicina-interna.jpg";
 import imgNefro from "@/assets/nefrologia.jpg";
@@ -97,12 +97,6 @@ function useReveal() {
 }
 
 /* Foco de luz que sigue al mouse */
-function trackSpot(e: MouseEvent<HTMLElement>) {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-}
-
 /* Número que cuenta hacia arriba cuando aparece en pantalla */
 function Contador({ valor }: { valor: string }) {
   const m = valor.match(/^([^\d]*)([\d.]+)(.*)$/);
@@ -157,6 +151,89 @@ function DepartmentsMarquee() {
             </span>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* Explorador de especialidades: lista elegante + panel grande con foto */
+function ExploradorEspecialidades() {
+  const [act, setAct] = useState(0);
+  const e = ESPECIALIDADES[act]!;
+  const Icon = iconFor(e.icono);
+  const docs = DOCTORS.filter((d) => e.doctorIds.includes(d.id));
+  return (
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
+      <ol className="border-y border-border/70" data-reveal>
+        {ESPECIALIDADES.map((x, i) => {
+          const I = iconFor(x.icono);
+          const on = i === act;
+          return (
+            <li key={x.slug} className="border-b border-border/70 last:border-0">
+              <button
+                type="button"
+                onMouseEnter={() => setAct(i)}
+                onFocus={() => setAct(i)}
+                onClick={() => setAct(i)}
+                aria-expanded={on}
+                className={`group relative flex w-full items-center gap-4 py-3.5 text-left transition-all duration-300 ${on ? "lg:pl-4" : "hover:lg:pl-2"}`}
+              >
+                <span className={`absolute left-0 top-1/2 hidden h-8 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-[var(--clinic)] to-rose-500 transition-opacity lg:block ${on ? "opacity-100" : "opacity-0"}`} />
+                <span className="w-7 font-display text-sm tabular-nums text-muted-foreground/60">{String(i + 1).padStart(2, "0")}</span>
+                <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-all duration-500 ${on ? "gradient-deep text-white shadow-[0_10px_25px_-10px_rgba(20,50,120,.9)]" : "bg-secondary text-primary"}`}>
+                  <I className="size-4" />
+                </span>
+                <span className={`flex-1 text-[15px] font-medium transition-colors sm:text-base ${on ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{x.nombre}</span>
+                <ArrowRight className={`size-4 text-clinic transition-all duration-300 ${on ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"}`} />
+              </button>
+              {on && (
+                <div className="animate-in fade-in slide-in-from-top-1 pb-5 pl-11 duration-300 lg:hidden">
+                  <p className="text-sm text-muted-foreground">{x.descripcion}</p>
+                  <Link to="/especialidades/$slug" params={{ slug: x.slug }} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-clinic">
+                    Conocer más <ArrowUpRight className="size-4" />
+                  </Link>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="relative hidden lg:block">
+        <div className="sticky top-28">
+          <div key={e.slug} className="relative h-[640px] overflow-hidden rounded-[2rem] shadow-[0_50px_100px_-50px_rgba(10,25,70,.85)] ring-1 ring-white/10 animate-in fade-in zoom-in-[0.98] duration-500">
+            <img src={imagenEspecialidad(e.slug)} alt={e.nombre} className="absolute inset-0 size-full scale-105 object-cover animate-in zoom-in-110 duration-[1400ms]" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.14_0.05_262)] via-[oklch(0.16_0.05_262/0.7)] to-[oklch(0.16_0.05_262/0.05)]" />
+            <div className="absolute -bottom-24 -left-16 size-80 rounded-full bg-sky-500/25 blur-3xl" />
+            <div className="absolute -right-16 top-10 size-64 rounded-full bg-rose-500/15 blur-3xl" />
+            <span className="glass absolute left-7 top-7 rounded-full px-3 py-1 font-display text-xs tracking-widest text-white">
+              {String(act + 1).padStart(2, "0")} / {String(ESPECIALIDADES.length).padStart(2, "0")}
+            </span>
+            <div className="absolute inset-x-0 bottom-0 p-10 text-white">
+              <span className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-md"><Icon className="size-6" /></span>
+              <h3 className="font-display text-4xl font-semibold leading-tight">{e.nombre}</h3>
+              <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/75">{e.descripcion}</p>
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    {docs.map((d) => (
+                      <img key={d.id} src={d.foto === "alberto" ? fotoAlberto : fotoAlonso} alt={d.nombre} className="size-9 rounded-full object-cover object-top ring-2 ring-white/70" />
+                    ))}
+                  </div>
+                  <p className="text-xs leading-snug text-white/70">
+                    {docs.length > 1 ? "Ambos directores" : docs[0]?.nombre}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Link to="/turnos" className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10">Solicitar turno</Link>
+                  <Link to="/especialidades/$slug" params={{ slug: e.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition-all hover:gap-2.5">
+                    Conocer más <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -337,25 +414,22 @@ function Home() {
 
       {/* ───────── ESTADÍSTICAS ───────── */}
       <section className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((s, idx) => (
-            <div
-              key={s.l}
-              data-reveal
-              style={{ transitionDelay: `${idx * 90}ms` }}
-              className="card-lift relative overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-card"
-            >
-              <div className="absolute -right-8 -top-8 size-24 rounded-full bg-[var(--clinic)]/10 blur-2xl" />
-              <p className="font-display text-4xl font-semibold text-gradient-clinic"><Contador valor={s.n} /></p>
-              <p className="mt-1.5 text-sm text-muted-foreground">{s.l}</p>
-            </div>
-          ))}
+        <div data-reveal className="relative overflow-hidden rounded-[2rem] gradient-deep px-6 py-10 text-white shadow-[0_40px_80px_-40px_rgba(10,25,70,.8)] ring-1 ring-white/10 sm:px-10 sm:py-12">
+          <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 right-0 size-80 rounded-full bg-rose-500/20 blur-3xl" />
+          <div className="relative grid grid-cols-2 gap-y-10 lg:grid-cols-4 lg:divide-x lg:divide-white/10">
+            {stats.map((s) => (
+              <div key={s.l} className="px-3 text-center">
+                <p className="font-display text-4xl font-semibold tracking-tight sm:text-5xl"><Contador valor={s.n} /></p>
+                <p className="mx-auto mt-2 max-w-[12rem] text-xs uppercase tracking-[0.14em] text-white/60 sm:text-[13px]">{s.l}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ───────── DEPARTAMENTOS / ESPECIALIDADES ───────── */}
       <section className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8">
-        <div className="pointer-events-none absolute inset-x-0 top-10 -z-10 h-96 bg-dots [mask-image:radial-gradient(ellipse_at_center,#000_20%,transparent_70%)]" />
         <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
           <SectionTitle
             kicker="Departamentos"
@@ -366,49 +440,7 @@ function Home() {
             <Link to="/especialidades">Ver todas <ArrowRight className="size-4" /></Link>
           </Button>
         </div>
-
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {ESPECIALIDADES.map((e, idx) => {
-            const Icon = iconFor(e.icono);
-            const docs = DOCTORS.filter((d) => e.doctorIds.includes(d.id));
-            return (
-              <Link
-                key={e.slug}
-                to="/especialidades/$slug"
-                params={{ slug: e.slug }}
-                onMouseMove={trackSpot}
-                data-reveal
-                style={{ transitionDelay: `${(idx % 4) * 80}ms` }}
-                className="spotlight card-lift group flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
-              >
-                <div className="flex items-start justify-between">
-                  <span className="flex size-12 items-center justify-center rounded-xl bg-secondary text-primary transition-all duration-500 group-hover:bg-gradient-to-br group-hover:from-[var(--clinic)] group-hover:to-[var(--deep)] group-hover:text-white group-hover:shadow-[var(--shadow-glow)]">
-                    <Icon className="size-5" />
-                  </span>
-                  <span className="font-display text-sm text-muted-foreground/60">{String(idx + 1).padStart(2, "0")}</span>
-                </div>
-                <h3 className="mt-5 text-lg font-semibold">{e.nombre}</h3>
-                <p className="mt-2 line-clamp-3 flex-1 text-sm text-muted-foreground">{e.descripcion}</p>
-                <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-                  <div className="flex -space-x-2">
-                    {docs.map((d) => (
-                      <img
-                        key={d.id}
-                        src={d.foto === "alberto" ? fotoAlberto : fotoAlonso}
-                        alt={d.nombre}
-                        title={d.nombre}
-                        className="size-7 rounded-full object-cover object-top ring-2 ring-card"
-                      />
-                    ))}
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
-                    Ver más <ArrowUpRight className="size-4 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <ExploradorEspecialidades />
       </section>
 
       {/* ───────── CORAZÓN Y RIÑÓN ───────── */}
@@ -473,59 +505,54 @@ function Home() {
       </section>
 
       {/* ───────── ESPECIALISTAS ───────── */}
-      <section className="relative overflow-hidden border-y border-border/60 bg-card/40 py-24 backdrop-blur-sm">
+      <section className="relative overflow-hidden py-24">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="mb-12">
+          <div className="mb-14">
             <SectionTitle
               kicker="Equipo médico"
               title="Nuestros especialistas"
               text="Dos hermanos médicos al frente de la dirección clínica y asistencial."
             />
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-12 md:grid-cols-2 lg:gap-16">
             {DOCTORS.map((d, idx) => (
-              <div
-                key={d.id}
-                data-reveal
-                style={{ transitionDelay: `${idx * 120}ms` }}
-                className="card-lift group overflow-hidden rounded-3xl border border-border bg-card shadow-card"
-              >
-                <div className="flex flex-col gap-6 p-6 sm:flex-row">
-                  <div className="relative h-56 w-full shrink-0 overflow-hidden rounded-2xl sm:h-48 sm:w-40">
-                    <img
-                      src={d.foto === "alberto" ? fotoAlberto : fotoAlonso}
-                      alt={d.nombre}
-                      width={900}
-                      height={1100}
-                      loading="lazy"
-                      className="size-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-deep/50 to-transparent" />
-                    <span className="glass absolute bottom-2 left-2 rounded-full px-2.5 py-0.5 text-[11px] font-medium text-white">{d.matricula}</span>
-                  </div>
-                  <div className="flex flex-col space-y-2">
-                    <h3 className="font-display text-xl font-semibold">{d.nombre}</h3>
-                    <p className="text-sm font-medium text-clinic">{d.titulo}</p>
-                    <p className="text-sm text-muted-foreground">{d.bio}</p>
-                    <div className="flex flex-wrap gap-1.5 pt-1">
+              <article key={d.id} data-reveal style={{ transitionDelay: `${idx * 140}ms` }} className={`group ${idx === 1 ? "md:mt-16" : ""}`}>
+                <div className="relative h-[440px] overflow-hidden rounded-[2rem] shadow-[0_50px_90px_-50px_rgba(10,25,70,.85)] ring-1 ring-black/5 sm:h-[520px]">
+                  <img
+                    src={d.foto === "alberto" ? fotoAlberto : fotoAlonso}
+                    alt={d.nombre}
+                    width={900}
+                    height={1100}
+                    loading="lazy"
+                    className="size-full object-cover object-top transition-transform duration-[1400ms] ease-out group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_262)] via-[oklch(0.15_0.05_262/0.25)] to-transparent" />
+                  <span className="glass absolute left-6 top-6 rounded-full px-3 py-1 text-[11px] font-medium text-white">{d.matricula}</span>
+                  <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-8">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200/90">{d.titulo}</p>
+                    <h3 className="mt-2 font-display text-3xl font-semibold leading-tight">{d.nombre}</h3>
+                    <div className="mt-4 flex flex-wrap gap-1.5">
                       {d.especialidades.map((esp) => (
-                        <span key={esp} className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground">{esp}</span>
+                        <span key={esp} className="rounded-full bg-white/12 px-3 py-1 text-xs font-medium ring-1 ring-white/20 backdrop-blur">{esp}</span>
                       ))}
-                    </div>
-                    <div className="mt-auto flex flex-wrap gap-2 pt-3">
-                      <Button asChild size="sm" variant="outline" className="rounded-full"><Link to="/especialistas/$id" params={{ id: d.id }}>Ver perfil completo</Link></Button>
-                      <Button asChild size="sm" className="rounded-full"><Link to="/turnos" search={{ doctor: d.id }}>Solicitar turno</Link></Button>
                     </div>
                   </div>
                 </div>
-              </div>
+                <p className="mt-6 text-[15px] leading-relaxed text-muted-foreground">{d.bio}</p>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button asChild className="rounded-full"><Link to="/turnos" search={{ doctor: d.id }}>Solicitar turno</Link></Button>
+                  <Link to="/especialistas/$id" params={{ id: d.id }} className="inline-flex items-center gap-1.5 px-2 text-sm font-semibold text-primary transition-all hover:gap-2.5">
+                    Ver perfil completo <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
       {/* ───────── SERVICIOS ───────── */}
-      <section className="mx-auto max-w-7xl px-4 py-24 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div className="mb-12 flex flex-wrap items-end justify-between gap-6">
           <SectionTitle
             kicker="Servicios"
@@ -534,24 +561,22 @@ function Home() {
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal><Link to="/servicios">Ver todos los servicios</Link></Button>
         </div>
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div data-reveal className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/70 shadow-[0_30px_70px_-45px_rgba(10,25,70,.5)] backdrop-blur-xl">
           {SERVICIOS.slice(0, 6).map((s, idx) => (
-            <div
-              key={s.id}
-              onMouseMove={trackSpot}
-              data-reveal
-              style={{ transitionDelay: `${(idx % 3) * 90}ms` }}
-              className="spotlight card-lift flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card"
-            >
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{s.especialidad}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</span>
+            <div key={s.id} className="group relative flex flex-col gap-3 border-b border-border/60 px-6 py-5 transition-colors last:border-0 hover:bg-secondary/40 sm:flex-row sm:items-center sm:gap-6 sm:px-8">
+              <span className="absolute inset-y-4 left-0 w-[3px] rounded-full bg-gradient-to-b from-[var(--clinic)] to-rose-500 opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="hidden w-6 font-display text-sm tabular-nums text-muted-foreground/60 sm:block">{String(idx + 1).padStart(2, "0")}</span>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold">{s.nombre}</h3>
+                <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{s.descripcion}</p>
               </div>
-              <h3 className="mt-4 text-lg font-semibold">{s.nombre}</h3>
-              <p className="mt-1.5 flex-1 text-sm text-muted-foreground">{s.descripcion}</p>
-              <div className="mt-5 flex items-center justify-between">
-                <p className="font-display text-2xl font-semibold">${s.precio.toLocaleString("es-AR")}</p>
-                <Button asChild size="sm" className="rounded-full"><Link to="/turnos" search={{ doctor: s.doctorId }}>Solicitar turno</Link></Button>
+              <div className="flex items-center gap-4 sm:gap-6">
+                <span className="hidden rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground md:inline">{s.especialidad}</span>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock className="size-3.5" /> {s.duracion} min</span>
+                <p className="ml-auto font-display text-xl font-semibold tabular-nums sm:w-28 sm:text-right">${s.precio.toLocaleString("es-AR")}</p>
+                <Button asChild size="sm" variant="outline" className="rounded-full transition-all group-hover:border-transparent group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Link to="/turnos" search={{ doctor: s.doctorId }}>Reservar</Link>
+                </Button>
               </div>
             </div>
           ))}
@@ -571,7 +596,7 @@ function Home() {
             { n: "02", icon: Clock, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor." },
             { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones." },
           ].map((p, i) => (
-            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="card-lift relative rounded-3xl p-8 text-center">
+            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="relative rounded-3xl p-8 text-center">
               <span className="relative mx-auto flex size-20 items-center justify-center rounded-3xl gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)]">
                 <p.icon className="size-8" />
                 <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-full bg-white font-display text-sm font-bold text-[var(--deep)] shadow-md">{p.n}</span>
