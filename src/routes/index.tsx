@@ -137,20 +137,34 @@ function SectionTitle({ kicker, title, text }: { kicker: string; title: string; 
 function DepartmentsMarquee() {
   const items = [...ESPECIALIDADES, ...ESPECIALIDADES];
   return (
-    <div className="marquee-wrap marquee-mask overflow-hidden border-y border-border bg-card/60 py-5">
-      <div className="marquee gap-4">
-        {items.map((e, idx) => {
-          const Icon = iconFor(e.icono);
-          return (
-            <span
-              key={`${e.slug}-${idx}`}
-              className="mx-2 inline-flex shrink-0 items-center gap-2.5 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground shadow-card"
-            >
-              <Icon className="size-4 text-clinic" />
-              {e.nombre}
-            </span>
-          );
-        })}
+    <div className="relative overflow-hidden bg-[oklch(0.16_0.05_262)] py-7">
+      {/* Brillos y líneas finas arriba y abajo */}
+      <div className="pointer-events-none absolute -left-20 top-1/2 size-72 -translate-y-1/2 rounded-full bg-sky-500/25 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 top-1/2 size-72 -translate-y-1/2 rounded-full bg-rose-500/20 blur-3xl" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-300/50 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-rose-300/40 to-transparent" />
+
+      <div className="marquee-wrap marquee-mask relative overflow-hidden">
+        <div className="marquee items-center">
+          {items.map((e, idx) => {
+            const Icon = iconFor(e.icono);
+            return (
+              <span key={`${e.slug}-${idx}`} className="group inline-flex shrink-0 items-center">
+                <Link
+                  to="/especialidades/$slug"
+                  params={{ slug: e.slug }}
+                  className="inline-flex items-center gap-3 px-6 text-white/75 transition-colors duration-300 hover:text-white"
+                >
+                  <span className="relative flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-white/15 to-white/5 ring-1 ring-white/15 transition-all duration-500 group-hover:scale-110 group-hover:from-sky-400 group-hover:to-blue-700 group-hover:shadow-[0_0_25px_rgba(56,189,248,.65)] group-hover:ring-sky-300/50">
+                    <Icon className="size-[18px] text-sky-200 transition-colors group-hover:text-white" />
+                  </span>
+                  <span className="font-display text-xl tracking-tight sm:text-2xl">{e.nombre}</span>
+                </Link>
+                <span className="text-sm text-sky-300/50" aria-hidden="true">✦</span>
+              </span>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
