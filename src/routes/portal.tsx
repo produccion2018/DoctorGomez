@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Stethoscope,
   UserRound,
+  Wallet,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +32,11 @@ import {
   ADMINS,
   KEY_AGENDA,
   KEY_AUT,
+  KEY_COBROS,
+  estadoCobro,
+  pagadoDe,
+  saldoDe,
+  type Cobro,
   KEY_PACIENTES,
   KEY_SESION_PACIENTE,
   KEY_TURNOS,
@@ -63,10 +69,11 @@ export const Route = createFileRoute("/portal")({
   component: Portal,
 });
 
-type Seccion = "inicio" | "turnos" | "autorizaciones" | "datos";
+type Seccion = "inicio" | "turnos" | "pagos" | "autorizaciones" | "datos";
 const SECCIONES: { id: Seccion; label: string; icon: LucideIcon }[] = [
   { id: "inicio", label: "Inicio", icon: Home },
   { id: "turnos", label: "Mis turnos", icon: CalendarDays },
+  { id: "pagos", label: "Mis pagos", icon: Wallet },
   { id: "autorizaciones", label: "Autorizaciones", icon: ShieldCheck },
   { id: "datos", label: "Mis datos", icon: UserRound },
 ];
@@ -245,6 +252,7 @@ function Interior({ paciente, onSalir }: { paciente: PacientePortal; onSalir: ()
       <main key={sec} className="mx-auto max-w-6xl px-4 py-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-6">
         {sec === "inicio" && <Inicio ctx={ctx} />}
         {sec === "turnos" && <Turnos ctx={ctx} />}
+        {sec === "pagos" && <Pagos ctx={ctx} />}
         {sec === "autorizaciones" && <Autorizaciones ctx={ctx} />}
         {sec === "datos" && <Datos ctx={ctx} />}
       </main>
@@ -519,6 +527,65 @@ function Turnos({ ctx }: { ctx: Ctx }) {
           <div className="mt-4 space-y-3 opacity-80">{historial.map((t) => <FilaTurno key={t.id} t={t} />)}</div>
         </Tarjeta>
       )}
+    </div>
+  );
+}
+
+function Pagos({ ctx }: { ctx: Ctx }) {
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const mios = cobros
+    .filter((c) => !c.anulado && (c.pacienteId === ctx.paciente.id || (!!c.dni && c.dni === ctx.paciente.dni)))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const total = mios.reduce((a, c) => a + pagadoDe(c), 0);
+  const saldo = mios.reduce((a, c) => a + saldoDe(c), 0);
+  const ars = (n: number) => "$ " + n.toLocaleString("es-AR");
+  const ESTADO: Record<string, string> = { Pagado: "bg-emerald-100 text-emerald-800", Parcial: "bg-sky-100 text-sky-800", Pendiente: "bg-amber-100 text-amber-800", Anulado: "bg-slate-100 text-slate-500" };
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl">Mis pagos</h1>
+        <p className="text-sm text-muted-foreground">Lo que pagaste en la clínica y si te queda algún saldo.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Tarjeta className="!p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total pagado</p>
+          <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{ars(total)}</p>
+        </Tarjeta>
+        <Tarjeta className={`!p-5 ${saldo ? "!border-amber-200 !bg-amber-50/60" : ""}`}>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saldo pendiente</p>
+          <p className={`mt-1 font-display text-3xl font-semibold tabular-nums ${saldo ? "text-amber-700" : "text-emerald-700"}`}>{ars(saldo)}</p>
+          {saldo > 0 && (
+            <a href={waLink(`Hola, soy ${ctx.paciente.nombre} (DNI ${ctx.paciente.dni}). Quiero pagar mi saldo de ${ars(saldo)}.`)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:underline">
+              <MessageCircle className="size-4" /> Coordinar el pago por WhatsApp
+            </a>
+          )}
+        </Tarjeta>
+      </div>
+      <Tarjeta>
+        <h2 className="font-sans text-lg font-semibold">Detalle</h2>
+        <div className="mt-4 space-y-3">
+          {mios.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay pagos registrados a tu nombre.</p>}
+          {mios.map((c) => (
+            <div key={c.id} className="rounded-2xl border border-border/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{c.concepto}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(c.fecha).toLocaleDateString("es-AR")} · {c.profesional}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ESTADO[estadoCobro(c)]}`}>{estadoCobro(c)}</span>
+                  <p className="mt-1 font-semibold tabular-nums">{ars(pagadoDe(c))} <span className="text-xs font-normal text-muted-foreground">de {ars(c.arancel)}</span></p>
+                </div>
+              </div>
+              {c.pagos.length > 0 && (
+                <ul className="mt-3 space-y-1 border-t border-border/60 pt-3 text-xs text-muted-foreground">
+                  {c.pagos.map((p, i) => <li key={i}>{new Date(p.fecha).toLocaleDateString("es-AR")} · {p.metodo} · {ars(p.monto)}</li>)}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </Tarjeta>
     </div>
   );
 }

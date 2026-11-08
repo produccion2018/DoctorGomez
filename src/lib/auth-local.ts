@@ -326,3 +326,48 @@ export type Autorizacion = {
   fechaRespuesta?: string;
 };
 export const KEY_AUT = "gb_autorizaciones";
+
+/* ---------- Cobros a pacientes, equipo y control de caja ---------- */
+export const METODOS_PAGO = ["Efectivo", "Débito", "Crédito", "Transferencia", "Mercado Pago", "Obra social"] as const;
+export type MetodoPago = (typeof METODOS_PAGO)[number];
+export type EstadoCobro = "Pagado" | "Parcial" | "Pendiente" | "Anulado";
+export type PagoParcial = { fecha: string; monto: number; metodo: MetodoPago; cobradoPor: string };
+export type Cobro = {
+  id: string;
+  fecha: string; // ISO con hora
+  paciente: string;
+  dni?: string;
+  pacienteId?: string;
+  turnoId?: string;
+  concepto: string;
+  profesional: string;
+  arancel: number;
+  pagos: PagoParcial[];
+  obraSocial?: string;
+  nota?: string;
+  anulado?: { por: string; motivo: string; fecha: string };
+};
+export type Persona = { id: string; nombre: string; rol: string; activo: boolean };
+export type CierreCaja = {
+  id: string;
+  fecha: string; // día ISO
+  persona: string;
+  esperado: number;
+  declarado: number;
+  nota: string;
+  registradoPor: string;
+  creado: string;
+};
+export const KEY_COBROS = "gb_cobros";
+export const KEY_EQUIPO = "gb_equipo";
+export const KEY_CIERRES = "gb_cierres";
+export const EQUIPO_INICIAL: Persona[] = [{ id: "secretaria", nombre: "Secretaría", rol: "Secretaria", activo: true }];
+
+export const pagadoDe = (c: Cobro) => c.pagos.reduce((a, p) => a + p.monto, 0);
+export const saldoDe = (c: Cobro) => (c.anulado ? 0 : Math.max(0, c.arancel - pagadoDe(c)));
+export function estadoCobro(c: Cobro): EstadoCobro {
+  if (c.anulado) return "Anulado";
+  const p = pagadoDe(c);
+  if (p <= 0) return "Pendiente";
+  return p >= c.arancel ? "Pagado" : "Parcial";
+}

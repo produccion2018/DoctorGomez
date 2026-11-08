@@ -67,6 +67,20 @@ import {
   KEY_PACIENTES,
   KEY_AUT,
   TIPOS_AUT,
+  isoDe,
+  METODOS_PAGO,
+  KEY_COBROS,
+  KEY_EQUIPO,
+  KEY_CIERRES,
+  EQUIPO_INICIAL,
+  pagadoDe,
+  saldoDe,
+  estadoCobro,
+  type Cobro,
+  type CierreCaja,
+  type EstadoCobro,
+  type MetodoPago,
+  type Persona,
   type AgendaDoctor,
   type Agendas,
   type Autorizacion,
@@ -76,7 +90,7 @@ import {
   type Evento,
   type SessionUser,
 } from "@/lib/auth-local";
-import { DOCTORS } from "@/data/clinic";
+import { DOCTORS, SERVICIOS } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
@@ -242,7 +256,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   turnos: ["Turnos", "Creá y gestioná la agenda de los profesionales."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
-  finanzas: ["Finanzas", "Ingresos, egresos y balance de la clínica."],
+  finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
   permisos: ["Permisos", "Definí qué puede ver y hacer cada departamento."],
   asistente: ["Asistente IA", "Consultas rápidas sobre turnos, finanzas, permisos y actividad."],
   auditoria: ["Auditoría", "Registro de todas las acciones realizadas en el panel."],
@@ -505,7 +519,7 @@ function Panel() {
         {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
         {tab === "horarios" && <HorariosTab user={user} log={log} />}
         {tab === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
-        {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} />}
+        {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} />}
         {tab === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
         {tab === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
         {tab === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
@@ -1173,7 +1187,7 @@ function Dona({ ingresos, egresos }: { ingresos: number; egresos: number }) {
   );
 }
 
-function FinanzasTab({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatch<SetStateAction<Mov[]>>; log: LogFn }) {
+function FinanzasResumen({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatch<SetStateAction<Mov[]>>; log: LogFn }) {
   const [f, setF] = useState({ fecha: hoy(), concepto: "", tipo: "Ingreso" as Mov["tipo"], monto: "" });
   const [ver, setVer] = useState<"Todos" | Mov["tipo"]>("Todos");
   const ingresos = movs.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0);
@@ -1341,9 +1355,490 @@ function FinanzasTab({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatch<Se
                   <span className={`rounded-xl px-3 py-1.5 text-sm font-semibold tabular-nums ${esIng ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
                     {esIng ? "+" : "−"} {dinero(m.monto)}
                   </span>
-                  <button onClick={() => borrar(m)} aria-label="Eliminar movimiento" className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100">
+                  {!m.id.startsWith("cobro-") && <button onClick={() => borrar(m)} aria-label="Eliminar movimiento" className="rounded-lg p-2 text-muted-foreground opacity-0 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100">
                     <Trash2 className="size-4" />
-                  </button>
+                  </button>}
+                </div>
+              );
+            })}
+          </div>
+        </Seccion>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Finanzas: contenedor con subpestañas ---------- */
+type VistaFin = "resumen" | "cobros" | "caja";
+
+function FinanzasTab({ movs, setMovs, log, turnos, user }: { movs: Mov[]; setMovs: Dispatch<SetStateAction<Mov[]>>; log: LogFn; turnos: Turno[]; user: SessionUser }) {
+  const [vista, setVista] = useState<VistaFin>("cobros");
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  // Los pagos de pacientes también cuentan como ingresos en el resumen.
+  const movsTodos: Mov[] = [
+    ...movs,
+    ...cobros.filter((c) => !c.anulado).flatMap((c) =>
+      c.pagos.map((p, i) => ({ id: `cobro-${c.id}-${i}`, fecha: diaLocal(p.fecha), concepto: `Cobro · ${c.paciente}`, tipo: "Ingreso" as const, monto: p.monto })),
+    ),
+  ];
+  const vistas: { id: VistaFin; label: string; icon: LucideIcon }[] = [
+    { id: "cobros", label: "Cobros a pacientes", icon: Receipt },
+    { id: "caja", label: "Control de caja", icon: ShieldCheck },
+    { id: "resumen", label: "Resumen financiero", icon: Activity },
+  ];
+  return (
+    <div className="space-y-6">
+      <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
+        {vistas.map((v) => (
+          <button key={v.id} onClick={() => setVista(v.id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === v.id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <v.icon className="size-4" /> {v.label}
+          </button>
+        ))}
+      </div>
+      <div key={vista} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {vista === "resumen" && <FinanzasResumen movs={movsTodos} setMovs={setMovs} log={log} />}
+        {vista === "cobros" && <CobrosVista turnos={turnos} user={user} log={log} />}
+        {vista === "caja" && <CajaVista user={user} log={log} />}
+      </div>
+    </div>
+  );
+}
+
+const ESTADO_COBRO: Record<EstadoCobro, string> = {
+  Pagado: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  Parcial: "bg-sky-100 text-sky-800 ring-sky-200",
+  Pendiente: "bg-amber-100 text-amber-800 ring-amber-200",
+  Anulado: "bg-slate-100 text-slate-500 ring-slate-200 line-through",
+};
+const COLOR_METODO: Record<string, string> = {
+  Efectivo: "from-emerald-400 to-teal-600",
+  Débito: "from-sky-400 to-blue-600",
+  Crédito: "from-violet-500 to-indigo-700",
+  Transferencia: "from-cyan-400 to-sky-600",
+  "Mercado Pago": "from-sky-300 to-blue-500",
+  "Obra social": "from-amber-400 to-orange-600",
+};
+
+function useQuienCobra() {
+  const [equipo] = useDato<Persona[]>(KEY_EQUIPO, EQUIPO_INICIAL);
+  return [...equipo.filter((p) => p.activo).map((p) => p.nombre), ...ADMINS.map((a) => a.nombre)];
+}
+
+function imprimirRecibo(c: Cobro) {
+  const w = window.open("", "_blank", "width=720,height=900");
+  if (!w) return;
+  const filas = c.pagos.map((p) => `<tr><td>${fechaHora(p.fecha)}</td><td>${p.metodo}</td><td>${p.cobradoPor}</td><td style="text-align:right">${dinero(p.monto)}</td></tr>`).join("");
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
+  <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700}.m{color:#64748b;font-size:13px}</style></head><body>
+  <h1>Clínica Gómez Bolaño</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
+  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · DNI ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>Obra social:</b> ${c.obraSocial}` : ""}</p>
+  <table><thead><tr><th>Fecha</th><th>Medio</th><th>Cobró</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
+  <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Arancel ${dinero(c.arancel)} · Saldo ${dinero(saldoDe(c))}</p>
+  <script>window.print()</script></body></html>`);
+  w.document.close();
+}
+
+function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser; log: LogFn }) {
+  const [cobros, setCobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const quienes = useQuienCobra();
+  const vacio = { paciente: "", dni: "", concepto: SERVICIOS[0]!.nombre, profesional: ADMINS[0]!.nombre, arancel: String(SERVICIOS[0]!.precio), pagado: String(SERVICIOS[0]!.precio), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "" };
+  const [f, setF] = useState(vacio);
+  const [filtro, setFiltro] = useState<"Todos" | EstadoCobro>("Todos");
+  const [q, setQ] = useState("");
+  const [abonando, setAbonando] = useState<string | null>(null);
+  const [abono, setAbono] = useState({ monto: "", metodo: "Efectivo" as MetodoPago, cobradoPor: quienes[0] ?? user.nombre });
+  const [anulando, setAnulando] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
+
+  const hoyIso = hoy();
+  const mes = hoyIso.slice(0, 7);
+  const validos = cobros.filter((c) => !c.anulado);
+  const pagosHoy = validos.flatMap((c) => c.pagos).filter((p) => diaLocal(p.fecha) === hoyIso);
+  const pagosMes = validos.flatMap((c) => c.pagos).filter((p) => diaLocal(p.fecha).slice(0, 7) === mes);
+  const pacientesMes = new Set(validos.filter((c) => c.pagos.some((p) => diaLocal(p.fecha).slice(0, 7) === mes)).map((c) => (c.dni || c.paciente).toLowerCase())).size;
+  const saldoTotal = validos.reduce((a, c) => a + saldoDe(c), 0);
+  const conDeuda = validos.filter((c) => saldoDe(c) > 0).length;
+
+  const porMetodo = METODOS_PAGO.map((m) => ({ m, total: pagosMes.filter((p) => p.metodo === m).reduce((a, p) => a + p.monto, 0) })).filter((x) => x.total > 0);
+  const maxMetodo = Math.max(1, ...porMetodo.map((x) => x.total));
+
+  const sinCobrar = turnos.filter((t) => t.estado === "Atendido" && !cobros.some((c) => c.turnoId === t.id));
+
+  const lista = cobros
+    .filter((c) => filtro === "Todos" || estadoCobro(c) === filtro)
+    .filter((c) => norm(`${c.paciente} ${c.dni ?? ""} ${c.concepto} ${c.profesional}`).includes(norm(q)))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const elegirServicio = (nombre: string) => {
+    const s = SERVICIOS.find((x) => x.nombre === nombre);
+    setF((p) => ({ ...p, concepto: nombre, ...(s ? { arancel: String(s.precio), pagado: String(s.precio), profesional: nombrePanelDe(s.doctorId) } : {}) }));
+  };
+
+  const cobrarTurno = (t: Turno) => {
+    const s = SERVICIOS.find((x) => t.motivo.startsWith(x.especialidad)) ?? SERVICIOS[0]!;
+    setF({ ...vacio, paciente: t.paciente, concepto: s.nombre, profesional: t.doctor, arancel: String(s.precio), pagado: String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const registrar = (e: FormEvent) => {
+    e.preventDefault();
+    const arancel = Number(f.arancel);
+    const pagado = Number(f.pagado || 0);
+    if (!arancel || arancel <= 0) {
+      toast.error("Ingresá el arancel.");
+      return;
+    }
+    if (pagado < 0 || pagado > arancel) {
+      toast.error("El monto pagado no puede superar el arancel.");
+      return;
+    }
+    const ahora = new Date().toISOString();
+    const nuevo: Cobro = {
+      id: nuevoId(),
+      fecha: ahora,
+      paciente: f.paciente.trim(),
+      concepto: f.concepto,
+      profesional: f.profesional,
+      arancel,
+      pagos: pagado > 0 ? [{ fecha: ahora, monto: pagado, metodo: f.metodo, cobradoPor: f.cobradoPor }] : [],
+      ...(f.dni.trim() ? { dni: f.dni.replace(/\D/g, "") } : {}),
+      ...(f.turnoId ? { turnoId: f.turnoId } : {}),
+      ...(f.pacienteId ? { pacienteId: f.pacienteId } : {}),
+      ...(f.metodo === "Obra social" && f.obraSocial.trim() ? { obraSocial: f.obraSocial.trim() } : {}),
+      ...(f.nota.trim() ? { nota: f.nota.trim() } : {}),
+    };
+    setCobros((l) => [nuevo, ...l]);
+    log("Cobro registrado", `${nuevo.paciente} · ${dinero(pagado)} de ${dinero(arancel)} · ${f.metodo} · cobró ${f.cobradoPor}`);
+    toast.success(pagado >= arancel ? "Cobro registrado." : "Cobro registrado con saldo pendiente.");
+    setF({ ...vacio, cobradoPor: f.cobradoPor });
+  };
+
+  const agregarPago = (c: Cobro) => {
+    const monto = Number(abono.monto);
+    if (!monto || monto <= 0 || monto > saldoDe(c)) {
+      toast.error(`Ingresá un monto entre $1 y ${dinero(saldoDe(c))}.`);
+      return;
+    }
+    setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, pagos: [...x.pagos, { fecha: new Date().toISOString(), monto, metodo: abono.metodo, cobradoPor: abono.cobradoPor }] } : x)));
+    log("Pago de saldo registrado", `${c.paciente} · ${dinero(monto)} · ${abono.metodo} · cobró ${abono.cobradoPor}`);
+    toast.success("Pago registrado.");
+    setAbonando(null);
+    setAbono({ ...abono, monto: "" });
+  };
+
+  const anular = (c: Cobro) => {
+    if (motivo.trim().length < 4) {
+      toast.error("Escribí el motivo de la anulación.");
+      return;
+    }
+    setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, anulado: { por: user.nombre, motivo: motivo.trim(), fecha: new Date().toISOString() } } : x)));
+    log("Cobro anulado", `${c.paciente} · ${dinero(pagadoDe(c))} · motivo: ${motivo.trim()}`);
+    toast.success("Cobro anulado. Queda registrado en auditoría.");
+    setAnulando(null);
+    setMotivo("");
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={Wallet} label="Cobrado hoy" value={dinero(pagosHoy.reduce((a, p) => a + p.monto, 0))} hint={`${pagosHoy.length} pago${pagosHoy.length === 1 ? "" : "s"}`} tono="verde" delay={0.05} />
+        <Kpi icon={TrendingUp} label="Cobrado este mes" value={dinero(pagosMes.reduce((a, p) => a + p.monto, 0))} hint={`${pagosMes.length} pagos`} tono="azul" delay={0.1} />
+        <Kpi icon={Users} label="Pacientes que pagaron" value={String(pacientesMes)} hint="Este mes" tono="violeta" delay={0.15} />
+        <Kpi icon={Clock} label="Saldo por cobrar" value={dinero(saldoTotal)} hint={`${conDeuda} paciente${conDeuda === 1 ? "" : "s"} con deuda`} tono={saldoTotal ? "ambar" : "verde"} delay={0.2} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Seccion icon={Plus} titulo="Registrar cobro" sub="Queda a nombre de quien cobró" className="xl:col-span-2" delay={0.1}>
+          <form onSubmit={registrar} className="space-y-4">
+            {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro del turno atendido de {f.paciente}</p>}
+            <div className="grid grid-cols-[1.5fr_1fr] gap-3">
+              <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
+              <Campo label="DNI"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
+            </div>
+            <datalist id="pacientes-cobro">{Array.from(new Set(turnos.map((t) => t.paciente))).map((p) => <option key={p} value={p} />)}</datalist>
+            <Campo label="Servicio">
+              <select value={f.concepto} onChange={(e) => elegirServicio(e.target.value)} className={inp}>
+                {SERVICIOS.map((s) => <option key={s.id}>{s.nombre}</option>)}
+                <option>Otro</option>
+              </select>
+            </Campo>
+            <Campo label="Profesional">
+              <select value={f.profesional} onChange={(e) => setF({ ...f, profesional: e.target.value })} className={inp}>{ADMINS.map((a) => <option key={a.id}>{a.nombre}</option>)}</select>
+            </Campo>
+            <div className="grid grid-cols-2 gap-3">
+              <Campo label="Arancel"><input required type="number" min="1" value={f.arancel} onChange={(e) => setF({ ...f, arancel: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+              <Campo label="Paga ahora"><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Medio de pago</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {METODOS_PAGO.map((m) => (
+                  <button key={m} type="button" onClick={() => setF({ ...f, metodo: m })} className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${f.metodo === m ? `bg-gradient-to-br ${COLOR_METODO[m]} text-white shadow-md` : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
+                ))}
+              </div>
+            </div>
+            {f.metodo === "Obra social" && <Campo label="Obra social / prepaga"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></Campo>}
+            <Campo label="Cobró">
+              <select value={f.cobradoPor} onChange={(e) => setF({ ...f, cobradoPor: e.target.value })} className={inp}>{quienes.map((n) => <option key={n}>{n}</option>)}</select>
+            </Campo>
+            <Campo label="Nota (opcional)"><input value={f.nota} onChange={(e) => setF({ ...f, nota: e.target.value })} className={inp} /></Campo>
+            {Number(f.pagado) < Number(f.arancel) && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">Queda un saldo de {dinero(Number(f.arancel) - Number(f.pagado || 0))} a cobrar.</p>}
+            <Button type="submit" className="h-12 w-full rounded-xl !bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"><Check className="size-4" /> Registrar cobro</Button>
+          </form>
+        </Seccion>
+
+        <div className="space-y-6 xl:col-span-3">
+          <Seccion icon={CalendarCheck} titulo="Turnos atendidos sin cobrar" sub="Marcá el turno como Atendido en Turnos y aparece acá" delay={0.15}>
+            {sinCobrar.length === 0 ? (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> No hay turnos atendidos pendientes de cobro.</p>
+            ) : (
+              <div className="space-y-2">
+                {sinCobrar.map((t) => (
+                  <div key={t.id} className="flex items-center gap-3 rounded-xl bg-amber-50/70 p-3 ring-1 ring-amber-100">
+                    <Avatar nombre={t.paciente} size="size-9" />
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{t.paciente}</p><p className="text-xs text-muted-foreground">{fechaCorta(t.fecha)} {t.hora} · {t.motivo} · {nombreCorto(t.doctor)}</p></div>
+                    <Button size="sm" className="rounded-lg" onClick={() => cobrarTurno(t)}><Wallet className="size-4" /> Cobrar</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Seccion>
+
+          <Seccion icon={Activity} titulo="Medios de pago del mes" delay={0.2}>
+            {porMetodo.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay cobros este mes.</p> : (
+              <div className="space-y-3">
+                {porMetodo.map(({ m, total }) => (
+                  <div key={m}>
+                    <div className="mb-1 flex justify-between text-sm"><span className="font-medium">{m}</span><span className="font-semibold tabular-nums">{dinero(total)}</span></div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-secondary"><div className={`pn-bar h-full rounded-full bg-gradient-to-r ${COLOR_METODO[m]}`} style={{ width: `${(total / maxMetodo) * 100}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Seccion>
+        </div>
+      </div>
+
+      <Seccion icon={Receipt} titulo="Cobros registrados" sub={`${lista.length} resultado${lista.length === 1 ? "" : "s"}`} delay={0.25}
+        acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Paciente, DNI, servicio..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(["Todos", "Pagado", "Parcial", "Pendiente", "Anulado"] as const).map((x) => {
+            const n = x === "Todos" ? cobros.length : cobros.filter((c) => estadoCobro(c) === x).length;
+            return (
+              <button key={x} onClick={() => setFiltro(x)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${filtro === x ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                {x} <span className={`rounded-full px-1.5 tabular-nums ${filtro === x ? "bg-white/20" : "bg-background"}`}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        {lista.length === 0 && <Vacio icon={Receipt} titulo="Sin cobros" texto="Los cobros que registres acá quedan con el nombre de quien cobró, para que los doctores puedan controlarlos." />}
+        <div className="space-y-2">
+          {lista.map((c) => {
+            const est = estadoCobro(c);
+            const ult = c.pagos[c.pagos.length - 1];
+            return (
+              <div key={c.id} className={`rounded-2xl border border-border/70 p-4 transition-colors hover:bg-secondary/30 ${c.anulado ? "opacity-60" : ""}`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Avatar nombre={c.paciente} />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold">{c.paciente} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_COBRO[est]}`}>{est}</span></p>
+                    <p className="text-xs text-muted-foreground">{c.concepto} · {nombreCorto(c.profesional)} · {fechaHora(c.fecha)}{c.dni ? ` · DNI ${c.dni}` : ""}</p>
+                    {ult && <p className="text-xs text-muted-foreground">Último pago: {ult.metodo} · cobró <b className="text-foreground/80">{ult.cobradoPor}</b></p>}
+                    {c.anulado && <p className="text-xs text-rose-700">Anulado por {nombreCorto(c.anulado.por)}: {c.anulado.motivo}</p>}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display text-xl font-semibold tabular-nums">{dinero(pagadoDe(c))}</p>
+                    <p className="text-xs text-muted-foreground">de {dinero(c.arancel)}{saldoDe(c) > 0 ? <> · <span className="font-semibold text-amber-700">debe {dinero(saldoDe(c))}</span></> : null}</p>
+                  </div>
+                </div>
+                {!c.anulado && (
+                  <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
+                    {saldoDe(c) > 0 && <button onClick={() => { setAbonando(abonando === c.id ? null : c.id); setAbono({ ...abono, monto: String(saldoDe(c)) }); }} className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Registrar pago</button>}
+                    <button onClick={() => imprimirRecibo(c)} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Recibo</button>
+                    <button onClick={() => { setAnulando(anulando === c.id ? null : c.id); setMotivo(""); }} className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100">Anular</button>
+                  </div>
+                )}
+                {abonando === c.id && (
+                  <div className="mt-3 grid gap-2 rounded-xl bg-secondary/50 p-3 sm:grid-cols-4">
+                    <input type="number" value={abono.monto} onChange={(e) => setAbono({ ...abono, monto: e.target.value })} className={inp + " h-10"} />
+                    <select value={abono.metodo} onChange={(e) => setAbono({ ...abono, metodo: e.target.value as MetodoPago })} className={inp + " h-10"}>{METODOS_PAGO.map((m) => <option key={m}>{m}</option>)}</select>
+                    <select value={abono.cobradoPor} onChange={(e) => setAbono({ ...abono, cobradoPor: e.target.value })} className={inp + " h-10"}>{quienes.map((n) => <option key={n}>{n}</option>)}</select>
+                    <Button onClick={() => agregarPago(c)} className="h-10 rounded-xl"><Check className="size-4" /> Guardar</Button>
+                  </div>
+                )}
+                {anulando === c.id && (
+                  <div className="mt-3 flex flex-wrap gap-2 rounded-xl bg-rose-50 p-3 ring-1 ring-rose-100">
+                    <input autoFocus placeholder="Motivo de la anulación (obligatorio)" value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inp + " h-10 flex-1"} />
+                    <Button onClick={() => anular(c)} className="h-10 rounded-xl !bg-rose-600 text-white"><Ban className="size-4" /> Confirmar anulación</Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Seccion>
+    </div>
+  );
+}
+
+const diaLocal = (iso: string) => isoDe(new Date(iso));
+
+function nombrePanelDe(doctorId: string) {
+  const d = DOCTORS.find((x) => x.id === doctorId);
+  return ADMINS.find((a) => a.id === d?.foto)?.nombre ?? ADMINS[0]!.nombre;
+}
+
+function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [equipo, setEquipo] = useDato<Persona[]>(KEY_EQUIPO, EQUIPO_INICIAL);
+  const [cierres, setCierres] = useDato<CierreCaja[]>(KEY_CIERRES, []);
+  const quienes = useQuienCobra();
+  const [dia, setDia] = useState(hoy());
+  const [nuevo, setNuevo] = useState({ nombre: "", rol: "Secretaria" });
+  const [ci, setCi] = useState({ persona: quienes[0] ?? "", declarado: "", nota: "" });
+
+  const pagosDia = cobros.filter((c) => !c.anulado).flatMap((c) => c.pagos.map((p) => ({ ...p, paciente: c.paciente }))).filter((p) => diaLocal(p.fecha) === dia);
+  const anulDia = cobros.filter((c) => c.anulado && diaLocal(c.anulado.fecha) === dia);
+  const personas = Array.from(new Set([...quienes, ...pagosDia.map((p) => p.cobradoPor)]));
+  const resumen = personas.map((n) => {
+    const ps = pagosDia.filter((p) => p.cobradoPor === n);
+    return {
+      n,
+      total: ps.reduce((a, p) => a + p.monto, 0),
+      efectivo: ps.filter((p) => p.metodo === "Efectivo").reduce((a, p) => a + p.monto, 0),
+      cant: ps.length,
+      ultimo: ps.map((p) => p.fecha).sort().pop(),
+      cierre: cierres.find((c) => c.fecha === dia && c.persona === n),
+    };
+  });
+  const esperado = resumen.find((r) => r.n === ci.persona)?.efectivo ?? 0;
+
+  const alertas = [
+    ...anulDia.map((c) => ({ t: `Cobro anulado: ${c.paciente} (${dinero(pagadoDe(c))})`, d: `Por ${nombreCorto(c.anulado!.por)} · ${c.anulado!.motivo}`, tipo: "rojo" as const })),
+    ...cierres.filter((c) => c.fecha === dia && c.declarado !== c.esperado).map((c) => ({ t: `Diferencia de caja de ${c.persona}: ${dinero(c.declarado - c.esperado)}`, d: c.nota || "Sin aclaración", tipo: "ambar" as const })),
+    ...cobros.filter((c) => !c.anulado && saldoDe(c) > 0 && (Date.now() - new Date(c.fecha).getTime()) / 86400000 > 7).map((c) => ({ t: `Saldo sin cobrar hace más de 7 días: ${c.paciente}`, d: `Debe ${dinero(saldoDe(c))}`, tipo: "ambar" as const })),
+  ];
+
+  const agregarPersona = (e: FormEvent) => {
+    e.preventDefault();
+    if (!nuevo.nombre.trim()) return;
+    setEquipo((l) => [...l, { id: nuevoId(), nombre: nuevo.nombre.trim(), rol: nuevo.rol, activo: true }]);
+    log("Persona agregada al equipo", `${nuevo.nombre.trim()} · ${nuevo.rol}`);
+    setNuevo({ nombre: "", rol: "Secretaria" });
+  };
+
+  const cerrar = (e: FormEvent) => {
+    e.preventDefault();
+    const declarado = Number(ci.declarado);
+    if (Number.isNaN(declarado) || ci.declarado === "") {
+      toast.error("Ingresá el efectivo contado.");
+      return;
+    }
+    const c: CierreCaja = { id: nuevoId(), fecha: dia, persona: ci.persona, esperado, declarado, nota: ci.nota.trim(), registradoPor: user.nombre, creado: new Date().toISOString() };
+    setCierres((l) => [c, ...l.filter((x) => !(x.fecha === dia && x.persona === ci.persona))]);
+    log("Cierre de caja", `${ci.persona} · ${fechaCorta(dia)} · sistema ${dinero(esperado)} · contado ${dinero(declarado)} · diferencia ${dinero(declarado - esperado)}`);
+    toast.success(declarado === esperado ? "Caja cerrada sin diferencias." : "Caja cerrada con diferencia. Quedó registrada.");
+    setCi({ ...ci, declarado: "", nota: "" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-muted-foreground">Día</span>
+        <input type="date" value={dia} onChange={(e) => setDia(e.target.value)} className={inp + " !w-auto"} />
+        <span className="text-sm text-muted-foreground">{pagosDia.length} pagos · {dinero(pagosDia.reduce((a, p) => a + p.monto, 0))}</span>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {resumen.map((r, i) => (
+          <div key={r.n} className="pn-card pn-up pn-lift p-5" style={{ animationDelay: `${i * 0.05}s` }}>
+            <div className="flex items-center gap-3">
+              <Avatar nombre={r.n} />
+              <div className="min-w-0 flex-1"><p className="truncate font-semibold">{r.n}</p><p className="text-xs text-muted-foreground">{r.ultimo ? `Último cobro ${new Date(r.ultimo).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}` : "Sin cobros este día"}</p></div>
+              {r.cierre ? (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.cierre.declarado === r.cierre.esperado ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{r.cierre.declarado === r.cierre.esperado ? "Caja OK" : "Diferencia"}</span>
+              ) : r.cant > 0 ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">Sin cerrar</span> : null}
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cobró</p><p className="text-sm font-semibold tabular-nums">{dinero(r.total)}</p></div>
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Efectivo</p><p className="text-sm font-semibold tabular-nums">{dinero(r.efectivo)}</p></div>
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pagos</p><p className="text-sm font-semibold tabular-nums">{r.cant}</p></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Seccion icon={Wallet} titulo="Cierre de caja" sub="Compará el efectivo contado con lo registrado" className="xl:col-span-2" delay={0.1}>
+          <form onSubmit={cerrar} className="space-y-4">
+            <Campo label="Persona"><select value={ci.persona} onChange={(e) => setCi({ ...ci, persona: e.target.value })} className={inp}>{personas.map((n) => <option key={n}>{n}</option>)}</select></Campo>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-secondary/60 p-3"><p className="text-xs text-muted-foreground">Efectivo según sistema</p><p className="font-display text-xl font-semibold tabular-nums">{dinero(esperado)}</p></div>
+              <Campo label="Efectivo contado"><input type="number" min="0" value={ci.declarado} onChange={(e) => setCi({ ...ci, declarado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+            </div>
+            {ci.declarado !== "" && Number(ci.declarado) !== esperado && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">Diferencia de {dinero(Number(ci.declarado) - esperado)}</p>}
+            <Campo label="Aclaración (opcional)"><input value={ci.nota} onChange={(e) => setCi({ ...ci, nota: e.target.value })} className={inp} /></Campo>
+            <Button type="submit" className="h-11 w-full rounded-xl"><Check className="size-4" /> Cerrar caja</Button>
+          </form>
+        </Seccion>
+
+        <Seccion icon={ShieldCheck} titulo="Alertas para los doctores" sub="Anulaciones, diferencias y deudas viejas" className="xl:col-span-3" delay={0.15}>
+          {alertas.length === 0 ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> Sin alertas para este día.</p> : (
+            <div className="space-y-2">
+              {alertas.map((a, i) => (
+                <div key={i} className={`flex items-start gap-3 rounded-xl p-3 ring-1 ${a.tipo === "rojo" ? "bg-rose-50 ring-rose-100" : "bg-amber-50 ring-amber-100"}`}>
+                  <Ban className={`mt-0.5 size-4 shrink-0 ${a.tipo === "rojo" ? "text-rose-600" : "text-amber-600"}`} />
+                  <div><p className="text-sm font-semibold">{a.t}</p><p className="text-xs text-muted-foreground">{a.d}</p></div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pagos del día, uno por uno</p>
+            {pagosDia.length === 0 && <p className="text-sm text-muted-foreground">No hay pagos.</p>}
+            <ol className="space-y-2">
+              {[...pagosDia].sort((a, b) => b.fecha.localeCompare(a.fecha)).map((p, i) => (
+                <li key={i} className="flex items-center gap-3 text-sm">
+                  <span className="w-20 shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">{new Date(p.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="min-w-0 flex-1 truncate">{p.paciente} · <span className="text-muted-foreground">{p.metodo}</span></span>
+                  <span className="text-xs text-muted-foreground">{nombreCorto(p.cobradoPor)}</span>
+                  <span className="font-semibold tabular-nums">{dinero(p.monto)}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </Seccion>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Seccion icon={Users} titulo="Equipo que cobra" sub="Secretarias y administrativos" delay={0.2}>
+          <form onSubmit={agregarPersona} className="mb-4 grid gap-2 sm:grid-cols-[1.4fr_1fr_auto]">
+            <input placeholder="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} className={inp} />
+            <select value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className={inp}>{["Secretaria", "Recepción", "Administración", "Facturación"].map((r) => <option key={r}>{r}</option>)}</select>
+            <Button type="submit" variant="outline" className="h-11 rounded-xl"><Plus className="size-4" /> Agregar</Button>
+          </form>
+          <div className="space-y-2">
+            {equipo.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 rounded-xl border border-border/70 p-3">
+                <Avatar nombre={p.nombre} size="size-9" />
+                <div className="flex-1"><p className="text-sm font-semibold">{p.nombre}</p><p className="text-xs text-muted-foreground">{p.rol}</p></div>
+                <button onClick={() => { setEquipo((l) => l.map((x) => (x.id === p.id ? { ...x, activo: !x.activo } : x))); log(p.activo ? "Persona desactivada" : "Persona activada", p.nombre); }} className={`rounded-lg px-2.5 py-1 text-xs font-medium ${p.activo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{p.activo ? "Activa" : "Inactiva"}</button>
+              </div>
+            ))}
+          </div>
+        </Seccion>
+
+        <Seccion icon={ClipboardList} titulo="Historial de cierres" delay={0.25}>
+          {cierres.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay cierres de caja.</p>}
+          <div className="space-y-2">
+            {cierres.slice(0, 12).map((c) => {
+              const dif = c.declarado - c.esperado;
+              return (
+                <div key={c.id} className="flex items-center gap-3 rounded-xl border border-border/70 p-3 text-sm">
+                  <span className="w-20 shrink-0 font-medium tabular-nums">{fechaCorta(c.fecha)}</span>
+                  <span className="min-w-0 flex-1 truncate">{c.persona}</span>
+                  <span className="text-xs text-muted-foreground">{dinero(c.declarado)}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${dif === 0 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{dif === 0 ? "OK" : dinero(dif)}</span>
                 </div>
               );
             })}
