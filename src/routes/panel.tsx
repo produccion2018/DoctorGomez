@@ -19,6 +19,7 @@ import {
   Droplets,
   ExternalLink,
   Eye,
+  FileText,
   FlaskConical,
   Headphones,
   HeartPulse,
@@ -68,6 +69,13 @@ import {
   KEY_PACIENTES,
   KEY_AUT,
   TIPOS_AUT,
+  TIPOS_ESTUDIO,
+  KEY_ESTUDIOS,
+  KEY_CONTROLES,
+  clasificarPresion,
+  type Estudio,
+  type Control,
+  type ValoresEstudio,
   isoDe,
   METODOS_PAGO,
   KEY_COBROS,
@@ -2875,6 +2883,112 @@ const ESTADO_AUT: Record<EstadoAut, string> = {
   Rechazada: "bg-rose-100 text-rose-700 ring-rose-200",
 };
 
+/* ---------- Estudios para el portal y alertas de pacientes ---------- */
+function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogFn; pacientes: PacientePortal[] }) {
+  const [estudios, setEstudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
+  const vacio = { pacienteId: "", tipo: TIPOS_ESTUDIO[0] as string, fecha: hoy(), titulo: "", informe: "", creatinina: "", egfr: "", potasio: "", urea: "", proteinuria: "", hemoglobina: "", ldl: "", fevi: "" };
+  const [f, setF] = useState(vacio);
+
+  const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
+  const cargar = (e: FormEvent) => {
+    e.preventDefault();
+    const p = pacientes.find((x) => x.id === f.pacienteId);
+    if (!p) {
+      toast.error("Elegí un paciente.");
+      return;
+    }
+    const valores: ValoresEstudio = {};
+    (["creatinina", "egfr", "potasio", "urea", "proteinuria", "hemoglobina", "ldl", "fevi"] as const).forEach((k) => {
+      const n = num(f[k]);
+      if (n !== undefined && !Number.isNaN(n)) valores[k] = n;
+    });
+    const nuevo: Estudio = { id: nuevoId(), pacienteId: p.id, tipo: f.tipo, fecha: f.fecha, titulo: f.titulo.trim() || f.tipo, informe: f.informe.trim(), valores, cargadoPor: user.nombre, creado: new Date().toISOString() };
+    setEstudios((l) => [nuevo, ...l]);
+    log("Estudio cargado al portal", `${p.nombre} · ${nuevo.tipo}`);
+    toast.success("Resultado publicado en el portal del paciente.");
+    setF({ ...vacio, pacienteId: f.pacienteId });
+  };
+
+  const renal = /renal|orina|laboratorio/i.test(f.tipo);
+  const cardio = /eco|electro|holter|mapa|ergo|doppler/i.test(f.tipo);
+  const alertas = controles
+    .filter((c) => Date.now() - new Date(c.fecha).getTime() < 14 * 86400000)
+    .map((c) => ({ c, k: clasificarPresion(c.sistolica, c.diastolica), p: pacientes.find((x) => x.id === c.pacienteId) }))
+    .filter((x) => x.p && (x.k.tono === "rojo" || x.k.tono === "critico"))
+    .sort((a, b) => b.c.fecha.localeCompare(a.c.fecha));
+  const campo = (k: keyof typeof vacio, label: string, unidad: string) => (
+    <label className="space-y-1"><span className="text-[11px] font-medium text-muted-foreground">{label} <span className="opacity-60">({unidad})</span></span>
+      <input inputMode="decimal" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className={inp + " h-10"} /></label>
+  );
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-5">
+      <Seccion icon={FileText} titulo="Publicar estudio en el portal" sub="El paciente lo ve en «Estudios y resultados» con cada valor explicado" className="xl:col-span-3" delay={0.3}>
+        <form onSubmit={cargar} className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Campo label="Paciente">
+              <select required value={f.pacienteId} onChange={(e) => setF({ ...f, pacienteId: e.target.value })} className={inp}>
+                <option value="">Elegí un paciente</option>
+                {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Tipo"><select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })} className={inp}>{TIPOS_ESTUDIO.map((t) => <option key={t}>{t}</option>)}</select></Campo>
+            <Campo label="Fecha"><input type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} className={inp} /></Campo>
+          </div>
+          <Campo label="Título"><input placeholder="Ej: Control de función renal" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} className={inp} /></Campo>
+          {(renal || !cardio) && (
+            <div className="grid grid-cols-2 gap-3 rounded-2xl bg-amber-500/5 p-3 ring-1 ring-amber-500/15 sm:grid-cols-4">
+              {campo("creatinina", "Creatinina", "mg/dl")}
+              {campo("egfr", "Filtrado eGFR", "ml/min")}
+              {campo("potasio", "Potasio", "mEq/l")}
+              {campo("urea", "Urea", "mg/dl")}
+              {campo("proteinuria", "Proteinuria", "mg/24h")}
+              {campo("hemoglobina", "Hemoglobina", "g/dl")}
+              {campo("ldl", "Colesterol LDL", "mg/dl")}
+            </div>
+          )}
+          {cardio && <div className="grid grid-cols-2 gap-3 rounded-2xl bg-rose-500/5 p-3 ring-1 ring-rose-500/15 sm:grid-cols-4">{campo("fevi", "FEVI", "%")}</div>}
+          <Campo label="Informe / indicaciones para el paciente"><textarea rows={4} value={f.informe} onChange={(e) => setF({ ...f, informe: e.target.value })} className={inp + " h-auto py-3"} /></Campo>
+          <Button type="submit" className="h-11 rounded-xl"><Send className="size-4" /> Publicar en el portal</Button>
+        </form>
+        {estudios.length > 0 && (
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Últimos publicados</p>
+            <div className="space-y-2">
+              {estudios.slice(0, 6).map((e) => (
+                <div key={e.id} className="flex items-center gap-3 rounded-xl border border-border/60 p-3 text-sm">
+                  <FileText className="size-4 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate"><b>{pacientes.find((p) => p.id === e.pacienteId)?.nombre ?? "Paciente"}</b> · {e.titulo}</span>
+                  <span className="text-xs text-muted-foreground">{fechaCorta(e.fecha)}</span>
+                  <button onClick={() => { setEstudios((l) => l.filter((x) => x.id !== e.id)); log("Estudio quitado del portal", e.titulo); }} aria-label="Quitar" className="rounded-lg p-1.5 text-muted-foreground hover:text-rose-600"><Trash2 className="size-4" /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Seccion>
+
+      <Seccion icon={HeartPulse} titulo="Alertas de presión" sub="Mediciones altas que cargaron los pacientes (14 días)" className="xl:col-span-2" delay={0.35}>
+        {alertas.length === 0 ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> Sin mediciones de riesgo.</p>
+        ) : (
+          <div className="space-y-2">
+            {alertas.map(({ c, k, p }) => (
+              <div key={c.id} className={`flex items-center gap-3 rounded-xl p-3 ring-1 ${k.tono === "critico" ? "bg-red-50 ring-red-200" : "bg-rose-50 ring-rose-100"}`}>
+                <Avatar nombre={p!.nombre} size="size-9" />
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{p!.nombre}</p><p className="text-xs text-muted-foreground">{fechaHora(c.fecha)} · {k.nivel}</p></div>
+                <span className="font-display text-lg font-semibold tabular-nums text-rose-700">{c.sistolica}/{c.diastolica}</span>
+                <a href={waPaciente(p!.telefono, `Hola ${p!.nombre.split(" ")[0]}, vimos en tu portal una presión de ${c.sistolica}/${c.diastolica}. ¿Cómo te sentís?`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"><Send className="size-4" /></a>
+              </div>
+            ))}
+          </div>
+        )}
+      </Seccion>
+    </div>
+  );
+}
+
 function verPortal(id: string) {
   window.open(`/portal?vista=${encodeURIComponent(id)}`, "_blank", "noopener");
 }
@@ -3044,6 +3158,13 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-medium">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado}</span></p>
                       <p className="text-xs text-muted-foreground">DNI {p.dni} · {p.telefono}{n ? ` · ${n} turno${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
+                      {(p.ficha?.antecedentes?.length || p.ficha?.alergias || p.ficha?.obraSocial) ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">{p.ficha.obraSocial}</span>}
+                          {p.ficha?.alergias && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">Alergia: {p.ficha.alergias}</span>}
+                          {p.ficha?.antecedentes?.map((a) => <span key={a} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">{a}</span>)}
+                        </div>
+                      ) : null}
                     </div>
                     <span className="rounded-lg bg-secondary px-2.5 py-1 font-mono text-sm tracking-widest">{p.codigo}</span>
                   </div>
@@ -3120,6 +3241,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
           </div>
         </Seccion>
       </div>
+      <EstudiosPortal user={user} log={log} pacientes={pacientes} />
     </div>
   );
 }

@@ -279,7 +279,31 @@ export type PacientePortal = {
   invitadoPor: string;
   fecha: string;
   ultimoIngreso?: string;
+  ficha?: FichaMedica;
 };
+export type FichaMedica = {
+  nacimiento?: string;
+  obraSocial?: string;
+  afiliado?: string;
+  grupo?: string;
+  alergias?: string;
+  antecedentes?: string[];
+  emergenciaNombre?: string;
+  emergenciaTel?: string;
+};
+export const ANTECEDENTES = [
+  "Hipertensión arterial",
+  "Diabetes",
+  "Enfermedad renal crónica",
+  "Diálisis",
+  "Trasplante renal",
+  "Insuficiencia cardíaca",
+  "Arritmia / fibrilación auricular",
+  "Infarto previo",
+  "Colesterol alto",
+  "Tabaquismo",
+  "Marcapasos / stent",
+] as const;
 export const KEY_PACIENTES = "gb_pacientes";
 export const KEY_SESION_PACIENTE = "gb_sesion_paciente";
 
@@ -370,4 +394,53 @@ export function estadoCobro(c: Cobro): EstadoCobro {
   const p = pagadoDe(c);
   if (p <= 0) return "Pendiente";
   return p >= c.arancel ? "Pagado" : "Parcial";
+}
+
+
+/* ---------- Salud del paciente (portal): controles, medicación y estudios ---------- */
+export type Control = { id: string; pacienteId: string; fecha: string; sistolica: number; diastolica: number; pulso?: number; peso?: number; nota?: string };
+export type Medicamento = { id: string; pacienteId: string; nombre: string; dosis: string; horarios: string[]; indicacion: string; activo: boolean; tomas: Record<string, boolean> };
+export type ValoresEstudio = { creatinina?: number; egfr?: number; potasio?: number; urea?: number; proteinuria?: number; hemoglobina?: number; ldl?: number; fevi?: number };
+export type Estudio = { id: string; pacienteId: string; tipo: string; fecha: string; titulo: string; informe: string; valores: ValoresEstudio; cargadoPor: string; creado: string };
+export const KEY_CONTROLES = "gb_controles";
+export const KEY_MEDICACION = "gb_medicacion";
+export const KEY_ESTUDIOS = "gb_estudios";
+export const TIPOS_ESTUDIO = [
+  "Laboratorio renal",
+  "Laboratorio general",
+  "Orina de 24 horas",
+  "Ecocardiograma",
+  "Electrocardiograma",
+  "Holter 24 h",
+  "MAPA 24 h",
+  "Ergometría",
+  "Ecografía renal",
+  "Doppler",
+  "Otro",
+] as const;
+
+export type NivelPresion = { nivel: string; tono: "verde" | "ambar" | "naranja" | "rojo" | "critico"; consejo: string };
+/** Clasificación según guías AHA/ACC 2017 (valores en mmHg). */
+export function clasificarPresion(s: number, d: number): NivelPresion {
+  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tenés dolor de pecho, falta de aire, visión borrosa o confusión, llamá al 107 o andá a la guardia." };
+  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Volvé a medirla en 5 minutos. Si sigue alta, avisale a tu médico." };
+  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Registrala y comentalo en tu próximo control." };
+  if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantené los hábitos saludables y seguí registrando." };
+  return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Seguí así." };
+}
+
+/** Estadio de enfermedad renal crónica según filtrado glomerular (KDIGO). */
+export function estadioRenal(egfr: number): { estadio: string; texto: string; tono: "verde" | "ambar" | "naranja" | "rojo" | "critico" } {
+  if (egfr >= 90) return { estadio: "G1", texto: "Función renal normal o alta", tono: "verde" };
+  if (egfr >= 60) return { estadio: "G2", texto: "Levemente disminuida", tono: "verde" };
+  if (egfr >= 45) return { estadio: "G3a", texto: "Leve a moderadamente disminuida", tono: "ambar" };
+  if (egfr >= 30) return { estadio: "G3b", texto: "Moderada a severamente disminuida", tono: "naranja" };
+  if (egfr >= 15) return { estadio: "G4", texto: "Severamente disminuida", tono: "rojo" };
+  return { estadio: "G5", texto: "Falla renal", tono: "critico" };
+}
+
+export function clasificarFevi(fevi: number): { texto: string; tono: "verde" | "ambar" | "rojo" } {
+  if (fevi >= 50) return { texto: "Función del corazón conservada", tono: "verde" };
+  if (fevi >= 41) return { texto: "Levemente reducida", tono: "ambar" };
+  return { texto: "Reducida", tono: "rojo" };
 }
