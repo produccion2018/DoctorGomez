@@ -16,6 +16,7 @@ import {
   HeartPulse,
   ScanLine,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   Stethoscope,
   TestTube,
@@ -102,12 +103,37 @@ function trackSpot(e: MouseEvent<HTMLElement>) {
   e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
 }
 
+/* Número que cuenta hacia arriba cuando aparece en pantalla */
+function Contador({ valor }: { valor: string }) {
+  const m = valor.match(/^([^\d]*)([\d.]+)(.*)$/);
+  const objetivo = m ? Number(m[2]!.replace(/\./g, "")) : 0;
+  const [n, setN] = useState(0);
+  const [ref, setRef] = useState<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (!ref || !m) return;
+    const io = new IntersectionObserver(([en]) => {
+      if (!en?.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const paso = (t: number) => {
+        const k = Math.min(1, (t - t0) / 1600);
+        setN(Math.round(objetivo * (1 - Math.pow(1 - k, 3))));
+        if (k < 1) requestAnimationFrame(paso);
+      };
+      requestAnimationFrame(paso);
+    });
+    io.observe(ref);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ref]);
+  if (!m) return <>{valor}</>;
+  return <span ref={setRef}>{m[1]}{n.toLocaleString("es-AR")}{m[3]}</span>;
+}
+
 function SectionTitle({ kicker, title, text }: { kicker: string; title: string; text: string }) {
   return (
     <div className="max-w-2xl" data-reveal>
-      <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-clinic">
-        <span className="h-px w-8 bg-clinic" /> {kicker}
-      </span>
+      <span className="section-kicker">{kicker}</span>
       <h2 className="mt-3 text-3xl leading-tight sm:text-4xl lg:text-[2.75rem]">{title}</h2>
       <p className="mt-3 text-base text-muted-foreground sm:text-lg">{text}</p>
     </div>
@@ -320,7 +346,7 @@ function Home() {
               className="card-lift relative overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-card"
             >
               <div className="absolute -right-8 -top-8 size-24 rounded-full bg-[var(--clinic)]/10 blur-2xl" />
-              <p className="font-display text-4xl font-semibold text-gradient-clinic">{s.n}</p>
+              <p className="font-display text-4xl font-semibold text-gradient-clinic"><Contador valor={s.n} /></p>
               <p className="mt-1.5 text-sm text-muted-foreground">{s.l}</p>
             </div>
           ))}
@@ -385,8 +411,69 @@ function Home() {
         </div>
       </section>
 
+      {/* ───────── CORAZÓN Y RIÑÓN ───────── */}
+      <section className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8">
+        <div className="mx-auto mb-14 max-w-2xl text-center" data-reveal>
+          <span className="section-kicker"><HeartPulse className="size-3.5" /> Nuestras dos grandes áreas</span>
+          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">El corazón y los riñones, <span className="text-gradient-clinic italic">cuidados juntos</span></h2>
+          <p className="mt-4 text-lg text-muted-foreground">La hipertensión, la diabetes y la enfermedad renal afectan al corazón y al riñón a la vez. Por eso los atendemos de forma coordinada.</p>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {[
+            {
+              slug: "cardiologia",
+              titulo: "Cardiología",
+              img: imgCardio,
+              icon: HeartPulse,
+              color: "from-rose-500 to-red-700",
+              glow: "bg-rose-500/30",
+              doctor: "Dr. Carlos Alonso Gómez Bolaño",
+              puntos: ["Ecocardiograma doppler color", "Holter 24 h y MAPA", "Ergometría y apto físico", "Insuficiencia cardíaca y arritmias"],
+            },
+            {
+              slug: "nefrologia",
+              titulo: "Nefrología",
+              img: imgNefro,
+              icon: Droplets,
+              color: "from-sky-500 to-blue-700",
+              glow: "bg-sky-500/30",
+              doctor: "Dr. Carlos Alberto Gómez Bolaño",
+              puntos: ["Enfermedad renal crónica", "Hipertensión de causa renal", "Ecografía y doppler renal", "Plan de nefroprotección"],
+            },
+          ].map((a, i) => (
+            <Link
+              key={a.slug}
+              to="/especialidades/$slug"
+              params={{ slug: a.slug }}
+              data-reveal
+              style={{ transitionDelay: `${i * 120}ms` }}
+              className="group relative min-h-[520px] overflow-hidden rounded-[2rem] shadow-[0_40px_80px_-40px_rgba(10,25,70,.7)] ring-1 ring-white/10"
+            >
+              <img src={a.img} alt={a.titulo} loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-[1500ms] ease-out group-hover:scale-110" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_260)] via-[oklch(0.15_0.05_260/0.75)] to-transparent" />
+              <div className={`absolute -bottom-20 -left-10 size-72 rounded-full ${a.glow} blur-3xl transition-opacity duration-700 group-hover:opacity-100 opacity-60`} />
+              <div className="relative flex h-full min-h-[520px] flex-col justify-end p-8 text-white sm:p-10">
+                <span className={`mb-5 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br ${a.color} shadow-xl ring-1 ring-white/20 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110`}><a.icon className="size-6" /></span>
+                <h3 className="font-display text-4xl font-semibold">{a.titulo}</h3>
+                <p className="mt-1 text-sm text-white/70">A cargo del {a.doctor}</p>
+                <ul className="mt-6 grid gap-2.5 sm:grid-cols-2">
+                  {a.puntos.map((p) => (
+                    <li key={p} className="flex items-center gap-2.5 rounded-xl bg-white/10 px-3 py-2 text-sm ring-1 ring-white/10 backdrop-blur">
+                      <span className="size-1.5 shrink-0 rounded-full bg-white" /> {p}
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-7 inline-flex w-fit items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition-all group-hover:gap-3">
+                  Conocer {a.titulo} <ArrowRight className="size-4" />
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* ───────── ESPECIALISTAS ───────── */}
-      <section className="relative overflow-hidden border-y border-border bg-secondary/50 py-24">
+      <section className="relative overflow-hidden border-y border-border/60 bg-card/40 py-24 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <div className="mb-12">
             <SectionTitle
@@ -468,6 +555,108 @@ function Home() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ───────── CÓMO SACAR TURNO ───────── */}
+      <section className="relative mx-auto max-w-7xl px-4 pb-24 lg:px-8">
+        <div className="mx-auto mb-14 max-w-2xl text-center" data-reveal>
+          <span className="section-kicker"><CalendarPlus className="size-3.5" /> Turnos online</span>
+          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu turno en <span className="text-gradient-clinic italic">tres pasos</span></h2>
+        </div>
+        <div className="relative grid gap-6 md:grid-cols-3">
+          <div className="premium-divider absolute left-[16%] right-[16%] top-10 hidden md:block" />
+          {[
+            { n: "01", icon: Stethoscope, t: "Elegí la especialidad", d: "Cardiología, nefrología, medicina interna y más." },
+            { n: "02", icon: Clock, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor." },
+            { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones." },
+          ].map((p, i) => (
+            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="card-lift relative rounded-3xl p-8 text-center">
+              <span className="relative mx-auto flex size-20 items-center justify-center rounded-3xl gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)]">
+                <p.icon className="size-8" />
+                <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-full bg-white font-display text-sm font-bold text-[var(--deep)] shadow-md">{p.n}</span>
+              </span>
+              <h3 className="mt-6 text-lg font-semibold">{p.t}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{p.d}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-10 flex justify-center" data-reveal>
+          <Button asChild size="lg" className="btn-glow rounded-full px-8"><Link to="/turnos"><CalendarPlus className="size-4" /> Reservar ahora</Link></Button>
+        </div>
+      </section>
+
+      {/* ───────── PORTAL DEL PACIENTE ───────── */}
+      <section className="relative overflow-hidden py-24">
+        <div className="absolute inset-0 bg-[oklch(0.17_0.05_260)]" />
+        <div className="absolute inset-0 bg-grid opacity-30 [mask-image:radial-gradient(ellipse_at_center,#000_20%,transparent_75%)]" />
+        <div className="blob -left-20 top-10 size-96 bg-[var(--clinic)] opacity-40" />
+        <div className="blob -right-20 bottom-0 size-80 bg-fuchsia-500 opacity-25" style={{ animationDelay: "-7s" }} />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 lg:grid-cols-2 lg:px-8">
+          <div data-reveal className="text-white">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/85 ring-1 ring-white/15"><Smartphone className="size-3.5" /> Portal del paciente</span>
+            <h2 className="mt-5 text-3xl leading-tight text-white sm:text-5xl">Tu salud, <span className="text-shine italic">en tu celular</span></h2>
+            <p className="mt-4 max-w-lg text-lg text-white/70">Los pacientes de la clínica tienen su propio portal para seguir su tratamiento entre consulta y consulta.</p>
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {[
+                { i: CalendarPlus, t: "Turnos y recordatorios" },
+                { i: Gauge, t: "Registro de presión y peso" },
+                { i: FlaskConical, t: "Resultados explicados" },
+                { i: ClipboardCheck, t: "Autorizaciones y recetas" },
+              ].map((x) => (
+                <li key={x.t} className="flex items-center gap-3 rounded-2xl bg-white/[0.06] p-3.5 ring-1 ring-white/10 backdrop-blur">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-indigo-600"><x.i className="size-4" /></span>
+                  <span className="text-sm font-medium">{x.t}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild size="lg" className="rounded-full !bg-white px-7 text-[var(--deep)] hover:!bg-white/90"><Link to="/portal">Entrar a mi portal <ArrowRight className="size-4" /></Link></Button>
+            </div>
+            <p className="mt-4 text-xs text-white/50">El acceso lo habilita la clínica: te enviamos tu código por WhatsApp.</p>
+          </div>
+
+          {/* Maqueta de teléfono */}
+          <div data-reveal className="relative mx-auto w-full max-w-[330px]">
+            <div className="absolute -inset-10 rounded-full bg-[var(--clinic)]/30 blur-3xl" />
+            <div className="relative animate-hero-float rounded-[2.8rem] bg-gradient-to-b from-slate-700 to-slate-900 p-3 shadow-[0_50px_100px_-30px_rgba(0,0,0,.9)] ring-1 ring-white/15">
+              <div className="overflow-hidden rounded-[2.2rem] bg-[#f5f7fb]">
+                <div className="flex items-center justify-between px-6 pb-2 pt-4 text-[10px] font-semibold text-slate-500"><span>9:41</span><span className="h-5 w-20 rounded-full bg-slate-900" /><span>100%</span></div>
+                <div className="space-y-3 p-4">
+                  <div className="rounded-2xl gradient-deep p-4 text-white">
+                    <p className="text-[10px] text-white/70">Buenos días</p>
+                    <p className="font-display text-lg leading-tight">Laura, ¿cómo te sentís?</p>
+                    <div className="mt-3 rounded-xl bg-white/15 p-2.5 text-[10px]">
+                      <p className="text-white/70">Próximo turno · mañana</p>
+                      <p className="font-semibold">Ecocardiograma · 10:00</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-white p-3 shadow-sm">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Presión</p>
+                      <p className="font-display text-lg font-semibold text-slate-900">124/78</p>
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold text-amber-700">Elevada</span>
+                    </div>
+                    <div className="rounded-xl bg-white p-3 shadow-sm">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">Riñón</p>
+                      <p className="font-display text-lg font-semibold text-slate-900">68 <span className="text-[9px] font-normal">ml/min</span></p>
+                      <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold text-emerald-700">Estadio G2</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white p-3 shadow-sm">
+                    <p className="mb-2 text-[9px] font-semibold uppercase tracking-wider text-slate-500">Medicación de hoy</p>
+                    {[["08:00", "Enalapril 10 mg", true], ["20:00", "Enalapril 10 mg", false]].map(([h, n, ok]) => (
+                      <div key={String(h)} className="flex items-center gap-2 py-1 text-[10px] text-slate-700">
+                        <span className={`flex size-4 items-center justify-center rounded-full ${ok ? "bg-emerald-500 text-white" : "border border-slate-300"}`}>{ok ? "✓" : ""}</span>
+                        <b>{String(h)}</b> {String(n)}
+                      </div>
+                    ))}
+                  </div>
+                  <svg viewBox="0 0 200 40" className="h-8 w-full text-rose-400"><polyline className="ecg-line" points="0,20 50,20 60,20 66,6 72,34 78,20 130,20 140,20 146,2 152,38 158,20 200,20" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

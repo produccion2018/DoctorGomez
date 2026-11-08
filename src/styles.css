@@ -281,6 +281,75 @@
   opacity: 1;
 }
 
+/* ===== Premium público: fondo con malla de color y tarjetas con borde degradé ===== */
+.public-bg {
+  background-color: oklch(0.985 0.004 250);
+  background-image:
+    radial-gradient(60rem 40rem at 0% 0%, oklch(0.9 0.06 240 / 0.45), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 20%, oklch(0.92 0.05 300 / 0.35), transparent 60%),
+    radial-gradient(60rem 40rem at 50% 100%, oklch(0.93 0.05 190 / 0.35), transparent 60%);
+  background-attachment: fixed;
+}
+.dark .public-bg {
+  background-color: oklch(0.15 0.03 258);
+  background-image:
+    radial-gradient(60rem 40rem at 0% 0%, oklch(0.35 0.12 250 / 0.35), transparent 60%),
+    radial-gradient(50rem 36rem at 100% 20%, oklch(0.32 0.1 300 / 0.25), transparent 60%),
+    radial-gradient(60rem 40rem at 50% 100%, oklch(0.3 0.08 190 / 0.25), transparent 60%);
+}
+.card-lift {
+  border-color: transparent !important;
+  background:
+    linear-gradient(var(--color-card), color-mix(in oklab, var(--color-card) 94%, var(--clinic))) padding-box,
+    linear-gradient(150deg, oklch(0.62 0.15 245 / 0.55), oklch(0.85 0.02 250 / 0.5) 30%, oklch(0.85 0.02 250 / 0.35) 70%, oklch(0.6 0.2 25 / 0.35)) border-box !important;
+  border-width: 1px;
+  border-style: solid;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.9),
+    0 1px 2px oklch(0.28 0.09 258 / 0.05),
+    0 18px 40px -22px oklch(0.28 0.09 258 / 0.3) !important;
+}
+.card-lift:hover {
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.9),
+    0 2px 6px oklch(0.28 0.09 258 / 0.06),
+    0 30px 60px -24px oklch(0.45 0.15 250 / 0.45) !important;
+}
+.dark .card-lift {
+  background:
+    linear-gradient(oklch(0.22 0.04 258 / 0.92), oklch(0.19 0.04 258 / 0.92)) padding-box,
+    linear-gradient(150deg, oklch(0.65 0.15 245 / 0.6), oklch(1 0 0 / 0.07) 30%, oklch(1 0 0 / 0.05) 70%, oklch(0.62 0.2 25 / 0.35)) border-box !important;
+  box-shadow: 0 24px 50px -28px oklch(0 0 0 / 0.8) !important;
+}
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--clinic);
+  background: color-mix(in oklab, var(--clinic) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--clinic) 25%, transparent);
+}
+.premium-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--clinic) 45%, transparent), transparent);
+}
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+.eq-bar {
+  transform-origin: bottom;
+  animation: eq 1s ease-in-out infinite;
+}
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.spin-slow { animation: spin-slow 8s linear infinite; }
+
 /* Aparición al hacer scroll */
 [data-reveal] {
   opacity: 0;
@@ -453,6 +522,8 @@
   .blob,
   .animate-hero-float,
   .ecg-line,
+  .eq-bar,
+  .spin-slow,
   .hero-kenburns,
   .hero-shine,
   .hero-glow,

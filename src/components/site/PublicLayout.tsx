@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Lock, Mail, MapPin, Menu, MessageCircle, Phone, UserRound, X } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -118,7 +118,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   const activo = (to: string) => (to === "/" ? pathname === "/" : pathname === to || pathname.startsWith(to + "/"));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="public-bg min-h-screen">
       {/* Barra superior */}
       <div className="hidden bg-deep text-deep-foreground/80 md:block">
         <div className="mx-auto flex h-9 max-w-7xl items-center justify-between px-4 text-xs lg:px-8">
@@ -135,7 +135,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 
       <header
         className={`sticky top-0 z-40 border-b transition-all duration-300 ${
-          scrolled ? "border-border/70 bg-background/80 shadow-[0_10px_30px_-20px_rgba(15,35,80,.35)] backdrop-blur-xl" : "border-transparent bg-background"
+          scrolled ? "border-border/70 bg-background/75 shadow-[0_10px_30px_-20px_rgba(15,35,80,.35)] backdrop-blur-xl" : "border-transparent bg-background/40 backdrop-blur-md"
         }`}
       >
         <div className={`mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 transition-all duration-300 lg:px-8 ${scrolled ? "h-16" : "h-20"}`}>
@@ -183,6 +183,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
       </header>
 
       <main>{children}</main>
+
+      <Reproductor />
 
       <footer className="relative mt-24 overflow-hidden bg-deep text-deep-foreground">
         <div className="absolute inset-0 bg-grid opacity-40 [mask-image:linear-gradient(to_bottom,#000,transparent)]" />
@@ -257,7 +259,272 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <span className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-30" />
         <MessageCircle className="relative size-6" />
       </a>
+      <MiniReproductor />
       <ScrollTop />
     </div>
+  );
+}
+
+/* ===================================================================== */
+/* Música instrumental de fondo                                            */
+/* Se genera en vivo con el navegador (Web Audio): es original, no usa      */
+/* archivos ni canciones con derechos de autor.                             */
+/* ===================================================================== */
+
+type Tema = {
+  nombre: string;
+  sub: string;
+  bpm: number;
+  // acordes en semitonos MIDI (nota más grave primero)
+  acordes: number[][];
+  color: string;
+};
+
+const TEMAS: Tema[] = [
+  { nombre: "Calma", sub: "Piano y pads suaves", bpm: 62, color: "from-sky-400 to-indigo-600", acordes: [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 53, 59]] },
+  { nombre: "Amanecer", sub: "Luminoso y sereno", bpm: 70, color: "from-amber-300 to-rose-500", acordes: [[50, 57, 61, 66], [47, 54, 57, 62], [43, 50, 54, 59], [45, 52, 57, 61]] },
+  { nombre: "Respirar", sub: "Lento, para relajarse", bpm: 54, color: "from-emerald-300 to-teal-600", acordes: [[45, 52, 55, 59, 60], [41, 48, 52, 55], [48, 55, 59, 62], [43, 50, 55, 59]] },
+  { nombre: "Horizonte", sub: "Cálido y envolvente", bpm: 66, color: "from-violet-400 to-fuchsia-600", acordes: [[51, 58, 62, 67], [48, 55, 58, 63], [44, 51, 55, 60], [46, 53, 58, 62]] },
+];
+
+const midiAHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
+type EstadoMusica = { sonando: boolean; tema: number; volumen: number };
+
+const motor = (() => {
+  let ctx: AudioContext | null = null;
+  let master: GainNode | null = null;
+  let timer: number | null = null;
+  let paso = 0;
+  let proximo = 0;
+  const estado: EstadoMusica = { sonando: false, tema: 0, volumen: 0.6 };
+  const subs = new Set<() => void>();
+  const avisar = () => subs.forEach((f) => f());
+
+  const crear = () => {
+    if (ctx) return;
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    ctx = new AC();
+    master = ctx.createGain();
+    master.gain.value = 0;
+    // reverb con impulso generado
+    const largo = ctx.sampleRate * 3.5;
+    const imp = ctx.createBuffer(2, largo, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = imp.getChannelData(c);
+      for (let i = 0; i < largo; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / largo, 2.6);
+    }
+    const reverb = ctx.createConvolver();
+    reverb.buffer = imp;
+    const humedo = ctx.createGain();
+    humedo.gain.value = 0.55;
+    const filtro = ctx.createBiquadFilter();
+    filtro.type = "lowpass";
+    filtro.frequency.value = 4200;
+    master.connect(filtro);
+    filtro.connect(ctx.destination);
+    filtro.connect(reverb);
+    reverb.connect(humedo);
+    humedo.connect(ctx.destination);
+  };
+
+  const nota = (hz: number, t: number, dur: number, vol: number, tipo: OscillatorType, ataque: number) => {
+    if (!ctx || !master) return;
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = tipo;
+    o.frequency.value = hz;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + ataque);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + dur + 0.1);
+  };
+
+  const programar = () => {
+    if (!ctx) return;
+    const tema = TEMAS[estado.tema]!;
+    const corchea = 60 / tema.bpm / 2;
+    while (proximo < ctx.currentTime + 0.4) {
+      const compas = Math.floor(paso / 16);
+      const acorde = tema.acordes[compas % tema.acordes.length]!;
+      const p = paso % 16;
+      if (p === 0) {
+        // pad: el acorde entero, ataque lento
+        acorde.forEach((m, i) => {
+          nota(midiAHz(m + 12), proximo, corchea * 17, 0.035, "sine", 1.6);
+          nota(midiAHz(m + 12) * 1.004, proximo, corchea * 17, 0.02, "triangle", 2.0 + i * 0.1);
+        });
+        nota(midiAHz(acorde[0]! - 12), proximo, corchea * 16, 0.07, "sine", 0.8); // bajo
+      }
+      // piano: arpegio suave con algo de azar
+      if (p % 2 === 0 && Math.random() > 0.18) {
+        const idx = [0, 2, 1, 3, 2, 4, 3, 1][(p / 2) % 8]! % acorde.length;
+        const alt = Math.random() > 0.7 ? 24 : 12;
+        const m = acorde[idx]! + alt;
+        const vel = 0.05 + Math.random() * 0.035;
+        nota(midiAHz(m), proximo, corchea * 6, vel, "triangle", 0.01);
+        nota(midiAHz(m) * 2, proximo, corchea * 3, vel * 0.25, "sine", 0.01);
+      }
+      // destellos agudos ocasionales
+      if (p === 10 && Math.random() > 0.5) nota(midiAHz(acorde[acorde.length - 1]! + 24), proximo, corchea * 8, 0.025, "sine", 0.3);
+      proximo += corchea;
+      paso++;
+    }
+  };
+
+  const fundido = (destino: number, seg: number) => {
+    if (!ctx || !master) return;
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+    master.gain.linearRampToValueAtTime(destino, ctx.currentTime + seg);
+  };
+
+  return {
+    estado,
+    suscribir(f: () => void) {
+      subs.add(f);
+      return () => {
+        subs.delete(f);
+      };
+    },
+    async play() {
+      crear();
+      if (!ctx) return;
+      await ctx.resume();
+      if (!timer) {
+        paso = 0;
+        proximo = ctx.currentTime + 0.1;
+        timer = window.setInterval(programar, 100);
+      }
+      fundido(estado.volumen * 0.9, 2);
+      estado.sonando = true;
+      avisar();
+    },
+    pausa() {
+      fundido(0, 0.8);
+      window.setTimeout(() => {
+        if (!estado.sonando && timer) {
+          window.clearInterval(timer);
+          timer = null;
+        }
+      }, 900);
+      estado.sonando = false;
+      avisar();
+    },
+    elegir(i: number) {
+      estado.tema = (i + TEMAS.length) % TEMAS.length;
+      paso = 0;
+      avisar();
+      if (!estado.sonando) void this.play();
+    },
+    volumen(v: number) {
+      estado.volumen = v;
+      if (estado.sonando) fundido(v * 0.9, 0.2);
+      avisar();
+    },
+  };
+})();
+
+function useMusica() {
+  const [, setN] = useState(0);
+  useEffect(() => motor.suscribir(() => setN((n) => n + 1)), []);
+  return motor.estado;
+}
+
+/** Botón flotante chico: aparece cuando la música está sonando, en todas las páginas. */
+function MiniReproductor() {
+  const e = useMusica();
+  if (!e.sonando) return null;
+  const t = TEMAS[e.tema]!;
+  return (
+    <button
+      onClick={() => motor.pausa()}
+      className="fixed bottom-24 left-6 z-50 flex items-center gap-2.5 rounded-full border border-white/20 bg-deep/90 py-2 pl-2 pr-4 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500"
+      aria-label="Pausar música"
+    >
+      <span className={`flex size-8 items-center justify-center rounded-full bg-gradient-to-br ${t.color}`}><Pause className="size-3.5" /></span>
+      <span className="flex h-4 items-end gap-0.5">{[0, 1, 2, 3].map((i) => <span key={i} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${i * 0.15}s` }} />)}</span>
+      <span className="text-xs font-semibold">{t.nombre}</span>
+    </button>
+  );
+}
+
+/** Reproductor grande al final de cada página. */
+export function Reproductor() {
+  const e = useMusica();
+  const t = TEMAS[e.tema]!;
+  return (
+    <section className="relative mx-auto max-w-7xl px-4 pt-20 lg:px-8">
+      <div className="relative overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_260)] p-6 text-white shadow-[0_40px_80px_-40px_rgba(10,20,60,.9)] ring-1 ring-white/10 sm:p-10">
+        <div className={`pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-gradient-to-br ${t.color} opacity-40 blur-3xl transition-all duration-1000`} />
+        <div className="pointer-events-none absolute -bottom-32 right-0 size-96 rounded-full bg-sky-500/20 blur-3xl" />
+        <div className="absolute inset-0 bg-grid opacity-30 [mask-image:linear-gradient(to_bottom,#000,transparent)]" />
+
+        <div className="relative grid items-center gap-10 lg:grid-cols-[auto_1fr_1fr]">
+          {/* Disco */}
+          <div className="relative mx-auto size-44 sm:size-52">
+            <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${t.color} opacity-60 blur-2xl transition-all duration-1000`} />
+            <div className={`relative flex size-full items-center justify-center rounded-full bg-[conic-gradient(from_0deg,#0b1120,#1e293b,#0b1120,#1e293b,#0b1120)] shadow-2xl ring-1 ring-white/10 ${e.sonando ? "spin-slow" : ""}`}>
+              {[0.86, 0.72, 0.58].map((k) => <span key={k} className="absolute rounded-full ring-1 ring-white/5" style={{ inset: `${(1 - k) * 50}%` }} />)}
+              <span className={`relative flex size-16 items-center justify-center rounded-full bg-gradient-to-br ${t.color} shadow-inner`}>
+                <Music2 className="size-6 text-white" />
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/15">
+              <Headphones className="size-3.5" /> Música para tu espera
+            </span>
+            <h2 className="mt-4 text-3xl text-white sm:text-4xl">{t.nombre}</h2>
+            <p className="mt-1 text-white/65">{t.sub} · instrumental</p>
+            <div className="mt-6 flex items-center gap-3">
+              <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="flex size-11 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors hover:bg-white/20"><SkipBack className="size-4" /></button>
+              <button
+                onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
+                aria-label={e.sonando ? "Pausar" : "Reproducir"}
+                className={`flex size-16 items-center justify-center rounded-full bg-gradient-to-br ${t.color} shadow-[0_15px_40px_-10px_rgba(56,189,248,.7)] transition-transform hover:scale-105 active:scale-95`}
+              >
+                {e.sonando ? <Pause className="size-6" /> : <Play className="ml-1 size-6" />}
+              </button>
+              <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-11 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors hover:bg-white/20"><SkipForward className="size-4" /></button>
+              <div className="ml-2 flex h-10 items-end gap-1" aria-hidden="true">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <span key={i} className={`w-1 rounded-full bg-gradient-to-t ${t.color} ${e.sonando ? "eq-bar" : ""}`} style={{ height: e.sonando ? "100%" : "20%", animationDelay: `${(i % 5) * 0.13}s`, animationDuration: `${0.8 + (i % 4) * 0.2}s` }} />
+                ))}
+              </div>
+            </div>
+            <label className="mt-6 flex max-w-xs items-center gap-3 text-white/70">
+              <Volume2 className="size-4 shrink-0" />
+              <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-full cursor-pointer accent-sky-400" aria-label="Volumen" />
+            </label>
+          </div>
+
+          <ol className="space-y-2">
+            {TEMAS.map((x, i) => {
+              const on = i === e.tema;
+              return (
+                <li key={x.nombre}>
+                  <button onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))} className={`flex w-full items-center gap-4 rounded-2xl p-3 text-left transition-all ${on ? "bg-white/12 ring-1 ring-white/20" : "hover:bg-white/5"}`}>
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${x.color} shadow-md`}>
+                      {on && e.sonando ? <span className="flex h-4 items-end gap-0.5">{[0, 1, 2].map((k) => <span key={k} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${k * 0.2}s` }} />)}</span> : <Play className="ml-0.5 size-4" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{x.nombre}</span>
+                      <span className="block text-xs text-white/55">{x.sub}</span>
+                    </span>
+                    <span className="text-xs tabular-nums text-white/40">{String(i + 1).padStart(2, "0")}</span>
+                  </button>
+                </li>
+              );
+            })}
+            <li className="px-3 pt-2 text-[11px] leading-relaxed text-white/40">Música instrumental original, creada en vivo en tu navegador. Sin anuncios ni interrupciones.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
   );
 }
