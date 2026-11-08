@@ -15,6 +15,7 @@ import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
 import { Route as PanelRouteImport } from './routes/panel'
+import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PreguntasFrecuentesRouteImport } from './routes/preguntas-frecuentes'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TurnosRouteImport } from './routes/turnos'
@@ -51,6 +52,11 @@ const NosotrosRoute = NosotrosRouteImport.update({
 const PanelRoute = PanelRouteImport.update({
   id: '/panel',
   path: '/panel',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalRoute = PortalRouteImport.update({
+  id: '/portal',
+  path: '/portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreguntasFrecuentesRoute = PreguntasFrecuentesRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/portal': typeof PortalRoute
   '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
   '/servicios': typeof ServiciosRoute
   '/turnos': typeof TurnosRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/portal': typeof PortalRoute
   '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
   '/servicios': typeof ServiciosRoute
   '/turnos': typeof TurnosRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
   '/panel': typeof PanelRoute
+  '/portal': typeof PortalRoute
   '/preguntas-frecuentes': typeof PreguntasFrecuentesRoute
   '/servicios': typeof ServiciosRoute
   '/turnos': typeof TurnosRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/portal'
     | '/preguntas-frecuentes'
     | '/servicios'
     | '/turnos'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/portal'
     | '/preguntas-frecuentes'
     | '/servicios'
     | '/turnos'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nosotros'
     | '/panel'
+    | '/portal'
     | '/preguntas-frecuentes'
     | '/servicios'
     | '/turnos'
@@ -190,6 +202,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   NosotrosRoute: typeof NosotrosRoute
   PanelRoute: typeof PanelRoute
+  PortalRoute: typeof PortalRoute
   PreguntasFrecuentesRoute: typeof PreguntasFrecuentesRoute
   ServiciosRoute: typeof ServiciosRoute
   TurnosRoute: typeof TurnosRoute
@@ -241,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/panel'
       fullPath: '/panel'
       preLoaderRoute: typeof PanelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal': {
+      id: '/portal'
+      path: '/portal'
+      fullPath: '/portal'
+      preLoaderRoute: typeof PortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/preguntas-frecuentes': {
@@ -302,6 +322,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   NosotrosRoute: NosotrosRoute,
   PanelRoute: PanelRoute,
+  PortalRoute: PortalRoute,
   PreguntasFrecuentesRoute: PreguntasFrecuentesRoute,
   ServiciosRoute: ServiciosRoute,
   TurnosRoute: TurnosRoute,

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Lock, Mail, MapPin, Menu, MessageCircle, Phone, X } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Lock, Mail, MapPin, Menu, MessageCircle, Phone, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -53,7 +53,7 @@ export function Brand({ light = false }: { light?: boolean }) {
       <span className="flex size-10 items-center justify-center rounded-xl gradient-deep shadow-[0_8px_20px_-8px_rgba(20,50,120,.7)] transition-transform duration-500 group-hover:rotate-6">
         <Activity className="size-5 text-deep-foreground" />
       </span>
-      <span className="leading-tight">
+      <span className="whitespace-nowrap leading-tight">
         <span className={`block text-sm font-bold tracking-tight ${light ? "text-deep-foreground" : "text-foreground"}`}>Gómez Bolaño</span>
         <span className={`block text-[10px] uppercase tracking-[0.2em] ${light ? "text-deep-foreground/70" : "text-muted-foreground"}`}>Clínica médica</span>
       </span>
@@ -154,6 +154,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </nav>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button asChild size="sm" variant="outline" className="hidden rounded-full px-3 lg:inline-flex 2xl:px-4" title="Portal del paciente">
+              <Link to="/portal"><UserRound className="size-4" /> <span className="xl:hidden 2xl:inline">Portal del paciente</span></Link>
+            </Button>
             <Button asChild size="sm" className="btn-glow hidden rounded-full px-5 sm:inline-flex">
               <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link>
             </Button>
@@ -170,9 +173,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
                   {l.label} <ArrowRight className="size-4 opacity-40" />
                 </Link>
               ))}
-              <Button asChild className="mt-2 rounded-xl">
-                <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link>
-              </Button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Button asChild variant="outline" className="rounded-xl"><Link to="/portal"><UserRound className="size-4" /> Mi portal</Link></Button>
+                <Button asChild className="rounded-xl"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir turno</Link></Button>
+              </div>
             </nav>
           </div>
         )}
@@ -216,6 +220,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground/60">Pacientes</h3>
             <ul className="mt-4 space-y-2.5 text-sm text-deep-foreground/80">
               <li><Link to="/turnos" className="hover:text-white">Solicitar turno</Link></li>
+              <li><Link to="/portal" className="hover:text-white">Portal del paciente</Link></li>
               <li><Link to="/servicios" className="hover:text-white">Servicios y aranceles</Link></li>
               <li><Link to="/preguntas-frecuentes" className="hover:text-white">Preguntas frecuentes</Link></li>
               <li><Link to="/contacto" className="hover:text-white">Contacto</Link></li>

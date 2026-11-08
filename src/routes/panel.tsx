@@ -55,9 +55,28 @@ import {
   cerrarSesion,
   leerAuditoria,
   sesionActual,
+  useDato,
+  agendaDe,
+  horariosDelDia,
+  proximosDias,
+  resumenAgenda,
+  nuevoCodigo,
+  nuevoId,
+  NOMBRES_DIA,
+  KEY_AGENDA,
+  KEY_PACIENTES,
+  KEY_AUT,
+  TIPOS_AUT,
+  type AgendaDoctor,
+  type Agendas,
+  type Autorizacion,
+  type EstadoAcceso,
+  type EstadoAut,
+  type PacientePortal,
   type Evento,
   type SessionUser,
 } from "@/lib/auth-local";
+import { DOCTORS } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
@@ -73,11 +92,11 @@ export const Route = createFileRoute("/panel")({
 
 /* ---------- Tipos y datos de ejemplo ---------- */
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
-type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" };
+type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Nivel = "ninguno" | "ver" | "editar";
 type Permisos = Record<string, Record<string, Nivel>>;
-type Tab = "resumen" | "turnos" | "finanzas" | "permisos" | "asistente" | "auditoria";
+type Tab = "resumen" | "turnos" | "horarios" | "pacientes" | "finanzas" | "permisos" | "asistente" | "auditoria";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -92,6 +111,8 @@ const MODULOS = [
   "Facturación",
   "Reportes",
   "Asistente IA",
+  "Horarios",
+  "Portal del paciente",
   "Auditoría",
   "Permisos",
 ];
@@ -165,9 +186,9 @@ const mk = (p: Partial<Record<string, Nivel>>): Record<string, Nivel> =>
   Object.fromEntries(MODULOS.map((m) => [m, p[m] ?? "ninguno"])) as Record<string, Nivel>;
 
 const SEED_PERMISOS: Permisos = {
-  "Recepción": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver" }),
-  "Secretaría médica": mk({ Turnos: "editar", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver" }),
-  "Atención al paciente": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver" }),
+  "Recepción": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", Horarios: "ver", "Portal del paciente": "editar" }),
+  "Secretaría médica": mk({ Turnos: "editar", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver", Horarios: "editar", "Portal del paciente": "editar" }),
+  "Atención al paciente": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", "Portal del paciente": "editar" }),
   "Enfermería": mk({ Turnos: "ver", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver" }),
   "Cardiología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
   "Nefrología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
@@ -208,6 +229,8 @@ const inp =
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "turnos", label: "Turnos", icon: CalendarDays },
+  { id: "horarios", label: "Mis horarios", icon: Clock },
+  { id: "pacientes", label: "Portal paciente", icon: Users },
   { id: "finanzas", label: "Finanzas", icon: Wallet },
   { id: "permisos", label: "Permisos", icon: KeyRound },
   { id: "asistente", label: "Asistente IA", icon: Bot },
@@ -217,6 +240,8 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
   turnos: ["Turnos", "Creá y gestioná la agenda de los profesionales."],
+  horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
+  pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Ingresos, egresos y balance de la clínica."],
   permisos: ["Permisos", "Definí qué puede ver y hacer cada departamento."],
   asistente: ["Asistente IA", "Consultas rápidas sobre turnos, finanzas, permisos y actividad."],
@@ -478,6 +503,8 @@ function Panel() {
 
         {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
         {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
+        {tab === "horarios" && <HorariosTab user={user} log={log} />}
+        {tab === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
         {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} />}
         {tab === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
         {tab === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
@@ -491,6 +518,8 @@ function Panel() {
 const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   resumen: { a: "56,132,246", b: "99,102,241", c: "14,165,233" },
   turnos: { a: "14,165,233", b: "20,184,166", c: "59,130,246" },
+  horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
+  pacientes: { a: "219,39,119", b: "139,92,246", c: "56,132,246" },
   finanzas: { a: "16,185,129", b: "14,165,233", c: "20,184,166" },
   permisos: { a: "139,92,246", b: "79,70,229", c: "56,132,246" },
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
@@ -956,6 +985,7 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
                         <p className="flex items-center gap-2 font-medium">
                           {t.paciente}
                           {t.origen === "web" && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700">Web</span>}
+                          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-pink-700">Portal</span>}
                         </p>
                         <p className="text-xs text-muted-foreground">{t.motivo}{t.telefono ? ` · ${t.telefono}` : ""}</p>
                       </div>
@@ -1703,6 +1733,447 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
           <Clock className="mb-1 size-4" />
           Por ahora el asistente funciona dentro del navegador con los datos del panel. Cuando conectes el backend se puede enlazar a una IA real para consultas libres.
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Horarios de atención ---------- */
+const ADMIN_A_DOCTOR: Record<string, string> = { alberto: "d1", alonso: "d2" };
+const ORDEN_DIAS = [1, 2, 3, 4, 5, 6, 0];
+
+function Interruptor({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex items-center gap-3 text-sm font-medium">
+      <span className={`relative h-6 w-11 rounded-full transition-colors duration-300 ${on ? "pn-acc-tile" : "bg-slate-300"}`}>
+        <span className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all duration-300 ${on ? "left-[22px]" : "left-0.5"}`} />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
+  const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const [sel, setSel] = useState<string>(ADMINS.some((a) => a.id === user.id) ? user.id : ADMINS[0]!.id);
+  const guardada = agendaDe(agendas, sel);
+  const [draft, setDraft] = useState<AgendaDoctor>(guardada);
+  const [bloq, setBloq] = useState({ desde: hoy(), hasta: hoy(), motivo: "" });
+  const firma = JSON.stringify(guardada);
+
+  useEffect(() => {
+    setDraft(agendaDe(agendas, sel));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, firma]);
+
+  const cambios = JSON.stringify(draft) !== firma;
+  const set = (patch: Partial<AgendaDoctor>) => setDraft((d) => ({ ...d, ...patch }));
+  const admin = ADMINS.find((a) => a.id === sel)!;
+  const doctor = DOCTORS.find((d) => d.id === ADMIN_A_DOCTOR[sel]);
+  const slots = horariosDelDia(draft);
+  const proximos = proximosDias(draft, 6);
+
+  const guardar = () => {
+    if (draft.dias.length === 0) {
+      toast.error("Elegí al menos un día de atención.");
+      return;
+    }
+    if (draft.desde >= draft.hasta) {
+      toast.error("La hora de inicio tiene que ser anterior a la de fin.");
+      return;
+    }
+    setAgendas((p) => ({ ...p, [sel]: draft }));
+    log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
+    toast.success("Horarios publicados en la web.");
+  };
+
+  const agregarBloqueo = (e: FormEvent) => {
+    e.preventDefault();
+    if (bloq.hasta < bloq.desde) {
+      toast.error("La fecha de fin no puede ser anterior a la de inicio.");
+      return;
+    }
+    set({ bloqueos: [...draft.bloqueos, { id: uid(), ...bloq, motivo: bloq.motivo.trim() || "No atiende" }] });
+    setBloq({ desde: hoy(), hasta: hoy(), motivo: "" });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {ADMINS.map((a) => {
+          const ag = agendaDe(agendas, a.id);
+          const on = sel === a.id;
+          const f = fotoDe(a.id);
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setSel(a.id)}
+              className={`pn-card pn-up flex items-center gap-4 p-4 text-left transition-all ${on ? "ring-4 ring-[rgba(var(--acc),.18)]" : "opacity-80 hover:opacity-100"}`}
+            >
+              {f && <img src={f} alt="" className="size-14 rounded-2xl object-cover object-top" />}
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 font-semibold">
+                  {a.nombre} {a.id === user.id && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vos</span>}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
+              </div>
+              <span className={`size-2.5 shrink-0 rounded-full ${ag.activo ? "bg-emerald-500" : "bg-slate-400"}`} />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <div className="space-y-6 xl:col-span-3">
+          <Seccion icon={CalendarDays} titulo="Días y horario de atención" sub={admin.nombre}
+            acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Días</p>
+            <div className="flex flex-wrap gap-2">
+              {ORDEN_DIAS.map((d) => {
+                const on = draft.dias.includes(d);
+                return (
+                  <button key={d} type="button" onClick={() => set({ dias: on ? draft.dias.filter((x) => x !== d) : [...draft.dias, d] })}
+                    className={`h-11 w-14 rounded-xl text-sm font-semibold transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                    {NOMBRES_DIA[d]!.slice(0, 3)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <Campo label="Desde"><input type="time" value={draft.desde} onChange={(e) => set({ desde: e.target.value })} className={inp} /></Campo>
+              <Campo label="Hasta"><input type="time" value={draft.hasta} onChange={(e) => set({ hasta: e.target.value })} className={inp} /></Campo>
+              <Campo label="Duración de cada turno">
+                <select value={draft.duracion} onChange={(e) => set({ duracion: Number(e.target.value) })} className={inp}>
+                  {[15, 20, 30, 40, 45, 60].map((m) => <option key={m} value={m}>{m} minutos</option>)}
+                </select>
+              </Campo>
+            </div>
+            <div className="mt-5 rounded-2xl bg-secondary/50 p-4">
+              <Interruptor on={draft.pausa} onChange={(v) => set({ pausa: v })} label="Pausa (almuerzo / cirugías)" />
+              {draft.pausa && (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Campo label="Pausa desde"><input type="time" value={draft.pausaDesde} onChange={(e) => set({ pausaDesde: e.target.value })} className={inp} /></Campo>
+                  <Campo label="Pausa hasta"><input type="time" value={draft.pausaHasta} onChange={(e) => set({ pausaHasta: e.target.value })} className={inp} /></Campo>
+                </div>
+              )}
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <Campo label="Consultorio"><input value={draft.consultorio} onChange={(e) => set({ consultorio: e.target.value })} className={inp} /></Campo>
+              <Campo label="Aviso para pacientes (se ve en la web)"><input value={draft.nota} placeholder="Ej: traer estudios previos" onChange={(e) => set({ nota: e.target.value })} className={inp} /></Campo>
+            </div>
+          </Seccion>
+
+          <Seccion icon={Ban} titulo="Vacaciones, congresos y días sin atención" sub="Esos días no se pueden reservar turnos" delay={0.05}>
+            <form onSubmit={agregarBloqueo} className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
+              <Campo label="Desde"><input type="date" required value={bloq.desde} onChange={(e) => setBloq({ ...bloq, desde: e.target.value })} className={inp} /></Campo>
+              <Campo label="Hasta"><input type="date" required value={bloq.hasta} onChange={(e) => setBloq({ ...bloq, hasta: e.target.value })} className={inp} /></Campo>
+              <Campo label="Motivo"><input placeholder="Ej: vacaciones" value={bloq.motivo} onChange={(e) => setBloq({ ...bloq, motivo: e.target.value })} className={inp} /></Campo>
+              <div className="flex items-end"><Button type="submit" variant="outline" className="h-11 w-full rounded-xl"><Plus className="size-4" /> Agregar</Button></div>
+            </form>
+            <div className="mt-4 space-y-2">
+              {draft.bloqueos.length === 0 && <p className="text-sm text-muted-foreground">No hay días bloqueados.</p>}
+              {draft.bloqueos.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 ring-1 ring-rose-100">
+                  <Ban className="size-4 text-rose-600" />
+                  <span className="flex-1 text-sm"><b>{fechaCorta(b.desde)}{b.hasta !== b.desde ? ` al ${fechaCorta(b.hasta)}` : ""}</b> · {b.motivo}</span>
+                  <button onClick={() => set({ bloqueos: draft.bloqueos.filter((x) => x.id !== b.id) })} aria-label="Quitar" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"><Trash2 className="size-4" /></button>
+                </div>
+              ))}
+            </div>
+          </Seccion>
+        </div>
+
+        <div className="space-y-6 xl:col-span-2">
+          <section className="pn-card pn-up overflow-hidden xl:sticky xl:top-6" style={{ animationDelay: ".1s" }}>
+            <div className="gradient-deep relative p-5 text-white">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Así se ve en la web</p>
+              <div className="mt-3 flex items-center gap-3">
+                {fotoDe(sel) && <img src={fotoDe(sel)!} alt="" className="size-12 rounded-xl object-cover object-top ring-2 ring-white/30" />}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{doctor?.nombre ?? admin.nombre}</p>
+                  <p className="text-xs text-white/75">{draft.consultorio}</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4 p-5">
+              <p className="flex items-start gap-2 text-sm"><Clock className="mt-0.5 size-4 shrink-0 text-primary" /> {resumenAgenda(draft)}</p>
+              {draft.nota && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">{draft.nota}</p>}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Próximos días</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {proximos.length === 0 && <span className="text-sm text-muted-foreground">Sin días disponibles.</span>}
+                  {proximos.map((f) => (
+                    <span key={f} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium capitalize">{new Date(f + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric" })}</span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{slots.length} turnos por día</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                <Button onClick={guardar} disabled={!cambios} className="h-11 rounded-xl">
+                  <Check className="size-4" /> {cambios ? "Guardar y publicar" : "Publicado"}
+                </Button>
+                {cambios && (
+                  <Button variant="ghost" onClick={() => setDraft(guardada)} className="rounded-xl text-muted-foreground">Descartar cambios</Button>
+                )}
+                {doctor && (
+                  <Button asChild variant="outline" className="rounded-xl">
+                    <a href={`/especialistas/${doctor.id}`} target="_blank" rel="noreferrer"><ExternalLink className="size-4" /> Ver en la web</a>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Portal del paciente (accesos y autorizaciones) ---------- */
+function waPaciente(tel: string, texto: string) {
+  let n = tel.replace(/\D/g, "");
+  if (n && n.length <= 10) n = "549" + n.replace(/^0/, "");
+  return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
+}
+
+function mensajeInvitacion(p: PacientePortal) {
+  const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
+  return `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nDNI: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+}
+
+const ESTADO_ACCESO: Record<EstadoAcceso, string> = {
+  Invitado: "bg-amber-100 text-amber-800 ring-amber-200",
+  Activo: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  Revocado: "bg-slate-100 text-slate-600 ring-slate-200",
+};
+const ESTADO_AUT: Record<EstadoAut, string> = {
+  Pendiente: "bg-amber-100 text-amber-800 ring-amber-200",
+  Autorizada: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  Rechazada: "bg-rose-100 text-rose-700 ring-rose-200",
+};
+
+function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; turnos: Turno[] }) {
+  const [pacientes, setPacientes] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+  const [auts, setAuts] = useDato<Autorizacion[]>(KEY_AUT, []);
+  const [f, setF] = useState({ nombre: "", dni: "", telefono: "", email: "" });
+  const [recien, setRecien] = useState<PacientePortal | null>(null);
+  const [q, setQ] = useState("");
+  const [fa, setFa] = useState({ pacienteId: "", tipo: TIPOS_AUT[0] as string, titulo: "", detalle: "" });
+  const [verAut, setVerAut] = useState<"pendientes" | "resueltas">("pendientes");
+  const [respuesta, setRespuesta] = useState<Record<string, string>>({});
+
+  const lista = pacientes.filter((p) => norm(`${p.nombre} ${p.dni} ${p.email}`).includes(norm(q)));
+  const autsLista = auts.filter((a) => (verAut === "pendientes" ? a.estado === "Pendiente" : a.estado !== "Pendiente"));
+
+  const invitar = (e: FormEvent) => {
+    e.preventDefault();
+    const dni = f.dni.replace(/\D/g, "");
+    if (dni.length < 7) {
+      toast.error("Ingresá un DNI válido.");
+      return;
+    }
+    if (pacientes.some((p) => p.dni === dni)) {
+      toast.error("Ya existe un paciente con ese DNI.");
+      return;
+    }
+    const nuevo: PacientePortal = {
+      id: nuevoId(),
+      nombre: f.nombre.trim(),
+      dni,
+      telefono: f.telefono.trim(),
+      email: f.email.trim(),
+      codigo: nuevoCodigo(),
+      estado: "Invitado",
+      invitadoPor: user.nombre,
+      fecha: new Date().toISOString(),
+    };
+    setPacientes((p) => [nuevo, ...p]);
+    log("Acceso al portal enviado", `${nuevo.nombre} · DNI ${dni}`);
+    setRecien(nuevo);
+    setF({ nombre: "", dni: "", telefono: "", email: "" });
+  };
+
+  const cambiarPaciente = (id: string, patch: Partial<PacientePortal>, accion: string) => {
+    const p = pacientes.find((x) => x.id === id);
+    setPacientes((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    if (p) log(accion, `${p.nombre} · DNI ${p.dni}`);
+  };
+
+  const copiar = async (texto: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      toast.success("Copiado.");
+    } catch {
+      toast.error("No se pudo copiar.");
+    }
+  };
+
+  const pedirAut = (e: FormEvent) => {
+    e.preventDefault();
+    const p = pacientes.find((x) => x.id === fa.pacienteId);
+    if (!p) {
+      toast.error("Elegí un paciente.");
+      return;
+    }
+    const nueva: Autorizacion = {
+      id: nuevoId(),
+      pacienteId: p.id,
+      paciente: p.nombre,
+      tipo: fa.tipo,
+      titulo: fa.titulo.trim(),
+      detalle: fa.detalle.trim(),
+      origen: "Clínica",
+      solicitadoPor: user.nombre,
+      fecha: new Date().toISOString(),
+      estado: "Pendiente",
+    };
+    setAuts((l) => [nueva, ...l]);
+    log("Autorización solicitada", `${p.nombre} · ${nueva.tipo}: ${nueva.titulo}`);
+    toast.success("Solicitud enviada al portal del paciente.");
+    setFa({ ...fa, titulo: "", detalle: "" });
+  };
+
+  const responder = (a: Autorizacion, estado: EstadoAut) => {
+    const r = (respuesta[a.id] ?? "").trim();
+    setAuts((l) => l.map((x) => (x.id === a.id ? { ...x, estado, respondidoPor: user.nombre, fechaRespuesta: new Date().toISOString(), ...(r ? { respuesta: r } : {}) } : x)));
+    log(`Autorización ${estado.toLowerCase()}`, `${a.paciente} · ${a.titulo}`);
+  };
+
+  const activos = pacientes.filter((p) => p.estado === "Activo").length;
+  const invitados = pacientes.filter((p) => p.estado === "Invitado").length;
+  const autPend = auts.filter((a) => a.estado === "Pendiente").length;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={Users} label="Pacientes con acceso" value={String(pacientes.length)} tono="azul" delay={0.05} />
+        <Kpi icon={LogIn} label="Ya ingresaron" value={String(activos)} hint="Portal activo" tono="verde" delay={0.1} />
+        <Kpi icon={Send} label="Invitaciones" value={String(invitados)} hint="Esperando primer ingreso" tono="ambar" delay={0.15} />
+        <Kpi icon={ShieldCheck} label="Autorizaciones" value={String(autPend)} hint="Pendientes" tono="violeta" delay={0.2} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Seccion icon={Send} titulo="Enviar acceso al portal" sub="El paciente recibe un código para entrar y sacar sus turnos" className="xl:col-span-2" delay={0.1}>
+          {recien ? (
+            <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
+              <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
+                <p className="flex items-center gap-2 font-semibold text-emerald-800"><Check className="size-4" /> Acceso creado para {recien.nombre}</p>
+                <p className="mt-3 text-xs text-emerald-800/80">Código de acceso</p>
+                <p className="font-display text-4xl font-semibold tracking-[0.2em] text-emerald-900">{recien.codigo}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button asChild className="rounded-xl !bg-[#25D366] text-white hover:!bg-[#1ebe5b]">
+                  <a href={waPaciente(recien.telefono, mensajeInvitacion(recien))} target="_blank" rel="noreferrer"><Send className="size-4" /> Enviar por WhatsApp</a>
+                </Button>
+                <Button variant="outline" className="rounded-xl" onClick={() => copiar(mensajeInvitacion(recien))}><ClipboardList className="size-4" /> Copiar mensaje</Button>
+              </div>
+              <Button variant="ghost" className="w-full rounded-xl" onClick={() => setRecien(null)}><Plus className="size-4" /> Invitar a otro paciente</Button>
+            </div>
+          ) : (
+            <form onSubmit={invitar} className="space-y-4">
+              <Campo label="Nombre y apellido"><input required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
+              <div className="grid grid-cols-2 gap-3">
+                <Campo label="DNI"><input required inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
+                <Campo label="WhatsApp"><input required type="tel" placeholder="11 1234-5678" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
+              </div>
+              <Campo label="Email (opcional)"><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></Campo>
+              <Button type="submit" className="h-11 w-full rounded-xl"><Send className="size-4" /> Crear acceso</Button>
+            </form>
+          )}
+        </Seccion>
+
+        <Seccion icon={Users} titulo="Pacientes del portal" sub={`${pacientes.length} con acceso`} className="xl:col-span-3" delay={0.15}
+          acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-52"} /></div>}>
+          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitaste pacientes" texto="Creá un acceso y mandale el código por WhatsApp. Con eso entra al portal y saca sus turnos." />}
+          <div className="space-y-2">
+            {lista.map((p) => {
+              const n = turnos.filter((t) => t.pacienteId === p.id).length;
+              return (
+                <div key={p.id} className="group rounded-2xl border border-border/70 p-3 transition-colors hover:bg-secondary/40">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Avatar nombre={p.nombre} />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 font-medium">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado}</span></p>
+                      <p className="text-xs text-muted-foreground">DNI {p.dni} · {p.telefono}{n ? ` · ${n} turno${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
+                    </div>
+                    <span className="rounded-lg bg-secondary px-2.5 py-1 font-mono text-sm tracking-widest">{p.codigo}</span>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5 pl-[52px]">
+                    <a href={waPaciente(p.telefono, mensajeInvitacion(p))} target="_blank" rel="noreferrer" className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">WhatsApp</a>
+                    <button onClick={() => copiar(mensajeInvitacion(p))} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Copiar</button>
+                    <button onClick={() => cambiarPaciente(p.id, { codigo: nuevoCodigo() }, "Nuevo código de portal")} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Nuevo código</button>
+                    {p.estado === "Revocado" ? (
+                      <button onClick={() => cambiarPaciente(p.id, { estado: "Invitado", codigo: nuevoCodigo() }, "Acceso al portal reactivado")} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100">Reactivar</button>
+                    ) : (
+                      <button onClick={() => cambiarPaciente(p.id, { estado: "Revocado" }, "Acceso al portal quitado")} className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100">Quitar acceso</button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Seccion>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Seccion icon={ShieldCheck} titulo="Pedir una autorización" sub="El paciente la acepta o rechaza desde su portal" className="xl:col-span-2" delay={0.2}>
+          <form onSubmit={pedirAut} className="space-y-4">
+            <Campo label="Paciente">
+              <select required value={fa.pacienteId} onChange={(e) => setFa({ ...fa, pacienteId: e.target.value })} className={inp}>
+                <option value="">Elegí un paciente</option>
+                {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre} · DNI {p.dni}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Tipo">
+              <select value={fa.tipo} onChange={(e) => setFa({ ...fa, tipo: e.target.value })} className={inp}>
+                {TIPOS_AUT.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Título"><input required placeholder="Ej: Ecocardiograma doppler" value={fa.titulo} onChange={(e) => setFa({ ...fa, titulo: e.target.value })} className={inp} /></Campo>
+            <Campo label="Detalle"><textarea rows={3} value={fa.detalle} onChange={(e) => setFa({ ...fa, detalle: e.target.value })} className={inp + " h-auto py-3"} /></Campo>
+            <Button type="submit" className="h-11 w-full rounded-xl"><Send className="size-4" /> Enviar al portal</Button>
+          </form>
+        </Seccion>
+
+        <Seccion icon={ShieldCheck} titulo="Autorizaciones" sub="Pedidas por la clínica o por los pacientes" className="xl:col-span-3" delay={0.25}
+          acciones={
+            <div className="flex rounded-xl bg-secondary p-1">
+              {(["pendientes", "resueltas"] as const).map((v) => (
+                <button key={v} onClick={() => setVerAut(v)} className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all ${verAut === v ? "bg-card shadow-sm" : "text-muted-foreground"}`}>{v}</button>
+              ))}
+            </div>
+          }>
+          {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pidas o que pidan los pacientes aparecen acá." />}
+          <div className="space-y-3">
+            {autsLista.map((a) => (
+              <div key={a.id} className="rounded-2xl border border-border/70 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{a.titulo}</p>
+                    <p className="text-xs text-muted-foreground">{a.tipo} · {a.paciente} · pedida por {a.origen === "Paciente" ? "el paciente" : nombreCorto(a.solicitadoPor)} · {fechaHora(a.fecha)}</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${ESTADO_AUT[a.estado]}`}>{a.estado}</span>
+                </div>
+                {a.detalle && <p className="mt-2 text-sm text-muted-foreground">{a.detalle}</p>}
+                {a.respuesta && <p className="mt-2 rounded-xl bg-secondary/60 px-3 py-2 text-xs"><b>Respuesta:</b> {a.respuesta}</p>}
+                {a.estado === "Pendiente" && a.origen === "Paciente" && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <input placeholder="Comentario (opcional)" value={respuesta[a.id] ?? ""} onChange={(e) => setRespuesta({ ...respuesta, [a.id]: e.target.value })} className={inp + " h-9 flex-1"} />
+                    <Button size="sm" className="rounded-lg !bg-emerald-600 text-white" onClick={() => responder(a, "Autorizada")}><Check className="size-4" /> Autorizar</Button>
+                    <Button size="sm" variant="outline" className="rounded-lg text-rose-600" onClick={() => responder(a, "Rechazada")}><Ban className="size-4" /> Rechazar</Button>
+                  </div>
+                )}
+                {a.estado === "Pendiente" && a.origen === "Clínica" && <p className="mt-2 text-xs text-amber-700">Esperando respuesta del paciente en su portal.</p>}
+              </div>
+            ))}
+          </div>
+        </Seccion>
       </div>
     </div>
   );

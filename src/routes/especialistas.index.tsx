@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Award, CalendarPlus, CheckCircle2, GraduationCap } from "lucide-react";
+import { ArrowUpRight, Award, CalendarPlus, CheckCircle2, Clock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
 import { DOCTORS, fotoDoctor } from "@/data/clinic";
+import { KEY_AGENDA, agendaDe, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
 
 export const Route = createFileRoute("/especialistas/")({
   head: () => ({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/especialistas/")({
 
 function Especialistas() {
   useReveal();
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   return (
     <PublicLayout>
       <PageHero
@@ -41,10 +43,14 @@ function Especialistas() {
             </div>
             <div className="space-y-6 p-7 md:p-10">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-clinic">{d.consultorio}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-clinic">{agendaDe(agendas, d.foto).consultorio || d.consultorio}</p>
                 <h2 className="mt-2 text-3xl">{d.nombre}</h2>
                 <p className="mt-1 font-medium text-primary">{d.titulo}</p>
               </div>
+              <p className="flex items-start gap-2 rounded-2xl bg-secondary/60 px-4 py-3 text-sm">
+                <Clock className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span><b>Atención:</b> {resumenAgenda(agendaDe(agendas, d.foto))}{agendaDe(agendas, d.foto).nota ? ` · ${agendaDe(agendas, d.foto).nota}` : ""}</span>
+              </p>
               <div className="flex flex-wrap gap-2">
                 {d.especialidades.map((e) => (
                   <span key={e} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{e}</span>

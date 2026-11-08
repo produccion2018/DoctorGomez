@@ -16,8 +16,8 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
-import { DOCTORS, ESPECIALIDADES, HORARIOS_BASE, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, auditar } from "@/lib/auth-local";
+import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
+import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -78,6 +78,7 @@ function Turnos() {
   const [datos, setDatos] = useState({ nombre: "", telefono: "", email: "", comentario: "" });
   const [ocupados, setOcupados] = useState<TurnoGuardado[]>([]);
   const [listo, setListo] = useState<TurnoGuardado | null>(null);
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
 
   // Preselección desde los links (?especialidad= o ?doctor=)
   useEffect(() => {
@@ -99,28 +100,20 @@ function Turnos() {
   const doctor = DOCTORS.find((d) => d.id === doc);
   const doctoresDisp = especialidad ? DOCTORS.filter((d) => especialidad.doctorIds.includes(d.id)) : DOCTORS;
 
-  const fechas = useMemo(() => {
-    if (!doctor) return [] as Date[];
-    const out: Date[] = [];
-    const d = new Date();
-    for (let i = 0; out.length < 15 && i < 40; i++) {
-      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i);
-      if (doctor.dias.includes(DIAS[x.getDay()]!)) out.push(x);
-    }
-    return out;
-  }, [doctor]);
+  const agenda = doctor ? agendaDe(agendas, doctor.foto) : null;
+  const fechas = useMemo(() => (agenda ? proximosDias(agenda, 15).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda]);
 
   const horarios = useMemo(() => {
-    if (!doctor || !fecha) return [] as { h: string; libre: boolean }[];
+    if (!doctor || !fecha || !agenda || !atiendeEl(agenda, fecha)) return [] as { h: string; libre: boolean }[];
     const nom = nombrePanel(doctor.id);
     const ahora = new Date();
     const esHoy = fecha === iso(ahora);
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
-    return HORARIOS_BASE.map((h) => ({
+    return horariosDelDia(agenda).map((h) => ({
       h,
       libre: !ocupados.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(esHoy && h <= hhmm),
     }));
-  }, [doctor, fecha, ocupados]);
+  }, [doctor, fecha, ocupados, agenda]);
 
   const confirmar = (e: FormEvent) => {
     e.preventDefault();
@@ -265,19 +258,20 @@ function Turnos() {
                       <button
                         key={d.id}
                         type="button"
+                        disabled={!agendaDe(agendas, d.foto).activo}
                         onClick={() => {
                           setDoc(d.id);
                           setFecha(null);
                           setHora(null);
                         }}
-                        className={`group flex gap-5 overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 ${on ? "border-primary bg-secondary/60 shadow-elevated ring-4 ring-primary/10" : "border-border bg-card shadow-card hover:-translate-y-1 hover:border-primary/30"}`}
+                        className={`group flex gap-5 overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-primary bg-secondary/60 shadow-elevated ring-4 ring-primary/10" : "border-border bg-card shadow-card hover:-translate-y-1 hover:border-primary/30"}`}
                       >
                         <img src={fotoDoctor(d.foto)} alt={d.nombre} className="h-28 w-24 shrink-0 rounded-2xl object-cover object-top" />
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{d.nombre}</p>
                           <p className="mt-1 text-xs text-primary">{d.titulo}</p>
                           <p className="mt-2 text-xs text-muted-foreground">{d.consultorio} · {d.matricula}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{d.dias.length === 5 ? "Lunes a viernes" : d.dias.join(", ")}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(agendaDe(agendas, d.foto))}</p>
                         </div>
                         {on && <CheckCircle2 className="ml-auto size-6 shrink-0 text-primary" />}
                       </button>
@@ -312,7 +306,9 @@ function Turnos() {
                   })}
                 </div>
 
-                {!fecha && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Seleccioná un día para ver los horarios disponibles.</p>}
+                {agenda?.nota && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
+                {fechas.length === 0 && <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Este profesional no tiene días disponibles por ahora. Escribinos por WhatsApp y te ayudamos.</p>}
+                {!fecha && fechas.length > 0 && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Seleccioná un día para ver los horarios disponibles.</p>}
                 {fecha && (
                   <div className="mt-8">
                     <p className="mb-3 text-sm font-medium capitalize text-muted-foreground">{fechaTxt(fecha)}</p>
