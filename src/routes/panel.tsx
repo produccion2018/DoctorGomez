@@ -254,7 +254,7 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
 
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
-  turnos: ["Turnos", "Creá y gestioná la agenda de los profesionales."],
+  turnos: ["Turnos", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
@@ -895,10 +895,263 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
 }
 
 /* ---------- Turnos ---------- */
+/* ---------- Agenda del día (grilla por doctor) ---------- */
+function waDe(tel: string, texto: string) {
+  let n = tel.replace(/\D/g, "");
+  if (n && n.length <= 10) n = "549" + n.replace(/^0/, "");
+  return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
+}
+
+function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; onCargaManual: () => void }) {
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const [dia, setDia] = useState(hoy());
+  const [asignando, setAsignando] = useState<string | null>(null); // "doctor|hora"
+  const [rapido, setRapido] = useState({ paciente: "", telefono: "", motivo: "Consulta" });
+  const [ahora, setAhora] = useState(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setAhora(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const mover = (n: number) => {
+    const d = new Date(dia + "T12:00:00");
+    d.setDate(d.getDate() + n);
+    setDia(isoDe(d));
+    setAsignando(null);
+  };
+  const esHoy = dia === hoy();
+  const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
+  const delDia = turnos.filter((t) => t.fecha === dia && t.estado !== "Cancelado");
+  const semana = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(dia + "T12:00:00");
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + i);
+    return isoDe(d);
+  });
+
+  const columnas = ADMINS.map((a) => {
+    const ag = agendaDe(agendas, a.id);
+    const atiende = atiendeEl(ag, dia);
+    const bloqueo = ag.bloqueos.find((b) => dia >= b.desde && dia <= b.hasta);
+    const slots = atiende ? horariosDelDia(ag) : [];
+    const suyos = delDia.filter((t) => t.doctor === a.nombre);
+    const fuera = suyos.filter((t) => !slots.includes(t.hora)).sort((x, y) => x.hora.localeCompare(y.hora));
+    // el horario "actual": el último que ya empezó
+    const actual = esHoy ? [...slots].reverse().find((h) => h <= hhmm) : undefined;
+    return { a, ag, atiende, bloqueo, slots, suyos, fuera, actual };
+  });
+
+  const totalSlots = columnas.reduce((acc, c) => acc + c.slots.length, 0);
+  const ocupados = delDia.length;
+  const confirmados = delDia.filter((t) => t.estado === "Confirmado").length;
+  const pendientes = delDia.filter((t) => t.estado === "Pendiente").length;
+  const atendidos = delDia.filter((t) => t.estado === "Atendido").length;
+
+  const cambiar = (t: Turno, estado: Estado) => {
+    setTurnos((p) => p.map((x) => (x.id === t.id ? { ...x, estado } : x)));
+    log("Turno actualizado", `${t.paciente}: ${t.estado} → ${estado}`);
+    toast.success(`${t.paciente}: ${estado.toLowerCase()}.`);
+  };
+
+  const asignar = (doctor: string, hora: string) => {
+    if (!rapido.paciente.trim()) {
+      toast.error("Escribí el nombre del paciente.");
+      return;
+    }
+    const nuevo: Turno = {
+      id: uid(),
+      fecha: dia,
+      hora,
+      paciente: rapido.paciente.trim(),
+      doctor,
+      motivo: rapido.motivo.trim() || "Consulta",
+      estado: "Confirmado",
+      origen: "panel",
+      ...(rapido.telefono.trim() ? { telefono: rapido.telefono.trim() } : {}),
+    };
+    setTurnos((p) => [...p, nuevo]);
+    log("Turno creado", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora} · ${doctor}`);
+    toast.success("Turno asignado.");
+    setAsignando(null);
+    setRapido({ paciente: "", telefono: "", motivo: "Consulta" });
+  };
+
+  const FilaPaciente = ({ t, ahoraEs }: { t: Turno; ahoraEs: boolean }) => (
+    <div className={`group relative flex items-center gap-3 rounded-2xl border p-3 transition-all ${ahoraEs ? "border-transparent bg-[rgba(var(--acc),.08)] ring-2 ring-[rgba(var(--acc),.5)]" : t.estado === "Atendido" ? "border-border/60 bg-secondary/30" : "border-border bg-card hover:shadow-md"}`}>
+      <span className={`absolute inset-y-3 left-0 w-1 rounded-r-full ${ESTADO_DOT[t.estado]}`} />
+      <Avatar nombre={t.paciente} size="size-10" />
+      <div className="min-w-0 flex-1">
+        <p className={`flex flex-wrap items-center gap-1.5 text-sm font-semibold ${t.estado === "Atendido" ? "text-muted-foreground" : ""}`}>
+          <span className="truncate">{t.paciente}</span>
+          {t.origen === "web" && <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">Web</span>}
+          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-pink-700">Portal</span>}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">{t.motivo}{t.telefono ? ` · ${t.telefono}` : ""}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {t.estado === "Pendiente" && (
+          <button onClick={() => cambiar(t, "Confirmado")} className="rounded-lg bg-sky-50 px-2 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100">Confirmar</button>
+        )}
+        {(t.estado === "Pendiente" || t.estado === "Confirmado") && (
+          <button onClick={() => cambiar(t, "Atendido")} className="rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100">Atendido</button>
+        )}
+        {t.estado === "Atendido" && <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700"><Check className="size-3" /> Atendido</span>}
+        {t.telefono && (
+          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño por tu turno del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
+            <Send className="size-3.5" />
+          </a>
+        )}
+        {t.estado !== "Atendido" && (
+          <button onClick={() => cambiar(t, "Cancelado")} aria-label="Cancelar turno" className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100">
+            <Ban className="size-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="pn-card pn-up overflow-hidden">
+      {/* Encabezado con navegación de días */}
+      <div className="border-b border-border/60 p-6 pb-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarDays className="size-5" /></span>
+            <div>
+              <h3 className="text-lg font-semibold tracking-tight">Agenda del día</h3>
+              <p className="text-sm capitalize text-muted-foreground">{new Date(dia + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}{esHoy ? " · hoy" : ""}</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="icon" className="rounded-xl" onClick={() => mover(-1)} aria-label="Día anterior"><ChevronDown className="size-4 rotate-90" /></Button>
+            {!esHoy && <Button variant="outline" className="rounded-xl" onClick={() => setDia(hoy())}>Hoy</Button>}
+            <input type="date" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} className="h-9 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" />
+            <Button variant="outline" size="icon" className="rounded-xl" onClick={() => mover(1)} aria-label="Día siguiente"><ChevronDown className="size-4 -rotate-90" /></Button>
+            <Button onClick={onCargaManual} className="rounded-xl"><Plus className="size-4" /> Cargar turno</Button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-7 gap-1.5">
+          {semana.map((d) => {
+            const f = new Date(d + "T12:00:00");
+            const n = turnos.filter((t) => t.fecha === d && t.estado !== "Cancelado").length;
+            const on = d === dia;
+            return (
+              <button key={d} onClick={() => { setDia(d); setAsignando(null); }} className={`flex flex-col items-center rounded-xl py-2 transition-all ${on ? "pn-acc-tile text-white" : "hover:bg-secondary"}`}>
+                <span className={`text-[10px] font-semibold uppercase ${on ? "text-white/80" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                <span className="font-display text-lg font-semibold leading-tight">{f.getDate()}</span>
+                <span className={`mt-0.5 h-4 min-w-4 rounded-full px-1 text-[10px] font-bold leading-4 ${n ? (on ? "bg-white/25" : "bg-[rgba(var(--acc),.15)] text-[rgb(var(--acc))]") : "opacity-0"}`}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {[
+            { l: "Turnos", v: ocupados, c: "text-foreground" },
+            { l: "Confirmados", v: confirmados, c: "text-sky-700" },
+            { l: "Pendientes", v: pendientes, c: "text-amber-700" },
+            { l: "Atendidos", v: atendidos, c: "text-emerald-700" },
+            { l: "Libres", v: Math.max(0, totalSlots - columnas.reduce((acc, c) => acc + c.suyos.filter((t) => c.slots.includes(t.hora)).length, 0)), c: "text-muted-foreground" },
+          ].map((x) => (
+            <div key={x.l} className="rounded-xl bg-secondary/50 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{x.l}</p>
+              <p className={`font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Columnas por doctor */}
+      <div className="grid divide-y divide-border/60 xl:grid-cols-2 xl:divide-x xl:divide-y-0">
+        {columnas.map(({ a, ag, atiende, bloqueo, slots, suyos, fuera, actual }) => {
+          const foto = fotoDe(a.id);
+          const libres = slots.filter((h) => !suyos.some((t) => t.hora === h)).length;
+          return (
+            <div key={a.id} className="min-w-0 p-5">
+              <div className="mb-4 flex items-center gap-3">
+                {foto && <img src={foto} alt="" className="size-11 rounded-xl object-cover object-top" />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{a.nombre}</p>
+                  <p className="truncate text-xs text-muted-foreground">{atiende ? `${ag.desde} a ${ag.hasta} · ${ag.consultorio}` : "No atiende este día"}</p>
+                </div>
+                {atiende && <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold">{suyos.length}/{slots.length}</span>}
+              </div>
+
+              {!atiende && (
+                <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-6 text-center text-sm text-muted-foreground">
+                  {bloqueo ? <>No atiende: <b>{bloqueo.motivo}</b></> : !ag.activo ? "Agenda pausada." : "Este día no está en su agenda."}
+                </div>
+              )}
+
+              {atiende && (
+                <div className="space-y-1.5">
+                  {slots.map((h) => {
+                    const t = suyos.find((x) => x.hora === h);
+                    const clave = `${a.nombre}|${h}`;
+                    const pasado = esHoy && h < hhmm && h !== actual;
+                    return (
+                      <div key={h} className={`flex gap-3 ${pasado && !t ? "opacity-45" : ""}`}>
+                        <div className="w-12 shrink-0 pt-3 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${h === actual ? "" : "text-muted-foreground"}`} style={h === actual ? { color: `rgb(var(--acc))` } : undefined}>{h}</span>
+                          {h === actual && <span className="block text-[9px] font-bold uppercase" style={{ color: `rgb(var(--acc))` }}>Ahora</span>}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          {t ? (
+                            <FilaPaciente t={t} ahoraEs={h === actual} />
+                          ) : asignando === clave ? (
+                            <div className="space-y-2 rounded-2xl border border-[rgba(var(--acc),.4)] bg-[rgba(var(--acc),.05)] p-3 animate-in fade-in duration-200">
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <input autoFocus placeholder="Paciente" value={rapido.paciente} onChange={(e) => setRapido({ ...rapido, paciente: e.target.value })} className={inp + " h-9"} />
+                                <input placeholder="WhatsApp (opcional)" value={rapido.telefono} onChange={(e) => setRapido({ ...rapido, telefono: e.target.value })} className={inp + " h-9"} />
+                              </div>
+                              <div className="flex gap-2">
+                                <input placeholder="Motivo" value={rapido.motivo} onChange={(e) => setRapido({ ...rapido, motivo: e.target.value })} className={inp + " h-9 flex-1"} />
+                                <Button size="sm" className="h-9 rounded-xl" onClick={() => asignar(a.nombre, h)}><Check className="size-4" /> Asignar</Button>
+                                <Button size="sm" variant="ghost" className="h-9 rounded-xl" onClick={() => setAsignando(null)}>Cancelar</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => { setAsignando(clave); setRapido({ paciente: "", telefono: "", motivo: "Consulta" }); }} disabled={pasado}
+                              className={`group flex w-full items-center justify-between rounded-2xl border border-dashed px-4 py-3 text-left text-sm transition-all ${h === actual ? "border-[rgba(var(--acc),.5)]" : "border-border"} ${pasado ? "cursor-default" : "hover:border-[rgba(var(--acc),.5)] hover:bg-[rgba(var(--acc),.04)]"}`}>
+                              <span className="text-muted-foreground">Libre</span>
+                              {!pasado && <span className="inline-flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100" style={{ color: `rgb(var(--acc))` }}><Plus className="size-3.5" /> Asignar paciente</span>}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {libres === 0 && slots.length > 0 && <p className="pt-2 text-center text-xs font-semibold text-emerald-700">Agenda completa</p>}
+                </div>
+              )}
+
+              {fuera.length > 0 && (
+                <div className="mt-4 border-t border-border/60 pt-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sobreturnos / fuera de agenda</p>
+                  <div className="space-y-1.5">
+                    {fuera.map((t) => (
+                      <div key={t.id} className="flex gap-3">
+                        <span className="w-12 shrink-0 pt-3 text-right text-xs font-semibold tabular-nums text-muted-foreground">{t.hora}</span>
+                        <div className="min-w-0 flex-1"><FilaPaciente t={t} ahoraEs={false} /></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn }) {
   const [f, setF] = useState({ fecha: hoy(), hora: "", paciente: "", telefono: "", doctor: ADMINS[0]!.nombre, motivo: "" });
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [otraHora, setOtraHora] = useState(false);
+  const [manual, setManual] = useState(false);
   const adminSel = ADMINS.find((a) => a.nombre === f.doctor) ?? ADMINS[0]!;
   const agendaSel = agendaDe(agendas, adminSel.id);
   const diasRapidos = Array.from({ length: 10 }, (_, i) => {
@@ -965,7 +1218,21 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
 
   return (
     <div className="space-y-6">
-      <section className="pn-card pn-up overflow-hidden">
+      <AgendaDia turnos={turnos} setTurnos={setTurnos} log={log} onCargaManual={() => { setManual(true); window.setTimeout(() => document.getElementById("carga-manual")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
+
+      {!manual && (
+        <button onClick={() => setManual(true)} className="pn-card flex w-full items-center gap-4 p-5 text-left transition-transform hover:-translate-y-0.5">
+          <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><Plus className="size-5" /></span>
+          <span className="flex-1">
+            <span className="block font-semibold">Cargar un turno manualmente</span>
+            <span className="text-sm text-muted-foreground">Para pacientes que llaman por teléfono o se acercan a la clínica.</span>
+          </span>
+          <ChevronDown className="size-5 text-muted-foreground" />
+        </button>
+      )}
+
+      {manual && (
+      <section id="carga-manual" className="pn-card pn-up scroll-mt-6 overflow-hidden">
         <form onSubmit={agregar} className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="min-w-0 space-y-6 p-6 sm:p-7">
             <div className="flex items-center gap-3">
@@ -974,6 +1241,7 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
                 <h3 className="text-lg font-semibold tracking-tight">Nuevo turno</h3>
                 <p className="text-xs text-muted-foreground">Elegí profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
               </div>
+              <button type="button" onClick={() => setManual(false)} className="ml-auto rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary">Cerrar</button>
             </div>
 
             {/* 1. Profesional */}
@@ -1098,8 +1366,9 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
           </aside>
         </form>
       </section>
+      )}
 
-      <Seccion icon={CalendarDays} titulo="Agenda" sub={`${lista.length} turno${lista.length === 1 ? "" : "s"}`} delay={0.08}
+      <Seccion icon={ClipboardList} titulo="Todos los turnos" sub={`${lista.length} turno${lista.length === 1 ? "" : "s"} · lista completa con filtros`} delay={0.08}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
