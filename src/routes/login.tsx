@@ -3,6 +3,8 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
   ArrowLeft,
+  ArrowRight,
+  Check,
   CalendarCheck,
   ClipboardList,
   Eye,
@@ -16,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import heroDoctors from "@/assets/hero-doctors.jpg";
 import { ADMINS, aceptarInvitacion, areaDe, crearClave, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
 export const Route = createFileRoute("/login")({
@@ -38,6 +41,26 @@ function Login() {
   return <LoginNormal />;
 }
 
+const capitalizar = (t: string) => t.toLowerCase().replace(/(^|\s|\.)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+
+/** Fuerza de la contraseña: 0 a 4. */
+function fuerzaClave(c: string) {
+  let n = 0;
+  if (c.length >= 6) n++;
+  if (c.length >= 10) n++;
+  if (/[A-Z]/.test(c) && /[a-z]/.test(c)) n++;
+  if (/\d/.test(c) && /[^A-Za-z0-9]/.test(c)) n++;
+  else if (/\d/.test(c)) n += 0.5;
+  return Math.min(4, Math.floor(n));
+}
+const FUERZA = [
+  { t: "Muy débil", c: "bg-red-500" },
+  { t: "Débil", c: "bg-orange-500" },
+  { t: "Aceptable", c: "bg-amber-400" },
+  { t: "Buena", c: "bg-emerald-500" },
+  { t: "Excelente", c: "bg-emerald-600" },
+];
+
 /** Pantalla que abre el link de invitación: la persona crea su contraseña y entra. */
 function AceptarInvitacion({ codigo }: { codigo: string }) {
   const navigate = useNavigate();
@@ -48,6 +71,16 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => setPersona(leerInvitacion(codigo)), [codigo]);
 
+  const nombre = persona ? capitalizar(persona.nombre) : "";
+  const iniciales = nombre.replace(/^(Enf\.|Lic\.|Dr\.|Dra\.)\s*/i, "").split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+  const fuerza = fuerzaClave(p1);
+  const reglas = [
+    { ok: p1.length >= 6, t: "Al menos 6 caracteres" },
+    { ok: /\d/.test(p1), t: "Un número" },
+    { ok: /[A-Z]/.test(p1), t: "Una mayúscula" },
+    { ok: p1.length > 0 && p1 === p2, t: "Las dos contraseñas coinciden" },
+  ];
+
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     if (!persona) return;
@@ -57,53 +90,170 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
     const r = await aceptarInvitacion(persona, p1);
     setLoading(false);
     if (!r.ok) { toast.error(r.error); return; }
-    toast.success(`¡Bienvenida/o, ${persona.nombre}!`);
+    toast.success(`¡Bienvenida/o, ${nombre}!`);
     navigate({ to: "/panel" });
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center gap-3">
-          <span className="gradient-deep flex size-11 items-center justify-center rounded-xl text-deep-foreground"><Activity className="size-5" /></span>
-          <div className="leading-tight">
-            <p className="font-semibold">Gómez Bolaño</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Clínica médica</p>
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[1.05fr_1fr]">
+      <style>{`
+        @keyframes iv-up { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes iv-orb { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-34px) scale(1.12); } }
+        @keyframes iv-ecg { from { stroke-dashoffset: 900; } to { stroke-dashoffset: 0; } }
+        @keyframes iv-ring { 0% { transform: scale(.9); opacity: .7; } 100% { transform: scale(1.5); opacity: 0; } }
+        @keyframes iv-shine { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(260%) skewX(-20deg); } }
+        @keyframes iv-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        .iv-up { animation: iv-up .8s cubic-bezier(.2,.8,.2,1) both; }
+        .iv-orb { animation: iv-orb 11s ease-in-out infinite; }
+        .iv-ecg { stroke-dasharray: 900; animation: iv-ecg 4s linear infinite; }
+        .iv-ring::before { content: ""; position: absolute; inset: -6px; border-radius: 2rem; border: 2px solid rgba(125,211,252,.6); animation: iv-ring 2.4s ease-out infinite; }
+        .iv-float { animation: iv-float 5s ease-in-out infinite; }
+        .iv-btn { position: relative; overflow: hidden; }
+        .iv-btn::after { content: ""; position: absolute; inset: 0; width: 35%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: translateX(-120%) skewX(-20deg); }
+        .iv-btn:hover::after { animation: iv-shine .9s ease-out; }
+        @media (prefers-reduced-motion: reduce) { .iv-up, .iv-orb, .iv-ecg, .iv-ring::before, .iv-float { animation: none; } }
+      `}</style>
+
+      {/* Panel institucional con foto */}
+      <div className="relative hidden overflow-hidden lg:block">
+        <img src={heroDoctors} alt="" className="absolute inset-0 size-full object-cover object-top" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[oklch(0.2_0.08_262/0.96)] via-[oklch(0.24_0.1_258/0.88)] to-[oklch(0.3_0.12_250/0.7)]" />
+        <div className="iv-orb pointer-events-none absolute -left-24 top-10 size-96 rounded-full bg-sky-400/25 blur-3xl" />
+        <div className="iv-orb pointer-events-none absolute -bottom-32 right-0 size-96 rounded-full bg-rose-500/20 blur-3xl" style={{ animationDelay: "-5s" }} />
+        <div className="relative flex h-full flex-col justify-between p-12 text-white">
+          <Link to="/" className="flex w-fit items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur"><Activity className="size-5" /></span>
+            <span className="leading-tight">
+              <span className="block font-display text-lg font-semibold">Gómez Bolaño</span>
+              <span className="block text-[11px] uppercase tracking-[0.2em] text-white/60">Clínica médica</span>
+            </span>
+          </Link>
+
+          <div className="iv-up max-w-lg" style={{ animationDelay: ".1s" }}>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ring-1 ring-white/20 backdrop-blur">
+              <ShieldCheck className="size-3.5" /> Invitación personal
+            </span>
+            <h2 className="mt-6 font-display text-5xl font-semibold leading-[1.08]">
+              Bienvenida/o al <span className="italic text-sky-300">equipo</span>
+            </h2>
+            <p className="mt-5 text-lg leading-relaxed text-white/75">
+              Un médico de la clínica te dio acceso al panel. Creá tu contraseña y empezá a trabajar con tu área.
+            </p>
+            <ul className="mt-8 space-y-3 text-sm text-white/85">
+              {["Acceso solo a los módulos de tu área", "Cada acción queda registrada a tu nombre", "Tus datos de ingreso son personales"].map((t) => (
+                <li key={t} className="flex items-center gap-3">
+                  <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40"><Check className="size-3.5 text-emerald-300" /></span>
+                  {t}
+                </li>
+              ))}
+            </ul>
           </div>
+
+          <svg viewBox="0 0 600 60" className="h-12 w-full max-w-lg text-sky-300/60" aria-hidden="true">
+            <polyline className="iv-ecg" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
+          </svg>
         </div>
-        {persona === undefined ? null : persona === null ? (
-          <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-card">
-            <ShieldCheck className="mx-auto size-10 text-muted-foreground" />
-            <h1 className="mt-4 text-2xl font-semibold">Invitación no válida</h1>
-            <p className="mt-2 text-sm text-muted-foreground">El link ya se usó, venció o el acceso fue bloqueado. Pedile a un médico que te envíe uno nuevo.</p>
-            <Button asChild className="mt-6 rounded-xl"><Link to="/login">Ir al acceso</Link></Button>
-          </div>
-        ) : (
-          <form onSubmit={enviar} className="space-y-5 rounded-3xl border border-border bg-card p-8 shadow-card">
-            <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-primary"><ShieldCheck className="size-3.5" /> Invitación al panel</span>
-            <div>
-              <h1 className="text-2xl font-semibold">Hola, {persona.nombre}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">Te dieron acceso como <b>{areaDe(persona)}</b>. Creá tu contraseña para entrar.</p>
+      </div>
+
+      {/* Formulario */}
+      <div className="relative flex min-h-screen flex-col overflow-hidden px-6 py-8 sm:px-12">
+        <div className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full bg-sky-400/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-40 -left-24 size-96 rounded-full bg-fuchsia-400/10 blur-3xl" />
+
+        <div className="relative flex items-center gap-3 lg:hidden">
+          <span className="gradient-deep flex size-10 items-center justify-center rounded-xl text-white"><Activity className="size-5" /></span>
+          <span className="leading-tight">
+            <span className="block font-semibold">Gómez Bolaño</span>
+            <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Clínica médica</span>
+          </span>
+        </div>
+
+        <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
+          {persona === undefined ? null : persona === null ? (
+            <div className="iv-up rounded-[2rem] border border-border/70 bg-card/80 p-10 text-center shadow-[0_40px_80px_-40px_rgba(10,25,70,.45)] backdrop-blur-xl">
+              <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-red-50 text-red-500 ring-1 ring-red-100"><ShieldCheck className="size-7" /></span>
+              <h1 className="mt-5 font-display text-3xl font-semibold">Invitación no válida</h1>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">El link ya se usó, venció o el acceso fue bloqueado. Pedile a un médico de la clínica que te envíe uno nuevo.</p>
+              <Button asChild className="mt-7 h-11 rounded-xl px-6"><Link to="/login">Ir al acceso</Link></Button>
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="inv1" className="text-sm font-medium">Nueva contraseña</label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input id="inv1" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} />
-                <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="inv2" className="text-sm font-medium">Repetir contraseña</label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input id="inv2" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Repetí la contraseña" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} />
-              </div>
-            </div>
-            <Button type="submit" size="lg" disabled={loading} className="h-12 w-full rounded-xl">{loading ? "Creando..." : "Crear contraseña e ingresar"}</Button>
-            <p className="text-center text-xs text-muted-foreground">Después entrás desde el acceso eligiendo <b>Equipo</b> y tu nombre.</p>
-          </form>
-        )}
+          ) : (
+            <>
+              {/* Pasos */}
+              <ol className="iv-up mb-8 flex items-center gap-2 text-xs font-semibold" style={{ animationDelay: ".05s" }}>
+                {["Invitación", "Contraseña", "Ingreso"].map((t, i) => (
+                  <li key={t} className="flex flex-1 items-center gap-2">
+                    <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${i === 0 ? "bg-emerald-500 text-white" : i === 1 ? "gradient-deep text-white shadow-lg" : "bg-secondary text-muted-foreground"}`}>
+                      {i === 0 ? <Check className="size-3.5" /> : i + 1}
+                    </span>
+                    <span className={i === 2 ? "text-muted-foreground" : ""}>{t}</span>
+                    {i < 2 && <span className={`h-px flex-1 ${i === 0 ? "bg-emerald-400" : "bg-border"}`} />}
+                  </li>
+                ))}
+              </ol>
+
+              <form onSubmit={enviar} className="iv-up relative overflow-hidden rounded-[2rem] border border-border/70 bg-card/85 p-8 shadow-[0_50px_100px_-45px_rgba(10,25,70,.55)] backdrop-blur-xl sm:p-10" style={{ animationDelay: ".12s" }}>
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-sky-400 via-blue-600 to-fuchsia-500" />
+                <div className="flex items-center gap-4">
+                  <span className="iv-ring iv-float relative flex size-16 shrink-0 items-center justify-center rounded-[1.4rem] gradient-deep font-display text-xl font-semibold text-white shadow-[0_18px_40px_-14px_rgba(20,50,120,.9)]">
+                    {iniciales}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Hola,</p>
+                    <h1 className="truncate font-display text-3xl font-semibold leading-tight">{nombre}</h1>
+                    <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800 ring-1 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-500/30">
+                      {areaDe(persona) === "Enfermería" ? <Syringe className="size-3.5" /> : <ShieldCheck className="size-3.5" />} {areaDe(persona)}
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-6 text-sm leading-relaxed text-muted-foreground">Creá tu contraseña personal. La vas a usar cada vez que entres al panel.</p>
+
+                <div className="mt-6 space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="inv1" className="text-sm font-medium">Nueva contraseña</label>
+                    <div className="group relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <input id="inv1" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} />
+                      <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
+                    </div>
+                    {p1 && (
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="grid flex-1 grid-cols-4 gap-1">
+                          {[0, 1, 2, 3].map((i) => (
+                            <span key={i} className={`h-1.5 rounded-full transition-all duration-500 ${i < Math.max(1, fuerza) ? FUERZA[fuerza]!.c : "bg-secondary"}`} />
+                          ))}
+                        </div>
+                        <span className="w-20 text-right text-[11px] font-semibold text-muted-foreground">{FUERZA[fuerza]!.t}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor="inv2" className="text-sm font-medium">Repetir contraseña</label>
+                    <div className="group relative">
+                      <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                      <input id="inv2" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Repetí la contraseña" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} />
+                    </div>
+                  </div>
+                </div>
+
+                <ul className="mt-5 grid grid-cols-2 gap-x-3 gap-y-2 rounded-2xl bg-secondary/50 p-4">
+                  {reglas.map((r) => (
+                    <li key={r.t} className={`flex items-center gap-2 text-xs transition-colors ${r.ok ? "font-medium text-emerald-700 dark:text-emerald-300" : "text-muted-foreground"}`}>
+                      <span className={`flex size-4 shrink-0 items-center justify-center rounded-full transition-all ${r.ok ? "scale-110 bg-emerald-500 text-white" : "bg-background ring-1 ring-border"}`}>{r.ok && <Check className="size-2.5" />}</span>
+                      {r.t}
+                    </li>
+                  ))}
+                </ul>
+
+                <Button type="submit" size="lg" disabled={loading} className="iv-btn mt-6 h-12 w-full rounded-xl text-[15px] shadow-[0_18px_40px_-16px_rgba(20,50,120,.9)] transition-transform hover:-translate-y-0.5">
+                  {loading ? "Creando tu acceso..." : <>Crear contraseña e ingresar <ArrowRight className="size-4" /></>}
+                </Button>
+                <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
+                  <ShieldCheck className="size-3.5 shrink-0" /> <span>Después entrás desde el acceso eligiendo <b>Equipo</b> y tu nombre.</span>
+                </p>
+              </form>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
