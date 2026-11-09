@@ -496,12 +496,16 @@ export type Evolucion = {
   paciente: string;
   fecha: string; // ISO con hora
   doctor: string;
-  especialidad: EspecialidadHC;
+  /** Solo en evoluciones viejas; la historia clínica ahora es general. */
+  especialidad?: EspecialidadHC;
   motivo: string;
+  /** Texto de la evolución (anamnesis, examen físico, valoración). */
   nota: string;
+  /** Indicaciones. */
   plan?: string;
   diagnosticos: string[];
-  signos: { sistolica?: number; diastolica?: number; pulso?: number; peso?: number };
+  cie10?: { codigo: string; descripcion: string }[];
+  signos: { sistolica?: number; diastolica?: number; pulso?: number; fr?: number; temp?: number; peso?: number; talla?: number; imc?: number };
   cardio?: { fevi?: number; ritmo?: string; nyha?: string };
   nefro?: { creatinina?: number; egfr?: number; potasio?: number; proteinuria?: number };
 };
