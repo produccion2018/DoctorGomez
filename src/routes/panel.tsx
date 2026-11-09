@@ -4594,7 +4594,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
   const s = num(f.s), d = num(f.d);
   const pr = s && d ? clasificarPresion(s, d) : null;
   const imc = calcularImc(num(f.peso), num(f.talla));
-  const usaTriage = !!triage && !editarSignos;
+  const usaTriage = !!triage;
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
@@ -4618,8 +4618,8 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
         diagnosticos: dx.map((x) => `${x.codigo} ${x.descripcion}`),
         cie10: dx,
         triageId: triage?.id,
-        signosPor: usaTriage ? { nombre: triage!.enfermera, fecha: triage!.fecha, rol: "enfermeria" } : { nombre: user.nombre, fecha: ahora, rol: "medico" },
-        signos: { sistolica: s, diastolica: d, pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), spo2: num(f.spo2), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor },
+        signosPor: triage ? { nombre: triage.enfermera, fecha: triage.fecha, rol: "enfermeria" } : undefined,
+        signos: triage ? { ...triage.signos } : {},
       }),
     ) as Evolucion;
     if (triage) setTriages((prev) => prev.map((t) => (t.id === triage.id ? { ...t, evolucionId: id, atendidoPor: user.nombre } : t)));
@@ -4642,40 +4642,26 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
       </div>
 
       <div className="px-6">
-        <PasoHC n={1} t="Signos vitales" sub={triage ? "Registrados por enfermería" : "El IMC se calcula solo con el peso y la talla"}>
+        <PasoHC n={1} t="Signos vitales" sub="Registrados por enfermería">
           {usaTriage ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/5">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white"><Syringe className="size-3.5" /> Tomados por {triage!.enfermera}</span>
                 <span className="text-xs text-muted-foreground">{fechaHora(triage!.fecha)}</span>
                 {nivel && <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${nivel.clase}`}>{nivel.nombre}</span>}
-                <button type="button" onClick={() => setEditarSignos(true)} className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]"><Pencil className="size-3.5" /> Corregir valores</button>
+                <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground"><Lock className="size-3" /> Carga exclusiva de enfermería</span>
               </div>
               <GrillaSignos s={triage!.signos} />
               {triage!.observaciones && <p className="mt-3 text-xs text-muted-foreground"><span className="font-semibold">Observaciones de enfermería:</span> {triage!.observaciones}</p>}
             </div>
           ) : (
-            <>
-              {triage && <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">Estás corrigiendo los valores que tomó {triage.enfermera}. La evolución va a quedar con los signos a tu nombre.</p>}
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <CampoVital value={f.s} onChange={set("s")} l="TA sistólica" u="mmHg" ph="120" />
-                <CampoVital value={f.d} onChange={set("d")} l="TA diastólica" u="mmHg" ph="80" />
-                <CampoVital value={f.fc} onChange={set("fc")} l="Frecuencia cardíaca" u="lpm" ph="72" alerta={fueraDeRango("fc", num(f.fc))} />
-                <CampoVital value={f.fr} onChange={set("fr")} l="Frecuencia respiratoria" u="rpm" ph="16" alerta={fueraDeRango("fr", num(f.fr))} />
-                <CampoVital value={f.temp} onChange={set("temp")} l="Temperatura" u="°C" ph="36.5" alerta={fueraDeRango("temp", num(f.temp))} />
-                <CampoVital value={f.spo2} onChange={set("spo2")} l="Saturación O₂" u="%" ph="98" alerta={fueraSpo2(num(f.spo2))} />
-                <CampoVital value={f.peso} onChange={set("peso")} l="Peso" u="kg" ph="70" />
-                <CampoVital value={f.talla} onChange={set("talla")} l="Talla" u="cm" ph="170" />
+            <div className="flex items-start gap-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50/70 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/5 dark:text-amber-200">
+              <Syringe className="mt-0.5 size-5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Enfermería todavía no registró los signos vitales</p>
+                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen acá automáticamente. Podés guardar la evolución igual.</p>
               </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <div className={`inline-flex items-center gap-3 rounded-xl px-4 py-2 ring-1 ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-80">IMC</span>
-                  <span className="font-display text-xl font-semibold tabular-nums">{imc ? imc.valor : "—"}</span>
-                  <span className="text-xs font-medium">{imc ? imc.texto : "Cargá peso y talla"}</span>
-                </div>
-                {pr && <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[pr.tono]}`}>Presión arterial: {pr.nivel}</span>}
-              </div>
-            </>
+            </div>
           )}
         </PasoHC>
 
@@ -7132,6 +7118,8 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
   const pacientes = usePacientesClinica(turnos);
   const [triages, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const [pacId, setPacId] = useState("");
+  const esMedicoV = user.rol === "medico";
+  const bloqueado = soloLectura || esMedicoV;
   const vacio = { s: "", d: "", fc: "", fr: "", temp: "", peso: "", talla: "" };
   const [f, setF] = useState(vacio);
   const set = (k: keyof typeof vacio) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
@@ -7167,6 +7155,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
+    if (esMedicoV) { toast.error("Los signos vitales los registra enfermería"); return; }
     if (soloLectura) { toast.error("Tu permiso en Enfermería – Triage es solo de lectura"); return; }
     if (!pac) { toast.error("Seleccioná un paciente"); return; }
     const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
@@ -7251,6 +7240,12 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
                   {pac.ficha?.alergias && <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {pac.ficha.alergias}</span>}
                 </div>
 
+                {esMedicoV && (
+                  <div className="flex items-center gap-2.5 rounded-xl bg-amber-50 px-4 py-2.5 text-xs text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
+                    <Lock className="size-4 shrink-0" /> Solo el personal de enfermería puede cargar signos vitales. Como médico los ves en la Historia Clínica al iniciar la evolución.
+                  </div>
+                )}
+                <fieldset disabled={bloqueado} className={`min-w-0 border-0 p-0 ${bloqueado ? "pointer-events-none opacity-60" : ""}`}>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                   <div className="col-span-2 md:col-span-1">
                     <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Presión arterial</span>
@@ -7267,6 +7262,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
                   <CampoVital value={f.talla} onChange={set("talla")} l="Talla" u="cm" ph="170" />
                   <CampoVital value={f.peso} onChange={set("peso")} l="Peso" u="kg" ph="70" />
                 </div>
+                </fieldset>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className={`rounded-2xl p-4 ring-1 transition-colors ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
@@ -7294,10 +7290,10 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
               </div>
             )}
             <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-secondary/60 px-6 py-4 backdrop-blur">
-              <p className="text-xs text-muted-foreground">Se guarda a nombre de {user.nombre}, con fecha y hora, en la Historia Clínica del paciente.</p>
+              <p className="text-xs text-muted-foreground">{esMedicoV ? "Vista de consulta: los signos vitales los carga únicamente el personal de enfermería." : `Se guarda a nombre de ${user.nombre}, con fecha y hora, en la Historia Clínica del paciente.`}</p>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" className="rounded-xl" onClick={onCerrar}>Cerrar</Button>
-                {!soloLectura && <Button type="submit" disabled={!pac} className="rounded-xl px-6"><Check className="size-4" /> Guardar signos vitales</Button>}
+                {!bloqueado && <Button type="submit" disabled={!pac} className="rounded-xl px-6"><Check className="size-4" /> Guardar signos vitales</Button>}
               </div>
             </div>
           </form>
