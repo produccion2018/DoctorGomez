@@ -5,8 +5,8 @@ const AUDIT_KEY = "gb_audit";
 const PW_KEY = "gb_admin_pw_";
 
 export type Admin = { id: string; nombre: string };
-export type Rol = "medico" | "enfermeria";
-export type SessionUser = { id: string; nombre: string; rol?: Rol };
+export type Rol = "medico" | "enfermeria" | "personal";
+export type SessionUser = { id: string; nombre: string; rol?: Rol; area?: string };
 export type Evento = { id: string; fecha: string; usuario: string; accion: string; detalle: string };
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -17,7 +17,9 @@ export const ADMINS: Admin[] = [
 ];
 
 /* ---------- Personal de enfermería (lo dan de alta los médicos) ---------- */
-export type Enfermera = { id: string; nombre: string; documento?: string; activo: boolean; creado: string; creadoPor: string };
+/** Persona del equipo con acceso al panel (enfermería, recepción, secretaría, etc.). */
+export type Enfermera = { id: string; nombre: string; documento?: string; activo: boolean; creado: string; creadoPor: string; area?: string; invitacion?: string };
+export type Personal = Enfermera;
 export const KEY_ENFERMERIA = "gb_enfermeria";
 export function listarEnfermeras(): Enfermera[] {
   if (typeof window === "undefined") return [];
@@ -27,12 +29,56 @@ export function listarEnfermeras(): Enfermera[] {
     return [];
   }
 }
-/** Busca un usuario habilitado: médicos o enfermería activa. */
+export const listarPersonal = listarEnfermeras;
+export const areaDe = (p: Personal) => p.area ?? "Enfermería";
+
+/** Busca un usuario habilitado: médicos o personal activo. */
 export function usuarioPorId(id: string): (SessionUser & { rol: Rol }) | null {
   const a = ADMINS.find((x) => x.id === id);
   if (a) return { id: a.id, nombre: a.nombre, rol: "medico" };
   const e = listarEnfermeras().find((x) => x.id === id && x.activo);
-  return e ? { id: e.id, nombre: e.nombre, rol: "enfermeria" } : null;
+  if (!e) return null;
+  const area = areaDe(e);
+  return { id: e.id, nombre: e.nombre, rol: area === "Enfermería" ? "enfermeria" : "personal", area };
+}
+
+/* ---------- Invitaciones del personal (link para crear la contraseña) ---------- */
+export function nuevoTokenInvitacion() {
+  const b = new Uint8Array(12);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+}
+function guardarPersonal(lista: Personal[]) {
+  localStorage.setItem(KEY_ENFERMERIA, JSON.stringify(lista));
+  window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_ENFERMERIA }));
+}
+/** El link lleva los datos de la persona, así funciona también en otra computadora o celular. */
+export function linkInvitacion(p: Personal, origen: string) {
+  const datos = { i: p.id, n: p.nombre, a: areaDe(p), t: p.invitacion, d: p.documento };
+  const codigo = btoa(unescape(encodeURIComponent(JSON.stringify(datos)))).replace(/=+$/, "");
+  return `${origen}/login?invitacion=${encodeURIComponent(codigo)}`;
+}
+export function leerInvitacion(codigo: string): Personal | null {
+  try {
+    const d = JSON.parse(decodeURIComponent(escape(atob(codigo)))) as { i: string; n: string; a: string; t: string; d?: string };
+    if (!d.i || !d.n || !d.t) return null;
+    const local = listarEnfermeras().find((x) => x.id === d.i);
+    if (local) return local.invitacion === d.t && local.activo ? local : null;
+    // Abierto en otro dispositivo: se registra la persona acá
+    const nueva: Personal = { id: d.i, nombre: d.n, area: d.a, invitacion: d.t, activo: true, creado: new Date().toISOString(), creadoPor: "Invitación", ...(d.d ? { documento: d.d } : {}) };
+    guardarPersonal([...listarEnfermeras(), nueva]);
+    return nueva;
+  } catch {
+    return null;
+  }
+}
+export async function aceptarInvitacion(p: Personal, password: string): Promise<Result> {
+  if (password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+  localStorage.removeItem(PW_KEY + p.id);
+  localStorage.setItem(PW_KEY + p.id, await hash(password));
+  guardarPersonal(listarEnfermeras().map((x) => (x.id === p.id ? (({ invitacion: _i, ...resto }) => resto)(x) : x)));
+  auditar(p.nombre, "Contraseña creada", `Invitación aceptada · ${areaDe(p)}`);
+  return ingresar(p.id, password);
 }
 export function borrarClave(id: string) {
   localStorage.removeItem(PW_KEY + id);
@@ -89,8 +135,8 @@ export async function ingresar(id: string, password: string): Promise<Result> {
     auditar(admin.nombre, "Intento de acceso fallido", "Contraseña incorrecta");
     return { ok: false, error: "Contraseña incorrecta." };
   }
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ id: admin.id, nombre: admin.nombre, rol: admin.rol }));
-  auditar(admin.nombre, "Inicio de sesión", admin.rol === "enfermeria" ? "Acceso a Enfermería – Triage" : "Acceso al panel administrativo");
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ id: admin.id, nombre: admin.nombre, rol: admin.rol, ...(admin.area ? { area: admin.area } : {}) }));
+  auditar(admin.nombre, "Inicio de sesión", admin.rol === "medico" ? "Acceso al panel administrativo" : `Acceso al panel · ${admin.area}`);
   return { ok: true };
 }
 

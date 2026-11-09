@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ADMINS, crearClave, ingresar, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Rol } from "@/lib/auth-local";
+import { ADMINS, aceptarInvitacion, areaDe, crearClave, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/login")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>): { invitacion?: string } => (typeof s["invitacion"] === "string" ? { invitacion: s["invitacion"] } : {}),
   component: Login,
 });
 
@@ -32,6 +33,83 @@ const inputClass =
   "h-12 w-full rounded-xl border border-input bg-background pl-10 pr-11 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15";
 
 function Login() {
+  const { invitacion } = Route.useSearch();
+  if (invitacion) return <AceptarInvitacion codigo={invitacion} />;
+  return <LoginNormal />;
+}
+
+/** Pantalla que abre el link de invitación: la persona crea su contraseña y entra. */
+function AceptarInvitacion({ codigo }: { codigo: string }) {
+  const navigate = useNavigate();
+  const [persona, setPersona] = useState<Personal | null | undefined>(undefined);
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => setPersona(leerInvitacion(codigo)), [codigo]);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!persona) return;
+    if (p1.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres."); return; }
+    if (p1 !== p2) { toast.error("Las contraseñas no coinciden."); return; }
+    setLoading(true);
+    const r = await aceptarInvitacion(persona, p1);
+    setLoading(false);
+    if (!r.ok) { toast.error(r.error); return; }
+    toast.success(`¡Bienvenida/o, ${persona.nombre}!`);
+    navigate({ to: "/panel" });
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex items-center gap-3">
+          <span className="gradient-deep flex size-11 items-center justify-center rounded-xl text-deep-foreground"><Activity className="size-5" /></span>
+          <div className="leading-tight">
+            <p className="font-semibold">Gómez Bolaño</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Clínica médica</p>
+          </div>
+        </div>
+        {persona === undefined ? null : persona === null ? (
+          <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-card">
+            <ShieldCheck className="mx-auto size-10 text-muted-foreground" />
+            <h1 className="mt-4 text-2xl font-semibold">Invitación no válida</h1>
+            <p className="mt-2 text-sm text-muted-foreground">El link ya se usó, venció o el acceso fue bloqueado. Pedile a un médico que te envíe uno nuevo.</p>
+            <Button asChild className="mt-6 rounded-xl"><Link to="/login">Ir al acceso</Link></Button>
+          </div>
+        ) : (
+          <form onSubmit={enviar} className="space-y-5 rounded-3xl border border-border bg-card p-8 shadow-card">
+            <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-primary"><ShieldCheck className="size-3.5" /> Invitación al panel</span>
+            <div>
+              <h1 className="text-2xl font-semibold">Hola, {persona.nombre}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Te dieron acceso como <b>{areaDe(persona)}</b>. Creá tu contraseña para entrar.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="inv1" className="text-sm font-medium">Nueva contraseña</label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input id="inv1" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} />
+                <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="inv2" className="text-sm font-medium">Repetir contraseña</label>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input id="inv2" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Repetí la contraseña" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} />
+              </div>
+            </div>
+            <Button type="submit" size="lg" disabled={loading} className="h-12 w-full rounded-xl">{loading ? "Creando..." : "Crear contraseña e ingresar"}</Button>
+            <p className="text-center text-xs text-muted-foreground">Después entrás desde el acceso eligiendo <b>Equipo</b> y tu nombre.</p>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoginNormal() {
   const navigate = useNavigate();
   const [rol, setRol] = useState<Rol>("medico");
   const [enfermeras, setEnfermeras] = useState<Enfermera[]>([]);
@@ -158,7 +236,7 @@ function Login() {
 
           <form onSubmit={onSubmit} className="mt-8 space-y-6">
             <div className="lg-up grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1" style={{ animationDelay: ".1s" }} role="tablist">
-              {([["medico", "Médicos", Stethoscope], ["enfermeria", "Enfermería", Syringe]] as const).map(([r, l, Ic]) => (
+              {([["medico", "Médicos", Stethoscope], ["enfermeria", "Equipo", Syringe]] as const).map(([r, l, Ic]) => (
                 <button
                   key={r}
                   type="button"
@@ -173,7 +251,7 @@ function Login() {
             </div>
 
             <div className="lg-up grid gap-3" style={{ animationDelay: ".15s" }}>
-              {(rol === "medico" ? ADMINS.map((a) => ({ id: a.id, nombre: a.nombre, sub: "Médico · Administrador" })) : enfermeras.map((e) => ({ id: e.id, nombre: e.nombre, sub: "Enfermería · Triage" }))).map((a) => {
+              {(rol === "medico" ? ADMINS.map((a) => ({ id: a.id, nombre: a.nombre, sub: "Médico · Administrador" })) : enfermeras.map((e) => ({ id: e.id, nombre: e.nombre, sub: tieneClave(e.id) ? areaDe(e) : `${areaDe(e)} · primer ingreso` }))).map((a) => {
                 const activo = a.id === adminId;
                 return (
                   <button
@@ -197,12 +275,12 @@ function Login() {
               })}
               {rol === "enfermeria" && enfermeras.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  <p className="font-semibold text-foreground">Todavía no hay personal de enfermería habilitado.</p>
+                  <p className="font-semibold text-foreground">Todavía no hay personal habilitado en esta computadora.</p>
                   <ol className="mx-auto mt-3 max-w-xs space-y-1.5 text-left">
-                    <li>1. Un médico ingresa al panel.</li>
-                    <li>2. Va a <b>Enfermería – Triage</b> → <b>Personal de enfermería</b>.</li>
-                    <li>3. Escribe el nombre de la enfermera y toca <b>Dar de alta</b>.</li>
-                    <li>4. La enfermera vuelve acá, elige su nombre y crea su contraseña.</li>
+                    <li>1. Un médico entra a <b>Permisos y accesos</b> → <b>Personal y accesos</b>.</li>
+                    <li>2. Da de alta a la persona y elige su área (Enfermería, Recepción…).</li>
+                    <li>3. Le envía el <b>link de invitación</b> por WhatsApp.</li>
+                    <li>4. La persona abre el link, crea su contraseña y entra.</li>
                   </ol>
                   <button type="button" onClick={() => cambiarRol("medico")} className="mt-4 text-sm font-semibold text-primary hover:underline">Ingresar como médico</button>
                 </div>

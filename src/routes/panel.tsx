@@ -112,6 +112,10 @@ import {
   type Triage,
   type NivelTriage,
   type Enfermera,
+  type Personal,
+  areaDe,
+  linkInvitacion,
+  nuevoTokenInvitacion,
   type Evolucion,
   type Medicamento,
   type Estudio,
@@ -432,6 +436,7 @@ function Panel() {
     }
     setUser(s);
     if (s.rol === "enfermeria") setTab("triage");
+    else if (s.rol === "personal") setTab("turnos");
     setAudit(leerAuditoria());
   }, [navigate]);
 
@@ -463,15 +468,17 @@ function Panel() {
   if (!user) return null;
 
   // Permisos: enfermería ve solo los módulos habilitados en Permisos → Enfermería
-  const esEnf = user.rol === "enfermeria";
-  const nivelEnf = (m: string) => nivelDe(permisos, "Enfermería", m);
+  // Cualquier persona del equipo que no es médico usa los permisos de su área
+  const esEnf = user.rol !== "medico";
+  const areaUsuario = user.area ?? "Enfermería";
+  const nivelEnf = (m: string) => nivelDe(permisos, areaUsuario, m);
   const TABS_ENF: Tab[] = Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!);
   const permitido = (t: Tab) => !esEnf || TABS_ENF.includes(t);
   const tabVisible: Tab = permitido(tab) ? tab : (TABS_ENF[0] ?? "triage");
   const moduloDe = (t: Tab) => Object.entries(MODULO_TAB).find(([, x]) => x === t)?.[0] ?? "";
   const soloLectura = (t: Tab) => esEnf && nivelEnf(moduloDe(t)) === "ver";
   const gruposVisibles = esEnf
-    ? [{ grupo: "Enfermería", items: GRUPOS_NAV.flatMap((g) => g.items).filter((i) => TABS_ENF.includes(i.id)) }]
+    ? [{ grupo: areaUsuario, items: GRUPOS_NAV.flatMap((g) => g.items).filter((i) => TABS_ENF.includes(i.id)) }]
     : GRUPOS_NAV;
 
   const log: LogFn = (accion, detalle = "") => setAudit(auditar(user.nombre, accion, detalle));
@@ -550,7 +557,7 @@ function Panel() {
             <p className="truncate font-display text-sm font-bold">{corto}</p>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-white/80">
               {user.id === "alonso" ? <HeartPulse className="size-3 shrink-0" /> : <Droplets className="size-3 shrink-0" />}
-              {esEnf ? "Enfermería · Triage" : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
+              {esEnf ? `${areaUsuario} · Equipo` : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
             </p>
           </div>
         </div>
@@ -809,7 +816,9 @@ function Panel() {
                   {saludo(ahora)}, {corto}
                 </h1>
                 <p className="mt-1 text-sm text-deep-foreground/75">
-                  {esEnf
+                  {esEnf && areaUsuario !== "Enfermería"
+                    ? `Panel de ${areaUsuario}: ves los módulos que tu área tiene habilitados.`
+                    : esEnf
                     ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con turno hoy. Registrá sus signos vitales antes de la consulta.`
                     : pendientes > 0
                     ? `Tenés ${pendientes} turno${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
@@ -850,7 +859,7 @@ function Panel() {
         </div>
 
         {esEnf && TABS_ENF.length === 0 && (
-          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto="Pedile a un médico que te habilite módulos en Permisos → Enfermería." /></section>
+          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto={`Pedile a un médico que te habilite módulos en Permisos → ${areaUsuario}.`} /></section>
         )}
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
@@ -2857,6 +2866,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
 
   return (
     <div className="space-y-6">
+      <PersonalEquipo user={user} log={log} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Kpi icon={Building2} label="Departamentos" value={String(AREAS.length)} hint="Con permisos configurables" tono="azul" delay={0.05} />
         <Kpi icon={ShieldCheck} label="Módulos" value={String(MODULOS.length)} hint="Incluye el Asistente IA" tono="violeta" delay={0.1} />
@@ -7287,55 +7297,115 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
         )}
       </Seccion>
 
-      {esMedico && <PersonalEnfermeria user={user} log={log} />}
+      {esMedico && <PersonalEquipo user={user} log={log} areaFija="Enfermería" />}
     </div>
   );
 }
 
-/** Alta y baja del personal de enfermería (solo médicos). */
-function PersonalEnfermeria({ user, log }: { user: SessionUser; log: LogFn }) {
-  const [lista, setLista] = useDato<Enfermera[]>(KEY_ENFERMERIA, []);
+/** Alta del personal de cada departamento, con link de invitación para crear la contraseña (solo médicos). */
+function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn; areaFija?: string }) {
+  const [lista, setLista] = useDato<Personal[]>(KEY_ENFERMERIA, []);
   const [nombre, setNombre] = useState("");
   const [doc, setDoc] = useState("");
+  const [area, setArea] = useState(areaFija ?? AREAS[0]!.nombre);
+  const [nuevoLink, setNuevoLink] = useState<string | null>(null);
+  const [, refrescar] = useState(0);
+  const origen = typeof window === "undefined" ? "" : window.location.origin;
+  const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
+
+  const mensaje = (p: Personal) =>
+    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel de la Clínica Gómez Bolaño como ${areaDe(p)}.\n\nEntrá a este link y creá tu contraseña:\n${linkInvitacion(p, origen)}`;
+  const copiar = async (p: Personal) => {
+    try {
+      await navigator.clipboard.writeText(linkInvitacion(p, origen));
+      toast.success("Link copiado");
+    } catch {
+      setNuevoLink(linkInvitacion(p, origen));
+    }
+  };
+
   const agregar = (e: FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) return;
-    const n = JSON.parse(JSON.stringify({ id: `enf-${nuevoId()}`, nombre: nombre.trim(), documento: doc.trim() || undefined, activo: true, creado: new Date().toISOString(), creadoPor: user.nombre })) as Enfermera;
+    const n = JSON.parse(JSON.stringify({ id: `enf-${nuevoId()}`, nombre: nombre.trim(), documento: doc.trim() || undefined, area, activo: true, creado: new Date().toISOString(), creadoPor: user.nombre, invitacion: nuevoTokenInvitacion() })) as Personal;
     setLista((p) => [...p, n]);
-    log("Personal de enfermería habilitado", n.nombre);
-    toast.success(`${n.nombre} ya puede ingresar en Acceso → Enfermería y crear su contraseña.`);
+    log("Acceso al panel creado", `${n.nombre} · ${area}`);
+    setNuevoLink(linkInvitacion(n, origen));
+    toast.success("Listo. Enviale el link para que cree su contraseña.");
     setNombre("");
     setDoc("");
   };
+  const nuevaInvitacion = (p: Personal) => {
+    borrarClave(p.id);
+    const act = { ...p, invitacion: nuevoTokenInvitacion() };
+    setLista((l) => l.map((x) => (x.id === p.id ? act : x)));
+    setNuevoLink(linkInvitacion(act, origen));
+    log("Link de invitación nuevo", `${p.nombre} · ${areaDe(p)}`);
+    toast.success("Se generó un link nuevo. El anterior ya no sirve.");
+  };
+
   return (
-    <Seccion icon={KeyRound} titulo="Personal de enfermería" sub="Solo los médicos pueden dar de alta o bloquear el acceso">
-      <form onSubmit={agregar} className="mb-5 grid gap-3 sm:grid-cols-[1fr_200px_auto]">
-        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellido (ej.: Enf. Laura Pérez)" className={inp} />
+    <Seccion
+      icon={UserCog}
+      titulo={areaFija ? `Personal de ${areaFija.toLowerCase()}` : "Personal y accesos"}
+      sub={areaFija ? "Alta del equipo y link para que cada persona cree su contraseña" : "Cada persona entra con los permisos de su departamento"}
+    >
+      <form onSubmit={agregar} className={`mb-5 grid gap-3 ${areaFija ? "sm:grid-cols-[1fr_200px_auto]" : "sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]"}`}>
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellido" className={inp} />
         <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp} />
-        <Button type="submit" className="h-11 rounded-xl"><Plus className="size-4" /> Dar de alta</Button>
+        {!areaFija && (
+          <select value={area} onChange={(e) => setArea(e.target.value)} className={inp} aria-label="Departamento">
+            {AREAS.map((a) => <option key={a.nombre}>{a.nombre}</option>)}
+          </select>
+        )}
+        <Button type="submit" className="h-11 rounded-xl"><Plus className="size-4" /> Dar acceso</Button>
       </form>
-      {lista.length === 0 ? (
-        <Vacio icon={Syringe} texto="Todavía no hay personal de enfermería. Al darlo de alta, entra por el acceso del panel eligiendo Enfermería." />
+
+      {nuevoLink && (
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+          <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Link de invitación listo</p>
+          <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-300/80">La persona lo abre, crea su contraseña y entra. Sirve una sola vez.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input readOnly value={nuevoLink} onFocus={(e) => e.currentTarget.select()} className={inp + " h-10 min-w-0 flex-1 font-mono text-xs"} />
+            <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => { void navigator.clipboard?.writeText(nuevoLink).then(() => toast.success("Link copiado")); }}>Copiar</Button>
+            <Button type="button" variant="ghost" className="h-10 rounded-xl" onClick={() => setNuevoLink(null)}>Cerrar</Button>
+          </div>
+        </div>
+      )}
+
+      {visibles.length === 0 ? (
+        <Vacio icon={UserCog} texto="Todavía no hay personal con acceso. Dale acceso arriba y enviale el link de invitación." />
       ) : (
         <ul className="divide-y divide-border/60">
-          {lista.map((n) => (
-            <li key={n.id} className="flex flex-wrap items-center gap-3 py-3">
-              <Avatar nombre={n.nombre} size="size-9" />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{n.nombre}</p>
-                <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)} · {tieneClave(n.id) ? "Contraseña creada" : "Todavía no ingresó"}</p>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${n.activo ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-red-100 text-red-700 ring-red-200"}`}>{n.activo ? "Habilitada" : "Bloqueada"}</span>
-              {tieneClave(n.id) && (
-                <button onClick={() => { borrarClave(n.id); log("Contraseña de enfermería reiniciada", n.nombre); toast.success("La próxima vez que ingrese va a crear una contraseña nueva."); setLista((p) => [...p]); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Reiniciar contraseña</button>
-              )}
-              <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Enfermería bloqueada" : "Enfermería habilitada", n.nombre); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
-                {n.activo ? "Bloquear" : "Habilitar"}
-              </button>
-            </li>
-          ))}
+          {visibles.map((n) => {
+            const conClave = tieneClave(n.id);
+            const estado = !n.activo ? "Bloqueado" : conClave ? "Activo" : "Invitación pendiente";
+            return (
+              <li key={n.id} className="flex flex-wrap items-center gap-3 py-3">
+                <Avatar nombre={n.nombre} size="size-9" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{areaDe(n)}</span>}</p>
+                  <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)}</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${estado === "Activo" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : estado === "Bloqueado" ? "bg-red-100 text-red-700 ring-red-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{estado}</span>
+                {n.activo && !conClave && n.invitacion && (
+                  <>
+                    <button onClick={() => void copiar(n)} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Copiar link</button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(n))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> Enviar por WhatsApp</a>
+                  </>
+                )}
+                {n.activo && (conClave || !n.invitacion) && (
+                  <button onClick={() => { nuevaInvitacion(n); refrescar((x) => x + 1); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">{conClave ? "Reiniciar contraseña" : "Generar link"}</button>
+                )}
+                <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Acceso bloqueado" : "Acceso habilitado", `${n.nombre} · ${areaDe(n)}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
+                  {n.activo ? "Bloquear" : "Habilitar"}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
+      <p className="mt-4 text-[11px] text-muted-foreground">{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Los módulos que ve cada persona se configuran abajo, en los permisos de su departamento."}</p>
     </Seccion>
   );
 }
