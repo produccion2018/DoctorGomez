@@ -3315,6 +3315,10 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
       toast.error("La hora de inicio tiene que ser anterior a la de fin.");
       return;
     }
+    if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
+      toast.error("La duración de cada turno tiene que ser entre 5 y 240 minutos.");
+      return;
+    }
     setAgendas((p) => ({ ...p, [sel]: draft }));
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
     toast.success("Horarios publicados en la web.");
@@ -3376,11 +3380,32 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
               <Campo label="Desde"><input type="time" value={draft.desde} onChange={(e) => set({ desde: e.target.value })} className={inp} /></Campo>
               <Campo label="Hasta"><input type="time" value={draft.hasta} onChange={(e) => set({ hasta: e.target.value })} className={inp} /></Campo>
-              <Campo label="Duración de cada turno">
-                <select value={draft.duracion} onChange={(e) => set({ duracion: Number(e.target.value) })} className={inp}>
-                  {[15, 20, 30, 40, 45, 60].map((m) => <option key={m} value={m}>{m} minutos</option>)}
-                </select>
+              <Campo label="Duración del turno">
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={5}
+                    max={240}
+                    step={1}
+                    inputMode="numeric"
+                    value={draft.duracion || ""}
+                    onChange={(e) => set({ duracion: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0))) })}
+                    onBlur={() => draft.duracion < 5 && set({ duracion: 5 })}
+                    className={inp + " pr-14 tabular-nums"}
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">min</span>
+                </div>
               </Campo>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground">Rápido:</span>
+              {[10, 15, 20, 25, 30, 40, 45, 60].map((m) => (
+                <button key={m} type="button" onClick={() => set({ duracion: m })}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-all ${draft.duracion === m ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                  {m} min
+                </button>
+              ))}
+              <span className="text-xs text-muted-foreground">o escribí el tiempo que quieras (5 a 240 min)</span>
             </div>
             <div className="mt-5 rounded-2xl bg-secondary/50 p-4">
               <Interruptor on={draft.pausa} onChange={(v) => set({ pausa: v })} label="Pausa (almuerzo / cirugías)" />

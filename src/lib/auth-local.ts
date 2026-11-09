@@ -292,8 +292,8 @@ export function horariosDelDia(a: AgendaDoctor): string[] {
   const pD = aMin(a.pausaDesde);
   const pH = aMin(a.pausaHasta);
   let t = aMin(a.desde);
-  const dur = Math.max(10, a.duracion);
-  while (t + dur <= fin && out.length < 60) {
+  const dur = Math.max(5, Number(a.duracion) || 5);
+  while (t + dur <= fin && out.length < 300) {
     if (a.pausa && t < pH && t + dur > pD) {
       t = pH;
       continue;
