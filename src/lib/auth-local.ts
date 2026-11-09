@@ -318,8 +318,8 @@ export async function ingresarPaciente(dniOEmail: string, codigoOClave: string):
   const lista = leerDato<PacientePortal[]>(KEY_PACIENTES, []);
   const u = dniOEmail.trim().toLowerCase();
   const dni = u.replace(/\D/g, "");
-  const p = lista.find((x) => (dni.length >= 7 && x.dni === dni) || (u.includes("@") && x.email.toLowerCase() === u));
-  if (!p) return { ok: false, error: "No encontramos un paciente con ese DNI o correo. Pedile a la clínica que te envíe la invitación." };
+  const p = lista.find((x) => (dni.length >= 5 && x.dni === dni) || (u.includes("@") && x.email.toLowerCase() === u));
+  if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pedile a la clínica que te envíe la invitación." };
   if (p.estado === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunicate con la clínica." };
   const c = codigoOClave.trim();
   const valida = c === p.codigo || (!!p.clave && (await hash(c)) === p.clave);
@@ -327,7 +327,7 @@ export async function ingresarPaciente(dniOEmail: string, codigoOClave: string):
   const actualizado: PacientePortal = { ...p, estado: "Activo", ultimoIngreso: new Date().toISOString() };
   guardarDato(KEY_PACIENTES, lista.map((x) => (x.id === p.id ? actualizado : x)));
   localStorage.setItem(KEY_SESION_PACIENTE, p.id);
-  auditar(p.nombre, p.estado === "Invitado" ? "Primer ingreso al portal" : "Ingreso al portal", `Paciente DNI ${p.dni}`);
+  auditar(p.nombre, p.estado === "Invitado" ? "Primer ingreso al portal" : "Ingreso al portal", `Paciente C.C. ${p.dni}`);
   return { ok: true, paciente: actualizado };
 }
 

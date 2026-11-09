@@ -2273,7 +2273,7 @@ function imprimirRecibo(c: Cobro) {
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
   <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700}.m{color:#64748b;font-size:13px}</style></head><body>
   <h1>Clínica Gómez Bolaño</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
-  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · DNI ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>Obra social:</b> ${c.obraSocial}` : ""}</p>
+  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>Obra social:</b> ${c.obraSocial}` : ""}</p>
   <table><thead><tr><th>Fecha</th><th>Medio</th><th>Cobró</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
   <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Arancel ${dinero(c.arancel)} · Saldo ${dinero(saldoDe(c))}</p>
   <script>window.print()</script></body></html>`);
@@ -2395,7 +2395,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro del turno atendido de {f.paciente}</p>}
             <div className="grid grid-cols-[1.5fr_1fr] gap-3">
               <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
-              <Campo label="DNI"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
+              <Campo label="Cédula"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
             </div>
             <datalist id="pacientes-cobro">{Array.from(new Set(turnos.map((t) => t.paciente))).map((p) => <option key={p} value={p} />)}</datalist>
             <Campo label="Servicio">
@@ -2462,7 +2462,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
       </div>
 
       <Seccion icon={Receipt} titulo="Cobros registrados" sub={`${lista.length} resultado${lista.length === 1 ? "" : "s"}`} delay={0.25}
-        acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Paciente, DNI, servicio..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
+        acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Paciente, cédula, servicio..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
         <div className="mb-4 flex flex-wrap gap-2">
           {(["Todos", "Pagado", "Parcial", "Pendiente", "Anulado"] as const).map((x) => {
             const n = x === "Todos" ? cobros.length : cobros.filter((c) => estadoCobro(c) === x).length;
@@ -2484,7 +2484,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                   <Avatar nombre={c.paciente} />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-semibold">{c.paciente} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_COBRO[est]}`}>{est}</span></p>
-                    <p className="text-xs text-muted-foreground">{c.concepto} · {nombreCorto(c.profesional)} · {fechaHora(c.fecha)}{c.dni ? ` · DNI ${c.dni}` : ""}</p>
+                    <p className="text-xs text-muted-foreground">{c.concepto} · {nombreCorto(c.profesional)} · {fechaHora(c.fecha)}{c.dni ? ` · C.C. ${c.dni}` : ""}</p>
                     {ult && <p className="text-xs text-muted-foreground">Último pago: {ult.metodo} · cobró <b className="text-foreground/80">{ult.cobradoPor}</b></p>}
                     {c.anulado && <p className="text-xs text-rose-700">Anulado por {nombreCorto(c.anulado.por)}: {c.anulado.motivo}</p>}
                   </div>
@@ -3281,7 +3281,7 @@ function waPaciente(tel: string, texto: string) {
 
 function mensajeInvitacion(p: PacientePortal) {
   const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
-  return `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nDNI: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+  return `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
 }
 
 const ESTADO_ACCESO: Record<EstadoAcceso, string> = {
@@ -3427,12 +3427,12 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
   const invitar = (e: FormEvent) => {
     e.preventDefault();
     const dni = f.dni.replace(/\D/g, "");
-    if (dni.length < 7) {
-      toast.error("Ingresá un DNI válido.");
+    if (dni.length < 5) {
+      toast.error("Ingresá una cédula válida.");
       return;
     }
     if (pacientes.some((p) => p.dni === dni)) {
-      toast.error("Ya existe un paciente con ese DNI.");
+      toast.error("Ya existe un paciente con esa cédula.");
       return;
     }
     const nuevo: PacientePortal = {
@@ -3447,7 +3447,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
       fecha: new Date().toISOString(),
     };
     setPacientes((p) => [nuevo, ...p]);
-    log("Acceso al portal enviado", `${nuevo.nombre} · DNI ${dni}`);
+    log("Acceso al portal enviado", `${nuevo.nombre} · C.C. ${dni}`);
     setRecien(nuevo);
     setF({ nombre: "", dni: "", telefono: "", email: "" });
   };
@@ -3455,7 +3455,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
   const cambiarPaciente = (id: string, patch: Partial<PacientePortal>, accion: string) => {
     const p = pacientes.find((x) => x.id === id);
     setPacientes((l) => l.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-    if (p) log(accion, `${p.nombre} · DNI ${p.dni}`);
+    if (p) log(accion, `${p.nombre} · C.C. ${p.dni}`);
   };
 
   const copiar = async (texto: string) => {
@@ -3516,7 +3516,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
         <div className="relative flex flex-wrap items-center justify-between gap-5">
           <div className="max-w-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Cómo funciona</p>
-            <p className="mt-1 text-lg font-semibold">1. Creás el acceso · 2. Le enviás la invitación por WhatsApp o email · 3. El paciente entra con su DNI y el código y saca sus turnos.</p>
+            <p className="mt-1 text-lg font-semibold">1. Creás el acceso · 2. Le enviás la invitación por WhatsApp o email · 3. El paciente entra con su cédula y el código y saca sus turnos.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-[#a21caf] hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
@@ -3550,7 +3550,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
             <form onSubmit={invitar} className="space-y-4">
               <Campo label="Nombre y apellido"><input id="inv-nombre" required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
               <div className="grid grid-cols-2 gap-3">
-                <Campo label="DNI"><input required inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
+                <Campo label="Cédula"><input required inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
                 <Campo label="WhatsApp"><input required type="tel" placeholder="11 1234-5678" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
               </div>
               <Campo label="Email (opcional)"><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></Campo>
@@ -3571,7 +3571,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                     <Avatar nombre={p.nombre} />
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-medium">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado}</span></p>
-                      <p className="text-xs text-muted-foreground">DNI {p.dni} · {p.telefono}{n ? ` · ${n} turno${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
+                      <p className="text-xs text-muted-foreground">C.C. {p.dni} · {p.telefono}{n ? ` · ${n} turno${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
                       {(p.ficha?.antecedentes?.length || p.ficha?.alergias || p.ficha?.obraSocial) ? (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">{p.ficha.obraSocial}</span>}
@@ -3607,7 +3607,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
             <Campo label="Paciente">
               <select required value={fa.pacienteId} onChange={(e) => setFa({ ...fa, pacienteId: e.target.value })} className={inp}>
                 <option value="">Elegí un paciente</option>
-                {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre} · DNI {p.dni}</option>)}
+                {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre} · C.C. {p.dni}</option>)}
               </select>
             </Campo>
             <Campo label="Tipo">
@@ -3814,7 +3814,7 @@ function HistoriaTab({ user, log, turnos, filtro, setFiltro, inicial }: { user: 
         <section className="pn-card pn-up flex max-h-[calc(100vh-14rem)] min-h-[420px] flex-col p-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o DNI" className={inp + " pl-10"} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " pl-10"} />
           </div>
           <p className="mt-4 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{visibles.length} pacientes</p>
           <ul className="pn-noscroll mt-2 flex-1 space-y-1 overflow-y-auto">
@@ -3932,7 +3932,7 @@ function FichaHC({
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Historia clínica</p>
               <h2 className="text-2xl font-semibold">{p.nombre}</h2>
               <p className="mt-0.5 text-sm text-white/70">
-                {[edad !== null ? `${edad} años` : null, p.dni ? `DNI ${p.dni}` : null, p.ficha?.obraSocial ?? null, p.ficha?.grupo ? `Grupo ${p.ficha.grupo}` : null].filter(Boolean).join(" · ") || "Sin datos de ficha cargados"}
+                {[edad !== null ? `${edad} años` : null, p.dni ? `C.C. ${p.dni}` : null, p.ficha?.obraSocial ?? null, p.ficha?.grupo ? `Grupo ${p.ficha.grupo}` : null].filter(Boolean).join(" · ") || "Sin datos de ficha cargados"}
               </p>
             </div>
           </div>
@@ -4268,7 +4268,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
   return (
     <div className="relative">
       <button type="button" onClick={() => setAbierto(!abierto)} className={inp + " flex items-center justify-between text-left"}>
-        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · DNI ${sel.dni}` : ""}` : "Elegí un paciente"}</span>
+        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · C.C. ${sel.dni}` : ""}` : "Elegí un paciente"}</span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </button>
       {abierto && (
@@ -4341,7 +4341,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
     const limpio = JSON.parse(JSON.stringify({ ...editando, nombre: editando.nombre.trim(), dni: editando.dni.replace(/\D/g, "") })) as PacienteClinica;
     const existe = leerDato<PacienteClinica[]>(KEY_PADRON, []).some((x) => x.id === limpio.id);
     setPadron((prev) => (existe ? prev.map((x) => (x.id === limpio.id ? limpio : x)) : [limpio, ...prev]));
-    log(existe ? "Paciente actualizado" : "Paciente nuevo", `${limpio.nombre} · DNI ${limpio.dni}`);
+    log(existe ? "Paciente actualizado" : "Paciente nuevo", `${limpio.nombre} · C.C. ${limpio.dni}`);
     toast.success(existe ? "Datos del paciente actualizados" : "Paciente agregado");
     setEditando(null);
   };
@@ -4372,7 +4372,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Campo label="Nombre y apellido" className="sm:col-span-2"><input required value={editando.nombre} onChange={set("nombre")} className={inp} /></Campo>
-            <Campo label="DNI"><input required inputMode="numeric" value={editando.dni} onChange={set("dni")} className={inp} /></Campo>
+            <Campo label="Cédula"><input required inputMode="numeric" value={editando.dni} onChange={set("dni")} className={inp} /></Campo>
             <Campo label="Fecha de nacimiento"><input type="date" value={editando.nacimiento ?? ""} onChange={set("nacimiento")} className={inp} /></Campo>
             <Campo label="Sexo">
               <select value={editando.sexo ?? ""} onChange={set("sexo")} className={inp}>
@@ -4419,7 +4419,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
         sub={`${visibles.length} de ${total}`}
         acciones={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "DNI", "Teléfono", "Email", "Obra social", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
+            <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Email", "Obra social", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
               <Download className="size-4" /> Exportar
             </Button>
             <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>
@@ -4429,7 +4429,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, DNI o teléfono" className={inp + " pl-10"} />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, cédula o teléfono" className={inp + " pl-10"} />
           </div>
           <div className="flex flex-wrap gap-1.5">
             {([["todos", "Todos"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"]] as [FiltroPac, string][]).map(([id, l]) => (
@@ -4459,7 +4459,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
                       <div className="min-w-0">
                         <p className="truncate text-[15px] font-semibold leading-tight">{p.nombre}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs text-muted-foreground">{p.dni ? `DNI ${p.dni}` : "Sin DNI"}{edad !== null ? ` · ${edad} años` : ""}</span>
+                          <span className="text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}{edad !== null ? ` · ${edad} años` : ""}</span>
                           {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
                           {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo turno</span>}
                           {esCardio(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
@@ -4616,7 +4616,7 @@ function htmlReceta(r: Receta, firma: string | undefined) {
 <div class="top"><div><h1>Clínica Gómez Bolaño</h1><p>${r.doctor} · ${r.especialidad} · ${r.matricula}</p></div><div class="rx">Rp/</div></div>
 <div class="body">${r.anulada ? `<div class="anulada">RECETA ANULADA</div>` : ""}
 <div class="grid"><div><b>Paciente:</b> ${r.paciente}</div><div><b>Fecha:</b> ${fechaDe(r.fecha)}</div>
-<div><b>DNI:</b> ${r.dni ?? "—"}</div><div><b>Receta N°:</b> ${String(r.numero).padStart(6, "0")}</div>
+<div><b>Cédula:</b> ${r.dni ?? "—"}</div><div><b>Receta N°:</b> ${String(r.numero).padStart(6, "0")}</div>
 <div><b>Cobertura:</b> ${r.obraSocial ?? "Particular"}</div><div><b>Afiliado:</b> ${r.afiliado ?? "—"}</div></div>
 ${items}
 <p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
@@ -5293,13 +5293,13 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                 value={form.receptor}
                 onChange={(e) => {
                   const p = pacientes.find((x) => x.nombre === e.target.value);
-                  setForm({ ...form, receptor: e.target.value, ...(p ? { docReceptor: p.dni ? `DNI ${p.dni}` : undefined, cobertura: p.ficha?.obraSocial || form.cobertura } : {}) } as typeof form);
+                  setForm({ ...form, receptor: e.target.value, ...(p ? { docReceptor: p.dni ? `C.C. ${p.dni}` : undefined, cobertura: p.ficha?.obraSocial || form.cobertura } : {}) } as typeof form);
                 }}
                 className={inp}
               />
               <datalist id="fact-pacientes">{pacientes.map((p) => <option key={p.id} value={p.nombre} />)}</datalist>
             </Campo>
-            <Campo label="DNI / CUIT"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
+            <Campo label="Cédula / NIT"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
             <Campo label="Cobertura"><input value={form.cobertura} onChange={(e) => setForm({ ...form, cobertura: e.target.value })} placeholder="Particular u obra social" className={inp} /></Campo>
           </div>
           <datalist id="fact-servicios">{SERVICIOS.map((s) => <option key={s.id} value={s.nombre} />)}</datalist>
@@ -5393,7 +5393,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                     size="sm"
                     className="rounded-xl"
                     onClick={() => {
-                      nuevo({ receptor: c.paciente, ...(c.dni ? { docReceptor: `DNI ${c.dni}` } : {}), cobertura: c.obraSocial || "Particular", items: [{ desc: c.concepto, cant: 1, precio: pagadoDe(c) }], cobroId: c.id });
+                      nuevo({ receptor: c.paciente, ...(c.dni ? { docReceptor: `C.C. ${c.dni}` } : {}), cobertura: c.obraSocial || "Particular", items: [{ desc: c.concepto, cant: 1, precio: pagadoDe(c) }], cobroId: c.id });
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                   >
@@ -5531,7 +5531,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
 
   const reportes: { t: string; d: string; icon: LucideIcon; run: () => void }[] = [
     { t: "Turnos", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
-    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "DNI", "Teléfono", "Obra social", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
+    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Obra social", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
     { t: "Cobros", d: `${pagos.length} pagos`, icon: Wallet, run: () => exportarCSV("cobros", [["Fecha", "Paciente", "Concepto", "Medio", "Cobró", "Monto"], ...pagos.map((p) => [fechaHora(p.fecha), p.c.paciente, p.c.concepto, p.metodo, p.cobradoPor, p.monto])]) },
     { t: "Facturación", d: `${facturas.length} comprobantes`, icon: Receipt, run: () => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.cobertura, f.total, f.estado])]) },
     { t: "Evoluciones", d: `${evols.length} consultas`, icon: FileText, run: () => exportarCSV("evoluciones", [["Fecha", "Paciente", "Especialidad", "Doctor", "Motivo", "TA", "Diagnósticos"], ...evols.map((e) => [fechaHora(e.fecha), e.paciente, e.especialidad, e.doctor, e.motivo, e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", e.diagnosticos.join(" | ")])]) },
@@ -6119,7 +6119,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar }: { p: Pacient
                       {p.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {p.ficha.alergias}</span>}
                     </div>
                     <p className="mt-1 text-[13px] text-muted-foreground">
-                      {[p.dni ? `DNI ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial || "Particular", p.ficha?.afiliado ? `Afiliado ${p.ficha.afiliado}` : null].filter(Boolean).join(" · ")}
+                      {[p.dni ? `C.C. ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial || "Particular", p.ficha?.afiliado ? `Afiliado ${p.ficha.afiliado}` : null].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

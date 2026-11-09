@@ -307,9 +307,9 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <span className="flex size-14 items-center justify-center rounded-2xl gradient-deep text-white shadow-lg"><KeyRound className="size-6" /></span>
           <h2 className="mt-6 text-3xl">Ingresá a tu portal</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Usá tu DNI y el código que te envió la clínica por WhatsApp.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Usá tu cédula y el código que te envió la clínica por WhatsApp.</p>
           <form onSubmit={ingresar} className="mt-8 space-y-4">
-            <label className="block space-y-1.5"><span className="text-xs font-medium text-muted-foreground">DNI o correo</span>
+            <label className="block space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Cédula o correo</span>
               <input autoFocus required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Ej: 30123456" className={inp} /></label>
             <label className="block space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Código de acceso o contraseña</span>
               <span className="relative block">
@@ -398,7 +398,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-violet-600 text-sm font-bold text-white shadow-md">{iniciales}</span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{paciente.nombre}</p>
-              <p className="text-xs text-muted-foreground">DNI {paciente.dni}</p>
+              <p className="text-xs text-muted-foreground">C.C. {paciente.dni}</p>
             </div>
           </div>
           <nav className="pn-noscroll mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
@@ -421,7 +421,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             ))}
           </nav>
           <div className="space-y-2 border-t border-border/60 p-4">
-            <a href={waLink(`Hola, soy ${paciente.nombre} (DNI ${paciente.dni}). Tengo una consulta.`)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-[#25D366]/20 dark:text-emerald-300">
+            <a href={waLink(`Hola, soy ${paciente.nombre} (C.C. ${paciente.dni}). Tengo una consulta.`)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-[#25D366]/20 dark:text-emerald-300">
               <MessageCircle className="size-4" /> Escribir a la clínica
             </a>
             <button onClick={onSalir} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"><LogOut className="size-4" /> Salir</button>
@@ -1319,7 +1319,7 @@ function imprimirEstudio(e: Estudio, paciente: PacientePortal) {
   ].filter(Boolean) as string[][];
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${e.titulo}</title><style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{font-size:20px;margin:0}td{border-bottom:1px solid #e2e8f0;padding:8px;font-size:14px}.m{color:#64748b;font-size:13px}</style></head><body>
   <h1>${CLINICA.nombre}</h1><p class="m">${e.tipo} · ${fechaCorta(e.fecha)}</p>
-  <p><b>Paciente:</b> ${paciente.nombre} · DNI ${paciente.dni}</p><h2 style="font-size:17px">${e.titulo}</h2>
+  <p><b>Paciente:</b> ${paciente.nombre} · C.C. ${paciente.dni}</p><h2 style="font-size:17px">${e.titulo}</h2>
   ${filas.length ? `<table>${filas.map((f) => `<tr><td>${f[0]}</td><td><b>${f[1]}</b></td></tr>`).join("")}</table>` : ""}
   <p style="white-space:pre-line">${e.informe}</p><p class="m">Cargado por ${e.cargadoPor}</p><script>window.print()</script></body></html>`);
   w.document.close();
@@ -1433,7 +1433,7 @@ function Pagos({ ctx }: { ctx: Ctx }) {
         <Tarjeta className={`!p-5 ${saldo ? "ring-1 ring-amber-500/30" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saldo pendiente</p>
           <p className={`mt-1 font-display text-3xl font-semibold tabular-nums ${saldo ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{ars(saldo)}</p>
-          {saldo > 0 && <a href={waLink(`Hola, soy ${ctx.paciente.nombre} (DNI ${ctx.paciente.dni}). Quiero pagar mi saldo de ${ars(saldo)}.`)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:underline dark:text-emerald-400"><MessageCircle className="size-4" /> Coordinar el pago por WhatsApp</a>}
+          {saldo > 0 && <a href={waLink(`Hola, soy ${ctx.paciente.nombre} (C.C. ${ctx.paciente.dni}). Quiero pagar mi saldo de ${ars(saldo)}.`)} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:underline dark:text-emerald-400"><MessageCircle className="size-4" /> Coordinar el pago por WhatsApp</a>}
         </Tarjeta>
       </div>
       <Tarjeta>
@@ -1626,7 +1626,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
           <Subtitulo icon={UserRound}>Datos personales</Subtitulo>
           <div className="mb-4 grid grid-cols-2 gap-3 rounded-2xl bg-secondary/50 p-4 text-sm dark:bg-white/5">
             <div><p className="text-xs text-muted-foreground">Nombre</p><p className="font-medium">{ctx.paciente.nombre}</p></div>
-            <div><p className="text-xs text-muted-foreground">DNI</p><p className="font-medium">{ctx.paciente.dni}</p></div>
+            <div><p className="text-xs text-muted-foreground">Cédula</p><p className="font-medium">{ctx.paciente.dni}</p></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Fecha de nacimiento</span><input type="date" value={f.nacimiento} onChange={(e) => setF({ ...f, nacimiento: e.target.value })} className={inp} /></label>
@@ -1658,7 +1658,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
       </form>
       <Tarjeta className="max-w-xl">
         <Subtitulo icon={KeyRound}>{ctx.paciente.clave ? "Cambiar contraseña" : "Crear contraseña"}</Subtitulo>
-        <p className="-mt-2 mb-4 text-sm text-muted-foreground">Así no dependés del código: entrás con tu DNI y tu contraseña.</p>
+        <p className="-mt-2 mb-4 text-sm text-muted-foreground">Así no dependés del código: entrás con tu cédula y tu contraseña.</p>
         <form onSubmit={clave} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <input type="password" required placeholder="Nueva contraseña" value={c.nueva} onChange={(e) => setC({ ...c, nueva: e.target.value })} className={inp} />
           <input type="password" required placeholder="Repetir" value={c.repetir} onChange={(e) => setC({ ...c, repetir: e.target.value })} className={inp} />
