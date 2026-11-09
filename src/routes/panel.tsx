@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   AlertTriangle,
+  PenLine,
+  Workflow,
+  Zap,
   X,
   Menu,
   ArrowDownLeft,
@@ -81,6 +84,21 @@ import {
   KEY_CONTROLES,
   clasificarPresion,
   clasificarFevi,
+  ANTECEDENTES,
+  KEY_PADRON,
+  KEY_RECETAS,
+  KEY_FIRMAS,
+  KEY_LAB,
+  KEY_FACTURAS,
+  KEY_AUTOS,
+  KEY_AUTOS_HECHAS,
+  type PacienteClinica,
+  type Receta,
+  type ItemReceta,
+  type PedidoLab,
+  type EstadoLab,
+  type Factura,
+  type TipoComprobante,
   estadioRenal,
   KEY_MEDICACION,
   KEY_EVOLUCIONES,
@@ -134,7 +152,7 @@ type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Nivel = "ninguno" | "ver" | "editar";
 type Permisos = Record<string, Record<string, Nivel>>;
-type Tab = "resumen" | "turnos" | "historia" | "horarios" | "pacientes" | "finanzas" | "permisos" | "asistente" | "auditoria";
+type Tab = "resumen" | "turnos" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -144,11 +162,14 @@ const MODULOS = [
   "Turnos",
   "Pacientes",
   "Historias clínicas",
+  "Recetas",
+  "Laboratorio",
   "Estudios",
   "Finanzas",
   "Facturación",
   "Reportes",
   "Asistente IA",
+  "Automatizaciones",
   "Horarios",
   "Portal del paciente",
   "Auditoría",
@@ -284,6 +305,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     items: [
       { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
       { id: "turnos", label: "Agenda y turnos", icon: CalendarDays, tono: "text-sky-300" },
+      { id: "padron", label: "Pacientes", icon: Users, tono: "text-sky-300" },
       {
         id: "historia",
         label: "Historia clínica",
@@ -296,16 +318,18 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
           { id: "Medicina Interna", label: "Medicina Interna" },
         ],
       },
-      { id: "pacientes", label: "Pacientes y portal", icon: Users, tono: "text-sky-300" },
+      { id: "recetas", label: "Receta digital", icon: PenLine, tono: "text-violet-300" },
+      { id: "laboratorio", label: "Laboratorio", icon: FlaskConical, tono: "text-emerald-300" },
+      { id: "pacientes", label: "Portal del paciente", icon: LogIn, tono: "text-fuchsia-300" },
     ],
   },
   { grupo: "Agenda médica", items: [{ id: "horarios", label: "Mis horarios", icon: Clock, tono: "text-teal-300" }] },
   {
-    grupo: "Administración",
+    grupo: "Pagos y facturación",
     items: [
       {
         id: "finanzas",
-        label: "Finanzas",
+        label: "Pagos y caja",
         icon: Wallet,
         tono: "text-emerald-300",
         sub: [
@@ -314,16 +338,45 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
           { id: "resumen", label: "Resumen financiero" },
         ],
       },
-      { id: "permisos", label: "Permisos y accesos", icon: KeyRound, tono: "text-violet-300" },
+      {
+        id: "facturacion",
+        label: "Facturación",
+        icon: Receipt,
+        tono: "text-emerald-300",
+        sub: [
+          { id: "comprobantes", label: "Comprobantes" },
+          { id: "porfacturar", label: "Por facturar" },
+          { id: "obras", label: "Obras sociales" },
+        ],
+      },
     ],
   },
-  { grupo: "Inteligencia", items: [{ id: "asistente", label: "Asistente IA", icon: Bot, tono: "text-violet-300" }] },
-  { grupo: "Sistema", items: [{ id: "auditoria", label: "Auditoría", icon: ClipboardList, tono: "text-slate-300" }] },
+  {
+    grupo: "Inteligencia",
+    items: [
+      { id: "analitica", label: "Analítica y reportes", icon: TrendingUp, tono: "text-amber-300" },
+      { id: "automatizaciones", label: "Automatizaciones", icon: Zap, tono: "text-amber-300" },
+      { id: "asistente", label: "Asistente IA", icon: Bot, tono: "text-violet-300" },
+    ],
+  },
+  {
+    grupo: "Sistema",
+    items: [
+      { id: "permisos", label: "Permisos y accesos", icon: KeyRound, tono: "text-violet-300" },
+      { id: "auditoria", label: "Auditoría", icon: ClipboardList, tono: "text-slate-300" },
+    ],
+  },
 ];
 
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
   turnos: ["Turnos", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
+  padron: ["Pacientes", "Padrón de pacientes: datos, cobertura, antecedentes y accesos rápidos."],
+  recetas: ["Receta digital", "Recetas con tu firma digitalizada, código de verificación y envío por WhatsApp."],
+  laboratorio: ["Laboratorio", "Pedidos, órdenes firmadas y resultados con valores fuera de rango marcados."],
+  facturacion: ["Facturación", "Comprobantes, cobros por facturar y liquidación de obras sociales."],
+  analitica: ["Analítica y reportes", "Indicadores de la clínica, clínicos y reportes para descargar."],
+  automatizaciones: ["Automatizaciones", "Recordatorios, alertas clínicas y avisos que se preparan solos."],
   historia: ["Historia clínica", "Evoluciones, presión arterial, función renal y estudios de cada paciente."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
@@ -342,6 +395,8 @@ function Panel() {
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
   const [finVista, setFinVista] = useState<VistaFin>("cobros");
   const [hcFiltro, setHcFiltro] = useState<FiltroHC>("todas");
+  const [factVista, setFactVista] = useState<VistaFact>("comprobantes");
+  const [pacSel, setPacSel] = useState<string | null>(null);
   const [turnos, setTurnos] = usePersist<Turno[]>("gb_turnos", SEED_TURNOS);
   const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
   const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
@@ -402,14 +457,20 @@ function Panel() {
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
   const irTab = (t: Tab) => {
+    if (t !== tab) setPacSel(null);
     setTab(t);
     setMenu(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  const subActual = (id: Tab) => (id === "finanzas" ? finVista : id === "historia" ? hcFiltro : "");
+  const subActual = (id: Tab) => (id === "finanzas" ? finVista : id === "historia" ? hcFiltro : id === "facturacion" ? factVista : "");
+  const abrirPaciente = (t: Tab, id: string) => {
+    setPacSel(id);
+    irTab(t);
+  };
   const irSub = (id: Tab, sub: string) => {
     if (id === "finanzas") setFinVista(sub as VistaFin);
     if (id === "historia") setHcFiltro(sub as FiltroHC);
+    if (id === "facturacion") setFactVista(sub as VistaFact);
     irTab(id);
   };
   const interiorSidebar = (
@@ -735,7 +796,7 @@ function Panel() {
           <div className="flex items-center gap-4">
             <span className="pn-acc-tile flex size-12 items-center justify-center rounded-2xl text-white">
               {(() => {
-                const I = NAV.find((n) => n.id === tab)!.icon;
+                const I = GRUPOS_NAV.flatMap((g) => g.items).find((n) => n.id === tab)?.icon ?? LayoutDashboard;
                 return <I className="size-5" />;
               })()}
             </span>
@@ -752,7 +813,13 @@ function Panel() {
 
         {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
         {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
-        {tab === "historia" && <HistoriaTab user={user} log={log} turnos={turnos} filtro={hcFiltro} setFiltro={setHcFiltro} />}
+        {tab === "padron" && <PadronTab user={user} log={log} turnos={turnos} abrir={abrirPaciente} />}
+        {tab === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} filtro={hcFiltro} setFiltro={setHcFiltro} inicial={pacSel} />}
+        {tab === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {tab === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {tab === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
+        {tab === "analitica" && <AnaliticaTab log={log} turnos={turnos} />}
+        {tab === "automatizaciones" && <AutomatizacionesTab log={log} turnos={turnos} irA={irTab} />}
         {tab === "horarios" && <HorariosTab user={user} log={log} />}
         {tab === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
         {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
@@ -879,6 +946,12 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
 const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   resumen: { a: "56,132,246", b: "99,102,241", c: "14,165,233" },
   turnos: { a: "14,165,233", b: "20,184,166", c: "59,130,246" },
+  padron: { a: "37,99,235", b: "14,165,233", c: "99,102,241" },
+  recetas: { a: "124,58,237", b: "99,102,241", c: "56,132,246" },
+  laboratorio: { a: "5,150,105", b: "14,165,233", c: "20,184,166" },
+  facturacion: { a: "13,148,136", b: "16,185,129", c: "14,165,233" },
+  analitica: { a: "217,119,6", b: "56,132,246", c: "16,185,129" },
+  automatizaciones: { a: "234,88,12", b: "225,29,72", c: "139,92,246" },
   historia: { a: "225,29,72", b: "56,132,246", c: "14,165,233" },
   horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
   pacientes: { a: "219,39,119", b: "139,92,246", c: "56,132,246" },
@@ -3659,7 +3732,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
 
 /* ═══════════════════════ HISTORIA CLÍNICA ═══════════════════════ */
 type FiltroHC = "todas" | EspecialidadHC;
-type PacienteHC = { id: string; nombre: string; dni?: string; ficha?: PacientePortal["ficha"]; portal: boolean };
+type PacienteHC = { id: string; nombre: string; dni?: string; telefono?: string; email?: string; ficha?: PacientePortal["ficha"]; portal: boolean; portalId?: string; origen: "padron" | "portal" | "turno"; creado?: string };
 
 const TONO_HC: Record<string, string> = {
   verde: "bg-emerald-100 text-emerald-800 ring-emerald-200",
@@ -3688,31 +3761,19 @@ function edadDe(nac?: string) {
   if (h.getMonth() < d.getMonth() || (h.getMonth() === d.getMonth() && h.getDate() < d.getDate())) e--;
   return e;
 }
+/** Fecha legible: respeta las fechas sin hora (AAAA-MM-DD) para no correrlas un día. */
+const fechaDe = (f: string) => (f.length === 10 ? fechaCorta(f) : new Date(f).toLocaleDateString("es-AR"));
 const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
 
-function HistoriaTab({ user, log, turnos, filtro, setFiltro }: { user: SessionUser; log: LogFn; turnos: Turno[]; filtro: FiltroHC; setFiltro: (f: FiltroHC) => void }) {
-  const [portal] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+function HistoriaTab({ user, log, turnos, filtro, setFiltro, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; filtro: FiltroHC; setFiltro: (f: FiltroHC) => void; inicial: string | null }) {
   const [evols, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
   const [meds] = useDato<Medicamento[]>(KEY_MEDICACION, []);
   const [q, setQ] = useState("");
-  const [selId, setSelId] = useState<string | null>(null);
+  const [selId, setSelId] = useState<string | null>(inicial);
   const [nueva, setNueva] = useState(false);
-
-  // Pacientes: los del portal + los que solo tienen turnos
-  const pacientes: PacienteHC[] = useMemo(() => {
-    const lista: PacienteHC[] = portal.map((p) => ({ id: p.id, nombre: p.nombre, dni: p.dni, ficha: p.ficha, portal: true }));
-    const nombres = new Set(lista.map((p) => p.nombre.toLowerCase()));
-    turnos.forEach((t) => {
-      const n = t.paciente.trim();
-      if (n && !nombres.has(n.toLowerCase())) {
-        nombres.add(n.toLowerCase());
-        lista.push({ id: t.pacienteId ?? `nombre:${n.toLowerCase()}`, nombre: n, portal: false });
-      }
-    });
-    return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
-  }, [portal, turnos]);
+  const pacientes = usePacientesClinica(turnos);
 
   const ultimaDe = (id: string) => evols.filter((e) => e.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
   const visibles = pacientes.filter((p) => {
@@ -3772,7 +3833,7 @@ function HistoriaTab({ user, log, turnos, filtro, setFiltro }: { user: SessionUs
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{p.nombre}</span>
                       <span className="block truncate text-[11px] text-muted-foreground">
-                        {u ? `${u.especialidad} · ${new Date(u.fecha).toLocaleDateString("es-AR")}` : "Sin evoluciones"}
+                        {u ? `${u.especialidad} · ${fechaDe(u.fecha)}` : "Sin evoluciones"}
                       </span>
                     </span>
                     <span className="flex shrink-0 gap-1">
@@ -3797,9 +3858,9 @@ function HistoriaTab({ user, log, turnos, filtro, setFiltro }: { user: SessionUs
             key={sel.id}
             p={sel}
             evols={evols.filter((e) => e.pacienteId === sel.id)}
-            estudios={estudios.filter((e) => e.pacienteId === sel.id)}
-            controles={controles.filter((c) => c.pacienteId === sel.id)}
-            meds={meds.filter((m) => m.pacienteId === sel.id && m.activo)}
+            estudios={estudios.filter((e) => e.pacienteId === sel.id || e.pacienteId === sel.portalId)}
+            controles={controles.filter((c) => c.pacienteId === sel.id || c.pacienteId === sel.portalId)}
+            meds={meds.filter((m) => (m.pacienteId === sel.id || m.pacienteId === sel.portalId) && m.activo)}
             filtro={filtro}
             nueva={nueva}
             setNueva={setNueva}
@@ -3924,7 +3985,7 @@ function FichaHC({
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{e.titulo || e.tipo}</p>
                           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">Estudio</span>
-                          <span className="ml-auto text-xs text-muted-foreground">{new Date(e.fecha).toLocaleDateString("es-AR")}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">{fechaDe(e.fecha)}</span>
                         </div>
                         {e.informe && <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{e.informe}</p>}
                       </div>
@@ -4008,7 +4069,7 @@ function IndicadorHC({ icon: Icon, titulo, valor, unidad, fecha, badge, extra, g
       {extra && <p className="text-xs text-muted-foreground">{extra}</p>}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {badge ? <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${TONO_HC[badge.tono] ?? TONO_HC["verde"]}`}>{badge.t}</span> : <span className="text-xs text-muted-foreground">Sin registros</span>}
-        {fecha && <span className="text-[11px] text-muted-foreground">{new Date(fecha).toLocaleDateString("es-AR")}</span>}
+        {fecha && <span className="text-[11px] text-muted-foreground">{fechaDe(fecha)}</span>}
       </div>
     </div>
   );
@@ -4135,5 +4196,1745 @@ function FormEvolucion({ p, espDoctor, user, onGuardar }: { p: PacienteHC; espDo
         <Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar evolución</Button>
       </div>
     </form>
+  );
+}
+
+/* ═══════════════════════ PACIENTES (padrón unificado) ═══════════════════════ */
+/** Une el padrón de la clínica, los pacientes del portal y los que solo tienen turnos. */
+function usePacientesClinica(turnos: Turno[]): PacienteHC[] {
+  const [padron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [portal] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+  return useMemo(() => {
+    const lista: PacienteHC[] = [];
+    const porDni = new Map<string, PacienteHC>();
+    const porNombre = new Set<string>();
+    padron.forEach((p) => {
+      const x: PacienteHC = {
+        id: p.id,
+        nombre: p.nombre,
+        dni: p.dni,
+        telefono: p.telefono,
+        email: p.email,
+        origen: "padron",
+        portal: false,
+        creado: p.creado,
+        ficha: { nacimiento: p.nacimiento, obraSocial: p.obraSocial, afiliado: p.afiliado, alergias: p.alergias, antecedentes: p.antecedentes },
+      } as PacienteHC;
+      lista.push(x);
+      if (p.dni) porDni.set(p.dni, x);
+      porNombre.add(norm(p.nombre));
+    });
+    portal.forEach((p) => {
+      const ya = (p.dni && porDni.get(p.dni)) || lista.find((x) => norm(x.nombre) === norm(p.nombre));
+      if (ya) {
+        ya.portal = true;
+        ya.portalId = p.id;
+        ya.ficha = { ...p.ficha, ...Object.fromEntries(Object.entries(ya.ficha ?? {}).filter(([, v]) => v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0))) };
+        return;
+      }
+      lista.push({ id: p.id, nombre: p.nombre, dni: p.dni, telefono: p.telefono, email: p.email, origen: "portal", portal: true, portalId: p.id, creado: p.fecha, ficha: p.ficha } as PacienteHC);
+      porNombre.add(norm(p.nombre));
+    });
+    turnos.forEach((t) => {
+      const n = t.paciente.trim();
+      if (!n || porNombre.has(norm(n))) return;
+      porNombre.add(norm(n));
+      lista.push({ id: t.pacienteId ?? `nombre:${norm(n)}`, nombre: n, telefono: t.telefono, email: t.email, origen: "turno", portal: false } as PacienteHC);
+    });
+    return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [padron, portal, turnos]);
+}
+
+const esCardio = (ant: string[] = []) => ant.some((a) => /card|infarto|arritmia|marcapasos|hipert|colesterol/i.test(a));
+const esNefro = (ant: string[] = []) => ant.some((a) => /renal|diálisis/i.test(a));
+
+function exportarCSV(nombre: string, filas: (string | number | undefined)[][]) {
+  const csv = filas.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${nombre}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Selector de paciente con buscador. */
+function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteHC[]; valor: string; onChange: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const sel = pacientes.find((p) => p.id === valor);
+  const lista = pacientes.filter((p) => `${p.nombre} ${p.dni ?? ""}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8);
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setAbierto(!abierto)} className={inp + " flex items-center justify-between text-left"}>
+        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · DNI ${sel.dni}` : ""}` : "Elegí un paciente"}</span>
+        <ChevronDown className="size-4 text-muted-foreground" />
+      </button>
+      {abierto && (
+        <div className="absolute inset-x-0 top-12 z-30 rounded-xl border border-border bg-card p-2 shadow-2xl">
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" className={inp + " h-9"} />
+          <ul className="mt-1 max-h-60 overflow-y-auto">
+            {lista.map((p) => (
+              <li key={p.id}>
+                <button type="button" onClick={() => { onChange(p.id); setAbierto(false); setQ(""); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-secondary">
+                  <Avatar nombre={p.nombre} size="size-7" />
+                  <span className="min-w-0 flex-1 truncate">{p.nombre}</span>
+                  {p.dni && <span className="text-xs text-muted-foreground">{p.dni}</span>}
+                </button>
+              </li>
+            ))}
+            {lista.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados. Cargalo en Pacientes.</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal";
+
+function PadronTab({ user, log, turnos, abrir }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [, setPadron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [q, setQ] = useState("");
+  const [filtro, setFiltro] = useState<FiltroPac>("todos");
+  const [editando, setEditando] = useState<PacienteClinica | null>(null);
+
+  const vacio = (): PacienteClinica => ({ id: nuevoId(), nombre: "", dni: "", antecedentes: [], creado: new Date().toISOString(), medicoCabecera: user.nombre });
+  const visibles = pacientes.filter((p) => {
+    if (q && !norm(`${p.nombre} ${p.dni ?? ""} ${p.telefono ?? ""}`).includes(norm(q))) return false;
+    const ant = p.ficha?.antecedentes ?? [];
+    if (filtro === "cardio") return esCardio(ant);
+    if (filtro === "nefro") return esNefro(ant);
+    if (filtro === "alergias") return !!p.ficha?.alergias;
+    if (filtro === "sinportal") return !p.portal;
+    return true;
+  });
+
+  const editar = (p: PacienteHC) => {
+    if (p.origen !== "padron") {
+      // Se pasa al padrón con los datos que ya hay
+      setEditando({
+        id: p.origen === "portal" ? `pad-${p.id}` : nuevoId(),
+        nombre: p.nombre,
+        dni: p.dni ?? "",
+        telefono: p.telefono,
+        email: p.email,
+        nacimiento: p.ficha?.nacimiento,
+        obraSocial: p.ficha?.obraSocial,
+        afiliado: p.ficha?.afiliado,
+        alergias: p.ficha?.alergias,
+        antecedentes: [...(p.ficha?.antecedentes ?? [])],
+        creado: new Date().toISOString(),
+      } as PacienteClinica);
+      return;
+    }
+    const [orig] = leerDato<PacienteClinica[]>(KEY_PADRON, []).filter((x) => x.id === p.id);
+    if (orig) setEditando({ ...orig, antecedentes: [...orig.antecedentes] });
+  };
+
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!editando) return;
+    const limpio = JSON.parse(JSON.stringify({ ...editando, nombre: editando.nombre.trim(), dni: editando.dni.replace(/\D/g, "") })) as PacienteClinica;
+    const existe = leerDato<PacienteClinica[]>(KEY_PADRON, []).some((x) => x.id === limpio.id);
+    setPadron((prev) => (existe ? prev.map((x) => (x.id === limpio.id ? limpio : x)) : [limpio, ...prev]));
+    log(existe ? "Paciente actualizado" : "Paciente nuevo", `${limpio.nombre} · DNI ${limpio.dni}`);
+    toast.success(existe ? "Datos del paciente actualizados" : "Paciente agregado");
+    setEditando(null);
+  };
+
+  const total = pacientes.length;
+  const conPortal = pacientes.filter((p) => p.portal).length;
+  const cardio = pacientes.filter((p) => esCardio(p.ficha?.antecedentes)).length;
+  const nefro = pacientes.filter((p) => esNefro(p.ficha?.antecedentes)).length;
+  const set = (k: keyof PacienteClinica) => (e: { target: { value: string } }) => editando && setEditando({ ...editando, [k]: e.target.value });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={Users} label="Pacientes" value={String(total)} hint="Padrón, portal y turnos" />
+        <Kpi icon={LogIn} label="Con portal" value={String(conPortal)} hint={total ? `${Math.round((conPortal / total) * 100)}% del total` : "—"} tono="violeta" delay={0.05} />
+        <Kpi icon={HeartPulse} label="Riesgo cardiovascular" value={String(cardio)} hint="Con antecedentes cardio" tono="rojo" delay={0.1} />
+        <Kpi icon={Droplets} label="Enfermedad renal" value={String(nefro)} hint="ERC, diálisis o trasplante" tono="azul" delay={0.15} />
+      </div>
+
+      {editando && (
+        <form onSubmit={guardar} className="pn-card pn-up space-y-5 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div>
+              <h3 className="text-[15px] font-semibold">{editando.nombre ? editando.nombre : "Nuevo paciente"}</h3>
+              <p className="text-xs text-muted-foreground">Datos personales, cobertura y antecedentes clínicos</p>
+            </div>
+            <button type="button" onClick={() => setEditando(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Campo label="Nombre y apellido" className="sm:col-span-2"><input required value={editando.nombre} onChange={set("nombre")} className={inp} /></Campo>
+            <Campo label="DNI"><input required inputMode="numeric" value={editando.dni} onChange={set("dni")} className={inp} /></Campo>
+            <Campo label="Fecha de nacimiento"><input type="date" value={editando.nacimiento ?? ""} onChange={set("nacimiento")} className={inp} /></Campo>
+            <Campo label="Sexo">
+              <select value={editando.sexo ?? ""} onChange={set("sexo")} className={inp}>
+                <option value="">—</option><option value="F">Femenino</option><option value="M">Masculino</option><option value="X">X</option>
+              </select>
+            </Campo>
+            <Campo label="WhatsApp / teléfono"><input type="tel" value={editando.telefono ?? ""} onChange={set("telefono")} className={inp} /></Campo>
+            <Campo label="Email"><input type="email" value={editando.email ?? ""} onChange={set("email")} className={inp} /></Campo>
+            <Campo label="Domicilio"><input value={editando.domicilio ?? ""} onChange={set("domicilio")} className={inp} /></Campo>
+            <Campo label="Obra social / prepaga"><input value={editando.obraSocial ?? ""} onChange={set("obraSocial")} placeholder="Particular, OSDE, PAMI…" className={inp} /></Campo>
+            <Campo label="N° de afiliado"><input value={editando.afiliado ?? ""} onChange={set("afiliado")} className={inp} /></Campo>
+            <Campo label="Médico de cabecera">
+              <select value={editando.medicoCabecera ?? ""} onChange={set("medicoCabecera")} className={inp}>
+                <option value="">—</option>
+                {ADMINS.map((a) => <option key={a.id}>{a.nombre}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Alergias"><input value={editando.alergias ?? ""} onChange={set("alergias")} placeholder="Ninguna conocida" className={inp} /></Campo>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Antecedentes</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ANTECEDENTES.map((a) => {
+                const on = editando.antecedentes.includes(a);
+                return (
+                  <button type="button" key={a} onClick={() => setEditando({ ...editando, antecedentes: on ? editando.antecedentes.filter((x) => x !== a) : [...editando.antecedentes, a] })} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition ${on ? "pn-acc-tile text-white ring-transparent" : "bg-background text-muted-foreground ring-border hover:text-foreground"}`}>
+                    {on && <Check className="size-3" />} {a}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <Campo label="Notas"><textarea rows={3} value={editando.notas ?? ""} onChange={set("notas")} className={inp + " h-auto resize-none py-3"} /></Campo>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar paciente</Button>
+          </div>
+        </form>
+      )}
+
+      <Seccion
+        icon={Users}
+        titulo="Padrón de pacientes"
+        sub={`${visibles.length} de ${total}`}
+        acciones={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "DNI", "Teléfono", "Email", "Obra social", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
+              <Download className="size-4" /> Exportar
+            </Button>
+            <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>
+          </div>
+        }
+      >
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, DNI o teléfono" className={inp + " pl-10"} />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([["todos", "Todos"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"]] as [FiltroPac, string][]).map(([id, l]) => (
+              <button key={id} onClick={() => setFiltro(id)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filtro === id ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+
+        {visibles.length === 0 ? (
+          <Vacio icon={Users} titulo="No hay pacientes" texto="Cargá el primero con Nuevo paciente. También aparecen los del portal y los que sacan turno." />
+        ) : (
+          <ul className="divide-y divide-border/60">
+            {visibles.map((p) => {
+              const edad = edadDe(p.ficha?.nacimiento);
+              const ant = p.ficha?.antecedentes ?? [];
+              return (
+                <li key={p.id} className="group flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <Avatar nombre={p.nombre} />
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">
+                        {p.nombre}
+                        {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
+                        {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo turno</span>}
+                        {p.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> {p.ficha.alergias}</span>}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[p.dni ? `DNI ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial, p.telefono].filter(Boolean).join(" · ") || "Sin datos cargados"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {esCardio(ant) && <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
+                    {esNefro(ant) && <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
+                    <button onClick={() => abrir("historia", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><FileText className="size-3.5" /> Historia</button>
+                    <button onClick={() => abrir("recetas", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><Pill className="size-3.5" /> Receta</button>
+                    <button onClick={() => abrir("laboratorio", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><FlaskConical className="size-3.5" /> Laboratorio</button>
+                    <button onClick={() => editar(p)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><Pencil className="size-3.5" /> Editar</button>
+                    {p.telefono && (
+                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"><Send className="size-3.5" /> WhatsApp</a>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Seccion>
+    </div>
+  );
+}
+
+/* ═══════════════════════ RECETA DIGITAL ═══════════════════════ */
+const MEDICAMENTOS_FRECUENTES = [
+  "Enalapril", "Losartán", "Valsartán", "Amlodipina", "Bisoprolol", "Carvedilol", "Atenolol", "Hidroclorotiazida", "Clortalidona", "Furosemida",
+  "Espironolactona", "Sacubitrilo/Valsartán", "Dapagliflozina", "Empagliflozina", "Atorvastatina", "Rosuvastatina", "Ácido acetilsalicílico",
+  "Clopidogrel", "Apixabán", "Rivaroxabán", "Acenocumarol", "Amiodarona", "Ivabradina", "Calcitriol", "Sevelamer", "Carbonato de calcio",
+  "Bicarbonato de sodio", "Eritropoyetina", "Hierro sacarato", "Alopurinol", "Febuxostat", "Metformina", "Levotiroxina", "Omeprazol",
+];
+
+function datosMedico(user: SessionUser) {
+  const d = DOCTORS.find((x) => x.foto === user.id);
+  return {
+    nombre: d?.nombre ?? user.nombre,
+    matricula: d?.matricula ?? "",
+    especialidad: user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Medicina Interna",
+    titulo: d?.titulo ?? "",
+  };
+}
+
+/** Pad para dibujar la firma con el mouse o el dedo. */
+function FirmaPad({ onGuardar, onCancelar }: { onGuardar: (dataUrl: string) => void; onCancelar: () => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const dibujando = useRef(false);
+  const [vacio, setVacio] = useState(true);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const r = window.devicePixelRatio || 1;
+    c.width = c.offsetWidth * r;
+    c.height = c.offsetHeight * r;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(r, r);
+    ctx.lineWidth = 2.4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0b2a6b";
+  }, []);
+  const pos = (e: RPointerEvent<HTMLCanvasElement>) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - b.left, y: e.clientY - b.top };
+  };
+  const limpiar = () => {
+    const c = ref.current;
+    c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
+    setVacio(true);
+  };
+  return (
+    <div className="space-y-3">
+      <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-border bg-white">
+        <canvas
+          ref={ref}
+          className="h-44 w-full touch-none cursor-crosshair"
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dibujando.current = true;
+            const ctx = ref.current?.getContext("2d");
+            const p = pos(e);
+            ctx?.beginPath();
+            ctx?.moveTo(p.x, p.y);
+          }}
+          onPointerMove={(e) => {
+            if (!dibujando.current) return;
+            const ctx = ref.current?.getContext("2d");
+            const p = pos(e);
+            ctx?.lineTo(p.x, p.y);
+            ctx?.stroke();
+            setVacio(false);
+          }}
+          onPointerUp={() => (dibujando.current = false)}
+          onPointerLeave={() => (dibujando.current = false)}
+        />
+        {vacio && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firmá acá con el mouse o el dedo</p>}
+        <span className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-slate-300" />
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button type="button" variant="outline" className="rounded-xl" onClick={onCancelar}>Cancelar</Button>
+        <Button type="button" variant="outline" className="rounded-xl" onClick={limpiar}>Borrar</Button>
+        <Button type="button" className="rounded-xl" disabled={vacio} onClick={() => ref.current && onGuardar(ref.current.toDataURL("image/png"))}><Check className="size-4" /> Guardar firma</Button>
+      </div>
+    </div>
+  );
+}
+
+function htmlReceta(r: Receta, firma: string | undefined) {
+  const items = r.items
+    .map((it, i) => `<div class="it"><p class="n">${i + 1}. ${it.droga} ${it.presentacion}</p><p class="m">Cantidad: <b>${it.cantidad}</b></p><p class="m">${it.posologia}</p></div>`)
+    .join("");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Receta N° ${r.numero}</title>
+<style>
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:#f1f5f9}
+.hoja{max-width:720px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px -30px rgba(15,23,42,.5)}
+.top{background:linear-gradient(135deg,#0b2a6b,#1d4ed8);color:#fff;padding:26px 30px;display:flex;justify-content:space-between;gap:16px}
+.top h1{margin:0;font-size:20px}.top p{margin:4px 0 0;font-size:12px;opacity:.8}.rx{font-family:Georgia,serif;font-size:44px;font-style:italic;opacity:.9}
+.body{padding:26px 30px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;font-size:13px;border-bottom:1px solid #e2e8f0;padding-bottom:16px}
+.grid b{color:#475569;font-weight:600}.it{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-top:12px}.n{margin:0;font-weight:700;font-size:15px}.m{margin:4px 0 0;font-size:13px;color:#334155}
+.dx{margin-top:16px;font-size:13px}.ind{margin-top:12px;font-size:13px;background:#f8fafc;border-radius:10px;padding:10px 12px}
+.pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:28px}
+.firma{text-align:center;min-width:220px}.firma img{height:70px}.firma .l{border-top:1px solid #334155;padding-top:6px;font-size:12px}
+.cod{font-size:11px;color:#64748b}.cod b{font-family:ui-monospace,monospace;font-size:14px;color:#0f172a;letter-spacing:.12em}
+.anulada{color:#dc2626;font-weight:800;border:2px solid #dc2626;padding:6px 10px;border-radius:8px;display:inline-block;margin-bottom:10px}
+@media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
+</style></head><body><div class="hoja">
+<div class="top"><div><h1>Clínica Gómez Bolaño</h1><p>${r.doctor} · ${r.especialidad} · ${r.matricula}</p></div><div class="rx">Rp/</div></div>
+<div class="body">${r.anulada ? `<div class="anulada">RECETA ANULADA</div>` : ""}
+<div class="grid"><div><b>Paciente:</b> ${r.paciente}</div><div><b>Fecha:</b> ${fechaDe(r.fecha)}</div>
+<div><b>DNI:</b> ${r.dni ?? "—"}</div><div><b>Receta N°:</b> ${String(r.numero).padStart(6, "0")}</div>
+<div><b>Cobertura:</b> ${r.obraSocial ?? "Particular"}</div><div><b>Afiliado:</b> ${r.afiliado ?? "—"}</div></div>
+${items}
+<p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
+<div class="pie"><div class="cod">Código de verificación<br><b>${r.codigo}</b><br>Firmada digitalmente el ${new Date(r.fecha).toLocaleString("es-AR")}</div>
+<div class="firma">${firma ? `<img src="${firma}" alt="Firma">` : ""}<div class="l">${r.doctor}<br>${r.matricula}</div></div></div>
+</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+}
+function imprimirHtml(html: string) {
+  const w = window.open("", "_blank", "width=800,height=1000");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+}
+
+function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [recetas, setRecetas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [firmas, setFirmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [firmando, setFirmando] = useState(false);
+  const [pacId, setPacId] = useState(inicial ?? "");
+  const [dx, setDx] = useState("");
+  const [indic, setIndic] = useState("");
+  const vacioItem = (): ItemReceta => ({ droga: "", presentacion: "", cantidad: "1 caja", posologia: "" });
+  const [items, setItems] = useState<ItemReceta[]>([vacioItem()]);
+  const [q, setQ] = useState("");
+  const med = datosMedico(user);
+  const firma = firmas[user.id];
+  const pac = pacientes.find((p) => p.id === pacId);
+
+  const emitir = (e: FormEvent) => {
+    e.preventDefault();
+    if (!pac) { toast.error("Elegí un paciente"); return; }
+    if (!firma) { toast.error("Primero registrá tu firma"); return; }
+    const validos = items.filter((i) => i.droga.trim());
+    if (validos.length === 0) { toast.error("Agregá al menos un medicamento"); return; }
+    const numero = (recetas.reduce((m, r) => Math.max(m, r.numero), 0) || 0) + 1;
+    const r = JSON.parse(
+      JSON.stringify({
+        id: nuevoId(),
+        numero,
+        fecha: new Date().toISOString(),
+        pacienteId: pac.id,
+        paciente: pac.nombre,
+        dni: pac.dni,
+        obraSocial: pac.ficha?.obraSocial,
+        afiliado: pac.ficha?.afiliado,
+        doctorId: user.id,
+        doctor: med.nombre,
+        matricula: med.matricula,
+        especialidad: med.especialidad,
+        diagnostico: dx.trim(),
+        items: validos,
+        indicaciones: indic.trim() || undefined,
+        codigo: Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
+        firmada: true,
+      }),
+    ) as Receta;
+    setRecetas((prev) => [r, ...prev]);
+    log("Receta emitida", `N° ${numero} · ${pac.nombre}`);
+    toast.success(`Receta N° ${numero} firmada y emitida`);
+    setItems([vacioItem()]);
+    setDx("");
+    setIndic("");
+    imprimirHtml(htmlReceta(r, firma));
+  };
+
+  const lista = recetas.filter((r) => !q || norm(`${r.paciente} ${r.numero} ${r.items.map((i) => i.droga).join(" ")}`).includes(norm(q)));
+  const hoy = recetas.filter((r) => isoDe(new Date(r.fecha)) === isoDe(new Date())).length;
+  const telDe = (r: Receta) => pacientes.find((p) => p.id === r.pacienteId)?.telefono;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={Pill} label="Recetas emitidas" value={String(recetas.filter((r) => !r.anulada).length)} hint="En total" tono="violeta" />
+        <Kpi icon={CalendarCheck} label="Hoy" value={String(hoy)} hint="Recetas de hoy" delay={0.05} />
+        <Kpi icon={Users} label="Pacientes" value={String(new Set(recetas.map((r) => r.pacienteId)).size)} hint="Con receta" tono="verde" delay={0.1} />
+        <Kpi icon={PenLine} label="Tu firma" value={firma ? "Registrada" : "Falta"} hint={firma ? "Se usa en cada receta" : "Registrala para emitir"} tono={firma ? "verde" : "ambar"} delay={0.15} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <form onSubmit={emitir} className="pn-card pn-up space-y-5 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl font-display text-lg italic text-white">Rp</span>
+              <div>
+                <h3 className="text-[15px] font-semibold">Nueva receta digital</h3>
+                <p className="text-xs text-muted-foreground">{med.nombre} · {med.especialidad} · {med.matricula}</p>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo label="Paciente"><SelectorPaciente pacientes={pacientes} valor={pacId} onChange={setPacId} /></Campo>
+            <Campo label="Diagnóstico"><input required value={dx} onChange={(e) => setDx(e.target.value)} placeholder="Hipertensión arterial, ERC estadio 3a…" className={inp} /></Campo>
+          </div>
+          {pac && (
+            <p className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span className="rounded-full bg-secondary px-2.5 py-1">Cobertura: {pac.ficha?.obraSocial || "Particular"}</span>
+              {pac.ficha?.afiliado && <span className="rounded-full bg-secondary px-2.5 py-1">Afiliado {pac.ficha.afiliado}</span>}
+              {pac.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700"><AlertTriangle className="size-3" /> Alergias: {pac.ficha.alergias}</span>}
+            </p>
+          )}
+
+          <datalist id="meds-frecuentes">{MEDICAMENTOS_FRECUENTES.map((m) => <option key={m} value={m} />)}</datalist>
+          <div className="space-y-3">
+            {items.map((it, i) => (
+              <div key={i} className="relative rounded-2xl border border-border/70 bg-secondary/30 p-4">
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Medicamento {i + 1}</p>
+                <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr_0.8fr]">
+                  <input list="meds-frecuentes" value={it.droga} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, droga: e.target.value } : x)))} placeholder="Droga (nombre genérico)" className={inp} />
+                  <input value={it.presentacion} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, presentacion: e.target.value } : x)))} placeholder="10 mg x 30 comp." className={inp} />
+                  <input value={it.cantidad} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, cantidad: e.target.value } : x)))} placeholder="Cantidad" className={inp} />
+                  <input value={it.posologia} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, posologia: e.target.value } : x)))} placeholder="1 comprimido cada 12 horas" className={inp + " sm:col-span-3"} />
+                </div>
+                {items.length > 1 && (
+                  <button type="button" onClick={() => setItems(items.filter((_, j) => j !== i))} className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>
+                )}
+              </div>
+            ))}
+            {items.length < 3 && (
+              <button type="button" onClick={() => setItems([...items, vacioItem()])} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary"><Plus className="size-4" /> Agregar medicamento</button>
+            )}
+          </div>
+          <Campo label="Indicaciones (opcional)"><textarea rows={2} value={indic} onChange={(e) => setIndic(e.target.value)} placeholder="Dieta hiposódica, control de presión en domicilio…" className={inp + " h-auto resize-none py-3"} /></Campo>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+            <p className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
+              La receta sale con tu firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y obras sociales, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
+            </p>
+            <Button type="submit" className="rounded-xl px-6" disabled={!firma}><PenLine className="size-4" /> Firmar y emitir</Button>
+          </div>
+        </form>
+
+        <div className="space-y-6">
+          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibujala una sola vez"} delay={0.05}>
+            {firmando ? (
+              <FirmaPad
+                onCancelar={() => setFirmando(false)}
+                onGuardar={(d) => {
+                  setFirmas((p) => ({ ...p, [user.id]: d }));
+                  setFirmando(false);
+                  log("Firma registrada", med.nombre);
+                  toast.success("Firma guardada");
+                }}
+              />
+            ) : firma ? (
+              <div className="space-y-3">
+                <div className="pn-keep rounded-2xl bg-white p-4 text-center ring-1 ring-border">
+                  <img src={firma} alt="Firma" className="mx-auto h-20" />
+                  <p className="mt-1 border-t border-slate-300 pt-1.5 text-xs text-slate-600">{med.nombre} · {med.matricula}</p>
+                </div>
+                <Button variant="outline" className="w-full rounded-xl" onClick={() => setFirmando(true)}><Pencil className="size-4" /> Cambiar firma</Button>
+              </div>
+            ) : (
+              <Vacio icon={PenLine} titulo="Sin firma" texto="Registrá tu firma para poder emitir recetas y órdenes." accion={<Button className="rounded-xl" onClick={() => setFirmando(true)}><PenLine className="size-4" /> Registrar firma</Button>} />
+            )}
+          </Seccion>
+        </div>
+      </div>
+
+      <Seccion
+        icon={ClipboardList}
+        titulo="Recetas emitidas"
+        sub={`${lista.length} recetas`}
+        acciones={
+          <div className="relative w-64 max-w-full">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Paciente, N° o droga" className={inp + " h-10 pl-10"} />
+          </div>
+        }
+      >
+        {lista.length === 0 ? (
+          <Vacio icon={Pill} texto="Las recetas que emitas aparecen acá para reimprimir, enviar o anular." />
+        ) : (
+          <ul className="divide-y divide-border/60">
+            {lista.map((r) => {
+              const tel = telDe(r);
+              return (
+                <li key={r.id} className={`flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center ${r.anulada ? "opacity-55" : ""}`}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-700 font-display text-sm italic text-white">Rp</span>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">
+                        {r.paciente}
+                        <span className="text-xs font-normal text-muted-foreground">N° {String(r.numero).padStart(6, "0")}</span>
+                        {r.anulada && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200">Anulada</span>}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{r.items.map((i) => `${i.droga} ${i.presentacion}`).join(" · ")}</p>
+                      <p className="text-[11px] text-muted-foreground">{fechaHora(r.fecha)} · {nombreCorto(r.doctor)} · Código {r.codigo}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button onClick={() => imprimirHtml(htmlReceta(r, firmas[r.doctorId]))} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"><FileText className="size-3.5" /> Ver / imprimir</button>
+                    {tel && !r.anulada && (
+                      <a
+                        href={waDe(tel, `Hola ${r.paciente.split(" ")[0]}, te enviamos tu receta N° ${r.numero} de la Clínica Gómez Bolaño:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo de verificación: ${r.codigo}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <Send className="size-3.5" /> WhatsApp
+                      </a>
+                    )}
+                    {!r.anulada && r.doctorId === user.id && (
+                      <button
+                        onClick={() => {
+                          const motivo = window.prompt("Motivo de la anulación");
+                          if (!motivo) return;
+                          setRecetas((prev) => prev.map((x) => (x.id === r.id ? { ...x, anulada: { motivo, fecha: new Date().toISOString() } } : x)));
+                          log("Receta anulada", `N° ${r.numero} · ${motivo}`);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Ban className="size-3.5" /> Anular
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Seccion>
+    </div>
+  );
+}
+
+/* ═══════════════════════ LABORATORIO ═══════════════════════ */
+type Determinacion = { id: string; nombre: string; unidad: string; min?: number; max?: number };
+const PANELES_LAB: { id: string; nombre: string; esp: "Nefrología" | "Cardiología" | "General"; det: Determinacion[] }[] = [
+  {
+    id: "renal",
+    nombre: "Perfil renal",
+    esp: "Nefrología",
+    det: [
+      { id: "urea", nombre: "Urea", unidad: "mg/dl", min: 15, max: 45 },
+      { id: "creatinina", nombre: "Creatinina", unidad: "mg/dl", min: 0.6, max: 1.2 },
+      { id: "egfr", nombre: "Filtrado glomerular (eGFR)", unidad: "ml/min", min: 60 },
+      { id: "acido_urico", nombre: "Ácido úrico", unidad: "mg/dl", min: 2.5, max: 7 },
+    ],
+  },
+  {
+    id: "iono",
+    nombre: "Ionograma",
+    esp: "Nefrología",
+    det: [
+      { id: "sodio", nombre: "Sodio", unidad: "mEq/l", min: 135, max: 145 },
+      { id: "potasio", nombre: "Potasio", unidad: "mEq/l", min: 3.5, max: 5.0 },
+      { id: "cloro", nombre: "Cloro", unidad: "mEq/l", min: 98, max: 107 },
+    ],
+  },
+  {
+    id: "orina",
+    nombre: "Orina y proteinuria",
+    esp: "Nefrología",
+    det: [
+      { id: "proteinuria", nombre: "Proteinuria 24 h", unidad: "g/24h", max: 0.15 },
+      { id: "rac", nombre: "Albúmina/creatinina (RAC)", unidad: "mg/g", max: 30 },
+    ],
+  },
+  {
+    id: "fosfo",
+    nombre: "Metabolismo fosfocálcico",
+    esp: "Nefrología",
+    det: [
+      { id: "calcio", nombre: "Calcio", unidad: "mg/dl", min: 8.5, max: 10.5 },
+      { id: "fosforo", nombre: "Fósforo", unidad: "mg/dl", min: 2.5, max: 4.5 },
+      { id: "pth", nombre: "PTH", unidad: "pg/ml", min: 15, max: 65 },
+    ],
+  },
+  {
+    id: "lipidos",
+    nombre: "Perfil lipídico",
+    esp: "Cardiología",
+    det: [
+      { id: "colesterol", nombre: "Colesterol total", unidad: "mg/dl", max: 200 },
+      { id: "hdl", nombre: "HDL", unidad: "mg/dl", min: 40 },
+      { id: "ldl", nombre: "LDL", unidad: "mg/dl", max: 130 },
+      { id: "tg", nombre: "Triglicéridos", unidad: "mg/dl", max: 150 },
+    ],
+  },
+  {
+    id: "cardiaco",
+    nombre: "Marcadores cardíacos",
+    esp: "Cardiología",
+    det: [
+      { id: "ntprobnp", nombre: "NT-proBNP", unidad: "pg/ml", max: 125 },
+      { id: "troponina", nombre: "Troponina T us", unidad: "ng/l", max: 14 },
+      { id: "cpk", nombre: "CPK", unidad: "U/l", max: 190 },
+    ],
+  },
+  {
+    id: "metabolico",
+    nombre: "Glucemia y HbA1c",
+    esp: "General",
+    det: [
+      { id: "glucemia", nombre: "Glucemia", unidad: "mg/dl", min: 70, max: 100 },
+      { id: "hba1c", nombre: "Hemoglobina glicosilada", unidad: "%", max: 5.7 },
+    ],
+  },
+  {
+    id: "hemograma",
+    nombre: "Hemograma",
+    esp: "General",
+    det: [
+      { id: "hemoglobina", nombre: "Hemoglobina", unidad: "g/dl", min: 12, max: 16 },
+      { id: "hematocrito", nombre: "Hematocrito", unidad: "%", min: 36, max: 48 },
+      { id: "plaquetas", nombre: "Plaquetas", unidad: "x10³/µl", min: 150, max: 450 },
+    ],
+  },
+  {
+    id: "tiroides",
+    nombre: "Tiroides",
+    esp: "General",
+    det: [{ id: "tsh", nombre: "TSH", unidad: "µUI/ml", min: 0.4, max: 4.5 }],
+  },
+];
+const DET_TODAS = PANELES_LAB.flatMap((p) => p.det);
+function flagDe(d: Determinacion, v: number): "alto" | "bajo" | "ok" {
+  if (d.max !== undefined && v > d.max) return "alto";
+  if (d.min !== undefined && v < d.min) return "bajo";
+  return "ok";
+}
+const ESTADO_LAB: Record<EstadoLab, string> = {
+  Pedido: "bg-amber-100 text-amber-800 ring-amber-200",
+  "En proceso": "bg-sky-100 text-sky-800 ring-sky-200",
+  Resultado: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+};
+
+function htmlOrdenLab(p: PedidoLab, med: ReturnType<typeof datosMedico>, firma?: string) {
+  const paneles = p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)).filter(Boolean) as typeof PANELES_LAB;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden de laboratorio</title>
+<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:720px;margin:auto}h1{margin:0;font-size:20px}.m{color:#64748b;font-size:13px}
+.box{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-top:14px}.box h3{margin:0 0 6px;font-size:14px}.box p{margin:0;font-size:13px;color:#334155}
+.tag{display:inline-block;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;margin-right:6px}
+.firma{text-align:right;margin-top:40px}.firma img{height:64px}.firma div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
+<h1>Clínica Gómez Bolaño · Orden de laboratorio</h1><p class="m">${fechaDe(p.fecha)} · ${med.nombre} · ${med.matricula}</p>
+<p><b>Paciente:</b> ${p.paciente}</p>${p.urgente ? `<span class="tag">URGENTE</span>` : ""}${p.ayuno ? `<span class="tag" style="background:#e0f2fe;color:#075985">Con ayuno de 8 a 12 h</span>` : ""}
+${paneles.map((x) => `<div class="box"><h3>${x.nombre}</h3><p>${x.det.map((d) => d.nombre).join(" · ")}</p></div>`).join("")}
+${p.nota ? `<p class="m" style="margin-top:14px"><b>Nota:</b> ${p.nota}</p>` : ""}
+<div class="firma">${firma ? `<img src="${firma}"><br>` : ""}<div>${med.nombre}<br>${med.matricula}</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+}
+
+function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [pedidos, setPedidos] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const [, setEstudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [nuevo, setNuevo] = useState(!!inicial);
+  const [pacId, setPacId] = useState(inicial ?? "");
+  const [paneles, setPaneles] = useState<string[]>(user.id === "alonso" ? ["lipidos", "cardiaco"] : ["renal", "iono"]);
+  const [urgente, setUrgente] = useState(false);
+  const [ayuno, setAyuno] = useState(true);
+  const [nota, setNota] = useState("");
+  const [cargando, setCargando] = useState<PedidoLab | null>(null);
+  const [valores, setValores] = useState<Record<string, string>>({});
+  const [verEstado, setVerEstado] = useState<"todos" | EstadoLab>("todos");
+  const med = datosMedico(user);
+
+  const crear = (e: FormEvent) => {
+    e.preventDefault();
+    const pac = pacientes.find((p) => p.id === pacId);
+    if (!pac) { toast.error("Elegí un paciente"); return; }
+    if (paneles.length === 0) { toast.error("Elegí al menos un panel"); return; }
+    const p = JSON.parse(JSON.stringify({ id: nuevoId(), fecha: new Date().toISOString(), pacienteId: pac.id, paciente: pac.nombre, doctor: user.nombre, paneles, urgente, ayuno, estado: "Pedido", resultados: {}, nota: nota.trim() || undefined })) as PedidoLab;
+    setPedidos((prev) => [p, ...prev]);
+    log("Pedido de laboratorio", `${pac.nombre} · ${paneles.length} paneles`);
+    toast.success("Pedido creado");
+    setNuevo(false);
+    setNota("");
+    imprimirHtml(htmlOrdenLab(p, med, firmas[user.id]));
+  };
+
+  const guardarResultados = (e: FormEvent) => {
+    e.preventDefault();
+    if (!cargando) return;
+    const res: Record<string, number> = {};
+    Object.entries(valores).forEach(([k, v]) => {
+      const n = Number(v.replace(",", "."));
+      if (v.trim() !== "" && !Number.isNaN(n)) res[k] = n;
+    });
+    const act: PedidoLab = { ...cargando, resultados: res, estado: "Resultado", fechaResultado: new Date().toISOString() };
+    setPedidos((prev) => prev.map((x) => (x.id === act.id ? act : x)));
+    // Se suma como estudio: aparece en la historia clínica y en el portal del paciente
+    const vals = JSON.parse(JSON.stringify({ creatinina: res["creatinina"], egfr: res["egfr"], potasio: res["potasio"], urea: res["urea"], proteinuria: res["proteinuria"], hemoglobina: res["hemoglobina"], ldl: res["ldl"] })) as ValoresEstudio;
+    const nombres = act.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).filter(Boolean).join(", ");
+    const informe = Object.entries(res)
+      .map(([k, v]) => {
+        const d = DET_TODAS.find((x) => x.id === k);
+        return d ? `${d.nombre}: ${v} ${d.unidad}${flagDe(d, v) !== "ok" ? ` (${flagDe(d, v)})` : ""}` : "";
+      })
+      .filter(Boolean)
+      .join(" · ");
+    const est: Estudio = {
+      id: nuevoId(),
+      pacienteId: act.pacienteId,
+      tipo: act.paneles.some((x) => ["renal", "iono", "orina", "fosfo"].includes(x)) ? "Laboratorio renal" : "Laboratorio general",
+      fecha: isoDe(new Date()),
+      titulo: `Laboratorio: ${nombres}`,
+      informe,
+      valores: vals,
+      cargadoPor: user.nombre,
+      creado: new Date().toISOString(),
+    };
+    setEstudios((prev) => [est, ...prev]);
+    log("Resultados de laboratorio", `${act.paciente} · ${Object.keys(res).length} valores`);
+    toast.success("Resultados guardados: ya figuran en la historia clínica y en el portal");
+    setCargando(null);
+    setValores({});
+  };
+
+  const fuera = pedidos.filter((p) => p.estado === "Resultado" && Object.entries(p.resultados).some(([k, v]) => { const d = DET_TODAS.find((x) => x.id === k); return d && flagDe(d, v) !== "ok"; })).length;
+  const lista = pedidos.filter((p) => verEstado === "todos" || p.estado === verEstado);
+  const anterior = (p: PedidoLab, det: string) =>
+    pedidos.filter((x) => x.pacienteId === p.pacienteId && x.id !== p.id && x.estado === "Resultado" && x.resultados[det] !== undefined && (x.fechaResultado ?? "") < (p.fechaResultado ?? "")).sort((a, b) => (b.fechaResultado ?? "").localeCompare(a.fechaResultado ?? ""))[0]?.resultados[det];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={FlaskConical} label="Pedidos" value={String(pedidos.length)} hint="En total" tono="verde" />
+        <Kpi icon={Clock} label="Pendientes" value={String(pedidos.filter((p) => p.estado !== "Resultado").length)} hint="Sin resultado" tono="ambar" delay={0.05} />
+        <Kpi icon={Check} label="Con resultado" value={String(pedidos.filter((p) => p.estado === "Resultado").length)} hint="Cargados" delay={0.1} />
+        <Kpi icon={AlertTriangle} label="Fuera de rango" value={String(fuera)} hint="Pedidos con valores alterados" tono="rojo" delay={0.15} />
+      </div>
+
+      {nuevo && (
+        <form onSubmit={crear} className="pn-card pn-up space-y-5 p-6">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <div>
+              <h3 className="text-[15px] font-semibold">Nuevo pedido de laboratorio</h3>
+              <p className="text-xs text-muted-foreground">Se imprime la orden con tu firma</p>
+            </div>
+            <button type="button" onClick={() => setNuevo(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+          </div>
+          <Campo label="Paciente"><SelectorPaciente pacientes={pacientes} valor={pacId} onChange={setPacId} /></Campo>
+          {(["Nefrología", "Cardiología", "General"] as const).map((esp) => (
+            <div key={esp}>
+              <p className={`mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] ${esp === "Nefrología" ? "text-sky-700" : esp === "Cardiología" ? "text-rose-700" : "text-muted-foreground"}`}>
+                {esp === "Nefrología" ? <Droplets className="size-3.5" /> : esp === "Cardiología" ? <HeartPulse className="size-3.5" /> : <FlaskConical className="size-3.5" />} {esp}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {PANELES_LAB.filter((p) => p.esp === esp).map((p) => {
+                  const on = paneles.includes(p.id);
+                  return (
+                    <button type="button" key={p.id} onClick={() => setPaneles(on ? paneles.filter((x) => x !== p.id) : [...paneles, p.id])} className={`rounded-2xl p-3 text-left ring-1 transition-all ${on ? "bg-[rgba(var(--acc),.1)] ring-[rgba(var(--acc),.5)]" : "bg-background ring-border hover:ring-[rgba(var(--acc),.3)]"}`}>
+                      <p className="flex items-center justify-between text-sm font-semibold">{p.nombre} {on && <Check className="size-4 text-[rgb(var(--acc))]" />}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">{p.det.map((d) => d.nombre).join(" · ")}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center gap-5">
+            <Interruptor on={urgente} onChange={setUrgente} label="Urgente" />
+            <Interruptor on={ayuno} onChange={setAyuno} label="Requiere ayuno" />
+          </div>
+          <Campo label="Nota para el laboratorio (opcional)"><input value={nota} onChange={(e) => setNota(e.target.value)} className={inp} /></Campo>
+          <div className="flex justify-end"><Button type="submit" className="rounded-xl px-6"><FileText className="size-4" /> Crear e imprimir orden</Button></div>
+        </form>
+      )}
+
+      {cargando && (
+        <form onSubmit={guardarResultados} className="pn-card pn-up space-y-5 p-6">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <div>
+              <h3 className="text-[15px] font-semibold">Cargar resultados · {cargando.paciente}</h3>
+              <p className="text-xs text-muted-foreground">Los valores fuera de rango se marcan solos</p>
+            </div>
+            <button type="button" onClick={() => setCargando(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+          </div>
+          {cargando.paneles.map((id) => {
+            const p = PANELES_LAB.find((x) => x.id === id);
+            if (!p) return null;
+            return (
+              <div key={id}>
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">{p.nombre}</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {p.det.map((d) => {
+                    const v = valores[d.id] ?? "";
+                    const n = Number(v.replace(",", "."));
+                    const f = v.trim() !== "" && !Number.isNaN(n) ? flagDe(d, n) : "ok";
+                    return (
+                      <label key={d.id} className="block">
+                        <span className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
+                          {d.nombre}
+                          {f !== "ok" && <span className={`rounded px-1.5 text-[10px] font-bold uppercase ${f === "alto" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{f}</span>}
+                        </span>
+                        <div className="relative">
+                          <input inputMode="decimal" value={v} onChange={(e) => setValores({ ...valores, [d.id]: e.target.value })} className={`${inp} pr-20 ${f !== "ok" ? "!border-red-300" : ""}`} />
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">{d.unidad}</span>
+                        </div>
+                        <span className="mt-1 block text-[10px] text-muted-foreground">Ref: {d.min !== undefined ? `≥ ${d.min}` : ""}{d.min !== undefined && d.max !== undefined ? " y " : ""}{d.max !== undefined ? `≤ ${d.max}` : ""}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex justify-end"><Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar resultados</Button></div>
+        </form>
+      )}
+
+      <Seccion
+        icon={FlaskConical}
+        titulo="Pedidos y resultados"
+        sub="Perfil renal, ionograma, lípidos, marcadores cardíacos y más"
+        acciones={
+          <div className="flex flex-wrap gap-2">
+            <select value={verEstado} onChange={(e) => setVerEstado(e.target.value as "todos" | EstadoLab)} className={inp + " h-10 w-40"}>
+              <option value="todos">Todos</option><option>Pedido</option><option>En proceso</option><option>Resultado</option>
+            </select>
+            <Button className="h-10 rounded-xl" onClick={() => { setNuevo(true); setCargando(null); }}><Plus className="size-4" /> Nuevo pedido</Button>
+          </div>
+        }
+      >
+        {lista.length === 0 ? (
+          <Vacio icon={FlaskConical} texto="Creá un pedido, imprimí la orden y después cargá los resultados: se guardan en la historia clínica." />
+        ) : (
+          <ul className="space-y-3">
+            {lista.map((p) => (
+              <li key={p.id} className="rounded-2xl border border-border/70 bg-card p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Avatar nombre={p.paciente} size="size-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold">
+                      {p.paciente}
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_LAB[p.estado]}`}>{p.estado}</span>
+                      {p.urgente && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">Urgente</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{fechaHora(p.fecha)} · {nombreCorto(p.doctor)} · {p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.estado === "Pedido" && (
+                      <button onClick={() => setPedidos((prev) => prev.map((x) => (x.id === p.id ? { ...x, estado: "En proceso" } : x)))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Marcar en proceso</button>
+                    )}
+                    <button onClick={() => { setCargando(p); setNuevo(false); setValores(Object.fromEntries(Object.entries(p.resultados).map(([k, v]) => [k, String(v)]))); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="inline-flex items-center gap-1 rounded-lg bg-[rgba(var(--acc),.1)] px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))]">
+                      <Pencil className="size-3.5" /> {p.estado === "Resultado" ? "Editar resultados" : "Cargar resultados"}
+                    </button>
+                    <button onClick={() => imprimirHtml(htmlOrdenLab(p, datosMedico({ id: ADMINS.find((a) => a.nombre === p.doctor)?.id ?? user.id, nombre: p.doctor }), firmas[ADMINS.find((a) => a.nombre === p.doctor)?.id ?? ""]))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Orden</button>
+                  </div>
+                </div>
+                {p.estado === "Resultado" && Object.keys(p.resultados).length > 0 && (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                    {Object.entries(p.resultados).map(([k, v]) => {
+                      const d = DET_TODAS.find((x) => x.id === k);
+                      if (!d) return null;
+                      const f = flagDe(d, v);
+                      const prev = anterior(p, k);
+                      return (
+                        <div key={k} className={`rounded-xl px-3 py-2 ring-1 ${f === "ok" ? "bg-secondary/50 ring-border/60" : f === "alto" ? "bg-red-50 ring-red-200" : "bg-amber-50 ring-amber-200"}`}>
+                          <p className="text-[11px] text-muted-foreground">{d.nombre}</p>
+                          <p className={`flex items-center gap-1 font-semibold tabular-nums ${f === "ok" ? "" : f === "alto" ? "text-red-700" : "text-amber-800"}`}>
+                            {v} <span className="text-[11px] font-normal text-muted-foreground">{d.unidad}</span>
+                            {prev !== undefined && prev !== v && (prev < v ? <TrendingUp className="ml-auto size-3.5" /> : <TrendingDown className="ml-auto size-3.5" />)}
+                          </p>
+                          {prev !== undefined && <p className="text-[10px] text-muted-foreground">Anterior: {prev}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Seccion>
+    </div>
+  );
+}
+
+/* ═══════════════════════ PAGOS Y FACTURACIÓN ═══════════════════════ */
+type VistaFact = "comprobantes" | "porfacturar" | "obras";
+const ESTADO_FACT: Record<Factura["estado"], string> = {
+  Emitida: "bg-amber-100 text-amber-800 ring-amber-200",
+  Cobrada: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  Anulada: "bg-red-100 text-red-700 ring-red-200",
+};
+
+function htmlFactura(f: Factura) {
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${f.tipo} ${f.numero}</title>
+<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:760px;margin:auto}.cab{display:flex;justify-content:space-between;border:1px solid #cbd5e1;border-radius:12px;padding:18px}
+.letra{font-size:34px;font-weight:800;border:2px solid #0f172a;border-radius:8px;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
+h1{margin:0;font-size:20px}.m{color:#64748b;font-size:12px;margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border-bottom:1px solid #e2e8f0;padding:9px;font-size:13px;text-align:left}
+.tot{text-align:right;font-size:20px;font-weight:800;margin-top:14px}.nota{margin-top:26px;font-size:11px;color:#64748b;border-top:1px dashed #cbd5e1;padding-top:10px}</style></head><body>
+<div class="cab"><div><h1>Clínica Gómez Bolaño</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</div>
+<div style="text-align:right"><b>${f.tipo}</b><p class="m">N° ${f.numero}</p><p class="m">${fechaDe(f.fecha)}</p></div></div>
+<p style="margin-top:16px;font-size:14px"><b>Receptor:</b> ${f.receptor}${f.docReceptor ? ` · ${f.docReceptor}` : ""}<br><b>Cobertura:</b> ${f.cobertura}</p>
+<table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
+${f.items.map((i) => `<tr><td>${i.desc}</td><td>${i.cant}</td><td>${dinero(i.precio)}</td><td style="text-align:right">${dinero(i.cant * i.precio)}</td></tr>`).join("")}</tbody></table>
+<p class="tot">Total ${dinero(f.total)}</p>${f.estado === "Anulada" ? `<p style="color:#dc2626;font-weight:800">COMPROBANTE ANULADO</p>` : ""}
+<p class="nota">Comprobante interno de la clínica. La factura electrónica con CAE se emite al conectar ARCA (ex AFIP) en el sistema.</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+}
+
+function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionUser; log: LogFn; turnos: Turno[]; vista: VistaFact; setVista: (v: VistaFact) => void }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [facturas, setFacturas] = useDato<Factura[]>(KEY_FACTURAS, []);
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [form, setForm] = useState<Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total"> | null>(null);
+  const [q, setQ] = useState("");
+
+  const proximoNumero = (tipo: TipoComprobante) => {
+    const n = facturas.filter((f) => f.tipo === tipo).length + 1;
+    return `0001-${String(n).padStart(8, "0")}`;
+  };
+  const nuevo = (base?: Partial<Factura>) =>
+    setForm({ tipo: "Factura C", fecha: new Date().toISOString(), receptor: "", cobertura: "Particular", items: [{ desc: SERVICIOS[0]?.nombre ?? "Consulta", cant: 1, precio: SERVICIOS[0]?.precio ?? 0 }], ...base } as Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total">);
+
+  const emitir = (e: FormEvent) => {
+    e.preventDefault();
+    if (!form || !form.receptor.trim()) { toast.error("Completá el receptor"); return; }
+    const total = form.items.reduce((a, i) => a + i.cant * i.precio, 0);
+    const f = JSON.parse(JSON.stringify({ ...form, id: nuevoId(), numero: proximoNumero(form.tipo), estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
+    setFacturas((prev) => [f, ...prev]);
+    log("Comprobante emitido", `${f.tipo} ${f.numero} · ${f.receptor} · ${dinero(total)}`);
+    toast.success(`${f.tipo} ${f.numero} emitida`);
+    setForm(null);
+    imprimirHtml(htmlFactura(f));
+  };
+
+  const mes = isoDe(new Date()).slice(0, 7);
+  const delMes = facturas.filter((f) => f.estado !== "Anulada" && f.fecha.slice(0, 7) === mes);
+  const sinFacturar = cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada"));
+  const pendOS = facturas.filter((f) => f.estado === "Emitida" && f.cobertura !== "Particular");
+  const porOS = Object.entries(
+    facturas.filter((f) => f.estado !== "Anulada" && f.cobertura !== "Particular").reduce<Record<string, { total: number; pend: number; n: number }>>((acc, f) => {
+      const k = f.cobertura;
+      acc[k] ??= { total: 0, pend: 0, n: 0 };
+      acc[k].total += f.total;
+      acc[k].n += 1;
+      if (f.estado === "Emitida") acc[k].pend += f.total;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1].pend - a[1].pend);
+  const lista = facturas.filter((f) => !q || norm(`${f.receptor} ${f.numero} ${f.cobertura}`).includes(norm(q)));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={Receipt} label="Facturado este mes" value={dinero(delMes.reduce((a, f) => a + f.total, 0))} hint={`${delMes.length} comprobantes`} tono="verde" />
+        <Kpi icon={Wallet} label="Cobrado" value={dinero(delMes.filter((f) => f.estado === "Cobrada").reduce((a, f) => a + f.total, 0))} hint="Del mes" delay={0.05} />
+        <Kpi icon={Building2} label="Pendiente obras sociales" value={dinero(pendOS.reduce((a, f) => a + f.total, 0))} hint={`${pendOS.length} por liquidar`} tono="ambar" delay={0.1} />
+        <Kpi icon={AlertTriangle} label="Cobros sin facturar" value={String(sinFacturar.length)} hint="Pagos de pacientes" tono="rojo" delay={0.15} />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
+          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "Obras sociales", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
+            <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+              <Ic className="size-4" /> {l}
+            </button>
+          ))}
+        </div>
+        <Button className="h-10 rounded-xl" onClick={() => nuevo()}><Plus className="size-4" /> Nuevo comprobante</Button>
+      </div>
+
+      {form && (
+        <form onSubmit={emitir} className="pn-card pn-up space-y-5 p-6">
+          <div className="flex items-center justify-between border-b border-border/60 pb-4">
+            <div>
+              <h3 className="text-[15px] font-semibold">Nuevo comprobante</h3>
+              <p className="text-xs text-muted-foreground">N° {proximoNumero(form.tipo)}</p>
+            </div>
+            <button type="button" onClick={() => setForm(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Campo label="Tipo">
+              <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoComprobante })} className={inp}>
+                <option>Factura C</option><option>Factura B</option><option>Recibo</option>
+              </select>
+            </Campo>
+            <Campo label="Paciente / receptor">
+              <input
+                list="fact-pacientes"
+                value={form.receptor}
+                onChange={(e) => {
+                  const p = pacientes.find((x) => x.nombre === e.target.value);
+                  setForm({ ...form, receptor: e.target.value, ...(p ? { docReceptor: p.dni ? `DNI ${p.dni}` : undefined, cobertura: p.ficha?.obraSocial || form.cobertura } : {}) } as typeof form);
+                }}
+                className={inp}
+              />
+              <datalist id="fact-pacientes">{pacientes.map((p) => <option key={p.id} value={p.nombre} />)}</datalist>
+            </Campo>
+            <Campo label="DNI / CUIT"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
+            <Campo label="Cobertura"><input value={form.cobertura} onChange={(e) => setForm({ ...form, cobertura: e.target.value })} placeholder="Particular u obra social" className={inp} /></Campo>
+          </div>
+          <datalist id="fact-servicios">{SERVICIOS.map((s) => <option key={s.id} value={s.nombre} />)}</datalist>
+          <div className="space-y-2">
+            {form.items.map((it, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_90px_160px_40px]">
+                <input
+                  list="fact-servicios"
+                  value={it.desc}
+                  onChange={(e) => {
+                    const s = SERVICIOS.find((x) => x.nombre === e.target.value);
+                    setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, desc: e.target.value, ...(s ? { precio: s.precio } : {}) } : x)) });
+                  }}
+                  placeholder="Descripción"
+                  className={inp}
+                />
+                <input type="number" min={1} value={it.cant} onChange={(e) => setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, cant: Number(e.target.value) || 1 } : x)) })} className={inp} />
+                <input type="number" min={0} value={it.precio} onChange={(e) => setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, precio: Number(e.target.value) || 0 } : x)) })} className={inp} />
+                <button type="button" disabled={form.items.length === 1} onClick={() => setForm({ ...form, items: form.items.filter((_, j) => j !== i) })} className="rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:opacity-30"><Trash2 className="mx-auto size-4" /></button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setForm({ ...form, items: [...form.items, { desc: "", cant: 1, precio: 0 }] })} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary"><Plus className="size-4" /> Agregar ítem</button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+            <p className="font-display text-2xl font-semibold">Total {dinero(form.items.reduce((a, i) => a + i.cant * i.precio, 0))}</p>
+            <Button type="submit" className="rounded-xl px-6"><Receipt className="size-4" /> Emitir e imprimir</Button>
+          </div>
+        </form>
+      )}
+
+      {vista === "comprobantes" && (
+        <Seccion
+          icon={Receipt}
+          titulo="Comprobantes emitidos"
+          sub="Facturas y recibos de la clínica"
+          acciones={
+            <div className="flex flex-wrap gap-2">
+              <div className="relative w-56 max-w-full">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" className={inp + " h-10 pl-10"} />
+              </div>
+              <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Documento", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.docReceptor, f.cobertura, f.total, f.estado])])}><Download className="size-4" /> Exportar</Button>
+            </div>
+          }
+        >
+          {lista.length === 0 ? (
+            <Vacio icon={Receipt} texto="Todavía no emitiste comprobantes. Podés facturar los cobros de pacientes desde Por facturar." />
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {lista.map((f) => (
+                <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-sm font-bold text-white">{f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</span>
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span></p>
+                      <p className="text-xs text-muted-foreground">{f.tipo} {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}</p>
+                    </div>
+                  </div>
+                  <p className="font-display text-xl font-semibold tabular-nums lg:w-36 lg:text-right">{dinero(f.total)}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button onClick={() => imprimirHtml(htmlFactura(f))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Imprimir</button>
+                    {f.estado === "Emitida" && (
+                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Marcar cobrada</button>
+                    )}
+                    {f.estado !== "Anulada" && (
+                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Anulada" } : x))); log("Comprobante anulado", `${f.tipo} ${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600">Anular</button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Seccion>
+      )}
+
+      {vista === "porfacturar" && (
+        <Seccion icon={Clock} titulo="Cobros sin facturar" sub="Pagos de pacientes que todavía no tienen comprobante">
+          {sinFacturar.length === 0 ? (
+            <Vacio icon={Check} titulo="Todo facturado" texto="Cada cobro de Pagos y caja ya tiene su comprobante." />
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {sinFacturar.map((c) => (
+                <li key={c.id} className="flex flex-wrap items-center gap-3 py-3.5">
+                  <Avatar nombre={c.paciente} size="size-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{c.paciente}</p>
+                    <p className="text-xs text-muted-foreground">{c.concepto} · {fechaHora(c.fecha)} · {c.obraSocial || "Particular"}</p>
+                  </div>
+                  <p className="font-display text-lg font-semibold tabular-nums">{dinero(pagadoDe(c))}</p>
+                  <Button
+                    size="sm"
+                    className="rounded-xl"
+                    onClick={() => {
+                      nuevo({ receptor: c.paciente, ...(c.dni ? { docReceptor: `DNI ${c.dni}` } : {}), cobertura: c.obraSocial || "Particular", items: [{ desc: c.concepto, cant: 1, precio: pagadoDe(c) }], cobroId: c.id });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                  >
+                    <Receipt className="size-4" /> Facturar
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Seccion>
+      )}
+
+      {vista === "obras" && (
+        <Seccion icon={Building2} titulo="Liquidación por obra social" sub="Lo facturado a cada cobertura y lo que falta cobrar">
+          {porOS.length === 0 ? (
+            <Vacio icon={Building2} texto="Cuando factures a una obra social o prepaga, acá ves cuánto te deben." />
+          ) : (
+            <ul className="space-y-3">
+              {porOS.map(([os, v]) => (
+                <li key={os} className="flex flex-wrap items-center gap-4 rounded-2xl border border-border/70 p-4">
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 text-white"><Building2 className="size-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{os}</p>
+                    <p className="text-xs text-muted-foreground">{v.n} comprobantes · Facturado {dinero(v.total)}</p>
+                    <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-secondary">
+                      <div className="pn-bar h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-600" style={{ width: `${v.total ? ((v.total - v.pend) / v.total) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pendiente</p>
+                    <p className="font-display text-xl font-semibold tabular-nums text-amber-700">{dinero(v.pend)}</p>
+                  </div>
+                  {v.pend > 0 && (
+                    <Button size="sm" variant="outline" className="rounded-xl" onClick={() => { setFacturas((p) => p.map((x) => (x.cobertura === os && x.estado === "Emitida" ? { ...x, estado: "Cobrada" } : x))); log("Liquidación cobrada", `${os} · ${dinero(v.pend)}`); toast.success(`${os}: liquidación marcada como cobrada`); }}>
+                      <Check className="size-4" /> Marcar liquidada
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Seccion>
+      )}
+      <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos. La factura electrónica con CAE se emite al conectar ARCA (ex AFIP) en el backend.</p>
+    </div>
+  );
+}
+
+/* ═══════════════════════ ANALÍTICA Y REPORTES ═══════════════════════ */
+function BarrasV({ datos, color = "#3b82f6", fmt = (n: number) => String(n) }: { datos: { l: string; v: number }[]; color?: string; fmt?: (n: number) => string }) {
+  const max = Math.max(1, ...datos.map((d) => d.v));
+  return (
+    <div className="flex h-48 items-end gap-2">
+      {datos.map((d, i) => (
+        <div key={d.l} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground opacity-0 transition group-hover:opacity-100">{fmt(d.v)}</span>
+          <div className="w-full max-w-[44px] rounded-t-lg transition-all duration-700" style={{ height: `${Math.max(3, (d.v / max) * 100)}%`, background: `linear-gradient(180deg, ${color}, ${color}99)`, animation: `pn-up .6s ease-out ${i * 0.05}s both`, boxShadow: `0 10px 20px -12px ${color}` }} />
+          <span className="w-full truncate text-center text-[10px] capitalize text-muted-foreground">{d.l}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+function BarrasH({ datos, colores }: { datos: { l: string; v: number }[]; colores: string[] }) {
+  const max = Math.max(1, ...datos.map((d) => d.v));
+  const total = datos.reduce((a, d) => a + d.v, 0);
+  return (
+    <ul className="space-y-3">
+      {datos.map((d, i) => (
+        <li key={d.l}>
+          <div className="mb-1 flex items-center justify-between text-xs">
+            <span className="font-medium">{d.l}</span>
+            <span className="tabular-nums text-muted-foreground">{d.v}{total ? ` · ${Math.round((d.v / total) * 100)}%` : ""}</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
+            <div className="pn-bar h-full rounded-full" style={{ width: `${(d.v / max) * 100}%`, background: colores[i % colores.length], animationDelay: `${i * 0.08}s` }} />
+          </div>
+        </li>
+      ))}
+      {datos.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">Sin datos en el período.</li>}
+    </ul>
+  );
+}
+
+function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [facturas] = useDato<Factura[]>(KEY_FACTURAS, []);
+  const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const [recetas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [labs] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
+  const [dias, setDias] = useState(90);
+
+  const desde = isoDe(new Date(Date.now() - dias * 86400000));
+  const enRango = (iso: string) => dias >= 9999 || iso.slice(0, 10) >= desde;
+  const ts = turnos.filter((t) => enRango(t.fecha));
+  const atendidos = ts.filter((t) => t.estado === "Atendido").length;
+  const cancelados = ts.filter((t) => t.estado === "Cancelado").length;
+  const pagos = cobros.filter((c) => !c.anulado).flatMap((c) => c.pagos.map((p) => ({ ...p, c })));
+  const pagosR = pagos.filter((p) => enRango(p.fecha));
+  const ingresos = pagosR.reduce((a, p) => a + p.monto, 0);
+  const nuevos = pacientes.filter((p) => p.creado && enRango(p.creado)).length;
+
+  // Últimos 6 meses
+  const meses = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - (5 - i));
+    return { k: isoDe(d).slice(0, 7), l: d.toLocaleDateString("es-AR", { month: "short" }) };
+  });
+  const turnosMes = meses.map((m) => ({ l: m.l, v: turnos.filter((t) => t.fecha.slice(0, 7) === m.k && t.estado !== "Cancelado").length }));
+  const ingresosMes = meses.map((m) => ({ l: m.l, v: pagos.filter((p) => diaLocal(p.fecha).slice(0, 7) === m.k).reduce((a, p) => a + p.monto, 0) }));
+  const porDoctor = ADMINS.map((a) => ({ l: nombreCorto(a.nombre), v: ts.filter((t) => t.doctor === a.nombre || norm(t.doctor).includes(norm(a.nombre.split(" ")[1] ?? ""))).length }));
+  const porMetodo = Object.entries(pagosR.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.metodo]: (acc[p.metodo] ?? 0) + p.monto }), {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const porEstado = (["Pendiente", "Confirmado", "Atendido", "Cancelado"] as Estado[]).map((e) => ({ l: e, v: ts.filter((t) => t.estado === e).length }));
+
+  // Indicadores clínicos: último valor por paciente
+  const ultimoEgfr = new Map<string, { f: string; v: number }>();
+  [...estudios.filter((e) => e.valores.egfr).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.valores.egfr! })), ...evols.filter((e) => e.nefro?.egfr).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.nefro!.egfr! }))].forEach((x) => {
+    const y = ultimoEgfr.get(x.id);
+    if (!y || x.f > y.f) ultimoEgfr.set(x.id, { f: x.f, v: x.v });
+  });
+  const estadios = ["G1", "G2", "G3a", "G3b", "G4", "G5"].map((g) => ({ l: g, v: [...ultimoEgfr.values()].filter((x) => estadioRenal(x.v).estadio === g).length }));
+  const ultimaTA = new Map<string, { f: string; s: number; d: number }>();
+  [...controles.map((c) => ({ id: c.pacienteId, f: c.fecha, s: c.sistolica, d: c.diastolica })), ...evols.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ id: e.pacienteId, f: e.fecha, s: e.signos.sistolica!, d: e.signos.diastolica! }))].forEach((x) => {
+    const y = ultimaTA.get(x.id);
+    if (!y || x.f > y.f) ultimaTA.set(x.id, x);
+  });
+  const conTA = [...ultimaTA.values()];
+  const controlados = conTA.filter((x) => x.s < 140 && x.d < 90).length;
+  const feviRed = evols.filter((e) => e.cardio?.fevi && e.cardio.fevi < 41).length;
+  const porEsp = (["Cardiología", "Nefrología", "Medicina Interna"] as EspecialidadHC[]).map((e) => ({ l: e, v: evols.filter((x) => x.especialidad === e && enRango(x.fecha)).length }));
+
+  const reportes: { t: string; d: string; icon: LucideIcon; run: () => void }[] = [
+    { t: "Turnos", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
+    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "DNI", "Teléfono", "Obra social", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
+    { t: "Cobros", d: `${pagos.length} pagos`, icon: Wallet, run: () => exportarCSV("cobros", [["Fecha", "Paciente", "Concepto", "Medio", "Cobró", "Monto"], ...pagos.map((p) => [fechaHora(p.fecha), p.c.paciente, p.c.concepto, p.metodo, p.cobradoPor, p.monto])]) },
+    { t: "Facturación", d: `${facturas.length} comprobantes`, icon: Receipt, run: () => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.cobertura, f.total, f.estado])]) },
+    { t: "Evoluciones", d: `${evols.length} consultas`, icon: FileText, run: () => exportarCSV("evoluciones", [["Fecha", "Paciente", "Especialidad", "Doctor", "Motivo", "TA", "Diagnósticos"], ...evols.map((e) => [fechaHora(e.fecha), e.paciente, e.especialidad, e.doctor, e.motivo, e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", e.diagnosticos.join(" | ")])]) },
+    { t: "Recetas", d: `${recetas.length} recetas`, icon: Pill, run: () => exportarCSV("recetas", [["N°", "Fecha", "Paciente", "Doctor", "Medicamentos", "Estado"], ...recetas.map((r) => [r.numero, fechaHora(r.fecha), r.paciente, r.doctor, r.items.map((i) => i.droga).join(" | "), r.anulada ? "Anulada" : "Vigente"])]) },
+    { t: "Laboratorio", d: `${labs.length} pedidos`, icon: FlaskConical, run: () => exportarCSV("laboratorio", [["Fecha", "Paciente", "Doctor", "Paneles", "Estado", "Resultados"], ...labs.map((l) => [fechaHora(l.fecha), l.paciente, l.doctor, l.paneles.join(" | "), l.estado, Object.entries(l.resultados).map(([k, v]) => `${k}=${v}`).join(" | ")])]) },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
+          {[[30, "30 días"], [90, "3 meses"], [365, "12 meses"], [99999, "Todo"]].map(([d, l]) => (
+            <button key={d} onClick={() => setDias(d as number)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${dias === d ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{l}</button>
+          ))}
+        </div>
+        <Button variant="outline" className="h-10 rounded-xl" onClick={() => { log("Reporte impreso", `Analítica · ${dias} días`); window.print(); }}><FileText className="size-4" /> Imprimir reporte</Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={CalendarDays} label="Turnos" value={String(ts.length)} hint={`${atendidos} atendidos`} />
+        <Kpi icon={Ban} label="Ausentismo" value={ts.length ? `${Math.round((cancelados / ts.length) * 100)}%` : "0%"} hint={`${cancelados} cancelados`} tono="ambar" delay={0.05} />
+        <Kpi icon={Wallet} label="Ingresos" value={dinero(ingresos)} hint={pagosR.length ? `Ticket promedio ${dinero(Math.round(ingresos / pagosR.length))}` : "Sin cobros"} tono="verde" delay={0.1} />
+        <Kpi icon={Users} label="Pacientes nuevos" value={String(nuevos)} hint={`${pacientes.length} en total`} tono="violeta" delay={0.15} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Seccion icon={CalendarDays} titulo="Turnos por mes" sub="Últimos 6 meses (sin cancelados)"><BarrasV datos={turnosMes} color="#3b82f6" /></Seccion>
+        <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes" delay={0.05}><BarrasV datos={ingresosMes} color="#10b981" fmt={dinero} /></Seccion>
+        <Seccion icon={Stethoscope} titulo="Turnos por doctor" sub="En el período" delay={0.1}><BarrasH datos={porDoctor} colores={["linear-gradient(90deg,#0ea5e9,#1d4ed8)", "linear-gradient(90deg,#f43f5e,#be123c)"]} /></Seccion>
+        <Seccion icon={ClipboardList} titulo="Estado de los turnos" sub="En el período" delay={0.15}><BarrasH datos={porEstado} colores={["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"]} /></Seccion>
+        <Seccion icon={Receipt} titulo="Medios de pago" sub="Monto cobrado por medio" delay={0.2}><BarrasH datos={porMetodo} colores={["#10b981", "#0ea5e9", "#8b5cf6", "#f59e0b", "#06b6d4", "#64748b"]} /></Seccion>
+        <Seccion icon={FileText} titulo="Consultas por especialidad" sub="Evoluciones cargadas en el período" delay={0.25}><BarrasH datos={porEsp} colores={["#f43f5e", "#0ea5e9", "#8b5cf6"]} /></Seccion>
+      </div>
+
+      <Seccion icon={Activity} titulo="Indicadores clínicos" sub="Último valor registrado de cada paciente">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div>
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-sky-700"><Droplets className="size-3.5" /> Estadios de ERC (KDIGO)</p>
+            <BarrasV datos={estadios} color="#0ea5e9" />
+          </div>
+          <div className="flex flex-col items-center justify-center rounded-2xl bg-secondary/40 p-6 text-center">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-rose-700"><HeartPulse className="size-3.5" /> Presión controlada</p>
+            <div className="relative size-36">
+              <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeOpacity=".1" strokeWidth="3.2" />
+                <circle className="pn-donut" cx="18" cy="18" r="15.9" fill="none" stroke="#f43f5e" strokeWidth="3.2" strokeLinecap={controlados ? "round" : "butt"} strokeDasharray={`${conTA.length ? (controlados / conTA.length) * 100 : 0} 100`} />
+              </svg>
+              <p className="absolute inset-0 flex flex-col items-center justify-center font-display text-3xl font-semibold">{conTA.length ? Math.round((controlados / conTA.length) * 100) : 0}%<span className="font-sans text-[10px] font-normal text-muted-foreground">&lt; 140/90</span></p>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{controlados} de {conTA.length} pacientes con registros</p>
+          </div>
+          <div className="space-y-3">
+            {[
+              { l: "Pacientes con función renal medida", v: ultimoEgfr.size, c: "text-sky-700" },
+              { l: "ERC estadio 3 o más (eGFR < 60)", v: [...ultimoEgfr.values()].filter((x) => x.v < 60).length, c: "text-amber-700" },
+              { l: "Para evaluar derivación (eGFR < 30)", v: [...ultimoEgfr.values()].filter((x) => x.v < 30).length, c: "text-red-700" },
+              { l: "Registros con FEVI reducida (< 41%)", v: feviRed, c: "text-rose-700" },
+              { l: "Recetas emitidas en el período", v: recetas.filter((r) => enRango(r.fecha)).length, c: "text-violet-700" },
+              { l: "Laboratorios en el período", v: labs.filter((l) => enRango(l.fecha)).length, c: "text-emerald-700" },
+            ].map((x) => (
+              <div key={x.l} className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-2.5">
+                <span className="text-sm">{x.l}</span>
+                <span className={`font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Seccion>
+
+      <Seccion icon={Download} titulo="Reportes para descargar" sub="Planillas CSV que se abren en Excel o Google Sheets">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {reportes.map((r) => (
+            <button key={r.t} onClick={() => { r.run(); log("Reporte exportado", r.t); }} className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg">
+              <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white"><r.icon className="size-4" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{r.t}</span>
+                <span className="block text-xs text-muted-foreground">{r.d}</span>
+              </span>
+              <Download className="size-4 text-muted-foreground transition group-hover:text-foreground" />
+            </button>
+          ))}
+        </div>
+      </Seccion>
+    </div>
+  );
+}
+
+/* ═══════════════════════ AUTOMATIZACIONES ═══════════════════════ */
+type Canal = "WhatsApp" | "Panel" | "Email";
+type AutoDef = { id: string; nombre: string; desc: string; canal: Canal; motor: boolean };
+const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon; grad: string; items: AutoDef[] }[] = [
+  {
+    id: "agenda", letra: "A", titulo: "Agenda y turnos", icon: CalendarDays, grad: "from-sky-500 to-blue-700",
+    items: [
+      { id: "recordatorio24", nombre: "Recordatorio 24 h antes del turno", desc: "Mensaje al paciente el día anterior con día, hora y doctor.", canal: "WhatsApp", motor: true },
+      { id: "confirmar", nombre: "Pedir confirmación de turnos pendientes", desc: "Le pide al paciente que confirme o reprograme.", canal: "WhatsApp", motor: true },
+      { id: "ausentes", nombre: "Recuperar turnos cancelados", desc: "Ofrece un nuevo horario a quien canceló en las últimas 2 semanas.", canal: "WhatsApp", motor: true },
+      { id: "encuesta", nombre: "Encuesta después de la consulta", desc: "Pregunta cómo fue la atención al día siguiente.", canal: "WhatsApp", motor: true },
+    ],
+  },
+  {
+    id: "cardio", letra: "B", titulo: "Cardiología", icon: HeartPulse, grad: "from-rose-500 to-red-600",
+    items: [
+      { id: "crisisTA", nombre: "Alerta de presión en crisis", desc: "Avisa al cardiólogo si se registra una TA > 180/120.", canal: "Panel", motor: true },
+      { id: "controlTA", nombre: "Recordatorio semanal de control de presión", desc: "Pide a los hipertensos que carguen su presión en el portal.", canal: "WhatsApp", motor: true },
+      { id: "feviBaja", nombre: "Seguimiento de FEVI reducida", desc: "Marca a los pacientes con FEVI < 41% sin control en 90 días.", canal: "Panel", motor: true },
+      { id: "prepHolter", nombre: "Preparación para Holter / MAPA", desc: "Envía las indicaciones el día anterior al estudio.", canal: "WhatsApp", motor: false },
+    ],
+  },
+  {
+    id: "nefro", letra: "C", titulo: "Nefrología", icon: Droplets, grad: "from-sky-400 to-cyan-600",
+    items: [
+      { id: "potasio", nombre: "Alerta de potasio alto", desc: "Avisa al nefrólogo si un resultado supera 5,5 mEq/l.", canal: "Panel", motor: true },
+      { id: "egfrCae", nombre: "Caída del filtrado glomerular", desc: "Detecta una caída mayor al 25% entre dos resultados.", canal: "Panel", motor: true },
+      { id: "g4", nombre: "Estadio G4–G5: evaluar derivación", desc: "Marca pacientes con eGFR < 30 para planificar el tratamiento.", canal: "Panel", motor: true },
+      { id: "labTrimestral", nombre: "Laboratorio renal trimestral", desc: "Recuerda a pacientes con ERC hacer su control cada 3 meses.", canal: "WhatsApp", motor: true },
+    ],
+  },
+  {
+    id: "recetas", letra: "D", titulo: "Recetas y laboratorio", icon: Pill, grad: "from-violet-500 to-indigo-700",
+    items: [
+      { id: "recetaLista", nombre: "Aviso de receta emitida", desc: "Envía al paciente la receta del día con su código.", canal: "WhatsApp", motor: true },
+      { id: "labListo", nombre: "Resultados de laboratorio disponibles", desc: "Avisa que ya puede ver sus resultados en el portal.", canal: "WhatsApp", motor: true },
+      { id: "labDemorado", nombre: "Pedidos sin resultado hace más de 7 días", desc: "Avisa al equipo para reclamar al laboratorio.", canal: "Panel", motor: true },
+      { id: "renovacion", nombre: "Renovación de medicación crónica", desc: "Recuerda renovar la receta a los 25 días.", canal: "WhatsApp", motor: true },
+    ],
+  },
+  {
+    id: "pagos", letra: "E", titulo: "Pagos y facturación", icon: Wallet, grad: "from-emerald-400 to-teal-600",
+    items: [
+      { id: "saldo", nombre: "Aviso de saldo pendiente", desc: "Recordatorio amable a pacientes con saldo.", canal: "WhatsApp", motor: true },
+      { id: "sinFacturar", nombre: "Cobros sin facturar", desc: "Avisa a administración qué cobros no tienen comprobante.", canal: "Panel", motor: true },
+      { id: "liquidacion", nombre: "Liquidación de obras sociales", desc: "A fin de mes muestra lo pendiente por cobertura.", canal: "Panel", motor: true },
+    ],
+  },
+  {
+    id: "pacientes", letra: "F", titulo: "Pacientes y portal", icon: Users, grad: "from-fuchsia-500 to-pink-600",
+    items: [
+      { id: "cumple", nombre: "Saludo de cumpleaños", desc: "Mensaje de la clínica el día del cumpleaños.", canal: "WhatsApp", motor: true },
+      { id: "invitarPortal", nombre: "Invitar al portal a pacientes con turno", desc: "Detecta pacientes con turnos que todavía no tienen portal.", canal: "Panel", motor: true },
+      { id: "bienvenida", nombre: "Bienvenida al portal", desc: "Explica cómo usar el portal en el primer ingreso.", canal: "Email", motor: false },
+    ],
+  },
+];
+const AUTOS_TODAS = GRUPOS_AUTO.flatMap((g) => g.items.map((i) => ({ ...i, grupo: g })));
+
+type AccionAuto = { key: string; auto: string; titulo: string; detalle: string; tipo: "wa" | "alerta"; tel?: string; msg?: string; ir?: Tab };
+
+function calcularAcciones(activas: Record<string, boolean>, d: {
+  turnos: Turno[]; pacientes: PacienteHC[]; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; recetas: Receta[]; labs: PedidoLab[]; cobros: Cobro[]; facturas: Factura[];
+}): AccionAuto[] {
+  const out: AccionAuto[] = [];
+  const hoy = isoDe(new Date());
+  const man = isoDe(new Date(Date.now() + 86400000));
+  const ayer = isoDe(new Date(Date.now() - 86400000));
+  const semana = `${new Date().getFullYear()}-s${Math.ceil(((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7)}`;
+  const tel = (nombre: string, t?: string) => t || d.pacientes.find((p) => norm(p.nombre) === norm(nombre))?.telefono;
+  const on = (id: string) => activas[id] ?? false;
+  const nom = (n: string) => n.split(" ")[0];
+
+  if (on("recordatorio24"))
+    d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
+      const tl = tel(t.paciente, t.telefono);
+      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu turno de mañana a las ${t.hora} con ${t.doctor} en la Clínica Gómez Bolaño. Si no podés venir, avisanos por acá.` });
+    });
+  if (on("confirmar"))
+    d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
+      const tl = tel(t.paciente, t.telefono);
+      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar turno de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirmás tu turno del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Respondé SÍ para confirmar o escribinos para cambiarlo.` });
+    });
+  if (on("ausentes"))
+    d.turnos.filter((t) => t.estado === "Cancelado" && t.fecha >= isoDe(new Date(Date.now() - 14 * 86400000)) && t.fecha <= hoy).forEach((t) => {
+      const tl = tel(t.paciente, t.telefono);
+      if (tl) out.push({ key: `aus-${t.id}`, auto: "ausentes", titulo: `Ofrecer nuevo turno a ${t.paciente}`, detalle: `Canceló el ${fechaCorta(t.fecha)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, vimos que no pudiste venir a tu turno. ¿Querés que te busquemos un nuevo horario con ${t.doctor}?` });
+    });
+  if (on("encuesta"))
+    d.turnos.filter((t) => t.estado === "Atendido" && t.fecha === ayer).forEach((t) => {
+      const tl = tel(t.paciente, t.telefono);
+      if (tl) out.push({ key: `enc-${t.id}`, auto: "encuesta", titulo: `Encuesta a ${t.paciente}`, detalle: "Consulta de ayer", tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, gracias por atenderte ayer en la Clínica Gómez Bolaño. Del 1 al 5, ¿cómo fue tu experiencia?` });
+    });
+
+  // Último valor por paciente
+  const ult = <T extends { f: string }>(arr: (T & { id: string })[]) => {
+    const m = new Map<string, T & { id: string }>();
+    arr.forEach((x) => { const y = m.get(x.id); if (!y || x.f > y.f) m.set(x.id, x); });
+    return m;
+  };
+  const tas = ult([...d.controles.map((c) => ({ id: c.pacienteId, f: c.fecha, s: c.sistolica, dd: c.diastolica })), ...d.evols.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ id: e.pacienteId, f: e.fecha, s: e.signos.sistolica!, dd: e.signos.diastolica! }))]);
+  const nombreDe = (id: string) => d.pacientes.find((p) => p.id === id)?.nombre ?? "Paciente";
+  if (on("crisisTA"))
+    tas.forEach((x) => { if (x.s > 180 || x.dd > 120) out.push({ key: `crisis-${x.id}-${x.f}`, auto: "crisisTA", titulo: `Presión en crisis: ${nombreDe(x.id)}`, detalle: `${x.s}/${x.dd} mmHg · ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
+  if (on("controlTA"))
+    d.pacientes.filter((p) => (p.ficha?.antecedentes ?? []).includes("Hipertensión arterial") && p.telefono).forEach((p) => {
+      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cargala en tu portal de la Clínica Gómez Bolaño así tu médico la ve.` });
+    });
+  if (on("feviBaja")) {
+    const fv = ult(d.evols.filter((e) => e.cardio?.fevi).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.cardio!.fevi! })));
+    fv.forEach((x) => { if (x.v < 41 && x.f.slice(0, 10) < isoDe(new Date(Date.now() - 90 * 86400000))) out.push({ key: `fevi-${x.id}-${x.f}`, auto: "feviBaja", titulo: `FEVI reducida sin control: ${nombreDe(x.id)}`, detalle: `FEVI ${x.v}% · último control ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
+  }
+  const labsVal = [...d.estudios.map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.valores })), ...d.evols.filter((e) => e.nefro).map((e) => ({ id: e.pacienteId, f: e.fecha, v: { egfr: e.nefro?.egfr, potasio: e.nefro?.potasio } as ValoresEstudio }))];
+  if (on("potasio")) {
+    const k = ult(labsVal.filter((x) => x.v.potasio).map((x) => ({ id: x.id, f: x.f, k: x.v.potasio! })));
+    k.forEach((x) => { if (x.k > 5.5) out.push({ key: `k-${x.id}-${x.f}`, auto: "potasio", titulo: `Potasio alto: ${nombreDe(x.id)}`, detalle: `K ${x.k} mEq/l · ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
+  }
+  const egfrs = labsVal.filter((x) => x.v.egfr).map((x) => ({ id: x.id, f: x.f, v: x.v.egfr! }));
+  if (on("egfrCae")) {
+    const porPac = new Map<string, { f: string; v: number }[]>();
+    egfrs.forEach((x) => porPac.set(x.id, [...(porPac.get(x.id) ?? []), x]));
+    porPac.forEach((arr, id) => {
+      const s = arr.sort((a, b) => b.f.localeCompare(a.f));
+      if (s.length >= 2 && s[1]!.v > 0 && (s[1]!.v - s[0]!.v) / s[1]!.v > 0.25) out.push({ key: `egfr-${id}-${s[0]!.f}`, auto: "egfrCae", titulo: `Caída del filtrado: ${nombreDe(id)}`, detalle: `${s[1]!.v} → ${s[0]!.v} ml/min`, tipo: "alerta", ir: "historia" });
+    });
+  }
+  if (on("g4")) ult(egfrs).forEach((x) => { if (x.v < 30) out.push({ key: `g4-${x.id}-${x.f}`, auto: "g4", titulo: `Estadio ${estadioRenal(x.v).estadio}: ${nombreDe(x.id)}`, detalle: `eGFR ${x.v} ml/min · evaluar plan de tratamiento`, tipo: "alerta", ir: "historia" }); });
+  if (on("labTrimestral"))
+    d.pacientes.filter((p) => esNefro(p.ficha?.antecedentes) && p.telefono).forEach((p) => {
+      const u = egfrs.filter((x) => x.id === p.id).sort((a, b) => b.f.localeCompare(a.f))[0];
+      if (!u || u.f.slice(0, 10) < isoDe(new Date(Date.now() - 90 * 86400000)))
+        out.push({ key: `labtri-${p.id}-${hoy.slice(0, 7)}`, auto: "labTrimestral", titulo: `Laboratorio renal: ${p.nombre}`, detalle: u ? `Último ${fechaDe(u.f)}` : "Sin laboratorio registrado", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ya te toca el control de laboratorio renal. Escribinos y te pasamos la orden.` });
+    });
+  if (on("recetaLista"))
+    d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === hoy).forEach((r) => {
+      const tl = tel(r.paciente);
+      if (tl) out.push({ key: `rx-${r.id}`, auto: "recetaLista", titulo: `Enviar receta a ${r.paciente}`, detalle: `N° ${r.numero} · ${r.items.length} medicamentos`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, tu receta N° ${r.numero} ya está lista:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo: ${r.codigo}` });
+    });
+  if (on("renovacion"))
+    d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === isoDe(new Date(Date.now() - 25 * 86400000))).forEach((r) => {
+      const tl = tel(r.paciente);
+      if (tl) out.push({ key: `ren-${r.id}`, auto: "renovacion", titulo: `Renovar medicación de ${r.paciente}`, detalle: `Receta N° ${r.numero} de hace 25 días`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, se está por terminar tu medicación (${r.items.map((i) => i.droga).join(", ")}). ¿Querés que te preparemos la nueva receta?` });
+    });
+  if (on("labListo"))
+    d.labs.filter((l) => l.estado === "Resultado" && (l.fechaResultado ?? "").slice(0, 10) >= isoDe(new Date(Date.now() - 3 * 86400000))).forEach((l) => {
+      const tl = tel(l.paciente);
+      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Podés verlos en tu portal de la Clínica Gómez Bolaño.` });
+    });
+  if (on("labDemorado"))
+    d.labs.filter((l) => l.estado !== "Resultado" && l.fecha.slice(0, 10) < isoDe(new Date(Date.now() - 7 * 86400000))).forEach((l) => out.push({ key: `labdem-${l.id}`, auto: "labDemorado", titulo: `Laboratorio demorado: ${l.paciente}`, detalle: `Pedido el ${fechaDe(l.fecha)}`, tipo: "alerta", ir: "laboratorio" }));
+  if (on("saldo"))
+    d.cobros.filter((c) => saldoDe(c) > 0).forEach((c) => {
+      const tl = tel(c.paciente);
+      if (tl) out.push({ key: `saldo-${c.id}-${hoy.slice(0, 7)}`, auto: "saldo", titulo: `Saldo de ${c.paciente}`, detalle: `${dinero(saldoDe(c))} · ${c.concepto}`, tipo: "wa", tel: tl, msg: `Hola ${nom(c.paciente)}, te recordamos que quedó un saldo de ${dinero(saldoDe(c))} por ${c.concepto}. Podés abonarlo en tu próxima visita o por transferencia. ¡Gracias!` });
+    });
+  if (on("sinFacturar")) {
+    const n = d.cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !d.facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada")).length;
+    if (n > 0) out.push({ key: `sinfact-${hoy}`, auto: "sinFacturar", titulo: `${n} cobros sin facturar`, detalle: "Emití los comprobantes pendientes", tipo: "alerta", ir: "facturacion" });
+  }
+  if (on("liquidacion") && new Date().getDate() >= 25) {
+    const pend = d.facturas.filter((f) => f.estado === "Emitida" && f.cobertura !== "Particular");
+    if (pend.length) out.push({ key: `liq-${hoy.slice(0, 7)}`, auto: "liquidacion", titulo: "Liquidación de obras sociales", detalle: `${pend.length} comprobantes · ${dinero(pend.reduce((a, f) => a + f.total, 0))}`, tipo: "alerta", ir: "facturacion" });
+  }
+  if (on("cumple"))
+    d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Te saludamos con mucho cariño desde la Clínica Gómez Bolaño.` }));
+  if (on("invitarPortal")) {
+    const sin = d.pacientes.filter((p) => !p.portal && d.turnos.some((t) => norm(t.paciente) === norm(p.nombre) && t.fecha >= hoy));
+    if (sin.length) out.push({ key: `inv-${hoy}`, auto: "invitarPortal", titulo: `${sin.length} pacientes con turno sin portal`, detalle: sin.slice(0, 3).map((p) => p.nombre).join(", "), tipo: "alerta", ir: "pacientes" });
+  }
+  return out;
+}
+
+type VistaAuto = "bandeja" | "catalogo" | "flujos";
+
+function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]; irA: (t: Tab) => void }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [activas, setActivas] = useDato<Record<string, boolean>>(KEY_AUTOS, {});
+  const [hechas, setHechas] = useDato<Record<string, string>>(KEY_AUTOS_HECHAS, {});
+  const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
+  const [recetas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [labs] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [facturas] = useDato<Factura[]>(KEY_FACTURAS, []);
+  const [vista, setVista] = useState<VistaAuto>("bandeja");
+  const [grupoAbierto, setGrupoAbierto] = useState<string>("agenda");
+
+  const acciones = calcularAcciones(activas, { turnos, pacientes, evols, estudios, controles, recetas, labs, cobros, facturas });
+  const pendientes = acciones.filter((a) => !hechas[a.key]);
+  const nActivas = AUTOS_TODAS.filter((a) => activas[a.id]).length;
+  const nHechas = Object.keys(hechas).length;
+  const marcar = (a: AccionAuto) => {
+    setHechas((p) => ({ ...p, [a.key]: new Date().toISOString() }));
+    log("Automatización ejecutada", `${AUTOS_TODAS.find((x) => x.id === a.auto)?.nombre} · ${a.titulo}`);
+  };
+  const alternar = (id: string, v: boolean) => {
+    setActivas((p) => ({ ...p, [id]: v }));
+    log(v ? "Automatización activada" : "Automatización pausada", AUTOS_TODAS.find((x) => x.id === id)?.nombre ?? id);
+  };
+
+  const FLUJOS: { t: string; pasos: { icon: LucideIcon; l: string; auto?: string }[] }[] = [
+    { t: "Ciclo del turno", pasos: [{ icon: CalendarCheck, l: "Turno reservado" }, { icon: Send, l: "Pide confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
+    { t: "Control renal", pasos: [{ icon: FlaskConical, l: "Resultado de laboratorio" }, { icon: AlertTriangle, l: "Potasio alto", auto: "potasio" }, { icon: TrendingDown, l: "Caída del filtrado", auto: "egfrCae" }, { icon: Bell, l: "Alerta al nefrólogo" }, { icon: Send, l: "Aviso al paciente", auto: "labListo" }] },
+    { t: "Paciente hipertenso", pasos: [{ icon: Activity, l: "Presión registrada" }, { icon: AlertTriangle, l: "TA en crisis", auto: "crisisTA" }, { icon: Bell, l: "Alerta al cardiólogo" }, { icon: Send, l: "Control semanal", auto: "controlTA" }] },
+    { t: "Receta crónica", pasos: [{ icon: Pill, l: "Receta firmada" }, { icon: Send, l: "Envío al paciente", auto: "recetaLista" }, { icon: Clock, l: "Esperar 25 días" }, { icon: Send, l: "Renovación", auto: "renovacion" }] },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] gradient-deep p-6 text-white shadow-elevated sm:p-7">
+        <div className="pn-cross pointer-events-none absolute inset-0" />
+        <div className="pn-orb pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-rose-400/20 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-5">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Zap className="size-3.5" /> Automatizaciones</span>
+            <h2 className="mt-3 text-3xl font-semibold">La clínica trabaja sola</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Cuando pasa algo —un turno, un resultado, una receta— la automatización prepara el aviso o la alerta. Los mensajes quedan listos para enviar por WhatsApp con un toque; el envío 100% automático se activa al conectar la API de WhatsApp en el backend.
+            </p>
+          </div>
+        </div>
+        <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { l: "Activas", v: `${nActivas}/${AUTOS_TODAS.length}`, i: Zap },
+            { l: "Para hacer ahora", v: String(pendientes.length), i: Bell },
+            { l: "Ejecutadas", v: String(nHechas), i: Check },
+            { l: "Tiempo ahorrado", v: `${((nHechas * 4) / 60).toFixed(1).replace(".", ",")} h`, i: Clock },
+          ].map((k) => (
+            <div key={k.l} className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">{k.l}</p>
+                <k.i className="size-4 text-white/70" />
+              </div>
+              <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{k.v}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
+        {([["bandeja", `Para hacer (${pendientes.length})`, Bell], ["catalogo", "Catálogo", ClipboardList], ["flujos", "Flujos", Workflow]] as [VistaAuto, string, LucideIcon][]).map(([id, l, Ic]) => (
+          <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <Ic className="size-4" /> {l}
+          </button>
+        ))}
+      </div>
+
+      {vista === "bandeja" && (
+        <Seccion icon={Bell} titulo="Acciones preparadas" sub="Generadas por las automatizaciones activas">
+          {nActivas === 0 ? (
+            <Vacio icon={Zap} titulo="No hay automatizaciones activas" texto="Activalas en el Catálogo y acá aparecen los avisos y alertas listos." accion={<Button className="rounded-xl" onClick={() => setVista("catalogo")}>Ir al catálogo</Button>} />
+          ) : pendientes.length === 0 ? (
+            <Vacio icon={Check} titulo="Todo al día" texto="No hay avisos ni alertas pendientes por ahora." />
+          ) : (
+            <ul className="space-y-2.5">
+              {pendientes.map((a) => {
+                const def = AUTOS_TODAS.find((x) => x.id === a.auto)!;
+                return (
+                  <li key={a.key} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-3.5 transition hover:shadow-md">
+                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${def.grupo.grad} text-white`}><def.grupo.icon className="size-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{a.titulo}</p>
+                      <p className="text-xs text-muted-foreground">{a.detalle} · <span className="font-medium">{def.nombre}</span></p>
+                    </div>
+                    {a.tipo === "wa" && a.tel && a.msg ? (
+                      <a href={waDe(a.tel, a.msg)} target="_blank" rel="noreferrer" onClick={() => marcar(a)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600">
+                        <Send className="size-3.5" /> Enviar WhatsApp
+                      </a>
+                    ) : (
+                      a.ir && <button onClick={() => irA(a.ir!)} className="rounded-xl bg-[rgba(var(--acc),.1)] px-3.5 py-2 text-xs font-semibold text-[rgb(var(--acc))]">Ver</button>
+                    )}
+                    <button onClick={() => marcar(a)} className="rounded-xl px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Listo</button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Seccion>
+      )}
+
+      {vista === "catalogo" && (
+        <div className="space-y-3">
+          {GRUPOS_AUTO.map((g) => {
+            const abierto = grupoAbierto === g.id;
+            const act = g.items.filter((i) => activas[i.id]).length;
+            return (
+              <section key={g.id} className="pn-card pn-up overflow-hidden">
+                <button onClick={() => setGrupoAbierto(abierto ? "" : g.id)} className="flex w-full items-center gap-4 p-5 text-left">
+                  <span className={`flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br ${g.grad} text-white shadow-md`}><g.icon className="size-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Grupo {g.letra}</p>
+                    <p className="font-semibold">{g.titulo}</p>
+                  </div>
+                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold">{act}/{g.items.length} activas</span>
+                  <ChevronDown className={`size-4 text-muted-foreground transition-transform ${abierto ? "rotate-180" : ""}`} />
+                </button>
+                {abierto && (
+                  <div className="border-t border-border/60 px-5 pb-5 pt-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                    <div className="mb-2 flex justify-end">
+                      <button onClick={() => g.items.forEach((i) => alternar(i.id, act < g.items.length))} className="text-xs font-semibold text-primary">{act < g.items.length ? "Activar todas" : "Pausar todas"}</button>
+                    </div>
+                    <ul className="divide-y divide-border/60">
+                      {g.items.map((i) => (
+                        <li key={i.id} className="flex items-center gap-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+                              {i.nombre}
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${i.canal === "WhatsApp" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : i.canal === "Email" ? "bg-sky-100 text-sky-800 ring-sky-200" : "bg-violet-100 text-violet-700 ring-violet-200"}`}>{i.canal}</span>
+                              {!i.motor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Con el backend</span>}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{i.desc}</p>
+                          </div>
+                          <Interruptor on={!!activas[i.id]} onChange={(v) => alternar(i.id, v)} label="" />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {vista === "flujos" && (
+        <div className="grid gap-5 xl:grid-cols-2">
+          {FLUJOS.map((f) => (
+            <Seccion key={f.t} icon={Workflow} titulo={f.t} sub="Cómo se encadenan los pasos">
+              <ol className="flex flex-wrap items-center gap-2">
+                {f.pasos.map((p, i) => {
+                  const on = !p.auto || activas[p.auto];
+                  return (
+                    <li key={p.l} className="flex items-center gap-2">
+                      <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ring-1 transition ${on ? "bg-[rgba(var(--acc),.1)] text-foreground ring-[rgba(var(--acc),.35)]" : "bg-secondary/60 text-muted-foreground ring-border line-through decoration-1"}`}>
+                        <p.icon className="size-3.5" /> {p.l}
+                      </div>
+                      {i < f.pasos.length - 1 && <ArrowUpRight className="size-3.5 rotate-45 text-muted-foreground" />}
+                    </li>
+                  );
+                })}
+              </ol>
+              <p className="mt-4 text-xs text-muted-foreground">Los pasos tachados están pausados: activalos en el Catálogo.</p>
+            </Seccion>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

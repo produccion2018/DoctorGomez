@@ -402,6 +402,91 @@ export type Control = { id: string; pacienteId: string; fecha: string; sistolica
 export type Medicamento = { id: string; pacienteId: string; nombre: string; dosis: string; horarios: string[]; indicacion: string; activo: boolean; tomas: Record<string, boolean> };
 export type ValoresEstudio = { creatinina?: number; egfr?: number; potasio?: number; urea?: number; proteinuria?: number; hemoglobina?: number; ldl?: number; fevi?: number };
 export type Estudio = { id: string; pacienteId: string; tipo: string; fecha: string; titulo: string; informe: string; valores: ValoresEstudio; cargadoPor: string; creado: string };
+/* ---------- Padrón de pacientes de la clínica ---------- */
+export type PacienteClinica = {
+  id: string;
+  nombre: string;
+  dni: string;
+  nacimiento?: string;
+  sexo?: "F" | "M" | "X";
+  telefono?: string;
+  email?: string;
+  domicilio?: string;
+  obraSocial?: string;
+  afiliado?: string;
+  alergias?: string;
+  antecedentes: string[];
+  medicoCabecera?: string;
+  notas?: string;
+  creado: string;
+};
+export const KEY_PADRON = "gb_padron";
+
+/* ---------- Receta digital ---------- */
+export type ItemReceta = { droga: string; presentacion: string; cantidad: string; posologia: string };
+export type Receta = {
+  id: string;
+  numero: number;
+  fecha: string;
+  pacienteId: string;
+  paciente: string;
+  dni?: string;
+  obraSocial?: string;
+  afiliado?: string;
+  doctorId: string;
+  doctor: string;
+  matricula: string;
+  especialidad: string;
+  diagnostico: string;
+  items: ItemReceta[];
+  indicaciones?: string;
+  codigo: string;
+  firmada: boolean;
+  anulada?: { motivo: string; fecha: string };
+};
+export const KEY_RECETAS = "gb_recetas";
+export const KEY_FIRMAS = "gb_firmas";
+
+/* ---------- Laboratorio ---------- */
+export type EstadoLab = "Pedido" | "En proceso" | "Resultado";
+export type PedidoLab = {
+  id: string;
+  fecha: string;
+  pacienteId: string;
+  paciente: string;
+  doctor: string;
+  paneles: string[];
+  urgente: boolean;
+  ayuno: boolean;
+  estado: EstadoLab;
+  resultados: Record<string, number>;
+  fechaResultado?: string;
+  nota?: string;
+};
+export const KEY_LAB = "gb_laboratorio";
+
+/* ---------- Facturación ---------- */
+export type TipoComprobante = "Factura B" | "Factura C" | "Recibo";
+export type Factura = {
+  id: string;
+  numero: string;
+  tipo: TipoComprobante;
+  fecha: string;
+  receptor: string;
+  docReceptor?: string;
+  cobertura: string; // "Particular" u obra social
+  items: { desc: string; cant: number; precio: number }[];
+  total: number;
+  estado: "Emitida" | "Cobrada" | "Anulada";
+  cobroId?: string;
+  emitidaPor: string;
+};
+export const KEY_FACTURAS = "gb_facturas";
+
+/* ---------- Automatizaciones ---------- */
+export const KEY_AUTOS = "gb_automatizaciones";
+export const KEY_AUTOS_HECHAS = "gb_automatizaciones_hechas";
+
 /* ---------- Historia clínica (evoluciones de cada consulta) ---------- */
 export const ESPECIALIDADES_HC = ["Cardiología", "Nefrología", "Medicina Interna"] as const;
 export type EspecialidadHC = (typeof ESPECIALIDADES_HC)[number];
