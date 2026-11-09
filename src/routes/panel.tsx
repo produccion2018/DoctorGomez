@@ -105,6 +105,13 @@ import {
   estadioRenal,
   KEY_MEDICACION,
   KEY_EVOLUCIONES,
+  KEY_TRIAGE,
+  KEY_ENFERMERIA,
+  tieneClave,
+  borrarClave,
+  type Triage,
+  type NivelTriage,
+  type Enfermera,
   type Evolucion,
   type Medicamento,
   type Estudio,
@@ -153,7 +160,7 @@ type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Nivel = "ninguno" | "ver" | "editar";
 type Permisos = Record<string, Record<string, Nivel>>;
-type Tab = "resumen" | "turnos" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria";
+type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -290,6 +297,7 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "turnos", label: "Turnos", icon: CalendarDays },
   { id: "historia", label: "Historia", icon: FileText },
+  { id: "triage", label: "Triage", icon: Syringe },
   { id: "padron", label: "Pacientes", icon: Users },
   { id: "horarios", label: "Mis horarios", icon: Clock },
   { id: "pacientes", label: "Portal paciente", icon: Users },
@@ -307,6 +315,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     items: [
       { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
       { id: "turnos", label: "Agenda y turnos", icon: CalendarDays, tono: "text-sky-300" },
+      { id: "triage", label: "Enfermería – Triage", icon: Syringe, tono: "text-emerald-300" },
       { id: "padron", label: "Pacientes", icon: Users, tono: "text-sky-300" },
       { id: "historia", label: "Historia Clínica", icon: FileText, tono: "text-rose-300" },
       { id: "recetas", label: "Receta digital", icon: PenLine, tono: "text-violet-300" },
@@ -362,6 +371,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
   turnos: ["Turnos", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
+  triage: ["Enfermería – Triage", "Toma de signos vitales y clasificación de pacientes antes de la consulta médica."],
   padron: ["Pacientes", "Padrón de pacientes: datos, cobertura, antecedentes y accesos rápidos."],
   recetas: ["Receta digital", "Recetas con tu firma digitalizada, código de verificación y envío por WhatsApp."],
   laboratorio: ["Laboratorio", "Pedidos, órdenes firmadas y resultados con valores fuera de rango marcados."],
@@ -401,6 +411,7 @@ function Panel() {
       return;
     }
     setUser(s);
+    if (s.rol === "enfermeria") setTab("triage");
     setAudit(leerAuditoria());
   }, [navigate]);
 
@@ -431,23 +442,34 @@ function Panel() {
 
   if (!user) return null;
 
+  // Permisos: enfermería solo ve su pestaña de triage
+  const esEnf = user.rol === "enfermeria";
+  const TABS_ENF: Tab[] = ["triage"];
+  const permitido = (t: Tab) => !esEnf || TABS_ENF.includes(t);
+  const tabVisible: Tab = permitido(tab) ? tab : "triage";
+  const gruposVisibles = esEnf
+    ? [{ grupo: "Enfermería", items: GRUPOS_NAV.flatMap((g) => g.items).filter((i) => TABS_ENF.includes(i.id)) }]
+    : GRUPOS_NAV;
+
   const log: LogFn = (accion, detalle = "") => setAudit(auditar(user.nombre, accion, detalle));
   const salir = () => {
     log("Cierre de sesión");
     cerrarSesion();
     navigate({ to: "/login" });
   };
-  const [titulo, subtitulo] = TITULOS[tab];
+  const [titulo, subtitulo] = TITULOS[tabVisible];
   const foto = fotoDe(user.id);
   const corto = nombreCorto(user.nombre);
   const pendientes = turnos.filter((t) => t.estado === "Pendiente").length;
   const eventosHoy = audit.filter((e) => new Date(e.fecha).toDateString() === new Date().toDateString()).length;
   const pedidosPacientes = leerDato<Autorizacion[]>(KEY_AUT, []).filter((x) => x.estado === "Pendiente" && x.origen === "Paciente").length;
-  const badges: Partial<Record<Tab, number>> = { turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy };
+  const triagesEspera = leerDato<Triage[]>(KEY_TRIAGE, []).filter((t) => !t.evolucionId && diaLocal(t.fecha) === isoDe(new Date())).length;
+  const badges: Partial<Record<Tab, number>> = { turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy, ...(esEnf ? {} : { triage: triagesEspera }) };
   const fechaLarga = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
   const irTab = (t: Tab) => {
+    if (!permitido(t)) return;
     if (t !== tab) setPacSel(null);
     if (t !== "turnos") setFocoTurnos(null);
     setTab(t);
@@ -456,8 +478,8 @@ function Panel() {
   };
   const subActual = (id: Tab) => (id === "finanzas" ? finVista : id === "facturacion" ? factVista : "");
   const abrirPaciente = (t: Tab, id: string) => {
-    setPacSel(id);
     irTab(t);
+    setPacSel(id);
   };
   const irSub = (id: Tab, sub: string) => {
     if (id === "finanzas") setFinVista(sub as VistaFin);
@@ -505,14 +527,14 @@ function Panel() {
             <p className="truncate font-display text-sm font-bold">{corto}</p>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-white/80">
               {user.id === "alonso" ? <HeartPulse className="size-3 shrink-0" /> : <Droplets className="size-3 shrink-0" />}
-              {user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador
+              {esEnf ? "Enfermería · Triage" : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
             </p>
           </div>
         </div>
 
         {/* Navegación agrupada */}
         <nav className="pn-noscroll min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 pb-6 pt-1 [mask-image:linear-gradient(to_bottom,transparent,#000_10px,#000_calc(100%-28px),transparent)]">
-          {GRUPOS_NAV.map((g) => (
+          {gruposVisibles.map((g) => (
             <div key={g.grupo}>
               <p className="flex items-center gap-2 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
                 <span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />
@@ -520,7 +542,7 @@ function Panel() {
               </p>
               <ul className="space-y-0.5">
                 {g.items.map((n) => {
-                  const activo = tab === n.id;
+                  const activo = tabVisible === n.id;
                   const badge = badges[n.id];
                   const abierto = n.sub ? (abiertos[n.id] ?? activo) : false;
                   return (
@@ -728,8 +750,8 @@ function Panel() {
       {/* ───────── NAVEGACIÓN INFERIOR (celular) ───────── */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-          {([...NAV.filter((n) => ["resumen", "turnos", "padron", "historia"].includes(n.id))] as typeof NAV).map((n) => {
-            const on = tab === n.id;
+          {([...NAV.filter((n) => (esEnf ? ["triage"] : ["resumen", "turnos", "padron", "historia"]).includes(n.id))] as typeof NAV).map((n) => {
+            const on = tabVisible === n.id;
             const b = badges[n.id];
             return (
               <button key={n.id} onClick={() => irTab(n.id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-colors ${on ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
@@ -747,7 +769,7 @@ function Panel() {
       </nav>
 
       {/* ───────── CONTENIDO ───────── */}
-      <FondoModulo tab={tab} />
+      <FondoModulo tab={tabVisible} />
       <main className="relative min-w-0 p-4 pb-28 sm:p-8 sm:pb-28 lg:pb-8">
         <div className="pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
@@ -764,7 +786,9 @@ function Panel() {
                   {saludo(ahora)}, {corto}
                 </h1>
                 <p className="mt-1 text-sm text-deep-foreground/75">
-                  {pendientes > 0
+                  {esEnf
+                    ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con turno hoy. Registrá sus signos vitales antes de la consulta.`
+                    : pendientes > 0
                     ? `Tenés ${pendientes} turno${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
                     : "Todo al día: no hay turnos pendientes."}
                 </p>
@@ -772,13 +796,13 @@ function Panel() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
-              <CampanaPanel turnos={turnos} user={user} irA={setTab} />
-              <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
+              {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} />}
+              {!esEnf && <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
-              </Button>
-              <Button onClick={() => setTab("turnos")} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
+              </Button>}
+              {!esEnf && <Button onClick={() => setTab("turnos")} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
                 <Plus className="size-4" /> Nuevo turno
-              </Button>
+              </Button>}
             </div>
           </div>
         </div>
@@ -802,21 +826,22 @@ function Panel() {
           </span>
         </div>
 
-        {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
-        {tab === "turnos" && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
-        {tab === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} />}
-        {tab === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
-        {tab === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
-        {tab === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
-        {tab === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
-        {tab === "analitica" && <AnaliticaTab log={log} turnos={turnos} />}
-        {tab === "automatizaciones" && <AutomatizacionesTab log={log} turnos={turnos} irA={irTab} />}
-        {tab === "horarios" && <HorariosTab user={user} log={log} />}
-        {tab === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
-        {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
-        {tab === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
-        {tab === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
-        {tab === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
+        {tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
+        {tabVisible === "turnos" && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
+        {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
+        {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} />}
+        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {tabVisible === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {tabVisible === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
+        {tabVisible === "analitica" && <AnaliticaTab log={log} turnos={turnos} />}
+        {tabVisible === "automatizaciones" && <AutomatizacionesTab log={log} turnos={turnos} irA={irTab} />}
+        {tabVisible === "horarios" && <HorariosTab user={user} log={log} />}
+        {tabVisible === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
+        {tabVisible === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
+        {tabVisible === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
+        {tabVisible === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
+        {tabVisible === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
       </main>
     </div>
   );
@@ -937,6 +962,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
 const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   resumen: { a: "56,132,246", b: "99,102,241", c: "14,165,233" },
   turnos: { a: "14,165,233", b: "20,184,166", c: "59,130,246" },
+  triage: { a: "5,150,105", b: "14,165,233", c: "16,185,129" },
   padron: { a: "37,99,235", b: "14,165,233", c: "99,102,241" },
   recetas: { a: "124,58,237", b: "99,102,241", c: "56,132,246" },
   laboratorio: { a: "5,150,105", b: "14,165,233", c: "20,184,166" },
@@ -4116,6 +4142,7 @@ function htmlEvolucion(p: PacienteHC, e: Evolucion) {
     s.pulso ? `FC ${s.pulso} lpm` : "",
     s.fr ? `FR ${s.fr} rpm` : "",
     s.temp ? `T° ${s.temp} °C` : "",
+    s.spo2 ? `SpO₂ ${s.spo2}%` : "",
     s.peso ? `Peso ${s.peso} kg` : "",
     s.talla ? `Talla ${s.talla} cm` : "",
     imc ? `IMC ${imc}` : "",
@@ -4126,9 +4153,10 @@ function htmlEvolucion(p: PacienteHC, e: Evolucion) {
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#475569;margin:22px 0 6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}.dx b{font-family:ui-monospace,monospace}</style></head><body>
 <h1>Clínica Gómez Bolaño · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-AR")} · ${e.doctor}</p>
 <h2>Motivo de consulta</h2><p>${esc(e.motivo || "—")}</p>${vit ? `<h2>Signos vitales</h2><p>${vit}</p>` : ""}
-<h2>Evolución</h2><p>${esc(e.nota || "—")}</p>
+${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} · ${new Date(e.signosPor.fecha).toLocaleString("es-AR")}</p>` : ""}
+<h2>Evolución del cuadro clínico</h2><p>${esc(e.nota || "—")}</p>${e.sintomas ? `<h2>Signos y síntomas</h2><p>${esc(e.sintomas)}</p>` : ""}${e.semiologia ? `<h2>Semiología médica</h2><p>${esc(e.semiologia)}</p>` : ""}
 <h2>Diagnósticos</h2>${dxDe(e).map((d, i) => `<p class="dx">${d.codigo ? `<b>${d.codigo}</b> ` : ""}${d.descripcion}${i === 0 ? " (principal)" : ""}</p>`).join("") || "<p>—</p>"}
-<h2>Indicaciones</h2><p>${esc(e.plan || "—")}</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+<h2>Conducta médica</h2><p>${esc(e.plan || "—")}</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
 
 function FichaHC({
@@ -4141,24 +4169,31 @@ function FichaHC({
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
   const edad = edadDe(p.ficha?.nacimiento);
   const ordenadas = [...evols].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const [triagesTodos] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const triages = triagesTodos.filter((t) => t.pacienteId === p.id || t.pacienteId === p.portalId).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  // Triage de hoy que todavía no usó ningún médico
+  const pendiente = triages.find((t) => !t.evolucionId && diaLocal(t.fecha) === isoDe(new Date()));
+  const nivelPend = pendiente?.nivel ? NIVELES_TRIAGE.find((n) => n.id === pendiente.nivel) : undefined;
 
-  // Últimos signos vitales registrados
-  const ultimo = <K extends keyof Evolucion["signos"]>(k: K) => ordenadas.find((e) => e.signos[k] !== undefined);
+  // Últimos signos vitales registrados (evoluciones y enfermería)
+  const regs = [...ordenadas.map((e) => ({ fecha: e.fecha, signos: e.signos as Triage["signos"] })), ...triages.map((t) => ({ fecha: t.fecha, signos: t.signos }))].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const ultimo = <K extends keyof Triage["signos"]>(k: K) => regs.find((e) => e.signos[k] !== undefined);
   const presiones = [
-    ...ordenadas.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ f: e.fecha, s: e.signos.sistolica!, d: e.signos.diastolica! })),
+    ...regs.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ f: e.fecha, s: e.signos.sistolica!, d: e.signos.diastolica! })),
     ...controles.map((c) => ({ f: c.fecha, s: c.sistolica, d: c.diastolica })),
   ].sort((a, b) => b.f.localeCompare(a.f));
   const ta = presiones[0];
   const fc = ultimo("pulso");
   const temp = ultimo("temp");
-  const conPeso = ordenadas.find((e) => e.signos.peso && (e.signos.talla || ordenadas.some((x) => x.signos.talla)));
-  const talla = ordenadas.find((e) => e.signos.talla)?.signos.talla;
+  const conPeso = regs.find((e) => e.signos.peso && (e.signos.talla || regs.some((x) => x.signos.talla)));
+  const talla = regs.find((e) => e.signos.talla)?.signos.talla;
   const imc = conPeso ? calcularImc(conPeso.signos.peso, conPeso.signos.talla ?? talla) : null;
   const dxActivos = Array.from(new Map(ordenadas.flatMap(dxDe).map((d) => [d.codigo || d.descripcion, d])).values()).slice(0, 8);
 
-  type Item = { tipo: "evol"; f: string; e: Evolucion } | { tipo: "estudio"; f: string; e: Estudio };
+  type Item = { tipo: "evol"; f: string; e: Evolucion } | { tipo: "estudio"; f: string; e: Estudio } | { tipo: "triage"; f: string; e: Triage };
   const linea: Item[] = [
     ...(ver !== "estudios" ? ordenadas.map((e) => ({ tipo: "evol" as const, f: e.fecha, e })) : []),
+    ...(ver !== "estudios" ? triages.filter((t) => !t.evolucionId).map((e) => ({ tipo: "triage" as const, f: e.fecha, e })) : []),
     ...(ver !== "evoluciones" ? estudios.map((e) => ({ tipo: "estudio" as const, f: e.fecha, e })) : []),
   ].sort((a, b) => b.f.localeCompare(a.f));
   const alternar = (id: string) => setAbiertas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -4218,7 +4253,22 @@ function FichaHC({
         ))}
       </div>
 
-      {nueva && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} />}
+      {pendiente && !nueva && (
+        <div className="pn-up flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-500/25 dark:from-emerald-500/10 dark:to-transparent">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white"><Syringe className="size-5" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-2 font-semibold">
+              Enfermería ya registró los signos vitales de hoy
+              {nivelPend && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${nivelPend.clase}`}>{nivelPend.nombre}</span>}
+            </p>
+            <p className="text-xs text-muted-foreground">{pendiente.enfermera} · {fechaHora(pendiente.fecha)}{pendiente.motivo ? ` · Motivo: ${pendiente.motivo}` : ""}</p>
+            <div className="mt-2"><ChipsSignos s={pendiente.signos} /></div>
+          </div>
+          {user.rol !== "enfermeria" && <Button className="rounded-xl" onClick={() => setNueva(true)}><NotebookPen className="size-4" /> Iniciar evolución</Button>}
+        </div>
+      )}
+
+      {nueva && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Registro de consultas */}
@@ -4239,6 +4289,24 @@ function FichaHC({
           ) : (
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[19px] before:top-2 before:w-px before:bg-border">
               {linea.map((it, i) => {
+                if (it.tipo === "triage") {
+                  const t = it.e;
+                  const n = t.nivel ? NIVELES_TRIAGE.find((x) => x.id === t.nivel) : undefined;
+                  return (
+                    <li key={`tr-${t.id}`} className="relative flex gap-4">
+                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md"><Syringe className="size-4" /></span>
+                      <div className="min-w-0 flex-1 rounded-2xl border border-emerald-200/70 bg-emerald-50/40 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">Triage de enfermería</p>
+                          {n && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${n.clase}`}>{n.nombre}</span>}
+                          <span className="ml-auto text-xs text-muted-foreground">{fechaHora(t.fecha)} · {t.enfermera}</span>
+                        </div>
+                        <div className="mt-2"><ChipsSignos s={t.signos} /></div>
+                        {(t.motivo || t.observaciones) && <p className="mt-2 text-xs text-muted-foreground">{t.motivo ? `Motivo: ${t.motivo}. ` : ""}{t.observaciones ?? ""}</p>}
+                      </div>
+                    </li>
+                  );
+                }
                 if (it.tipo === "estudio") {
                   const e = it.e;
                   return (
@@ -4281,22 +4349,36 @@ function FichaHC({
                           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Motivo de consulta</p>
                           <p className="font-medium">{e.motivo || "—"}</p>
                         </div>
-                        {(pr || s.pulso || s.fr || s.temp || s.peso || s.talla) && (
-                          <div className="flex flex-wrap gap-1.5 text-xs">
-                            {pr && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[pr.tono]}`}>TA {s.sistolica}/{s.diastolica} · {pr.nivel}</span>}
-                            {s.pulso !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("fc", s.pulso) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>FC {s.pulso} lpm</span>}
-                            {s.fr !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("fr", s.fr) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>FR {s.fr} rpm</span>}
-                            {s.temp !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("temp", s.temp) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>T° {s.temp} °C</span>}
-                            {s.peso !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${TONO_HC["gris"]}`}>Peso {s.peso} kg</span>}
-                            {s.talla !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${TONO_HC["gris"]}`}>Talla {s.talla} cm</span>}
-                            {im && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[im.tono]}`}>IMC {im.valor} · {im.texto}</span>}
+                        {(pr || s.pulso || s.fr || s.temp || s.spo2 || s.peso || s.talla) && (
+                          <div>
+                            <p className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                              Signos vitales
+                              {e.signosPor && (
+                                <span className={`normal-case tracking-normal font-medium ${e.signosPor.rol === "enfermeria" ? "text-emerald-700 dark:text-emerald-300" : ""}`}>
+                                  · tomados por {e.signosPor.nombre} · {fechaHora(e.signosPor.fecha)}
+                                </span>
+                              )}
+                            </p>
+                            <ChipsSignos s={s} />
                           </div>
                         )}
                         {e.nota && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Evolución</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Evolución del cuadro clínico</p>
                             <p className={`whitespace-pre-line text-sm leading-relaxed ${larga && !expandida ? "line-clamp-5" : ""}`}>{e.nota}</p>
                             {larga && i !== 0 && <button onClick={() => alternar(e.id)} className="mt-1 text-xs font-semibold text-[rgb(var(--acc))]">{expandida ? "Ver menos" : "Ver completa"}</button>}
+                          </div>
+                        )}
+                        {e.sintomas && (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Signos y síntomas</p>
+                            <p className="whitespace-pre-line text-sm leading-relaxed">{e.sintomas}</p>
+                          </div>
+                        )}
+                        {e.semiologia && (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Semiología médica</p>
+                            <p className="whitespace-pre-line text-sm leading-relaxed">{e.semiologia}</p>
                           </div>
                         )}
                         {dx.length > 0 && (
@@ -4314,7 +4396,7 @@ function FichaHC({
                         )}
                         {e.plan && (
                           <div className="rounded-xl bg-[rgba(var(--acc),.06)] px-3.5 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--acc))]">Indicaciones</p>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--acc))]">Conducta médica</p>
                             <p className="mt-0.5 whitespace-pre-line text-sm leading-relaxed">{e.plan}</p>
                           </div>
                         )}
@@ -4388,35 +4470,64 @@ function CampoVital({ l, u, ph, value, onChange, alerta }: { l: string; u: strin
   );
 }
 
-function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia }: { p: PacienteHC; user: SessionUser; onGuardar: (e: Evolucion) => void; onCancelar: () => void; tallaPrevia?: number | undefined }) {
-  const [f, setF] = useState({ motivo: "", nota: "", indicaciones: "", s: "", d: "", fc: "", fr: "", temp: "", peso: "", talla: tallaPrevia ? String(tallaPrevia) : "" });
+function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: { p: PacienteHC; user: SessionUser; onGuardar: (e: Evolucion) => void; onCancelar: () => void; tallaPrevia?: number | undefined; triage?: Triage | undefined }) {
+  const [, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const ts = triage?.signos;
+  const txt = (v?: number) => (v === undefined ? "" : String(v));
+  const [f, setF] = useState({
+    motivo: triage?.motivo ?? "",
+    nota: "",
+    sintomas: "",
+    semiologia: "",
+    conducta: "",
+    s: txt(ts?.sistolica),
+    d: txt(ts?.diastolica),
+    fc: txt(ts?.pulso),
+    fr: txt(ts?.fr),
+    temp: txt(ts?.temp),
+    spo2: txt(ts?.spo2),
+    peso: txt(ts?.peso),
+    talla: ts?.talla ? String(ts.talla) : tallaPrevia ? String(tallaPrevia) : "",
+  });
+  const [editarSignos, setEditarSignos] = useState(!triage);
   const [dx, setDx] = useState<Cie[]>([]);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const s = num(f.s), d = num(f.d);
   const pr = s && d ? clasificarPresion(s, d) : null;
   const imc = calcularImc(num(f.peso), num(f.talla));
+  const usaTriage = !!triage && !editarSignos;
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (!f.motivo.trim()) { toast.error("Completá el motivo de consulta"); return; }
-    if (!f.nota.trim()) { toast.error("Escribí la evolución"); return; }
+    if (!f.nota.trim()) { toast.error("Escribí la evolución del cuadro clínico"); return; }
+    if (dx.length === 0) { toast.error("Agregá al menos un diagnóstico"); return; }
+    const id = nuevoId();
+    const ahora = new Date().toISOString();
     const ev = JSON.parse(
       JSON.stringify({
-        id: nuevoId(),
+        id,
         pacienteId: p.id,
         paciente: p.nombre,
-        fecha: new Date().toISOString(),
+        fecha: ahora,
         doctor: user.nombre,
         motivo: f.motivo.trim(),
         nota: f.nota.trim(),
-        plan: f.indicaciones.trim() || undefined,
+        sintomas: f.sintomas.trim() || undefined,
+        semiologia: f.semiologia.trim() || undefined,
+        plan: f.conducta.trim() || undefined,
         diagnosticos: dx.map((x) => `${x.codigo} ${x.descripcion}`),
         cie10: dx,
-        signos: { sistolica: s, diastolica: d, pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor },
+        triageId: triage?.id,
+        signosPor: usaTriage ? { nombre: triage!.enfermera, fecha: triage!.fecha, rol: "enfermeria" } : { nombre: user.nombre, fecha: ahora, rol: "medico" },
+        signos: { sistolica: s, diastolica: d, pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), spo2: num(f.spo2), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor },
       }),
     ) as Evolucion;
+    if (triage) setTriages((prev) => prev.map((t) => (t.id === triage.id ? { ...t, evolucionId: id, atendidoPor: user.nombre } : t)));
     onGuardar(ev);
   };
+
+  const nivel = triage?.nivel ? NIVELES_TRIAGE.find((n) => n.id === triage.nivel) : undefined;
 
   return (
     <form onSubmit={guardar} className="pn-card pn-up overflow-hidden">
@@ -4432,48 +4543,74 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia }: { p: Pac
       </div>
 
       <div className="px-6">
-        <PasoHC n={1} t="Motivo de consulta" sub="Por qué consulta hoy">
+        <PasoHC n={1} t="Signos vitales" sub={triage ? "Registrados por enfermería" : "El IMC se calcula solo con el peso y la talla"}>
+          {usaTriage ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/5">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white"><Syringe className="size-3.5" /> Tomados por {triage!.enfermera}</span>
+                <span className="text-xs text-muted-foreground">{fechaHora(triage!.fecha)}</span>
+                {nivel && <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${nivel.clase}`}>{nivel.nombre}</span>}
+                <button type="button" onClick={() => setEditarSignos(true)} className="ml-auto inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]"><Pencil className="size-3.5" /> Corregir valores</button>
+              </div>
+              <ChipsSignos s={triage!.signos} />
+              {triage!.observaciones && <p className="mt-3 text-xs text-muted-foreground"><span className="font-semibold">Observaciones de enfermería:</span> {triage!.observaciones}</p>}
+            </div>
+          ) : (
+            <>
+              {triage && <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">Estás corrigiendo los valores que tomó {triage.enfermera}. La evolución va a quedar con los signos a tu nombre.</p>}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <CampoVital value={f.s} onChange={set("s")} l="TA sistólica" u="mmHg" ph="120" />
+                <CampoVital value={f.d} onChange={set("d")} l="TA diastólica" u="mmHg" ph="80" />
+                <CampoVital value={f.fc} onChange={set("fc")} l="Frecuencia cardíaca" u="lpm" ph="72" alerta={fueraDeRango("fc", num(f.fc))} />
+                <CampoVital value={f.fr} onChange={set("fr")} l="Frecuencia respiratoria" u="rpm" ph="16" alerta={fueraDeRango("fr", num(f.fr))} />
+                <CampoVital value={f.temp} onChange={set("temp")} l="Temperatura" u="°C" ph="36.5" alerta={fueraDeRango("temp", num(f.temp))} />
+                <CampoVital value={f.spo2} onChange={set("spo2")} l="Saturación O₂" u="%" ph="98" alerta={fueraSpo2(num(f.spo2))} />
+                <CampoVital value={f.peso} onChange={set("peso")} l="Peso" u="kg" ph="70" />
+                <CampoVital value={f.talla} onChange={set("talla")} l="Talla" u="cm" ph="170" />
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <div className={`inline-flex items-center gap-3 rounded-xl px-4 py-2 ring-1 ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-80">IMC</span>
+                  <span className="font-display text-xl font-semibold tabular-nums">{imc ? imc.valor : "—"}</span>
+                  <span className="text-xs font-medium">{imc ? imc.texto : "Cargá peso y talla"}</span>
+                </div>
+                {pr && <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[pr.tono]}`}>Presión arterial: {pr.nivel}</span>}
+              </div>
+            </>
+          )}
+        </PasoHC>
+
+        <PasoHC n={2} t="Motivo de consulta" sub="Por qué consulta hoy">
           <input value={f.motivo} onChange={set("motivo")} placeholder="Ej.: Control, dolor torácico, cefalea, seguimiento de tratamiento…" className={inp} />
         </PasoHC>
 
-        <PasoHC n={2} t="Signos vitales" sub="El IMC se calcula solo con el peso y la talla">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <CampoVital value={f.s} onChange={set("s")} l="TA sistólica" u="mmHg" ph="120" />
-            <CampoVital value={f.d} onChange={set("d")} l="TA diastólica" u="mmHg" ph="80" />
-            <CampoVital value={f.fc} onChange={set("fc")} l="Frecuencia cardíaca" u="lpm" ph="72" alerta={fueraDeRango("fc", num(f.fc))} />
-            <CampoVital value={f.fr} onChange={set("fr")} l="Frecuencia respiratoria" u="rpm" ph="16" alerta={fueraDeRango("fr", num(f.fr))} />
-            <CampoVital value={f.temp} onChange={set("temp")} l="Temperatura" u="°C" ph="36.5" alerta={fueraDeRango("temp", num(f.temp))} />
-            <CampoVital value={f.peso} onChange={set("peso")} l="Peso" u="kg" ph="70" />
-            <CampoVital value={f.talla} onChange={set("talla")} l="Talla" u="cm" ph="170" />
-            <div className={`flex flex-col justify-center rounded-xl px-3 py-2 ring-1 ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-80">IMC</span>
-              <span className="font-display text-xl font-semibold tabular-nums">{imc ? imc.valor : "—"}</span>
-              <span className="text-[11px] font-medium">{imc ? imc.texto : "Cargá peso y talla"}</span>
-            </div>
-          </div>
-          {pr && <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[pr.tono]}`}>Presión arterial: {pr.nivel}</p>}
+        <PasoHC n={3} t="Evolución del cuadro clínico" sub="Enfermedad actual: inicio, curso y tratamientos previos">
+          <textarea rows={8} value={f.nota} onChange={set("nota")} placeholder="Paciente de … años que consulta por … de … días de evolución…" className={inp + " h-auto min-h-[200px] resize-y py-3 leading-relaxed"} />
         </PasoHC>
 
-        <PasoHC n={3} t="Evolución" sub="Anamnesis, examen físico y valoración">
+        <PasoHC n={4} t="Signos y síntomas" sub="Lo que refiere el paciente y lo que se observa">
+          <textarea rows={5} value={f.sintomas} onChange={set("sintomas")} placeholder={"• Síntomas referidos:\n• Signos observados:"} className={inp + " h-auto min-h-[130px] resize-y py-3 leading-relaxed"} />
+        </PasoHC>
+
+        <PasoHC n={5} t="Semiología médica" sub="Examen físico por aparatos y sistemas">
           <textarea
-            rows={12}
-            value={f.nota}
-            onChange={set("nota")}
-            placeholder={"Paciente que consulta por…\n\nExamen físico:\n\nValoración:"}
-            className={inp + " h-auto min-h-[280px] resize-y py-3 leading-relaxed"}
+            rows={9}
+            value={f.semiologia}
+            onChange={set("semiologia")}
+            placeholder={"Estado general:\nCabeza y cuello:\nCardiopulmonar:\nAbdomen:\nExtremidades:\nNeurológico:"}
+            className={inp + " h-auto min-h-[220px] resize-y py-3 leading-relaxed"}
           />
-          <p className="mt-1 text-right text-[11px] tabular-nums text-muted-foreground">{f.nota.length} caracteres</p>
         </PasoHC>
 
-        <PasoHC n={4} t="Diagnósticos" sub="Codificados con la CIE-10">
+        <PasoHC n={6} t="Diagnóstico" sub="Codificado con la CIE-10">
           <BuscadorCie seleccion={dx} onChange={setDx} />
         </PasoHC>
 
-        <PasoHC n={5} t="Indicaciones" sub="Tratamiento, estudios, cuidados y próximo control">
+        <PasoHC n={7} t="Conducta médica" sub="Tratamiento, estudios, indicaciones y próximo control">
           <textarea
             rows={8}
-            value={f.indicaciones}
-            onChange={set("indicaciones")}
+            value={f.conducta}
+            onChange={set("conducta")}
             placeholder={"• Tratamiento:\n• Estudios solicitados:\n• Recomendaciones:\n• Próximo control:"}
             className={inp + " h-auto min-h-[200px] resize-y py-3 leading-relaxed"}
           />
@@ -6819,5 +6956,348 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar }: { p: Pacient
         </div>
       </div>
     </div>
+  );
+}
+
+/* ═══════════════════════ ENFERMERÍA – TRIAGE ═══════════════════════ */
+/** Niveles de triage (Resolución 5596 de 2015, Colombia). */
+const NIVELES_TRIAGE: { id: NivelTriage; nombre: string; desc: string; espera: string; clase: string; punto: string }[] = [
+  { id: "I", nombre: "Triage I", desc: "Riesgo vital inmediato", espera: "Atención inmediata", clase: "bg-red-600 text-white ring-red-700", punto: "bg-red-600" },
+  { id: "II", nombre: "Triage II", desc: "Riesgo de deterioro rápido", espera: "Hasta 30 min", clase: "bg-orange-500 text-white ring-orange-600", punto: "bg-orange-500" },
+  { id: "III", nombre: "Triage III", desc: "Requiere estudios o tratamiento, estable", espera: "Según disponibilidad", clase: "bg-amber-400 text-amber-950 ring-amber-500", punto: "bg-amber-400" },
+  { id: "IV", nombre: "Triage IV", desc: "Sin riesgo de deterioro", espera: "Consulta prioritaria", clase: "bg-emerald-500 text-white ring-emerald-600", punto: "bg-emerald-500" },
+  { id: "V", nombre: "Triage V", desc: "Problema crónico o consulta programada", espera: "Consulta programada", clase: "bg-sky-500 text-white ring-sky-600", punto: "bg-sky-500" },
+];
+const nivelTriage = (n?: NivelTriage) => NIVELES_TRIAGE.find((x) => x.id === n);
+function fueraSpo2(v?: number) {
+  return v !== undefined && v < 94;
+}
+
+/** Chips de signos vitales, para triage y evoluciones. */
+function ChipsSignos({ s }: { s: Triage["signos"] }) {
+  const pr = s.sistolica && s.diastolica ? clasificarPresion(s.sistolica, s.diastolica) : null;
+  const im = calcularImc(s.peso, s.talla);
+  return (
+    <div className="flex flex-wrap gap-1.5 text-xs">
+      {pr && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[pr.tono]}`}>TA {s.sistolica}/{s.diastolica} · {pr.nivel}</span>}
+      {s.pulso !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("fc", s.pulso) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>FC {s.pulso} lpm</span>}
+      {s.fr !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("fr", s.fr) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>FR {s.fr} rpm</span>}
+      {s.temp !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraDeRango("temp", s.temp) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>T° {s.temp} °C</span>}
+      {s.spo2 !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${fueraSpo2(s.spo2) ? TONO_HC["ambar"] : TONO_HC["gris"]}`}>SpO₂ {s.spo2}%</span>}
+      {s.peso !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${TONO_HC["gris"]}`}>Peso {s.peso} kg</span>}
+      {s.talla !== undefined && <span className={`rounded-full px-2.5 py-1 ring-1 ${TONO_HC["gris"]}`}>Talla {s.talla} cm</span>}
+      {im && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[im.tono]}`}>IMC {im.valor} · {im.texto}</span>}
+    </div>
+  );
+}
+
+function TriageTab({ user, log, turnos, esMedico, abrirHistoria }: { user: SessionUser; log: LogFn; turnos: Turno[]; esMedico: boolean; abrirHistoria: (pacienteId: string) => void }) {
+  const pacientes = usePacientesClinica(turnos);
+  const [triages, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const [pacId, setPacId] = useState("");
+  const vacio = { s: "", d: "", fc: "", fr: "", temp: "", spo2: "", peso: "", talla: "", motivo: "", obs: "" };
+  const [f, setF] = useState(vacio);
+  const [nivel, setNivel] = useState<NivelTriage | "">("");
+  const [ver, setVer] = useState<"todos" | "espera" | "atendidos">("todos");
+  const set = (k: keyof typeof vacio) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+
+  const hoyIso = isoDe(new Date());
+  const deHoy = triages.filter((t) => diaLocal(t.fecha) === hoyIso).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const turnosHoy = turnos.filter((t) => t.fecha === hoyIso && t.estado !== "Cancelado").sort((a, b) => a.hora.localeCompare(b.hora));
+  const pac = pacientes.find((p) => p.id === pacId);
+  const esDe = (p: PacienteHC, id: string) => id === p.id || id === p.portalId;
+  const previos = pac ? triages.filter((t) => esDe(pac, t.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha)) : [];
+  const imc = calcularImc(num(f.peso), num(f.talla));
+  const pr = num(f.s) && num(f.d) ? clasificarPresion(num(f.s)!, num(f.d)!) : null;
+  const pacDeTurno = (t: Turno) => pacientes.find((p) => (t.pacienteId && esDe(p, t.pacienteId)) || norm(p.nombre) === norm(t.paciente));
+  const triageHoyDe = (p?: PacienteHC) => (p ? deHoy.find((x) => esDe(p, x.pacienteId)) : undefined);
+
+  const elegir = (id: string) => {
+    setPacId(id);
+    const p = pacientes.find((x) => x.id === id);
+    const ult = p ? triages.filter((t) => esDe(p, t.pacienteId) && t.signos.talla).sort((a, b) => b.fecha.localeCompare(a.fecha))[0] : undefined;
+    setF({ ...vacio, talla: ult?.signos.talla ? String(ult.signos.talla) : "" });
+    setNivel("");
+    window.setTimeout(() => document.getElementById("form-triage")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
+
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!pac) { toast.error("Seleccioná un paciente"); return; }
+    const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), spo2: num(f.spo2), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
+    if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registrá al menos un signo vital"); return; }
+    const t = JSON.parse(
+      JSON.stringify({
+        id: nuevoId(),
+        pacienteId: pac.id,
+        paciente: pac.nombre,
+        fecha: new Date().toISOString(),
+        enfermeraId: user.id,
+        enfermera: user.nombre,
+        nivel: nivel || undefined,
+        motivo: f.motivo.trim() || undefined,
+        observaciones: f.obs.trim() || undefined,
+        signos,
+      }),
+    ) as Triage;
+    setTriages((prev) => [t, ...prev]);
+    log("Triage registrado", `${pac.nombre}${nivel ? ` · Triage ${nivel}` : ""}`);
+    toast.success("Signos vitales registrados. Ya los ve el médico en la Historia Clínica.");
+    setPacId("");
+    setF(vacio);
+    setNivel("");
+  };
+
+  const lista = deHoy.filter((t) => (ver === "espera" ? !t.evolucionId : ver === "atendidos" ? !!t.evolucionId : true));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Kpi icon={CalendarDays} label="Turnos de hoy" value={String(turnosHoy.length)} hint={`${turnosHoy.filter((t) => !triageHoyDe(pacDeTurno(t))).length} sin triage`} />
+        <Kpi icon={Activity} label="Triages de hoy" value={String(deHoy.length)} hint="Signos vitales registrados" tono="verde" delay={0.05} />
+        <Kpi icon={Clock} label="Esperando al médico" value={String(deHoy.filter((t) => !t.evolucionId).length)} hint="Con triage, sin evolución" tono="ambar" delay={0.1} onClick={() => setVer("espera")} activo={ver === "espera"} />
+        <Kpi icon={Check} label="Atendidos" value={String(deHoy.filter((t) => t.evolucionId).length)} hint="El médico ya registró la evolución" tono="violeta" delay={0.15} onClick={() => setVer("atendidos")} activo={ver === "atendidos"} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+        {/* Sala de espera */}
+        <section className="pn-card pn-up flex max-h-[calc(100vh-10rem)] min-h-[420px] flex-col p-4 xl:sticky xl:top-6">
+          <p className="px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Sala de espera · hoy</p>
+          <ul className="pn-noscroll mt-2 flex-1 space-y-1.5 overflow-y-auto">
+            {turnosHoy.map((t) => {
+              const p = pacDeTurno(t);
+              const tr = triageHoyDe(p);
+              const n = nivelTriage(tr?.nivel);
+              const on = !!p && p.id === pacId;
+              return (
+                <li key={t.id}>
+                  <button
+                    disabled={!p}
+                    onClick={() => p && elegir(p.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-[rgba(var(--acc),.12)] ring-1 ring-[rgba(var(--acc),.35)]" : "hover:bg-secondary"}`}
+                  >
+                    <span className="w-11 shrink-0 text-center font-display text-sm font-semibold tabular-nums">{t.hora}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{t.paciente}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{nombreCorto(t.doctor)} · {t.motivo || "Consulta"}</span>
+                    </span>
+                    {tr ? (
+                      tr.evolucionId ? (
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Atendido</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                          {n && <span className={`size-2 rounded-full ${n.punto}`} />} Triage hecho
+                        </span>
+                      )
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Sin triage</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+            {turnosHoy.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted-foreground">No hay turnos para hoy.</li>}
+          </ul>
+          <div className="mt-3 border-t border-border/60 pt-3">
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Otro paciente</p>
+            <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={elegir} />
+          </div>
+        </section>
+
+        {/* Registro de signos vitales */}
+        <form id="form-triage" onSubmit={guardar} className="pn-card pn-up scroll-mt-24 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-secondary/40 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white"><Syringe className="size-5" /></span>
+              <div>
+                <h3 className="text-[15px] font-semibold">Registro de signos vitales</h3>
+                <p className="text-xs text-muted-foreground">{user.nombre} · {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</p>
+              </div>
+            </div>
+            {pac?.ficha?.alergias && <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {pac.ficha.alergias}</span>}
+          </div>
+
+          {!pac ? (
+            <div className="p-6"><Vacio icon={Users} titulo="Seleccioná un paciente" texto="Elegilo de la sala de espera o buscalo en Otro paciente para registrar sus signos vitales." /></div>
+          ) : (
+            <div className="px-6">
+              <div className="flex flex-wrap items-center gap-4 border-b border-border/60 py-5">
+                <Avatar nombre={pac.nombre} size="size-12" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-semibold">{pac.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{[pac.dni ? `C.C. ${pac.dni}` : null, edadDe(pac.ficha?.nacimiento) !== null ? `${edadDe(pac.ficha?.nacimiento)} años` : null, pac.ficha?.obraSocial].filter(Boolean).join(" · ") || "Sin datos de ficha"}</p>
+                </div>
+                {previos[0] && <p className="text-xs text-muted-foreground">Último triage: {fechaHora(previos[0].fecha)}</p>}
+              </div>
+
+              <PasoHC n={1} t="Signos vitales" sub="El IMC se calcula solo con el peso y la talla">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <CampoVital value={f.s} onChange={set("s")} l="TA sistólica" u="mmHg" ph="120" />
+                  <CampoVital value={f.d} onChange={set("d")} l="TA diastólica" u="mmHg" ph="80" />
+                  <CampoVital value={f.fc} onChange={set("fc")} l="Frecuencia cardíaca" u="lpm" ph="72" alerta={fueraDeRango("fc", num(f.fc))} />
+                  <CampoVital value={f.fr} onChange={set("fr")} l="Frecuencia respiratoria" u="rpm" ph="16" alerta={fueraDeRango("fr", num(f.fr))} />
+                  <CampoVital value={f.temp} onChange={set("temp")} l="Temperatura" u="°C" ph="36.5" alerta={fueraDeRango("temp", num(f.temp))} />
+                  <CampoVital value={f.spo2} onChange={set("spo2")} l="Saturación O₂" u="%" ph="98" alerta={fueraSpo2(num(f.spo2))} />
+                  <CampoVital value={f.peso} onChange={set("peso")} l="Peso" u="kg" ph="70" />
+                  <CampoVital value={f.talla} onChange={set("talla")} l="Talla" u="cm" ph="170" />
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <div className={`inline-flex items-center gap-3 rounded-xl px-4 py-2 ring-1 ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em] opacity-80">IMC</span>
+                    <span className="font-display text-xl font-semibold tabular-nums">{imc ? imc.valor : "—"}</span>
+                    <span className="text-xs font-medium">{imc ? imc.texto : "Cargá peso y talla"}</span>
+                  </div>
+                  {pr && <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[pr.tono]}`}>Presión arterial: {pr.nivel}</span>}
+                </div>
+              </PasoHC>
+
+              <PasoHC n={2} t="Clasificación de triage" sub="Prioridad de atención (opcional)">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 2xl:grid-cols-5">
+                  {NIVELES_TRIAGE.map((n) => {
+                    const on = nivel === n.id;
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => setNivel(on ? "" : n.id)}
+                        className={`rounded-xl p-3 text-left ring-1 transition-all ${on ? `${n.clase} shadow-md` : "bg-background ring-border hover:-translate-y-0.5"}`}
+                      >
+                        <p className="flex items-center gap-1.5 whitespace-nowrap text-sm font-bold">{!on && <span className={`size-2.5 shrink-0 rounded-full ${n.punto}`} />} {n.nombre}</p>
+                        <p className={`mt-0.5 text-[11px] leading-snug ${on ? "opacity-90" : "text-muted-foreground"}`}>{n.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PasoHC>
+
+              <PasoHC n={3} t="Motivo y observaciones" sub="Lo que refiere el paciente y notas de enfermería">
+                <div className="grid gap-3">
+                  <input value={f.motivo} onChange={set("motivo")} placeholder="Motivo referido por el paciente (ej.: control, dolor de cabeza desde ayer)" className={inp} />
+                  <textarea rows={3} value={f.obs} onChange={set("obs")} placeholder="Observaciones de enfermería" className={inp + " h-auto resize-y py-3"} />
+                </div>
+              </PasoHC>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-secondary/40 px-6 py-4">
+            <p className="text-xs text-muted-foreground">Queda registrado a nombre de {user.nombre} con fecha y hora, y se envía a la Historia Clínica.</p>
+            <Button type="submit" disabled={!pac} className="rounded-xl px-6"><Check className="size-4" /> Guardar signos vitales</Button>
+          </div>
+        </form>
+      </div>
+
+      {pac && previos.length > 0 && (
+        <Seccion icon={Activity} titulo={`Mediciones anteriores · ${pac.nombre}`} sub="Últimos registros de enfermería">
+          <ul className="space-y-2">
+            {previos.slice(0, 5).map((t) => (
+              <li key={t.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 px-3.5 py-2.5">
+                <span className="w-32 shrink-0 text-xs tabular-nums text-muted-foreground">{fechaHora(t.fecha)}</span>
+                <div className="min-w-0 flex-1"><ChipsSignos s={t.signos} /></div>
+                <span className="text-xs text-muted-foreground">{t.enfermera}</span>
+              </li>
+            ))}
+          </ul>
+        </Seccion>
+      )}
+
+      <Seccion
+        icon={ClipboardList}
+        titulo="Registros de hoy"
+        sub={`${lista.length} ${lista.length === 1 ? "registro" : "registros"}`}
+        acciones={
+          <div className="flex gap-1 rounded-xl bg-secondary p-1">
+            {([["todos", "Todos"], ["espera", "Esperando médico"], ["atendidos", "Atendidos"]] as const).map(([id, l]) => (
+              <button key={id} onClick={() => setVer(id)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${ver === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+            ))}
+          </div>
+        }
+      >
+        {lista.length === 0 ? (
+          <Vacio icon={Activity} texto="Todavía no hay registros de enfermería para mostrar." />
+        ) : (
+          <ul className="space-y-2.5">
+            {lista.map((t) => {
+              const n = nivelTriage(t.nivel);
+              return (
+                <li key={t.id} className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card p-4 lg:flex-row lg:items-center">
+                  <div className="flex min-w-0 items-center gap-3 lg:w-64">
+                    <Avatar nombre={t.paciente} size="size-10" />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold">{t.paciente}</p>
+                      <p className="text-[11px] text-muted-foreground">{new Date(t.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {t.enfermera}</p>
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <ChipsSignos s={t.signos} />
+                    {t.motivo && <p className="text-xs text-muted-foreground">Motivo: {t.motivo}</p>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {n && <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${n.clase}`}>{n.nombre}</span>}
+                    {t.evolucionId ? (
+                      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Atendido · {nombreCorto(t.atendidoPor ?? "")}</span>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">Esperando médico</span>
+                    )}
+                    {esMedico && (
+                      <Button size="sm" className="rounded-xl" onClick={() => abrirHistoria(t.pacienteId)}><FileText className="size-3.5" /> Atender</Button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Seccion>
+
+      {esMedico && <PersonalEnfermeria user={user} log={log} />}
+    </div>
+  );
+}
+
+/** Alta y baja del personal de enfermería (solo médicos). */
+function PersonalEnfermeria({ user, log }: { user: SessionUser; log: LogFn }) {
+  const [lista, setLista] = useDato<Enfermera[]>(KEY_ENFERMERIA, []);
+  const [nombre, setNombre] = useState("");
+  const [doc, setDoc] = useState("");
+  const agregar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    const n = JSON.parse(JSON.stringify({ id: `enf-${nuevoId()}`, nombre: nombre.trim(), documento: doc.trim() || undefined, activo: true, creado: new Date().toISOString(), creadoPor: user.nombre })) as Enfermera;
+    setLista((p) => [...p, n]);
+    log("Personal de enfermería habilitado", n.nombre);
+    toast.success(`${n.nombre} ya puede ingresar en Acceso → Enfermería y crear su contraseña.`);
+    setNombre("");
+    setDoc("");
+  };
+  return (
+    <Seccion icon={KeyRound} titulo="Personal de enfermería" sub="Solo los médicos pueden dar de alta o bloquear el acceso">
+      <form onSubmit={agregar} className="mb-5 grid gap-3 sm:grid-cols-[1fr_200px_auto]">
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellido (ej.: Enf. Laura Pérez)" className={inp} />
+        <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp} />
+        <Button type="submit" className="h-11 rounded-xl"><Plus className="size-4" /> Dar de alta</Button>
+      </form>
+      {lista.length === 0 ? (
+        <Vacio icon={Syringe} texto="Todavía no hay personal de enfermería. Al darlo de alta, entra por el acceso del panel eligiendo Enfermería." />
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {lista.map((n) => (
+            <li key={n.id} className="flex flex-wrap items-center gap-3 py-3">
+              <Avatar nombre={n.nombre} size="size-9" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{n.nombre}</p>
+                <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)} · {tieneClave(n.id) ? "Contraseña creada" : "Todavía no ingresó"}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${n.activo ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-red-100 text-red-700 ring-red-200"}`}>{n.activo ? "Habilitada" : "Bloqueada"}</span>
+              {tieneClave(n.id) && (
+                <button onClick={() => { borrarClave(n.id); log("Contraseña de enfermería reiniciada", n.nombre); toast.success("La próxima vez que ingrese va a crear una contraseña nueva."); setLista((p) => [...p]); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Reiniciar contraseña</button>
+              )}
+              <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Enfermería bloqueada" : "Enfermería habilitada", n.nombre); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
+                {n.activo ? "Bloquear" : "Habilitar"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Seccion>
   );
 }

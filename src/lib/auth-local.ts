@@ -5,7 +5,8 @@ const AUDIT_KEY = "gb_audit";
 const PW_KEY = "gb_admin_pw_";
 
 export type Admin = { id: string; nombre: string };
-export type SessionUser = { id: string; nombre: string };
+export type Rol = "medico" | "enfermeria";
+export type SessionUser = { id: string; nombre: string; rol?: Rol };
 export type Evento = { id: string; fecha: string; usuario: string; accion: string; detalle: string };
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -14,6 +15,28 @@ export const ADMINS: Admin[] = [
   { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
   { id: "alonso", nombre: "Dr. Alonso Gómez Bolaño" },
 ];
+
+/* ---------- Personal de enfermería (lo dan de alta los médicos) ---------- */
+export type Enfermera = { id: string; nombre: string; documento?: string; activo: boolean; creado: string; creadoPor: string };
+export const KEY_ENFERMERIA = "gb_enfermeria";
+export function listarEnfermeras(): Enfermera[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(localStorage.getItem(KEY_ENFERMERIA) ?? "[]") as Enfermera[];
+  } catch {
+    return [];
+  }
+}
+/** Busca un usuario habilitado: médicos o enfermería activa. */
+export function usuarioPorId(id: string): (SessionUser & { rol: Rol }) | null {
+  const a = ADMINS.find((x) => x.id === id);
+  if (a) return { id: a.id, nombre: a.nombre, rol: "medico" };
+  const e = listarEnfermeras().find((x) => x.id === id && x.activo);
+  return e ? { id: e.id, nombre: e.nombre, rol: "enfermeria" } : null;
+}
+export function borrarClave(id: string) {
+  localStorage.removeItem(PW_KEY + id);
+}
 
 async function hash(texto: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
@@ -48,7 +71,7 @@ export function tieneClave(id: string): boolean {
 }
 
 export async function crearClave(id: string, password: string): Promise<Result> {
-  const admin = ADMINS.find((a) => a.id === id);
+  const admin = usuarioPorId(id);
   if (!admin) return { ok: false, error: "Usuario no autorizado." };
   if (tieneClave(id)) return { ok: false, error: "Este usuario ya tiene contraseña." };
   if (password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
@@ -58,7 +81,7 @@ export async function crearClave(id: string, password: string): Promise<Result> 
 }
 
 export async function ingresar(id: string, password: string): Promise<Result> {
-  const admin = ADMINS.find((a) => a.id === id);
+  const admin = usuarioPorId(id);
   if (!admin) return { ok: false, error: "Usuario no autorizado." };
   const guardado = localStorage.getItem(PW_KEY + id);
   if (!guardado) return { ok: false, error: "Este usuario todavía no creó su contraseña." };
@@ -66,8 +89,8 @@ export async function ingresar(id: string, password: string): Promise<Result> {
     auditar(admin.nombre, "Intento de acceso fallido", "Contraseña incorrecta");
     return { ok: false, error: "Contraseña incorrecta." };
   }
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ id: admin.id, nombre: admin.nombre }));
-  auditar(admin.nombre, "Inicio de sesión", "Acceso al panel administrativo");
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ id: admin.id, nombre: admin.nombre, rol: admin.rol }));
+  auditar(admin.nombre, "Inicio de sesión", admin.rol === "enfermeria" ? "Acceso a Enfermería – Triage" : "Acceso al panel administrativo");
   return { ok: true };
 }
 
@@ -85,7 +108,7 @@ export function sesionActual(): SessionUser | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as SessionUser;
-    return ADMINS.some((a) => a.id === s.id) ? s : null;
+    return usuarioPorId(s.id);
   } catch {
     return null;
   }
@@ -487,6 +510,25 @@ export const KEY_FACTURAS = "gb_facturas";
 export const KEY_AUTOS = "gb_automatizaciones";
 export const KEY_AUTOS_HECHAS = "gb_automatizaciones_hechas";
 
+/* ---------- Enfermería – Triage ---------- */
+export type NivelTriage = "I" | "II" | "III" | "IV" | "V";
+export type Triage = {
+  id: string;
+  pacienteId: string;
+  paciente: string;
+  fecha: string; // ISO con hora
+  enfermeraId: string;
+  enfermera: string;
+  nivel?: NivelTriage;
+  motivo?: string;
+  observaciones?: string;
+  signos: { sistolica?: number; diastolica?: number; pulso?: number; fr?: number; temp?: number; spo2?: number; peso?: number; talla?: number; imc?: number };
+  /** Se completa cuando el médico usa estos signos en la evolución. */
+  atendidoPor?: string;
+  evolucionId?: string;
+};
+export const KEY_TRIAGE = "gb_triage";
+
 /* ---------- Historia clínica (evoluciones de cada consulta) ---------- */
 export const ESPECIALIDADES_HC = ["Cardiología", "Nefrología", "Medicina Interna"] as const;
 export type EspecialidadHC = (typeof ESPECIALIDADES_HC)[number];
@@ -499,13 +541,19 @@ export type Evolucion = {
   /** Solo en evoluciones viejas; la historia clínica ahora es general. */
   especialidad?: EspecialidadHC;
   motivo: string;
-  /** Texto de la evolución (anamnesis, examen físico, valoración). */
+  /** Evolución del cuadro clínico (enfermedad actual). */
   nota: string;
-  /** Indicaciones. */
+  sintomas?: string;
+  /** Semiología médica / examen físico. */
+  semiologia?: string;
+  /** Conducta médica e indicaciones. */
   plan?: string;
+  triageId?: string;
+  /** Quién tomó los signos vitales y cuándo (enfermería o el propio médico). */
+  signosPor?: { nombre: string; fecha: string; rol: Rol };
   diagnosticos: string[];
   cie10?: { codigo: string; descripcion: string }[];
-  signos: { sistolica?: number; diastolica?: number; pulso?: number; fr?: number; temp?: number; peso?: number; talla?: number; imc?: number };
+  signos: { sistolica?: number; diastolica?: number; pulso?: number; fr?: number; temp?: number; spo2?: number; peso?: number; talla?: number; imc?: number };
   cardio?: { fevi?: number; ritmo?: string; nyha?: string };
   nefro?: { creatinina?: number; egfr?: number; potasio?: number; proteinuria?: number };
 };

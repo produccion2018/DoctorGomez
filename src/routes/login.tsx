@@ -11,11 +11,12 @@ import {
   Lock,
   ShieldCheck,
   Stethoscope,
+  Syringe,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ADMINS, crearClave, ingresar, sesionActual, tieneClave } from "@/lib/auth-local";
+import { ADMINS, crearClave, ingresar, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Rol } from "@/lib/auth-local";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -32,6 +33,8 @@ const inputClass =
 
 function Login() {
   const navigate = useNavigate();
+  const [rol, setRol] = useState<Rol>("medico");
+  const [enfermeras, setEnfermeras] = useState<Enfermera[]>([]);
   const [adminId, setAdminId] = useState<string>(ADMINS[0]!.id);
   const [primera, setPrimera] = useState(false);
   const [password, setPassword] = useState("");
@@ -41,9 +44,17 @@ function Login() {
 
   useEffect(() => {
     if (sesionActual()) navigate({ to: "/panel" });
+    setEnfermeras(listarEnfermeras().filter((e) => e.activo));
   }, [navigate]);
 
+  const cambiarRol = (r: Rol) => {
+    setRol(r);
+    const primeraId = r === "medico" ? ADMINS[0]!.id : (listarEnfermeras().find((e) => e.activo)?.id ?? "");
+    setAdminId(primeraId);
+  };
+
   useEffect(() => {
+    if (!adminId) return;
     setPrimera(!tieneClave(adminId));
     setPassword("");
     setPassword2("");
@@ -51,6 +62,7 @@ function Login() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!adminId) return toast.error("Elegí tu usuario.");
     if (primera) {
       if (password.length < 6) return toast.error("La contraseña debe tener al menos 6 caracteres.");
       if (password !== password2) return toast.error("Las contraseñas no coinciden.");
@@ -136,7 +148,7 @@ function Login() {
             <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-primary">
               <ShieldCheck className="size-3.5" /> Acceso restringido
             </span>
-            <h1 className="text-3xl font-semibold">{primera ? "Creá tu contraseña" : "Panel administrativo"}</h1>
+            <h1 className="text-3xl font-semibold">{primera ? "Creá tu contraseña" : rol === "enfermeria" ? "Enfermería – Triage" : "Panel administrativo"}</h1>
             <p className="text-sm text-muted-foreground">
               {primera
                 ? "Es tu primer ingreso. Elegí una contraseña personal para entrar al panel."
@@ -145,8 +157,23 @@ function Login() {
           </div>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-6">
+            <div className="lg-up grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1" style={{ animationDelay: ".1s" }} role="tablist">
+              {([["medico", "Médicos", Stethoscope], ["enfermeria", "Enfermería", Syringe]] as const).map(([r, l, Ic]) => (
+                <button
+                  key={r}
+                  type="button"
+                  role="tab"
+                  aria-selected={rol === r}
+                  onClick={() => cambiarRol(r)}
+                  className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all ${rol === r ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Ic className="size-4" /> {l}
+                </button>
+              ))}
+            </div>
+
             <div className="lg-up grid gap-3" style={{ animationDelay: ".15s" }}>
-              {ADMINS.map((a) => {
+              {(rol === "medico" ? ADMINS.map((a) => ({ id: a.id, nombre: a.nombre, sub: "Médico · Administrador" })) : enfermeras.map((e) => ({ id: e.id, nombre: e.nombre, sub: "Enfermería · Triage" }))).map((a) => {
                 const activo = a.id === adminId;
                 return (
                   <button
@@ -159,15 +186,20 @@ function Login() {
                     }`}
                   >
                     <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl transition-colors ${activo ? "gradient-deep text-deep-foreground" : "bg-secondary text-primary"}`}>
-                      <Stethoscope className="size-5" />
+                      {rol === "medico" ? <Stethoscope className="size-5" /> : <Syringe className="size-5" />}
                     </span>
                     <span className="leading-tight">
                       <span className="block font-semibold">{a.nombre}</span>
-                      <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Administrador</span>
+                      <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{a.sub}</span>
                     </span>
                   </button>
                 );
               })}
+              {rol === "enfermeria" && enfermeras.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  Todavía no hay personal de enfermería habilitado. Un médico lo da de alta desde <b>Enfermería – Triage</b> en el panel.
+                </div>
+              )}
             </div>
 
             <div className="lg-up space-y-1.5" style={{ animationDelay: ".25s" }}>
@@ -224,7 +256,7 @@ function Login() {
           </form>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            Solo los directores médicos tienen acceso. Cada ingreso queda registrado en la auditoría.
+            Acceso solo para médicos y personal de enfermería habilitado. Cada ingreso queda registrado en la auditoría.
           </p>
         </div>
       </div>
