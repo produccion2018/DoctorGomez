@@ -3997,19 +3997,54 @@ function HistoriaTab({ user, log, turnos, inicial }: { user: SessionUser; log: L
 
   const esDe = (p: PacienteHC, id: string) => id === p.id || id === p.portalId;
   const ultimaDe = (p: PacienteHC) => evols.filter((e) => esDe(p, e.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
-  const visibles = pacientes.filter((p) => !q || norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q)));
+  const [vista, setVista] = useState<"todas" | "hoy" | "conHistoria" | null>(null);
+  const conHistoria = (p: PacienteHC) => evols.some((e) => esDe(p, e.pacienteId));
+  const visibles = pacientes.filter((p) => (!q || norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q))) && (vista !== "conHistoria" || conHistoria(p)));
   const sel = pacientes.find((p) => p.id === selId) ?? null;
   const hoyIso = isoDe(new Date());
+  const evolsHoy = evols.filter((e) => diaLocal(e.fecha) === hoyIso);
+  const listaKpi = [...(vista === "hoy" ? evolsHoy : evols)].sort((a, b) => b.fecha.localeCompare(a.fecha));
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi icon={FileText} label="Evoluciones" value={String(evols.length)} hint="Registradas en total" />
-        <Kpi icon={CalendarCheck} label="Hoy" value={String(evols.filter((e) => diaLocal(e.fecha) === hoyIso).length)} hint="Consultas registradas hoy" tono="verde" delay={0.05} />
-        <Kpi icon={Users} label="Pacientes con historia" value={String(new Set(evols.map((e) => e.pacienteId)).size)} hint={`de ${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"}`} tono="violeta" delay={0.1} />
+        <Kpi icon={FileText} label="Evoluciones" value={String(evols.length)} hint="Registradas en total" onClick={() => setVista(vista === "todas" ? null : "todas")} activo={vista === "todas"} />
+        <Kpi icon={CalendarCheck} label="Hoy" value={String(evolsHoy.length)} hint="Consultas registradas hoy" tono="verde" delay={0.05} onClick={() => setVista(vista === "hoy" ? null : "hoy")} activo={vista === "hoy"} />
+        <Kpi icon={Users} label="Pacientes con historia" value={String(pacientes.filter(conHistoria).length)} hint={`de ${pacientes.length} ${pacientes.length === 1 ? "paciente" : "pacientes"} · filtra la lista`} tono="violeta" delay={0.1} onClick={() => setVista(vista === "conHistoria" ? null : "conHistoria")} activo={vista === "conHistoria"} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
+      {(vista === "todas" || vista === "hoy") && (
+        <Seccion icon={FileText} titulo={vista === "hoy" ? "Consultas de hoy" : "Todas las evoluciones"} sub={`${listaKpi.length} ${listaKpi.length === 1 ? "evolución" : "evoluciones"} · tocá una para abrir la historia`}>
+          {listaKpi.length === 0 ? (
+            <Vacio icon={FileText} texto={vista === "hoy" ? "Hoy todavía no se registraron consultas." : "Todavía no hay evoluciones registradas."} />
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {listaKpi.map((e) => {
+                const dx0 = dxDe(e)[0];
+                const pac = pacientes.find((p) => esDe(p, e.pacienteId));
+                return (
+                  <li key={e.id}>
+                    <button
+                      onClick={() => { if (pac) { setSelId(pac.id); setNueva(false); setVista(null); window.setTimeout(() => document.getElementById("ficha-hc")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); } }}
+                      className="flex w-full flex-wrap items-center gap-3 rounded-xl px-2 py-3 text-left transition hover:bg-secondary"
+                    >
+                      <Avatar nombre={e.paciente} size="size-9" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{e.paciente} <span className="font-normal text-muted-foreground">· {e.motivo || "Consulta"}</span></p>
+                        <p className="truncate text-xs text-muted-foreground">{dx0 ? `${dx0.codigo ? `${dx0.codigo} ` : ""}${dx0.descripcion} · ` : ""}{nombreCorto(e.doctor)}</p>
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">{fechaHora(e.fecha)}</span>
+                      <ArrowRight className="size-4 text-muted-foreground" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Seccion>
+      )}
+
+      <div id="ficha-hc" className="grid scroll-mt-24 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Lista de pacientes */}
         <section className="pn-card pn-up flex max-h-[calc(100vh-10rem)] min-h-[420px] flex-col p-4 xl:sticky xl:top-6">
           <div className="relative">
