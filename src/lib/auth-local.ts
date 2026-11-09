@@ -402,6 +402,25 @@ export type Control = { id: string; pacienteId: string; fecha: string; sistolica
 export type Medicamento = { id: string; pacienteId: string; nombre: string; dosis: string; horarios: string[]; indicacion: string; activo: boolean; tomas: Record<string, boolean> };
 export type ValoresEstudio = { creatinina?: number; egfr?: number; potasio?: number; urea?: number; proteinuria?: number; hemoglobina?: number; ldl?: number; fevi?: number };
 export type Estudio = { id: string; pacienteId: string; tipo: string; fecha: string; titulo: string; informe: string; valores: ValoresEstudio; cargadoPor: string; creado: string };
+/* ---------- Historia clínica (evoluciones de cada consulta) ---------- */
+export const ESPECIALIDADES_HC = ["Cardiología", "Nefrología", "Medicina Interna"] as const;
+export type EspecialidadHC = (typeof ESPECIALIDADES_HC)[number];
+export type Evolucion = {
+  id: string;
+  pacienteId: string;
+  paciente: string;
+  fecha: string; // ISO con hora
+  doctor: string;
+  especialidad: EspecialidadHC;
+  motivo: string;
+  nota: string;
+  plan?: string;
+  diagnosticos: string[];
+  signos: { sistolica?: number; diastolica?: number; pulso?: number; peso?: number };
+  cardio?: { fevi?: number; ritmo?: string; nyha?: string };
+  nefro?: { creatinina?: number; egfr?: number; potasio?: number; proteinuria?: number };
+};
+export const KEY_EVOLUCIONES = "gb_evoluciones";
 export const KEY_CONTROLES = "gb_controles";
 export const KEY_MEDICACION = "gb_medicacion";
 export const KEY_ESTUDIOS = "gb_estudios";

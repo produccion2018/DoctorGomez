@@ -4,6 +4,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  AlertTriangle,
   X,
   Menu,
   ArrowDownLeft,
@@ -79,6 +80,14 @@ import {
   KEY_ESTUDIOS,
   KEY_CONTROLES,
   clasificarPresion,
+  clasificarFevi,
+  estadioRenal,
+  KEY_MEDICACION,
+  KEY_EVOLUCIONES,
+  ESPECIALIDADES_HC,
+  type EspecialidadHC,
+  type Evolucion,
+  type Medicamento,
   type Estudio,
   type Control,
   type ValoresEstudio,
@@ -125,7 +134,7 @@ type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Nivel = "ninguno" | "ver" | "editar";
 type Permisos = Record<string, Record<string, Nivel>>;
-type Tab = "resumen" | "turnos" | "horarios" | "pacientes" | "finanzas" | "permisos" | "asistente" | "auditoria";
+type Tab = "resumen" | "turnos" | "historia" | "horarios" | "pacientes" | "finanzas" | "permisos" | "asistente" | "auditoria";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -258,6 +267,7 @@ const inp =
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "turnos", label: "Turnos", icon: CalendarDays },
+  { id: "historia", label: "Historia", icon: FileText },
   { id: "horarios", label: "Mis horarios", icon: Clock },
   { id: "pacientes", label: "Portal paciente", icon: Users },
   { id: "finanzas", label: "Finanzas", icon: Wallet },
@@ -266,9 +276,55 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "auditoria", label: "Auditoría", icon: ClipboardList },
 ];
 
+type SubNav = { id: string; label: string; badge?: () => number };
+type ItemNav = { id: Tab; label: string; icon: LucideIcon; tono: string; sub?: SubNav[] };
+const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
+  {
+    grupo: "Consultorio",
+    items: [
+      { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
+      { id: "turnos", label: "Agenda y turnos", icon: CalendarDays, tono: "text-sky-300" },
+      {
+        id: "historia",
+        label: "Historia clínica",
+        icon: FileText,
+        tono: "text-rose-300",
+        sub: [
+          { id: "todas", label: "Todas las historias" },
+          { id: "Cardiología", label: "Cardiología" },
+          { id: "Nefrología", label: "Nefrología" },
+          { id: "Medicina Interna", label: "Medicina Interna" },
+        ],
+      },
+      { id: "pacientes", label: "Pacientes y portal", icon: Users, tono: "text-sky-300" },
+    ],
+  },
+  { grupo: "Agenda médica", items: [{ id: "horarios", label: "Mis horarios", icon: Clock, tono: "text-teal-300" }] },
+  {
+    grupo: "Administración",
+    items: [
+      {
+        id: "finanzas",
+        label: "Finanzas",
+        icon: Wallet,
+        tono: "text-emerald-300",
+        sub: [
+          { id: "cobros", label: "Cobros a pacientes" },
+          { id: "caja", label: "Control de caja" },
+          { id: "resumen", label: "Resumen financiero" },
+        ],
+      },
+      { id: "permisos", label: "Permisos y accesos", icon: KeyRound, tono: "text-violet-300" },
+    ],
+  },
+  { grupo: "Inteligencia", items: [{ id: "asistente", label: "Asistente IA", icon: Bot, tono: "text-violet-300" }] },
+  { grupo: "Sistema", items: [{ id: "auditoria", label: "Auditoría", icon: ClipboardList, tono: "text-slate-300" }] },
+];
+
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
   turnos: ["Turnos", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
+  historia: ["Historia clínica", "Evoluciones, presión arterial, función renal y estudios de cada paciente."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
@@ -283,6 +339,9 @@ function Panel() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [tab, setTab] = useState<Tab>("resumen");
   const [menu, setMenu] = useState(false);
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
+  const [finVista, setFinVista] = useState<VistaFin>("cobros");
+  const [hcFiltro, setHcFiltro] = useState<FiltroHC>("todas");
   const [turnos, setTurnos] = usePersist<Turno[]>("gb_turnos", SEED_TURNOS);
   const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
   const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
@@ -347,94 +406,161 @@ function Panel() {
     setMenu(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+  const subActual = (id: Tab) => (id === "finanzas" ? finVista : id === "historia" ? hcFiltro : "");
+  const irSub = (id: Tab, sub: string) => {
+    if (id === "finanzas") setFinVista(sub as VistaFin);
+    if (id === "historia") setHcFiltro(sub as FiltroHC);
+    irTab(id);
+  };
   const interiorSidebar = (
-    <>
-        <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
-        <div className="pn-orb pointer-events-none absolute -bottom-20 -left-16 size-64 rounded-full bg-sky-300/10 blur-3xl" style={{ animationDelay: "-5s" }} />
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0a1226] text-white">
+      {/* Brillos de fondo (estilo Cloud Esther, en azul clínico y rojo cardio) */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(56,132,246,0.28),transparent_48%),radial-gradient(circle_at_100%_55%,rgba(244,63,94,0.12),transparent_42%),radial-gradient(circle_at_0%_100%,rgba(14,165,233,0.16),transparent_45%)]" />
 
-        <div className="relative flex items-center justify-between gap-3 px-5 pb-2 pt-5 lg:px-6 lg:pt-6">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 backdrop-blur">
-              <Activity className="size-5" />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* Logo */}
+        <div className="flex items-center justify-between gap-3 px-4 py-4">
+          <Link to="/" className="flex items-center gap-2.5">
+            <span className="relative shrink-0">
+              <span aria-hidden className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-sky-400 to-rose-500 opacity-50 blur-md" />
+              <span className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-blue-800 ring-1 ring-white/25">
+                <Activity className="size-[18px]" />
+              </span>
             </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold">Gómez Bolaño</p>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-deep-foreground/65">Administración</p>
-            </div>
-          </div>
-          <button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-deep-foreground/80 outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40 lg:hidden">
+            <span className="leading-tight">
+              <span className="block font-display text-[15px] font-semibold tracking-tight">Gómez Bolaño</span>
+              <span className="block text-[10px] uppercase tracking-[0.18em] text-white/50">Cardio · Nefro</span>
+            </span>
+          </Link>
+          <button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-white/80 hover:bg-white/10 lg:hidden">
             <X className="size-5" />
           </button>
         </div>
 
-        <div className="relative mx-4 mt-4 rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              {foto ? (
-                <img src={foto} alt={user.nombre} className="size-12 rounded-xl object-cover object-top ring-2 ring-white/30" />
-              ) : (
-                <span className="flex size-12 items-center justify-center rounded-xl bg-white/20 text-sm font-semibold">{iniciales(user.nombre)}</span>
-              )}
-              <span className="pn-online absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-[var(--deep)]" />
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-semibold">{corto}</p>
-              <p className="truncate text-[11px] text-deep-foreground/70">{user.nombre.replace(/^Dr\.\s*/, "")}</p>
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.14em]">
-                <ShieldCheck className="size-3" /> Administrador
-              </span>
-            </div>
+        {/* Médico activo */}
+        <div className="relative mx-3 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 p-3 shadow-[0_14px_30px_-18px_rgba(37,99,235,0.95)]">
+          <span aria-hidden className="pointer-events-none absolute -right-6 -top-8 size-20 rounded-full bg-white/20 blur-xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-8 -left-4 size-16 rounded-full bg-rose-400/30 blur-xl" />
+          <span className="relative shrink-0">
+            {foto ? (
+              <img src={foto} alt={user.nombre} className="size-10 rounded-xl object-cover object-top ring-2 ring-white/40" />
+            ) : (
+              <span className="flex size-10 items-center justify-center rounded-xl bg-white/20 text-xs font-bold ring-1 ring-white/30">{iniciales(user.nombre)}</span>
+            )}
+            <span className="pn-online absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-blue-700" />
+          </span>
+          <div className="relative min-w-0 flex-1 leading-tight">
+            <p className="truncate font-display text-sm font-bold">{corto}</p>
+            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-white/80">
+              {user.id === "alonso" ? <HeartPulse className="size-3 shrink-0" /> : <Droplets className="size-3 shrink-0" />}
+              {user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador
+            </p>
           </div>
         </div>
 
-        <p className="relative px-7 pb-2 pt-6 text-[10px] [@media(max-height:700px)]:pt-3 font-semibold uppercase tracking-[0.22em] text-deep-foreground/50">Gestión</p>
-        <nav className="pn-noscroll relative flex flex-1 flex-col gap-1.5 overflow-y-auto px-4">
-          {NAV.map((n) => {
-            const activo = tab === n.id;
-            const badge = badges[n.id];
-            return (
-              <button
-                key={n.id}
-                onClick={() => irTab(n.id)}
-                aria-current={activo ? "page" : undefined}
-                className={`group relative flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-300 focus-visible:ring-2 focus-visible:ring-white/40 ${
-                  activo
-                    ? "bg-white text-[var(--deep)] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]"
-                    : "text-deep-foreground/75 hover:translate-x-1 hover:bg-white/10 hover:text-deep-foreground"
-                }`}
-              >
-                <span className={`flex size-8 items-center justify-center rounded-lg transition-colors ${activo ? "gradient-deep text-white" : "bg-white/10 text-deep-foreground group-hover:bg-white/15"}`}>
-                  <n.icon className="size-4" />
-                </span>
-                <span className="pr-1">{n.label}</span>
-                {n.id === "asistente" && !activo && (
-                  <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-2 py-0.5 text-[10px] font-bold text-white">IA</span>
-                )}
-                {!!badge && (
-                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold ${activo ? "bg-[var(--deep)] text-white" : "bg-white/20 text-deep-foreground"}`}>
-                    {badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        {/* Navegación agrupada */}
+        <nav className="pn-noscroll min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 pb-6 pt-1 [mask-image:linear-gradient(to_bottom,transparent,#000_10px,#000_calc(100%-28px),transparent)]">
+          {GRUPOS_NAV.map((g) => (
+            <div key={g.grupo}>
+              <p className="flex items-center gap-2 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+                <span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />
+                {g.grupo}
+              </p>
+              <ul className="space-y-0.5">
+                {g.items.map((n) => {
+                  const activo = tab === n.id;
+                  const badge = badges[n.id];
+                  const abierto = n.sub ? (abiertos[n.id] ?? activo) : false;
+                  return (
+                    <li key={n.id}>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            irTab(n.id);
+                            if (n.sub) setAbiertos((p) => ({ ...p, [n.id]: true }));
+                          }}
+                          aria-current={activo ? "page" : undefined}
+                          className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/40 ${n.sub ? "pr-9" : ""} ${
+                            activo
+                              ? "bg-gradient-to-r from-sky-500 to-blue-600 font-semibold text-white shadow-[0_10px_24px_-14px_rgba(56,132,246,0.95)]"
+                              : "text-white/75 hover:translate-x-0.5 hover:bg-white/[0.07] hover:text-white"
+                          }`}
+                        >
+                          <n.icon className={`size-4 shrink-0 ${activo ? "text-white" : n.tono}`} />
+                          <span className="truncate">{n.label}</span>
+                          {n.id === "asistente" && !activo && (
+                            <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">IA</span>
+                          )}
+                          {!!badge && !n.sub && (
+                            <span className={`ml-auto grid min-w-5 place-items-center rounded-full px-1.5 text-[10px] font-bold ${activo ? "bg-white text-blue-700" : "bg-rose-500 text-white"}`}>{badge > 99 ? "99+" : badge}</span>
+                          )}
+                        </button>
+                        {n.sub && (
+                          <button
+                            type="button"
+                            aria-label={abierto ? `Contraer ${n.label}` : `Desplegar ${n.label}`}
+                            aria-expanded={abierto}
+                            onClick={() => setAbiertos((p) => ({ ...p, [n.id]: !abierto }))}
+                            className={`absolute right-1.5 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md transition-colors ${activo ? "text-white hover:bg-white/15" : "text-white/55 hover:bg-white/10 hover:text-white"}`}
+                          >
+                            <ChevronDown className={`size-3.5 transition-transform duration-200 ${abierto ? "rotate-180" : ""}`} />
+                          </button>
+                        )}
+                      </div>
+                      {n.sub && (
+                        <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${abierto ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`} aria-hidden={!abierto}>
+                          <div className="overflow-hidden">
+                            <ul className="ml-4 mt-0.5 space-y-0.5 border-l border-white/10 pl-2">
+                              {n.sub.map((s) => {
+                                const subActivo = activo && subActual(n.id) === s.id;
+                                return (
+                                  <li key={s.id}>
+                                    <button
+                                      tabIndex={abierto ? 0 : -1}
+                                      onClick={() => irSub(n.id, s.id)}
+                                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] transition-colors ${subActivo ? "bg-white/10 font-medium text-white" : "text-white/60 hover:bg-white/[0.06] hover:text-white"}`}
+                                    >
+                                      <span className={`size-1.5 shrink-0 rounded-full ${subActivo ? "bg-sky-300 shadow-[0_0_8px_rgba(125,211,252,.9)]" : "bg-white/25"}`} />
+                                      <span className="truncate">{s.label}</span>
+                                      {s.badge?.() ? <span className="ml-auto rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{s.badge()}</span> : null}
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        <div className="relative space-y-3 p-4">
-          <div className="rounded-2xl bg-black/15 p-4 ring-1 ring-white/10 [@media(max-height:760px)]:hidden">
-            <p className="font-display text-2xl font-semibold tabular-nums">{hora}</p>
-            <p className="text-xs capitalize text-deep-foreground/70">{fechaLarga}</p>
+        {/* Pie: hora y accesos */}
+        <div className="relative space-y-2.5 border-t border-white/10 p-3">
+          <div className="flex items-center justify-between rounded-xl bg-white/[0.06] px-3 py-2.5 ring-1 ring-white/10 [@media(max-height:720px)]:hidden">
+            <div className="leading-tight">
+              <p className="font-display text-lg font-semibold tabular-nums">{hora}</p>
+              <p className="text-[11px] capitalize text-white/55">{fechaLarga}</p>
+            </div>
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+              <span className="size-1.5 rounded-full bg-emerald-400" /> En línea
+            </span>
           </div>
           <div className="flex gap-2">
-            <Button asChild size="sm" variant="outline" className="flex-1 rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
-              <Link to="/"><ExternalLink className="size-4" /> Ver sitio</Link>
-            </Button>
-            <Button size="sm" variant="outline" onClick={salir} className="flex-1 rounded-xl !border-red-300/30 !bg-red-500/15 text-deep-foreground hover:!bg-red-500/30 hover:text-deep-foreground">
-              <LogOut className="size-4" /> Salir
-            </Button>
+            <Link to="/" className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] py-2 text-xs font-medium text-white/80 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white">
+              <ExternalLink className="size-3.5" /> Ver sitio
+            </Link>
+            <button onClick={salir} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-500/15 py-2 text-xs font-medium text-red-200 ring-1 ring-red-400/25 transition hover:bg-red-500/25 hover:text-white">
+              <LogOut className="size-3.5" /> Salir
+            </button>
           </div>
         </div>
-          </>
+      </div>
+    </div>
   );
 
   return (
@@ -523,7 +649,7 @@ function Panel() {
       `}</style>
 
       {/* ───────── SIDEBAR (escritorio) ───────── */}
-      <aside className="pn-noscroll relative hidden overflow-hidden gradient-deep text-deep-foreground lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
+      <aside className="relative hidden overflow-hidden border-r border-white/5 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
         {interiorSidebar}
       </aside>
 
@@ -541,7 +667,7 @@ function Panel() {
       {menu && (
         <div className="fixed inset-0 z-[80] lg:hidden">
           <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setMenu(false)} />
-          <aside className="pn-noscroll absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-y-auto gradient-deep text-deep-foreground shadow-2xl animate-in slide-in-from-left duration-300">
+          <aside className="absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-hidden shadow-2xl animate-in slide-in-from-left duration-300">
             {interiorSidebar}
           </aside>
         </div>
@@ -550,7 +676,7 @@ function Panel() {
       {/* ───────── NAVEGACIÓN INFERIOR (celular) ───────── */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-          {([...NAV.filter((n) => ["resumen", "turnos", "pacientes", "finanzas"].includes(n.id))] as typeof NAV).map((n) => {
+          {([...NAV.filter((n) => ["resumen", "turnos", "historia", "pacientes"].includes(n.id))] as typeof NAV).map((n) => {
             const on = tab === n.id;
             const b = badges[n.id];
             return (
@@ -626,9 +752,10 @@ function Panel() {
 
         {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
         {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
+        {tab === "historia" && <HistoriaTab user={user} log={log} turnos={turnos} filtro={hcFiltro} setFiltro={setHcFiltro} />}
         {tab === "horarios" && <HorariosTab user={user} log={log} />}
         {tab === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
-        {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} />}
+        {tab === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
         {tab === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
         {tab === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
         {tab === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
@@ -752,6 +879,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
 const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   resumen: { a: "56,132,246", b: "99,102,241", c: "14,165,233" },
   turnos: { a: "14,165,233", b: "20,184,166", c: "59,130,246" },
+  historia: { a: "225,29,72", b: "56,132,246", c: "14,165,233" },
   horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
   pacientes: { a: "219,39,119", b: "139,92,246", c: "56,132,246" },
   finanzas: { a: "16,185,129", b: "14,165,233", c: "20,184,166" },
@@ -2012,8 +2140,7 @@ function FinanzasResumen({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatc
 /* ---------- Finanzas: contenedor con subpestañas ---------- */
 type VistaFin = "resumen" | "cobros" | "caja";
 
-function FinanzasTab({ movs, setMovs, log, turnos, user }: { movs: Mov[]; setMovs: Dispatch<SetStateAction<Mov[]>>; log: LogFn; turnos: Turno[]; user: SessionUser }) {
-  const [vista, setVista] = useState<VistaFin>("cobros");
+function FinanzasTab({ movs, setMovs, log, turnos, user, vista, setVista }: { movs: Mov[]; setMovs: Dispatch<SetStateAction<Mov[]>>; log: LogFn; turnos: Turno[]; user: SessionUser; vista: VistaFin; setVista: (v: VistaFin) => void }) {
   const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
   // Los pagos de pacientes también cuentan como ingresos en el resumen.
   const movsTodos: Mov[] = [
@@ -3527,5 +3654,486 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
         </ol>
       </Seccion>
     </div>
+  );
+}
+
+/* ═══════════════════════ HISTORIA CLÍNICA ═══════════════════════ */
+type FiltroHC = "todas" | EspecialidadHC;
+type PacienteHC = { id: string; nombre: string; dni?: string; ficha?: PacientePortal["ficha"]; portal: boolean };
+
+const TONO_HC: Record<string, string> = {
+  verde: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  ambar: "bg-amber-100 text-amber-800 ring-amber-200",
+  naranja: "bg-orange-100 text-orange-800 ring-orange-200",
+  rojo: "bg-red-100 text-red-700 ring-red-200",
+  critico: "bg-red-600 text-white ring-red-700",
+};
+const ESP_HC: Record<EspecialidadHC, { icon: LucideIcon; grad: string; chip: string }> = {
+  Cardiología: { icon: HeartPulse, grad: "from-rose-500 to-red-600", chip: "bg-rose-100 text-rose-700 ring-rose-200" },
+  Nefrología: { icon: Droplets, grad: "from-sky-500 to-blue-700", chip: "bg-sky-100 text-sky-800 ring-sky-200" },
+  "Medicina Interna": { icon: Stethoscope, grad: "from-violet-500 to-indigo-600", chip: "bg-violet-100 text-violet-700 ring-violet-200" },
+};
+const DX_SUGERIDOS: Record<EspecialidadHC, string[]> = {
+  Cardiología: ["Hipertensión arterial", "Cardiopatía isquémica", "Insuficiencia cardíaca", "Fibrilación auricular", "Dislipemia", "Valvulopatía"],
+  Nefrología: ["Enfermedad renal crónica", "Nefropatía diabética", "Nefropatía hipertensiva", "Proteinuria", "Litiasis renal", "Trasplante renal"],
+  "Medicina Interna": ["Diabetes tipo 2", "Hipertensión arterial", "Obesidad", "Anemia", "Hipotiroidismo", "Control de salud"],
+};
+
+function edadDe(nac?: string) {
+  if (!nac) return null;
+  const d = new Date(nac);
+  if (Number.isNaN(d.getTime())) return null;
+  const h = new Date();
+  let e = h.getFullYear() - d.getFullYear();
+  if (h.getMonth() < d.getMonth() || (h.getMonth() === d.getMonth() && h.getDate() < d.getDate())) e--;
+  return e;
+}
+const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
+
+function HistoriaTab({ user, log, turnos, filtro, setFiltro }: { user: SessionUser; log: LogFn; turnos: Turno[]; filtro: FiltroHC; setFiltro: (f: FiltroHC) => void }) {
+  const [portal] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+  const [evols, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
+  const [meds] = useDato<Medicamento[]>(KEY_MEDICACION, []);
+  const [q, setQ] = useState("");
+  const [selId, setSelId] = useState<string | null>(null);
+  const [nueva, setNueva] = useState(false);
+
+  // Pacientes: los del portal + los que solo tienen turnos
+  const pacientes: PacienteHC[] = useMemo(() => {
+    const lista: PacienteHC[] = portal.map((p) => ({ id: p.id, nombre: p.nombre, dni: p.dni, ficha: p.ficha, portal: true }));
+    const nombres = new Set(lista.map((p) => p.nombre.toLowerCase()));
+    turnos.forEach((t) => {
+      const n = t.paciente.trim();
+      if (n && !nombres.has(n.toLowerCase())) {
+        nombres.add(n.toLowerCase());
+        lista.push({ id: t.pacienteId ?? `nombre:${n.toLowerCase()}`, nombre: n, portal: false });
+      }
+    });
+    return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [portal, turnos]);
+
+  const ultimaDe = (id: string) => evols.filter((e) => e.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+  const visibles = pacientes.filter((p) => {
+    if (q && !`${p.nombre} ${p.dni ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
+    if (filtro === "todas") return true;
+    return evols.some((e) => e.pacienteId === p.id && e.especialidad === filtro) || !evols.some((e) => e.pacienteId === p.id);
+  });
+  const sel = pacientes.find((p) => p.id === selId) ?? null;
+
+  const espDoctor: EspecialidadHC = user.id === "alonso" ? "Cardiología" : "Nefrología";
+  const totalCardio = evols.filter((e) => e.especialidad === "Cardiología").length;
+  const totalNefro = evols.filter((e) => e.especialidad === "Nefrología").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Filtro por especialidad */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
+          {(["todas", "Cardiología", "Nefrología", "Medicina Interna"] as FiltroHC[]).map((f) => {
+            const on = filtro === f;
+            const Ic = f === "todas" ? FileText : ESP_HC[f].icon;
+            return (
+              <button key={f} onClick={() => setFiltro(f)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${on ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+                <Ic className="size-4" /> {f === "todas" ? "Todas" : f}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-100 px-3 py-1.5 font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3.5" /> {totalCardio} {totalCardio === 1 ? "evolución" : "evoluciones"} cardio</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1.5 font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3.5" /> {totalNefro} {totalNefro === 1 ? "evolución" : "evoluciones"} nefro</span>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        {/* Lista de pacientes */}
+        <section className="pn-card pn-up flex max-h-[calc(100vh-14rem)] min-h-[420px] flex-col p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o DNI" className={inp + " pl-10"} />
+          </div>
+          <p className="mt-4 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{visibles.length} pacientes</p>
+          <ul className="pn-noscroll mt-2 flex-1 space-y-1 overflow-y-auto">
+            {visibles.map((p) => {
+              const u = ultimaDe(p.id);
+              const on = p.id === selId;
+              const ant = p.ficha?.antecedentes ?? [];
+              return (
+                <li key={p.id}>
+                  <button
+                    onClick={() => { setSelId(p.id); setNueva(false); }}
+                    className={`group flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-[rgba(var(--acc),.12)] ring-1 ring-[rgba(var(--acc),.35)]" : "hover:translate-x-0.5 hover:bg-secondary"}`}
+                  >
+                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${on ? "pn-acc-tile text-white" : "bg-secondary text-foreground"}`}>
+                      {p.nombre.split(" ").slice(0, 2).map((x) => x[0]).join("").toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{p.nombre}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {u ? `${u.especialidad} · ${new Date(u.fecha).toLocaleDateString("es-AR")}` : "Sin evoluciones"}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 gap-1">
+                      {ant.some((a) => /card|infarto|arritmia|marcapasos|hipert/i.test(a)) && <HeartPulse className="size-3.5 text-rose-500" />}
+                      {ant.some((a) => /renal|diálisis/i.test(a)) && <Droplets className="size-3.5 text-sky-500" />}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Todavía no hay pacientes. Aparecen al invitar al portal o al cargar turnos.</li>}
+          </ul>
+        </section>
+
+        {/* Ficha del paciente */}
+        {!sel ? (
+          <section className="pn-card pn-up p-6">
+            <Vacio icon={FileText} titulo="Elegí un paciente" texto="Abrí la historia clínica para ver antecedentes, presión, función renal, estudios y cargar la evolución de la consulta." />
+          </section>
+        ) : (
+          <FichaHC
+            key={sel.id}
+            p={sel}
+            evols={evols.filter((e) => e.pacienteId === sel.id)}
+            estudios={estudios.filter((e) => e.pacienteId === sel.id)}
+            controles={controles.filter((c) => c.pacienteId === sel.id)}
+            meds={meds.filter((m) => m.pacienteId === sel.id && m.activo)}
+            filtro={filtro}
+            nueva={nueva}
+            setNueva={setNueva}
+            espDoctor={espDoctor}
+            onGuardar={(ev) => {
+              setEvols((prev) => [ev, ...prev]);
+              log("Evolución cargada", `${ev.paciente} · ${ev.especialidad}`);
+              toast.success("Evolución guardada en la historia clínica");
+              setNueva(false);
+            }}
+            onBorrar={(id) => {
+              setEvols((prev) => prev.filter((e) => e.id !== id));
+              log("Evolución eliminada", sel.nombre);
+            }}
+            user={user}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FichaHC({
+  p, evols, estudios, controles, meds, filtro, nueva, setNueva, espDoctor, onGuardar, onBorrar, user,
+}: {
+  p: PacienteHC; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; meds: Medicamento[]; filtro: FiltroHC;
+  nueva: boolean; setNueva: (v: boolean) => void; espDoctor: EspecialidadHC; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser;
+}) {
+  const edad = edadDe(p.ficha?.nacimiento);
+  const ordenadas = [...evols].sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  // Últimos valores clínicos (evoluciones, controles del portal y estudios)
+  const presiones = [
+    ...ordenadas.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ f: e.fecha, s: e.signos.sistolica!, d: e.signos.diastolica! })),
+    ...controles.map((c) => ({ f: c.fecha, s: c.sistolica, d: c.diastolica })),
+  ].sort((a, b) => b.f.localeCompare(a.f));
+  const ta = presiones[0];
+  const fevi = [
+    ...ordenadas.filter((e) => e.cardio?.fevi).map((e) => ({ f: e.fecha, v: e.cardio!.fevi! })),
+    ...estudios.filter((e) => e.valores.fevi).map((e) => ({ f: e.fecha, v: e.valores.fevi! })),
+  ].sort((a, b) => b.f.localeCompare(a.f))[0];
+  const egfr = [
+    ...ordenadas.filter((e) => e.nefro?.egfr).map((e) => ({ f: e.fecha, v: e.nefro!.egfr!, cr: e.nefro?.creatinina, k: e.nefro?.potasio })),
+    ...estudios.filter((e) => e.valores.egfr).map((e) => ({ f: e.fecha, v: e.valores.egfr!, cr: e.valores.creatinina, k: e.valores.potasio })),
+  ].sort((a, b) => b.f.localeCompare(a.f))[0];
+
+  // Línea de tiempo: evoluciones + estudios
+  type Item = { tipo: "evol"; f: string; e: Evolucion } | { tipo: "estudio"; f: string; e: Estudio };
+  const linea: Item[] = [
+    ...ordenadas.filter((e) => filtro === "todas" || e.especialidad === filtro).map((e) => ({ tipo: "evol" as const, f: e.fecha, e })),
+    ...estudios
+      .filter((e) => filtro === "todas" || (filtro === "Cardiología" ? /eco|electro|holter|mapa|ergo/i.test(e.tipo) : filtro === "Nefrología" ? /renal|orina|laboratorio/i.test(e.tipo) : false))
+      .map((e) => ({ tipo: "estudio" as const, f: e.fecha, e })),
+  ].sort((a, b) => b.f.localeCompare(a.f));
+
+  return (
+    <div className="min-w-0 space-y-6">
+      {/* Encabezado */}
+      <section className="pn-up relative overflow-hidden rounded-[1.5rem] gradient-deep p-6 text-white shadow-elevated">
+        <div className="pn-cross pointer-events-none absolute inset-0" />
+        <div className="pn-orb pointer-events-none absolute -right-10 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span className="flex size-14 items-center justify-center rounded-2xl bg-white/15 text-lg font-bold ring-1 ring-white/25">
+              {p.nombre.split(" ").slice(0, 2).map((x) => x[0]).join("").toUpperCase()}
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">Historia clínica</p>
+              <h2 className="text-2xl font-semibold">{p.nombre}</h2>
+              <p className="mt-0.5 text-sm text-white/70">
+                {[edad !== null ? `${edad} años` : null, p.dni ? `DNI ${p.dni}` : null, p.ficha?.obraSocial ?? null, p.ficha?.grupo ? `Grupo ${p.ficha.grupo}` : null].filter(Boolean).join(" · ") || "Sin datos de ficha cargados"}
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setNueva(!nueva)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
+            {nueva ? <X className="size-4" /> : <Plus className="size-4" />} {nueva ? "Cancelar" : "Nueva evolución"}
+          </Button>
+        </div>
+        <div className="relative mt-5 flex flex-wrap gap-2">
+          {p.ficha?.alergias && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/90 px-3 py-1 text-xs font-semibold"><AlertTriangle className="size-3.5" /> Alergias: {p.ficha.alergias}</span>
+          )}
+          {(p.ficha?.antecedentes ?? []).map((a) => (
+            <span key={a} className="rounded-full bg-white/12 px-3 py-1 text-xs ring-1 ring-white/20">{a}</span>
+          ))}
+          {!p.portal && <span className="rounded-full bg-amber-400/90 px-3 py-1 text-xs font-semibold text-amber-950">Sin portal: invitalo para completar la ficha</span>}
+        </div>
+      </section>
+
+      {/* Indicadores cardio / nefro */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <IndicadorHC icon={Activity} titulo="Presión arterial" valor={ta ? `${ta.s}/${ta.d}` : "—"} unidad="mmHg" fecha={ta?.f} badge={ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : undefined} grad="from-rose-500 to-red-600" />
+        <IndicadorHC icon={HeartPulse} titulo="FEVI" valor={fevi ? `${fevi.v}` : "—"} unidad="%" fecha={fevi?.f} badge={fevi ? { t: clasificarFevi(fevi.v).texto, tono: clasificarFevi(fevi.v).tono } : undefined} grad="from-fuchsia-500 to-rose-600" />
+        <IndicadorHC
+          icon={Droplets}
+          titulo="Filtrado glomerular"
+          valor={egfr ? `${egfr.v}` : "—"}
+          unidad="ml/min"
+          fecha={egfr?.f}
+          extra={egfr ? [egfr.cr ? `Creat. ${egfr.cr} mg/dl` : "", egfr.k ? `K ${egfr.k} mEq/l` : ""].filter(Boolean).join(" · ") : undefined}
+          badge={egfr ? { t: `${estadioRenal(egfr.v).estadio} · ${estadioRenal(egfr.v).texto}`, tono: estadioRenal(egfr.v).tono } : undefined}
+          grad="from-sky-500 to-blue-700"
+        />
+      </div>
+
+      {nueva && <FormEvolucion p={p} espDoctor={espDoctor} user={user} onGuardar={onGuardar} />}
+
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_300px]">
+        {/* Línea de tiempo */}
+        <Seccion icon={ClipboardList} titulo="Evoluciones y estudios" sub={filtro === "todas" ? "Todas las especialidades" : filtro}>
+          {linea.length === 0 ? (
+            <Vacio icon={NotebookPen} titulo="Sin registros" texto="Cargá la primera evolución de la consulta con el botón Nueva evolución." />
+          ) : (
+            <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-[19px] before:top-2 before:w-px before:bg-border">
+              {linea.map((it) => {
+                if (it.tipo === "estudio") {
+                  const e = it.e;
+                  return (
+                    <li key={`es-${e.id}`} className="relative flex gap-4">
+                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md"><FlaskConical className="size-4" /></span>
+                      <div className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-secondary/40 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">{e.titulo || e.tipo}</p>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">Estudio</span>
+                          <span className="ml-auto text-xs text-muted-foreground">{new Date(e.fecha).toLocaleDateString("es-AR")}</span>
+                        </div>
+                        {e.informe && <p className="mt-1.5 line-clamp-3 text-sm text-muted-foreground">{e.informe}</p>}
+                      </div>
+                    </li>
+                  );
+                }
+                const e = it.e;
+                const cfg = ESP_HC[e.especialidad];
+                const pr = e.signos.sistolica && e.signos.diastolica ? clasificarPresion(e.signos.sistolica, e.signos.diastolica) : null;
+                return (
+                  <li key={e.id} className="group relative flex gap-4">
+                    <span className={`relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${cfg.grad} text-white shadow-md`}><cfg.icon className="size-4" /></span>
+                    <div className="min-w-0 flex-1 rounded-2xl border border-border/70 bg-card p-4 transition-shadow group-hover:shadow-md">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{e.motivo || "Consulta"}</p>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${cfg.chip}`}>{e.especialidad}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {new Date(e.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })} · {nombreCorto(e.doctor)}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+                        {pr && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[pr.tono]}`}>TA {e.signos.sistolica}/{e.signos.diastolica} · {pr.nivel}</span>}
+                        {e.signos.pulso && <span className="rounded-full bg-secondary px-2.5 py-1">FC {e.signos.pulso} lpm</span>}
+                        {e.signos.peso && <span className="rounded-full bg-secondary px-2.5 py-1">Peso {e.signos.peso} kg</span>}
+                        {e.cardio?.fevi && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[clasificarFevi(e.cardio.fevi).tono]}`}>FEVI {e.cardio.fevi}%</span>}
+                        {e.cardio?.ritmo && <span className="rounded-full bg-secondary px-2.5 py-1">{e.cardio.ritmo}</span>}
+                        {e.cardio?.nyha && <span className="rounded-full bg-secondary px-2.5 py-1">NYHA {e.cardio.nyha}</span>}
+                        {e.nefro?.egfr && <span className={`rounded-full px-2.5 py-1 font-semibold ring-1 ${TONO_HC[estadioRenal(e.nefro.egfr).tono]}`}>eGFR {e.nefro.egfr} · {estadioRenal(e.nefro.egfr).estadio}</span>}
+                        {e.nefro?.creatinina && <span className="rounded-full bg-secondary px-2.5 py-1">Creat. {e.nefro.creatinina}</span>}
+                        {e.nefro?.potasio && <span className={`rounded-full px-2.5 py-1 ${e.nefro.potasio > 5.5 || e.nefro.potasio < 3.5 ? "bg-red-100 font-semibold text-red-700 ring-1 ring-red-200" : "bg-secondary"}`}>K {e.nefro.potasio}</span>}
+                        {e.nefro?.proteinuria !== undefined && <span className="rounded-full bg-secondary px-2.5 py-1">Proteinuria {e.nefro.proteinuria} g/24h</span>}
+                      </div>
+                      {e.diagnosticos.length > 0 && (
+                        <p className="mt-3 text-xs"><span className="font-semibold">Diagnósticos:</span> <span className="text-muted-foreground">{e.diagnosticos.join(" · ")}</span></p>
+                      )}
+                      {e.nota && <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{e.nota}</p>}
+                      {e.plan && <p className="mt-2 rounded-xl bg-secondary/60 px-3 py-2 text-sm"><span className="font-semibold">Plan: </span>{e.plan}</p>}
+                      {e.doctor === user.nombre && (
+                        <button onClick={() => onBorrar(e.id)} className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground opacity-0 transition hover:text-red-600 group-hover:opacity-100">
+                          <Trash2 className="size-3.5" /> Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </Seccion>
+
+        {/* Medicación activa */}
+        <Seccion icon={Pill} titulo="Medicación activa" sub="Cargada en el portal" delay={0.08}>
+          {meds.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin medicación registrada.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {meds.map((m) => (
+                <li key={m.id} className="rounded-xl bg-secondary/50 px-3 py-2.5">
+                  <p className="text-sm font-semibold">{m.nombre} <span className="font-normal text-muted-foreground">{m.dosis}</span></p>
+                  <p className="text-xs text-muted-foreground">{m.horarios.join(" · ")}{m.indicacion ? ` — ${m.indicacion}` : ""}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Seccion>
+      </div>
+    </div>
+  );
+}
+
+function IndicadorHC({ icon: Icon, titulo, valor, unidad, fecha, badge, extra, grad }: { icon: LucideIcon; titulo: string; valor: string; unidad: string; fecha?: string | undefined; badge?: { t: string; tono: string } | undefined; extra?: string | undefined; grad: string }) {
+  return (
+    <div className="pn-card pn-up pn-lift p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{titulo}</p>
+        <span className={`flex size-9 items-center justify-center rounded-xl bg-gradient-to-br ${grad} text-white shadow-md`}><Icon className="size-4" /></span>
+      </div>
+      <p className="mt-3 font-display text-3xl font-semibold tabular-nums">
+        {valor} <span className="text-sm font-normal text-muted-foreground">{valor !== "—" ? unidad : ""}</span>
+      </p>
+      {extra && <p className="text-xs text-muted-foreground">{extra}</p>}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {badge ? <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${TONO_HC[badge.tono] ?? TONO_HC["verde"]}`}>{badge.t}</span> : <span className="text-xs text-muted-foreground">Sin registros</span>}
+        {fecha && <span className="text-[11px] text-muted-foreground">{new Date(fecha).toLocaleDateString("es-AR")}</span>}
+      </div>
+    </div>
+  );
+}
+
+function FormEvolucion({ p, espDoctor, user, onGuardar }: { p: PacienteHC; espDoctor: EspecialidadHC; user: SessionUser; onGuardar: (e: Evolucion) => void }) {
+  const [esp, setEsp] = useState<EspecialidadHC>(espDoctor);
+  const [f, setF] = useState({ motivo: "", nota: "", plan: "", s: "", d: "", fc: "", peso: "", fevi: "", ritmo: "Sinusal", nyha: "", cr: "", egfr: "", k: "", prot: "" });
+  const [dx, setDx] = useState<string[]>([]);
+  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
+  const s = num(f.s), d = num(f.d);
+  const pr = s && d ? clasificarPresion(s, d) : null;
+  const eg = num(f.egfr);
+
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    const ev: Evolucion = {
+      id: nuevoId(),
+      pacienteId: p.id,
+      paciente: p.nombre,
+      fecha: new Date().toISOString(),
+      doctor: user.nombre,
+      especialidad: esp,
+      motivo: f.motivo.trim(),
+      nota: f.nota.trim(),
+      diagnosticos: dx,
+      signos: { sistolica: s, diastolica: d, pulso: num(f.fc), peso: num(f.peso) },
+      ...(f.plan.trim() ? { plan: f.plan.trim() } : {}),
+      ...(esp === "Cardiología" ? { cardio: { fevi: num(f.fevi), ritmo: f.ritmo || undefined, nyha: f.nyha || undefined } } : {}),
+      ...(esp === "Nefrología" ? { nefro: { creatinina: num(f.cr), egfr: eg, potasio: num(f.k), proteinuria: num(f.prot) } } : {}),
+    } as Evolucion;
+    onGuardar(JSON.parse(JSON.stringify(ev)) as Evolucion);
+  };
+  const lbl = "mb-1.5 block text-xs font-semibold text-muted-foreground";
+
+  return (
+    <form onSubmit={guardar} className="pn-card pn-up space-y-6 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-5">
+        <div>
+          <h3 className="text-[15px] font-semibold">Nueva evolución</h3>
+          <p className="text-xs text-muted-foreground">{p.nombre} · {new Date().toLocaleDateString("es-AR")}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {ESPECIALIDADES_HC.map((x) => {
+            const cfg = ESP_HC[x];
+            const on = esp === x;
+            return (
+              <button type="button" key={x} onClick={() => setEsp(x)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${on ? `bg-gradient-to-br ${cfg.grad} text-white shadow-md` : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                <cfg.icon className="size-3.5" /> {x}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="sm:col-span-2"><span className={lbl}>Motivo de consulta</span><input required value={f.motivo} onChange={set("motivo")} placeholder={esp === "Cardiología" ? "Control de hipertensión, palpitaciones…" : esp === "Nefrología" ? "Control de función renal, edemas…" : "Control clínico"} className={inp} /></label>
+      </div>
+
+      <div>
+        <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground"><Activity className="size-3.5" /> Signos vitales</p>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <label><span className={lbl}>TA sistólica</span><input inputMode="numeric" value={f.s} onChange={set("s")} placeholder="120" className={inp} /></label>
+          <label><span className={lbl}>TA diastólica</span><input inputMode="numeric" value={f.d} onChange={set("d")} placeholder="80" className={inp} /></label>
+          <label><span className={lbl}>Frecuencia cardíaca</span><input inputMode="numeric" value={f.fc} onChange={set("fc")} placeholder="72" className={inp} /></label>
+          <label><span className={lbl}>Peso (kg)</span><input inputMode="decimal" value={f.peso} onChange={set("peso")} placeholder="78" className={inp} /></label>
+        </div>
+        {pr && <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[pr.tono]}`}>{pr.nivel}</p>}
+      </div>
+
+      {esp === "Cardiología" && (
+        <div className="rounded-2xl border border-rose-200/70 bg-rose-50/50 p-4 dark:border-rose-500/20 dark:bg-rose-500/5">
+          <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-rose-700"><HeartPulse className="size-3.5" /> Cardiología</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label><span className={lbl}>FEVI (%)</span><input inputMode="numeric" value={f.fevi} onChange={set("fevi")} placeholder="60" className={inp} /></label>
+            <label><span className={lbl}>Ritmo</span>
+              <select value={f.ritmo} onChange={set("ritmo")} className={inp}>
+                {["Sinusal", "Fibrilación auricular", "Aleteo auricular", "Extrasistolia", "Marcapasos"].map((x) => <option key={x}>{x}</option>)}
+              </select>
+            </label>
+            <label><span className={lbl}>Clase funcional NYHA</span>
+              <select value={f.nyha} onChange={set("nyha")} className={inp}>
+                <option value="">No aplica</option>
+                {["I", "II", "III", "IV"].map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
+
+      {esp === "Nefrología" && (
+        <div className="rounded-2xl border border-sky-200/70 bg-sky-50/50 p-4 dark:border-sky-500/20 dark:bg-sky-500/5">
+          <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-sky-800"><Droplets className="size-3.5" /> Nefrología</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <label><span className={lbl}>Creatinina (mg/dl)</span><input inputMode="decimal" value={f.cr} onChange={set("cr")} placeholder="1.1" className={inp} /></label>
+            <label><span className={lbl}>eGFR (ml/min)</span><input inputMode="numeric" value={f.egfr} onChange={set("egfr")} placeholder="75" className={inp} /></label>
+            <label><span className={lbl}>Potasio (mEq/l)</span><input inputMode="decimal" value={f.k} onChange={set("k")} placeholder="4.5" className={inp} /></label>
+            <label><span className={lbl}>Proteinuria (g/24 h)</span><input inputMode="decimal" value={f.prot} onChange={set("prot")} placeholder="0.2" className={inp} /></label>
+          </div>
+          {eg && <p className={`mt-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 ${TONO_HC[estadioRenal(eg).tono]}`}>Estadio {estadioRenal(eg).estadio} · {estadioRenal(eg).texto}</p>}
+        </div>
+      )}
+
+      <div>
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Diagnósticos</p>
+        <div className="flex flex-wrap gap-1.5">
+          {DX_SUGERIDOS[esp].map((x) => {
+            const on = dx.includes(x);
+            return (
+              <button type="button" key={x} onClick={() => setDx(on ? dx.filter((y) => y !== x) : [...dx, x])} className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium ring-1 transition ${on ? "pn-acc-tile text-white ring-transparent" : "bg-background text-muted-foreground ring-border hover:text-foreground"}`}>
+                {on && <Check className="size-3" />} {x}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <label><span className={lbl}>Evolución / examen físico</span><textarea rows={5} value={f.nota} onChange={set("nota")} placeholder="Refiere… Al examen…" className={inp + " h-auto resize-none py-3"} /></label>
+        <label><span className={lbl}>Plan e indicaciones</span><textarea rows={5} value={f.plan} onChange={set("plan")} placeholder="Ajuste de medicación, estudios a solicitar, próximo control…" className={inp + " h-auto resize-none py-3"} /></label>
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar evolución</Button>
+      </div>
+    </form>
   );
 }
