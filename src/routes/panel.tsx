@@ -289,6 +289,7 @@ const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "turnos", label: "Turnos", icon: CalendarDays },
   { id: "historia", label: "Historia", icon: FileText },
+  { id: "padron", label: "Pacientes", icon: Users },
   { id: "horarios", label: "Mis horarios", icon: Clock },
   { id: "pacientes", label: "Portal paciente", icon: Users },
   { id: "finanzas", label: "Finanzas", icon: Wallet },
@@ -737,7 +738,7 @@ function Panel() {
       {/* ───────── NAVEGACIÓN INFERIOR (celular) ───────── */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-          {([...NAV.filter((n) => ["resumen", "turnos", "historia", "pacientes"].includes(n.id))] as typeof NAV).map((n) => {
+          {([...NAV.filter((n) => ["resumen", "turnos", "padron", "historia"].includes(n.id))] as typeof NAV).map((n) => {
             const on = tab === n.id;
             const b = badges[n.id];
             return (
@@ -813,7 +814,7 @@ function Panel() {
 
         {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
         {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
-        {tab === "padron" && <PadronTab user={user} log={log} turnos={turnos} abrir={abrirPaciente} />}
+        {tab === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} />}
         {tab === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} filtro={hcFiltro} setFiltro={setHcFiltro} inicial={pacSel} />}
         {tab === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tab === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
@@ -4293,7 +4294,8 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
 
 type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal";
 
-function PadronTab({ user, log, turnos, abrir }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void }) {
+function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null }) {
+  const [abiertoId, setAbiertoId] = useState<string | null>(inicial);
   const pacientes = usePacientesClinica(turnos);
   const [, setPadron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
   const [q, setQ] = useState("");
@@ -4443,33 +4445,62 @@ function PadronTab({ user, log, turnos, abrir }: { user: SessionUser; log: LogFn
             {visibles.map((p) => {
               const edad = edadDe(p.ficha?.nacimiento);
               const ant = p.ficha?.antecedentes ?? [];
+              const abierto = abiertoId === p.id;
+              const hoyIso = isoDe(new Date());
+              const proximo = turnos
+                .filter((t) => (t.pacienteId === p.id || norm(t.paciente) === norm(p.nombre)) && t.fecha >= hoyIso && (t.estado === "Pendiente" || t.estado === "Confirmado"))
+                .sort((x, y) => (x.fecha + x.hora).localeCompare(y.fecha + y.hora))[0];
               return (
-                <li key={p.id} className="group flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <Avatar nombre={p.nombre} />
+                <li key={p.id} className={`-mx-2 rounded-2xl px-2 transition-colors ${abierto ? "bg-[rgba(var(--acc),.04)]" : "hover:bg-secondary/40"}`}>
+                  <div className="grid grid-cols-1 items-center gap-3 py-3.5 lg:grid-cols-[minmax(220px,1.6fr)_1.1fr_0.9fr_1fr_auto] lg:gap-4">
+                    {/* Paciente */}
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar nombre={p.nombre} size="size-11" />
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-semibold leading-tight">{p.nombre}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">{p.dni ? `DNI ${p.dni}` : "Sin DNI"}{edad !== null ? ` · ${edad} años` : ""}</span>
+                          {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
+                          {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo turno</span>}
+                          {esCardio(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
+                          {esNefro(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
+                          {p.ficha?.alergias && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia</span>}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Contacto */}
+                    <div className="min-w-0 text-xs">
+                      <p className="truncate font-medium text-foreground/85">{p.telefono || "—"}</p>
+                      <p className="mt-1 truncate text-muted-foreground">{p.email || "Sin correo"}</p>
+                    </div>
+                    {/* Cobertura */}
                     <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-semibold">
-                        {p.nombre}
-                        {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
-                        {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo turno</span>}
-                        {p.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> {p.ficha.alergias}</span>}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {[p.dni ? `DNI ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial, p.telefono].filter(Boolean).join(" · ") || "Sin datos cargados"}
-                      </p>
+                      <span className="inline-flex max-w-full truncate rounded-full border border-border px-2.5 py-1 text-[11px] font-medium">{p.ficha?.obraSocial || "Particular"}</span>
+                    </div>
+                    {/* Próximo turno */}
+                    <div className="min-w-0 text-xs">
+                      {proximo ? (
+                        <>
+                          <p className="flex items-center gap-1.5 font-semibold text-foreground/85"><CalendarDays className="size-3.5 text-[rgb(var(--acc))]" /> {proximo.fecha === hoyIso ? "Hoy" : fechaCorta(proximo.fecha).slice(0, 5)} · {proximo.hora}</p>
+                          <p className="mt-1 truncate text-muted-foreground">{nombreCorto(proximo.doctor)}</p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground">Sin turno agendado</p>
+                      )}
+                    </div>
+                    {/* Acciones */}
+                    <div className="flex items-center gap-2 lg:justify-end">
+                      <button onClick={() => setAbiertoId(abierto ? null : p.id)} aria-expanded={abierto} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${abierto ? "bg-secondary text-foreground" : "pn-acc-tile text-white hover:-translate-y-0.5"}`}>
+                        <FileText className="size-4" /> {abierto ? "Cerrar carpeta" : "Abrir carpeta"} <ChevronDown className={`size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
+                      </button>
+                      <button onClick={() => editar(p)} aria-label={`Editar a ${p.nombre}`} className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"><Pencil className="size-4" /></button>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {esCardio(ant) && <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-1 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
-                    {esNefro(ant) && <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-1 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
-                    <button onClick={() => abrir("historia", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><FileText className="size-3.5" /> Historia</button>
-                    <button onClick={() => abrir("recetas", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><Pill className="size-3.5" /> Receta</button>
-                    <button onClick={() => abrir("laboratorio", p.id)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><FlaskConical className="size-3.5" /> Laboratorio</button>
-                    <button onClick={() => editar(p)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground"><Pencil className="size-3.5" /> Editar</button>
-                    {p.telefono && (
-                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"><Send className="size-3.5" /> WhatsApp</a>
-                    )}
-                  </div>
+                  {abierto && (
+                    <div className="pb-4">
+                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} onEditar={() => { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -5935,6 +5966,437 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════ CARPETA DEL PACIENTE (estilo Cloud Esther: paciente + historial) ═══════════ */
+type SecCarpeta = "resumen" | "historia" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
+const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; icon: LucideIcon }[] }[] = [
+  { titulo: "General", items: [{ id: "resumen", label: "Resumen", icon: LayoutDashboard }] },
+  {
+    titulo: "Clínico",
+    items: [
+      { id: "historia", label: "Historia clínica", icon: FileText },
+      { id: "estudios", label: "Estudios", icon: ScanLine },
+      { id: "laboratorio", label: "Laboratorio", icon: FlaskConical },
+      { id: "recetas", label: "Receta digital", icon: PenLine },
+      { id: "medicacion", label: "Medicación", icon: Pill },
+    ],
+  },
+  {
+    titulo: "Gestión",
+    items: [
+      { id: "turnos", label: "Turnos", icon: CalendarDays },
+      { id: "cuenta", label: "Cuenta corriente", icon: Wallet },
+    ],
+  },
+];
+
+function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; onEditar: () => void }) {
+  const [sec, setSec] = useState<SecCarpeta>("resumen");
+  const [evolsTodas, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const [estTodos] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [ctrlTodos] = useDato<Control[]>(KEY_CONTROLES, []);
+  const [medsTodos] = useDato<Medicamento[]>(KEY_MEDICACION, []);
+  const [rxTodas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [labTodos] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const [cobTodos] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [factTodas] = useDato<Factura[]>(KEY_FACTURAS, []);
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [nueva, setNueva] = useState(false);
+  const [filtroHC, setFiltroHC] = useState<FiltroHC>("todas");
+
+  const esDe = (id?: string) => !!id && (id === p.id || id === p.portalId);
+  const mismoNombre = (n: string) => norm(n) === norm(p.nombre);
+  const evols = evolsTodas.filter((e) => esDe(e.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const estudios = estTodos.filter((e) => esDe(e.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const controles = ctrlTodos.filter((c) => esDe(c.pacienteId));
+  const meds = medsTodos.filter((m) => esDe(m.pacienteId));
+  const recetas = rxTodas.filter((r) => esDe(r.pacienteId));
+  const labs = labTodos.filter((l) => esDe(l.pacienteId));
+  const misTurnos = turnos.filter((t) => esDe(t.pacienteId) || mismoNombre(t.paciente)).sort((a, b) => `${b.fecha}${b.hora}`.localeCompare(`${a.fecha}${a.hora}`));
+  const cobros = cobTodos.filter((c) => esDe(c.pacienteId) || mismoNombre(c.paciente));
+  const facturas = factTodas.filter((f) => mismoNombre(f.receptor));
+  const hoy = isoDe(new Date());
+  const proximo = [...misTurnos].reverse().find((t) => t.fecha >= hoy && t.estado !== "Cancelado" && t.estado !== "Atendido");
+  const saldo = cobros.reduce((a, c) => a + saldoDe(c), 0);
+  const ultima = evols[0];
+  const edad = edadDe(p.ficha?.nacimiento);
+
+  const contador: Partial<Record<SecCarpeta, number>> = {
+    historia: evols.length,
+    estudios: estudios.length,
+    laboratorio: labs.length,
+    recetas: recetas.filter((r) => !r.anulada).length,
+    medicacion: meds.filter((m) => m.activo).length,
+    turnos: misTurnos.length,
+  };
+
+  // Último valor clínico
+  const ta = [
+    ...evols.filter((e) => e.signos.sistolica && e.signos.diastolica).map((e) => ({ f: e.fecha, s: e.signos.sistolica!, d: e.signos.diastolica! })),
+    ...controles.map((c) => ({ f: c.fecha, s: c.sistolica, d: c.diastolica })),
+  ].sort((a, b) => b.f.localeCompare(a.f))[0];
+  const egfr = [
+    ...evols.filter((e) => e.nefro?.egfr).map((e) => ({ f: e.fecha, v: e.nefro!.egfr! })),
+    ...estudios.filter((e) => e.valores.egfr).map((e) => ({ f: e.fecha, v: e.valores.egfr! })),
+  ].sort((a, b) => b.f.localeCompare(a.f))[0];
+
+  const Indicador = ({ icon: Ic, l, v, d, ir, tono }: { icon: LucideIcon; l: string; v: string; d: string; ir: SecCarpeta; tono: string }) => (
+    <button onClick={() => setSec(ir)} className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg">
+      <span className={`pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-gradient-to-br ${tono} opacity-15 blur-xl transition-transform group-hover:scale-125`} />
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{l}</p>
+          <p className="mt-1.5 truncate font-display text-xl font-semibold">{v}</p>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{d}</p>
+        </div>
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${tono} text-white shadow-md`}><Ic className="size-4" /></span>
+      </div>
+    </button>
+  );
+
+  const Fila = ({ children }: { children: ReactNode }) => <li className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card px-3.5 py-3">{children}</li>;
+  const Cab = ({ t, s, accion }: { t: string; s: string; accion?: ReactNode }) => (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h4 className="text-base font-semibold">{t}</h4>
+        <p className="text-xs text-muted-foreground">{s}</p>
+      </div>
+      {accion}
+    </div>
+  );
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-2xl border border-[rgba(var(--acc),.25)] bg-card animate-in fade-in slide-in-from-top-2 duration-300">
+      <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)]">
+        {/* Menú de la carpeta */}
+        <nav aria-label="Secciones de la carpeta" className="border-b border-border/60 bg-gradient-to-b from-[rgba(var(--acc),.08)] via-[rgba(var(--acc),.03)] to-transparent p-3 md:border-b-0 md:border-r">
+          <div className="md:sticky md:top-4">
+            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[rgb(var(--acc))]">Carpeta del paciente</p>
+            <div className="pn-noscroll flex gap-1 overflow-x-auto md:block md:space-y-3 md:overflow-visible">
+              {GRUPOS_CARPETA.map((g) => (
+                <div key={g.titulo} className="flex shrink-0 gap-1 md:block">
+                  <p className="hidden px-2 pb-1 pt-2 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:block">{g.titulo}</p>
+                  <div className="flex gap-1 md:flex-col md:gap-0.5">
+                    {g.items.map((s) => {
+                      const on = s.id === sec;
+                      const n = contador[s.id] ?? 0;
+                      const alerta = s.id === "cuenta" && saldo > 0;
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => { setSec(s.id); setNueva(false); }}
+                          aria-current={on ? "page" : undefined}
+                          className={`group flex shrink-0 items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-medium transition-all ${on ? "pn-acc-tile text-white" : "text-foreground/70 hover:bg-card hover:text-foreground hover:shadow-sm"}`}
+                        >
+                          <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${on ? "bg-white/20" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"}`}><s.icon className="size-3.5" /></span>
+                          <span className="min-w-0 flex-1 truncate">{s.label}</span>
+                          {alerta ? <span className={`size-2 rounded-full ${on ? "bg-white" : "bg-rose-500"}`} title="Saldo pendiente" /> : n > 0 ? <span className={`min-w-5 rounded-full px-1.5 text-center text-[10px] font-bold tabular-nums ${on ? "bg-white/25" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"}`}>{n}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </nav>
+
+        {/* Contenido */}
+        <div key={sec} className="min-w-0 p-3 animate-in fade-in duration-300 sm:p-5">
+          {sec === "resumen" && (
+            <div className="space-y-4">
+              <section className="relative overflow-hidden rounded-[22px] border border-[rgba(var(--acc),.2)] bg-gradient-to-br from-[rgba(var(--acc),.1)] via-card to-rose-500/[0.06] p-5">
+                <span className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-[rgba(var(--acc),.1)] blur-2xl" />
+                <div className="relative flex flex-wrap items-center gap-4">
+                  <span className="grid size-16 shrink-0 place-items-center rounded-[20px] pn-acc-tile text-xl font-bold text-white ring-4 ring-card">{iniciales(p.nombre)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h4 className="truncate text-[22px] font-semibold tracking-tight">{p.nombre}</h4>
+                      {p.portal && <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal activo</span>}
+                      {p.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {p.ficha.alergias}</span>}
+                    </div>
+                    <p className="mt-1 text-[13px] text-muted-foreground">
+                      {[p.dni ? `DNI ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial || "Particular", p.ficha?.afiliado ? `Afiliado ${p.ficha.afiliado}` : null].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {p.telefono && (
+                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
+                    )}
+                    <Button size="sm" variant="outline" className="rounded-xl" onClick={onEditar}><Pencil className="size-3.5" /> Editar paciente</Button>
+                  </div>
+                </div>
+                {(p.ficha?.antecedentes ?? []).length > 0 && (
+                  <div className="relative mt-4 flex flex-wrap gap-1.5">
+                    {(p.ficha?.antecedentes ?? []).map((a) => (
+                      <span key={a} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${esCardio([a]) ? "bg-rose-50 text-rose-700 ring-rose-200" : esNefro([a]) ? "bg-sky-50 text-sky-800 ring-sky-200" : "bg-secondary text-foreground/80 ring-border"}`}>{a}</span>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                <Indicador icon={CalendarDays} l="Próximo turno" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin turno"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agendá el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
+                <Indicador icon={Activity} l="Presión arterial" v={ta ? `${ta.s}/${ta.d}` : "—"} d={ta ? clasificarPresion(ta.s, ta.d).nivel : "Sin registros"} ir="historia" tono="from-rose-500 to-red-600" />
+                <Indicador icon={Droplets} l="Filtrado renal" v={egfr ? `${egfr.v} ml/min` : "—"} d={egfr ? `${estadioRenal(egfr.v).estadio} · ${estadioRenal(egfr.v).texto}` : "Sin laboratorio"} ir="laboratorio" tono="from-cyan-400 to-sky-600" />
+                <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-2xl border border-border/70 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold">Últimas consultas</p>
+                    <button onClick={() => setSec("historia")} className="text-xs font-semibold text-[rgb(var(--acc))]">Ver historia</button>
+                  </div>
+                  {evols.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Sin evoluciones cargadas.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {evols.slice(0, 3).map((e) => {
+                        const cfg = ESP_HC[e.especialidad];
+                        return (
+                          <li key={e.id} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
+                            <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${cfg.grad} text-white`}><cfg.icon className="size-3.5" /></span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium">{e.motivo || "Consulta"}</p>
+                              <p className="text-[11px] text-muted-foreground">{fechaDe(e.fecha)} · {e.especialidad} · {nombreCorto(e.doctor)}</p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+                <div className="rounded-2xl border border-border/70 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold">Medicación activa</p>
+                    <button onClick={() => abrir("recetas", p.id)} className="text-xs font-semibold text-[rgb(var(--acc))]">Nueva receta</button>
+                  </div>
+                  {meds.filter((m) => m.activo).length === 0 && recetas.filter((r) => !r.anulada).length === 0 ? (
+                    <p className="py-4 text-center text-sm text-muted-foreground">Sin medicación registrada.</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {meds.filter((m) => m.activo).map((m) => (
+                        <li key={m.id} className="rounded-xl bg-secondary/40 px-3 py-2 text-sm"><span className="font-medium">{m.nombre}</span> <span className="text-muted-foreground">{m.dosis} · {m.horarios.join(" · ")}</span></li>
+                      ))}
+                      {recetas.filter((r) => !r.anulada).slice(0, 3).flatMap((r) => r.items.map((i, k) => (
+                        <li key={`${r.id}-${k}`} className="rounded-xl bg-secondary/40 px-3 py-2 text-sm"><span className="font-medium">{i.droga} {i.presentacion}</span> <span className="text-muted-foreground">{i.posologia} · Receta {fechaDe(r.fecha)}</span></li>
+                      )))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              {ultima?.plan && (
+                <div className="rounded-2xl bg-[rgba(var(--acc),.07)] px-4 py-3 text-sm"><span className="font-semibold">Último plan indicado: </span>{ultima.plan}</div>
+              )}
+            </div>
+          )}
+
+          {sec === "historia" && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-1.5">
+                {(["todas", "Cardiología", "Nefrología", "Medicina Interna"] as FiltroHC[]).map((f) => (
+                  <button key={f} onClick={() => setFiltroHC(f)} className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${filtroHC === f ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{f === "todas" ? "Todas" : f}</button>
+                ))}
+              </div>
+              <FichaHC
+                p={p}
+                evols={evols}
+                estudios={estudios}
+                controles={controles}
+                meds={meds.filter((m) => m.activo)}
+                filtro={filtroHC}
+                nueva={nueva}
+                setNueva={setNueva}
+                espDoctor={user.id === "alonso" ? "Cardiología" : "Nefrología"}
+                onGuardar={(ev) => {
+                  setEvols((prev) => [ev, ...prev]);
+                  log("Evolución cargada", `${ev.paciente} · ${ev.especialidad}`);
+                  toast.success("Evolución guardada en la historia clínica");
+                  setNueva(false);
+                }}
+                onBorrar={(id) => {
+                  setEvols((prev) => prev.filter((e) => e.id !== id));
+                  log("Evolución eliminada", p.nombre);
+                }}
+                user={user}
+              />
+            </div>
+          )}
+
+          {sec === "estudios" && (
+            <>
+              <Cab t="Estudios" s="Ecocardiogramas, Holter, MAPA, laboratorios e imágenes" accion={<Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrir("pacientes", p.id)}><Plus className="size-3.5" /> Subir desde el portal</Button>} />
+              {estudios.length === 0 ? <Vacio icon={ScanLine} texto="Todavía no hay estudios cargados para este paciente." /> : (
+                <ul className="space-y-2">
+                  {estudios.map((e) => (
+                    <Fila key={e.id}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 text-white"><ScanLine className="size-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{e.titulo || e.tipo} <span className="text-xs font-normal text-muted-foreground">· {e.tipo}</span></p>
+                        {e.informe && <p className="line-clamp-2 text-xs text-muted-foreground">{e.informe}</p>}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{fechaDe(e.fecha)}</span>
+                    </Fila>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {sec === "laboratorio" && (
+            <>
+              <Cab t="Laboratorio" s="Pedidos y resultados con valores fuera de rango" accion={<Button size="sm" className="rounded-xl" onClick={() => abrir("laboratorio", p.id)}><Plus className="size-3.5" /> Nuevo pedido</Button>} />
+              {labs.length === 0 ? <Vacio icon={FlaskConical} texto="Sin pedidos de laboratorio." /> : (
+                <ul className="space-y-3">
+                  {labs.map((l) => (
+                    <li key={l.id} className="rounded-xl border border-border/60 p-3.5">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                        {l.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_LAB[l.estado]}`}>{l.estado}</span>
+                        <span className="ml-auto text-xs font-normal text-muted-foreground">{fechaDe(l.fecha)}</span>
+                      </p>
+                      {Object.keys(l.resultados).length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {Object.entries(l.resultados).map(([k, v]) => {
+                            const d = DET_TODAS.find((x) => x.id === k);
+                            if (!d) return null;
+                            const f = flagDe(d, v);
+                            return <span key={k} className={`rounded-lg px-2 py-1 text-[11px] ring-1 ${f === "ok" ? "bg-secondary/60 ring-border/60" : f === "alto" ? "bg-red-50 font-semibold text-red-700 ring-red-200" : "bg-amber-50 font-semibold text-amber-800 ring-amber-200"}`}>{d.nombre}: {v} {d.unidad}</span>;
+                          })}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {sec === "recetas" && (
+            <>
+              <Cab t="Receta digital" s="Recetas firmadas para este paciente" accion={<Button size="sm" className="rounded-xl" onClick={() => abrir("recetas", p.id)}><PenLine className="size-3.5" /> Nueva receta</Button>} />
+              {recetas.length === 0 ? <Vacio icon={Pill} texto="Sin recetas emitidas." /> : (
+                <ul className="space-y-2">
+                  {recetas.map((r) => (
+                    <Fila key={r.id}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-700 font-display text-xs italic text-white">Rp</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">N° {String(r.numero).padStart(6, "0")} {r.anulada && <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">Anulada</span>}</p>
+                        <p className="truncate text-xs text-muted-foreground">{r.items.map((i) => `${i.droga} ${i.presentacion}`).join(" · ")}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{fechaDe(r.fecha)}</span>
+                      <button onClick={() => imprimirHtml(htmlReceta(r, firmas[r.doctorId]))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Ver</button>
+                    </Fila>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {sec === "medicacion" && (
+            <>
+              <Cab t="Medicación" s="Plan de medicación del portal y lo recetado" />
+              {meds.length === 0 && recetas.length === 0 ? <Vacio icon={Pill} texto="Sin medicación registrada." /> : (
+                <ul className="space-y-2">
+                  {meds.map((m) => (
+                    <Fila key={m.id}>
+                      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${m.activo ? "bg-gradient-to-br from-sky-500 to-blue-700 text-white" : "bg-secondary text-muted-foreground"}`}><Pill className="size-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{m.nombre} <span className="font-normal text-muted-foreground">{m.dosis}</span></p>
+                        <p className="text-xs text-muted-foreground">{m.horarios.join(" · ")}{m.indicacion ? ` — ${m.indicacion}` : ""}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.activo ? "bg-emerald-100 text-emerald-800" : "bg-secondary text-muted-foreground"}`}>{m.activo ? "Activa" : "Suspendida"}</span>
+                    </Fila>
+                  ))}
+                  {recetas.filter((r) => !r.anulada).flatMap((r) => r.items.map((i, k) => (
+                    <Fila key={`${r.id}-${k}`}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-700 text-white"><PenLine className="size-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{i.droga} <span className="font-normal text-muted-foreground">{i.presentacion}</span></p>
+                        <p className="text-xs text-muted-foreground">{i.posologia}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Recetado {fechaDe(r.fecha)}</span>
+                    </Fila>
+                  )))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {sec === "turnos" && (
+            <>
+              <Cab t="Turnos" s={`${misTurnos.length} turnos en total`} />
+              {misTurnos.length === 0 ? <Vacio icon={CalendarDays} texto="Este paciente todavía no tiene turnos." /> : (
+                <ul className="space-y-2">
+                  {misTurnos.map((t) => (
+                    <Fila key={t.id}>
+                      <span className={`flex size-9 shrink-0 flex-col items-center justify-center rounded-lg text-white ${t.fecha >= hoy ? "bg-gradient-to-br from-sky-500 to-blue-700" : "bg-slate-400"}`}>
+                        <span className="text-[11px] font-bold leading-none">{t.fecha.slice(8, 10)}</span>
+                        <span className="text-[8px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-AR", { month: "short" })}</span>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{t.hora} · {t.motivo || "Consulta"}</p>
+                        <p className="text-xs text-muted-foreground">{t.doctor}{t.origen ? ` · desde ${t.origen}` : ""}</p>
+                      </div>
+                      <Estadito estado={t.estado} />
+                    </Fila>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {sec === "cuenta" && (
+            <>
+              <Cab t="Cuenta corriente" s="Cobros, pagos, saldo y comprobantes" accion={<Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrir("facturacion", p.id)}><Receipt className="size-3.5" /> Facturación</Button>} />
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                {[
+                  { l: "Total cobrado", v: dinero(cobros.reduce((a, c) => a + pagadoDe(c), 0)), c: "text-emerald-700" },
+                  { l: "Saldo pendiente", v: dinero(saldo), c: saldo > 0 ? "text-amber-700" : "" },
+                  { l: "Comprobantes", v: String(facturas.length), c: "" },
+                ].map((x) => (
+                  <div key={x.l} className="rounded-xl bg-secondary/40 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
+                    <p className={`mt-1 font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</p>
+                  </div>
+                ))}
+              </div>
+              {cobros.length === 0 && facturas.length === 0 ? <Vacio icon={Wallet} texto="Sin movimientos. Los cobros se registran en Pagos y caja." /> : (
+                <ul className="space-y-2">
+                  {cobros.map((c) => (
+                    <Fila key={c.id}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-400 to-teal-600 text-white"><Wallet className="size-4" /></span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{c.concepto}</p>
+                        <p className="text-xs text-muted-foreground">{fechaHora(c.fecha)} · {c.profesional} · {c.obraSocial || "Particular"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold tabular-nums">{dinero(pagadoDe(c))}</p>
+                        {saldoDe(c) > 0 && <p className="text-[11px] font-semibold text-amber-700">Debe {dinero(saldoDe(c))}</p>}
+                      </div>
+                    </Fila>
+                  ))}
+                  {facturas.map((f) => (
+                    <Fila key={f.id}>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-sm font-bold">{f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{f.tipo} {f.numero}</p>
+                        <p className="text-xs text-muted-foreground">{fechaHora(f.fecha)} · {f.cobertura}</p>
+                      </div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>
+                      <p className="text-sm font-semibold tabular-nums">{dinero(f.total)}</p>
+                    </Fila>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
