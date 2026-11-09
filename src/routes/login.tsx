@@ -197,11 +197,19 @@ function Login() {
               })}
               {rol === "enfermeria" && enfermeras.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  Todavía no hay personal de enfermería habilitado. Un médico lo da de alta desde <b>Enfermería – Triage</b> en el panel.
+                  <p className="font-semibold text-foreground">Todavía no hay personal de enfermería habilitado.</p>
+                  <ol className="mx-auto mt-3 max-w-xs space-y-1.5 text-left">
+                    <li>1. Un médico ingresa al panel.</li>
+                    <li>2. Va a <b>Enfermería – Triage</b> → <b>Personal de enfermería</b>.</li>
+                    <li>3. Escribe el nombre de la enfermera y toca <b>Dar de alta</b>.</li>
+                    <li>4. La enfermera vuelve acá, elige su nombre y crea su contraseña.</li>
+                  </ol>
+                  <button type="button" onClick={() => cambiarRol("medico")} className="mt-4 text-sm font-semibold text-primary hover:underline">Ingresar como médico</button>
                 </div>
               )}
             </div>
 
+            {(rol === "medico" || enfermeras.length > 0) && (<>
             <div className="lg-up space-y-1.5" style={{ animationDelay: ".25s" }}>
               <label htmlFor="password" className="text-sm font-medium">
                 {primera ? "Nueva contraseña" : "Contraseña"}
@@ -253,6 +261,7 @@ function Login() {
                 {loading ? "Verificando..." : primera ? "Crear contraseña e ingresar" : "Ingresar al panel"}
               </Button>
             </div>
+            </>)}
           </form>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
