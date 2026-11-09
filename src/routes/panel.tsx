@@ -1,9 +1,25 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Accessibility,
+  Apple,
+  Baby,
+  Bone,
+  Brain,
+  BrainCircuit,
+  Dna,
+  Ear,
+  HandHeart,
+  Hospital,
+  PersonStanding,
+  Ribbon,
+  Smile,
+  Sparkle,
+  Venus,
+  Wind,
   AlertTriangle,
   PenLine,
   Scale,
@@ -208,7 +224,7 @@ const MODULO_TAB: Partial<Record<string, Tab>> = {
   Permisos: "permisos",
 };
 
-type Area = { nombre: string; desc: string; icon: LucideIcon };
+type Area = { nombre: string; desc: string; icon: LucideIcon; medica?: boolean };
 const AREAS: Area[] = [
   { nombre: "Recepción", desc: "Atención al público, agenda y admisión de pacientes", icon: ConciergeBell },
   { nombre: "Secretaría médica", desc: "Agenda de los doctores, recetas y documentación", icon: NotebookPen },
@@ -224,6 +240,34 @@ const AREAS: Area[] = [
   { nombre: "Recursos Humanos", desc: "Personal, horarios y legajos", icon: UserCog },
   { nombre: "Sistemas", desc: "Soporte técnico y equipos", icon: Server },
 ];
+
+/** Especialidades médicas: médicos invitados (no administradores). Pueden escribir evoluciones si su permiso lo permite. */
+const ESPECIALIDADES_MED: Area[] = [
+  { nombre: "Medicina General", desc: "Médicos generales y consulta externa", icon: Stethoscope, medica: true },
+  { nombre: "Medicina Interna", desc: "Médicos internistas", icon: Hospital, medica: true },
+  { nombre: "Cardiología (médicos)", desc: "Cardiólogos invitados", icon: HeartPulse, medica: true },
+  { nombre: "Nefrología (médicos)", desc: "Nefrólogos invitados", icon: Droplets, medica: true },
+  { nombre: "Endocrinología", desc: "Diabetes, tiroides y metabolismo", icon: Activity, medica: true },
+  { nombre: "Neumología", desc: "Enfermedades respiratorias", icon: Wind, medica: true },
+  { nombre: "Neurología", desc: "Sistema nervioso", icon: Brain, medica: true },
+  { nombre: "Gastroenterología", desc: "Aparato digestivo", icon: Apple, medica: true },
+  { nombre: "Pediatría", desc: "Niños y adolescentes", icon: Baby, medica: true },
+  { nombre: "Ginecología y Obstetricia", desc: "Salud de la mujer y embarazo", icon: Venus, medica: true },
+  { nombre: "Dermatología", desc: "Piel, pelo y uñas", icon: Sparkle, medica: true },
+  { nombre: "Traumatología y Ortopedia", desc: "Huesos, articulaciones y lesiones", icon: Bone, medica: true },
+  { nombre: "Urología", desc: "Vías urinarias y aparato reproductor masculino", icon: Dna, medica: true },
+  { nombre: "Oftalmología", desc: "Ojos y visión", icon: Eye, medica: true },
+  { nombre: "Otorrinolaringología", desc: "Oído, nariz y garganta", icon: Ear, medica: true },
+  { nombre: "Reumatología", desc: "Enfermedades autoinmunes y articulares", icon: Accessibility, medica: true },
+  { nombre: "Oncología", desc: "Diagnóstico y tratamiento del cáncer", icon: Ribbon, medica: true },
+  { nombre: "Geriatría", desc: "Adultos mayores", icon: HandHeart, medica: true },
+  { nombre: "Psiquiatría", desc: "Salud mental", icon: BrainCircuit, medica: true },
+  { nombre: "Psicología", desc: "Terapia y acompañamiento", icon: Smile, medica: true },
+  { nombre: "Nutrición", desc: "Planes alimentarios y control de peso", icon: Apple, medica: true },
+  { nombre: "Fisioterapia", desc: "Rehabilitación física", icon: PersonStanding, medica: true },
+];
+const TODAS_AREAS: Area[] = [...ESPECIALIDADES_MED, ...AREAS];
+const esAreaMedica = (nombre?: string) => !!nombre && ESPECIALIDADES_MED.some((a) => a.nombre === nombre);
 
 const NIVELES: Record<Nivel, string> = { ninguno: "Sin acceso", ver: "Solo ver", editar: "Ver y editar" };
 const NIVEL_ICON: Record<Nivel, LucideIcon> = { ninguno: Ban, ver: Eye, editar: Pencil };
@@ -291,6 +335,11 @@ const SEED_PERMISOS: Permisos = {
   "Recursos Humanos": mk({ Reportes: "ver" }),
   "Sistemas": mk({ Auditoría: "ver", Reportes: "ver" }),
 };
+// Médicos invitados: atienden pacientes, pero no ven finanzas ni administración
+const PERMISOS_MEDICO_INVITADO = mk({ "Enfermería – Triage": "ver", Turnos: "ver", Pacientes: "ver", "Historias clínicas": "editar", Recetas: "editar", Laboratorio: "editar", Estudios: "editar", Horarios: "ver" });
+ESPECIALIDADES_MED.forEach((a) => {
+  SEED_PERMISOS[a.nombre] = PERMISOS_MEDICO_INVITADO;
+});
 
 const nivelDe = (p: Permisos, area: string, modulo: string): Nivel =>
   p[area]?.[modulo] ?? SEED_PERMISOS[area]?.[modulo] ?? "ninguno";
@@ -557,7 +606,7 @@ function Panel() {
             <p className="truncate font-display text-sm font-bold">{corto}</p>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-white/80">
               {user.id === "alonso" ? <HeartPulse className="size-3 shrink-0" /> : <Droplets className="size-3 shrink-0" />}
-              {esEnf ? `${areaUsuario} · Equipo` : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
+              {esEnf ? `${areaUsuario} · ${esAreaMedica(areaUsuario) ? "Médico" : "Equipo"}` : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
             </p>
           </div>
         </div>
@@ -816,7 +865,9 @@ function Panel() {
                   {saludo(ahora)}, {corto}
                 </h1>
                 <p className="mt-1 text-sm text-deep-foreground/75">
-                  {esEnf && areaUsuario !== "Enfermería"
+                  {esEnf && esAreaMedica(areaUsuario)
+                    ? `Panel médico · ${areaUsuario}. Atendé a tus pacientes desde la Historia Clínica.`
+                    : esEnf && areaUsuario !== "Enfermería"
                     ? `Panel de ${areaUsuario}: ves los módulos que tu área tiene habilitados.`
                     : esEnf
                     ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con turno hoy. Registrá sus signos vitales antes de la consulta.`
@@ -864,9 +915,9 @@ function Panel() {
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
         {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
-        {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
+        {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf || esAreaMedica(user.area)} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
         {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
-        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || esEnf} />}
+        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} />}
         {tabVisible === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
@@ -2836,7 +2887,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
 
-  const areas = AREAS.filter((a) => norm(`${a.nombre} ${a.desc}`).includes(norm(q)));
+  const areas = TODAS_AREAS.filter((a) => norm(`${a.nombre} ${a.desc}`).includes(norm(q)));
 
   const cambiar = (area: string, modulo: string, nivel: Nivel) => {
     setPermisos((p) => {
@@ -2868,7 +2919,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
     <div className="space-y-6">
       <PersonalEquipo user={user} log={log} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi icon={Building2} label="Departamentos" value={String(AREAS.length)} hint="Con permisos configurables" tono="azul" delay={0.05} />
+        <Kpi icon={Building2} label="Departamentos" value={String(TODAS_AREAS.length)} hint={`${ESPECIALIDADES_MED.length} especialidades médicas y ${AREAS.length} áreas`} tono="azul" delay={0.05} />
         <Kpi icon={ShieldCheck} label="Módulos" value={String(MODULOS.length)} hint="Incluye el Asistente IA" tono="violeta" delay={0.1} />
         <Kpi icon={Bot} label="Con acceso a IA" value={String(AREAS.filter((a) => nivelDe(permisos, a.nombre, "Asistente IA") !== "ninguno").length)} hint="Departamentos que pueden consultar" tono="verde" delay={0.15} />
       </div>
@@ -2881,11 +2932,14 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
           </div>
         }>
         <div className="space-y-3">
-          {areas.map((a) => {
+          {areas.map((a, idx) => {
             const abiertaEsta = abierta === a.nombre;
+            const titulo = idx === 0 || !!areas[idx - 1]?.medica !== !!a.medica ? (a.medica ? "Especialidades médicas · médicos invitados" : "Áreas de la clínica") : null;
             const conAcceso = MODULOS.filter((m) => nivelDe(permisos, a.nombre, m) !== "ninguno").length;
             return (
-              <div key={a.nombre} className={`overflow-hidden rounded-2xl border transition-all ${abiertaEsta ? "border-primary/30 shadow-card ring-4 ring-primary/5" : "border-border hover:border-primary/20"}`}>
+              <Fragment key={a.nombre}>
+              {titulo && <p className="flex items-center gap-2 px-1 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground"><span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />{titulo}</p>}
+              <div className={`overflow-hidden rounded-2xl border transition-all ${abiertaEsta ? "border-primary/30 shadow-card ring-4 ring-primary/5" : "border-border hover:border-primary/20"}`}>
                 <button onClick={() => setAbierta(abiertaEsta ? null : a.nombre)} className="flex w-full items-center gap-4 p-4 text-left">
                   <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors ${abiertaEsta ? "gradient-deep text-white" : "bg-secondary text-primary"}`}>
                     <a.icon className="size-5" />
@@ -2937,6 +2991,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
                   </div>
                 )}
               </div>
+              </Fragment>
             );
           })}
           {areas.length === 0 && <Vacio icon={Search} texto="No se encontró ese departamento." />}
@@ -4306,7 +4361,7 @@ function FichaHC({
             <p className="text-xs text-muted-foreground">{pendiente.enfermera} · {fechaHora(pendiente.fecha)}{pendiente.motivo ? ` · Motivo: ${pendiente.motivo}` : ""}</p>
             <div className="mt-2"><ChipsSignos s={pendiente.signos} /></div>
           </div>
-          {!soloLectura && user.rol !== "enfermeria" && <Button className="rounded-xl" onClick={() => setNueva(true)}><NotebookPen className="size-4" /> Iniciar evolución</Button>}
+          {!soloLectura && <Button className="rounded-xl" onClick={() => setNueva(true)}><NotebookPen className="size-4" /> Iniciar evolución</Button>}
         </div>
       )}
 
@@ -5108,7 +5163,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                   </div>
                   {abierto && (
                     <div className="pb-4">
-                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} soloLectura={soloLectura || user.rol === "enfermeria"} onEditar={() => { if (!soloLectura) { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); } }} />
+                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} soloLectura={soloLectura || (user.rol !== "medico" && !esAreaMedica(user.area))} onEditar={() => { if (!soloLectura) { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); } }} />
                     </div>
                   )}
                 </li>
@@ -5134,7 +5189,7 @@ function datosMedico(user: SessionUser) {
   return {
     nombre: d?.nombre ?? user.nombre,
     matricula: d?.matricula ?? "",
-    especialidad: user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Medicina Interna",
+    especialidad: user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : (user.area ?? "Medicina General").replace(" (médicos)", ""),
     titulo: d?.titulo ?? "",
   };
 }
@@ -7297,7 +7352,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
         )}
       </Seccion>
 
-      {esMedico && <PersonalEquipo user={user} log={log} areaFija="Enfermería" />}
+      {user.rol === "medico" && <PersonalEquipo user={user} log={log} areaFija="Enfermería" />}
     </div>
   );
 }
@@ -7355,7 +7410,8 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
         <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp} />
         {!areaFija && (
           <select value={area} onChange={(e) => setArea(e.target.value)} className={inp} aria-label="Departamento">
-            {AREAS.map((a) => <option key={a.nombre}>{a.nombre}</option>)}
+            <optgroup label="Especialidades médicas (médicos invitados)">{ESPECIALIDADES_MED.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
+            <optgroup label="Áreas de la clínica">{AREAS.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
           </select>
         )}
         <Button type="submit" className="h-11 rounded-xl"><Plus className="size-4" /> Dar acceso</Button>
