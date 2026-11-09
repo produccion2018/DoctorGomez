@@ -1091,6 +1091,9 @@ function Kpi({
   hint,
   tono = "azul",
   delay = 0,
+  onClick,
+  activo = false,
+  desglose,
 }: {
   icon: LucideIcon;
   label: string;
@@ -1098,10 +1101,18 @@ function Kpi({
   hint?: string;
   tono?: Tono;
   delay?: number;
+  onClick?: () => void;
+  activo?: boolean;
+  desglose?: { l: string; v: number }[];
 }) {
   const t = TONOS[tono];
+  const Raiz = onClick ? "button" : "div";
   return (
-    <div className="pn-card pn-lift pn-up group overflow-hidden p-5" style={{ animationDelay: `${delay}s` }}>
+    <Raiz
+      {...(onClick ? { type: "button" as const, onClick, "aria-expanded": activo } : {})}
+      className={`pn-card pn-lift pn-up group block w-full overflow-hidden p-5 text-left ${onClick ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--acc))]" : ""} ${activo ? "ring-2 ring-[rgba(var(--acc),.55)]" : ""}`}
+      style={{ animationDelay: `${delay}s` }}
+    >
       <div className={`pointer-events-none absolute -right-10 -top-10 size-36 rounded-full ${t.glow} blur-2xl transition-transform duration-700 group-hover:scale-150`} />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -1126,7 +1137,22 @@ function Kpi({
           strokeLinejoin="round"
         />
       </svg>
-    </div>
+      {desglose && (
+        <div className="relative mt-3 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
+          {desglose.map((d) => (
+            <div key={d.l} className="min-w-0">
+              <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{d.l}</p>
+              <p className="font-display text-lg font-semibold tabular-nums">{d.v}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {onClick && (
+        <p className={`relative mt-3 inline-flex items-center gap-1 text-xs font-semibold ${t.text}`}>
+          {activo ? "Ocultar detalle" : "Ver detalle"} <ChevronDown className={`size-3.5 transition-transform ${activo ? "rotate-180" : ""}`} />
+        </p>
+      )}
+    </Raiz>
   );
 }
 
@@ -4355,10 +4381,15 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
   );
 }
 
+type PeriodoReg = "hoy" | "mes" | "total";
 type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal";
 
 function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null }) {
   const [abiertoId, setAbiertoId] = useState<string | null>(inicial);
+  const [detalle, setDetalle] = useState<"pacientes" | "usuarios" | null>(null);
+  const [periodo, setPeriodo] = useState<PeriodoReg>("total");
+  const [estadoU, setEstadoU] = useState<"Todos" | EstadoAcceso>("Todos");
+  const [portalUsuarios] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
   const pacientes = usePacientesClinica(turnos);
   const [, setPadron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
   const [q, setQ] = useState("");
@@ -4410,19 +4441,154 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
   };
 
   const total = pacientes.length;
-  const conPortal = pacientes.filter((p) => p.portal).length;
-  const cardio = pacientes.filter((p) => esCardio(p.ficha?.antecedentes)).length;
-  const nefro = pacientes.filter((p) => esNefro(p.ficha?.antecedentes)).length;
+  // Fecha de registro de cada paciente (los que solo tienen turno: su primer turno)
+  const altaDe = (p: PacienteHC) => {
+    if (p.creado) return diaLocal(p.creado);
+    const primero = turnos.filter((t) => norm(t.paciente) === norm(p.nombre)).map((t) => t.fecha).sort()[0];
+    return primero ?? "sin-fecha";
+  };
+  const hoyIsoReg = isoDe(new Date());
+  const regHoy = pacientes.filter((p) => altaDe(p) === hoyIsoReg);
+  const regMes = pacientes.filter((p) => altaDe(p).slice(0, 7) === hoyIsoReg.slice(0, 7));
+  const delPeriodo = periodo === "hoy" ? regHoy : periodo === "mes" ? regMes : pacientes;
+  const porDia = Object.entries(
+    delPeriodo.reduce<Record<string, PacienteHC[]>>((acc, p) => {
+      const d = altaDe(p);
+      (acc[d] ??= []).push(p);
+      return acc;
+    }, {}),
+  ).sort((a, b) => (a[0] === "sin-fecha" ? 1 : b[0] === "sin-fecha" ? -1 : b[0].localeCompare(a[0])));
+  const usuarios = [...portalUsuarios].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const usuariosVis = estadoU === "Todos" ? usuarios : usuarios.filter((u) => u.estado === estadoU);
   const set = (k: keyof PacienteClinica) => (e: { target: { value: string } }) => editando && setEditando({ ...editando, [k]: e.target.value });
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={Users} label="Pacientes" value={String(total)} hint="Padrón, portal y turnos" />
-        <Kpi icon={LogIn} label="Con portal" value={String(conPortal)} hint={total ? `${Math.round((conPortal / total) * 100)}% del total` : "—"} tono="violeta" delay={0.05} />
-        <Kpi icon={HeartPulse} label="Riesgo cardiovascular" value={String(cardio)} hint="Con antecedentes cardio" tono="rojo" delay={0.1} />
-        <Kpi icon={Droplets} label="Enfermedad renal" value={String(nefro)} hint="ERC, diálisis o trasplante" tono="azul" delay={0.15} />
+      <div className="grid gap-4 md:grid-cols-2 xl:max-w-4xl">
+        <Kpi
+          icon={Users}
+          label="Pacientes"
+          value={String(total)}
+          hint="Registrados en la clínica"
+          desglose={[{ l: "Hoy", v: regHoy.length }, { l: "Este mes", v: regMes.length }, { l: "Total", v: total }]}
+          onClick={() => setDetalle(detalle === "pacientes" ? null : "pacientes")}
+          activo={detalle === "pacientes"}
+        />
+        <Kpi
+          icon={LogIn}
+          label="Usuarios registrados"
+          value={String(usuarios.length)}
+          hint="Con acceso al portal del paciente"
+          tono="violeta"
+          delay={0.05}
+          desglose={[{ l: "Activos", v: usuarios.filter((u) => u.estado === "Activo").length }, { l: "Invitados", v: usuarios.filter((u) => u.estado === "Invitado").length }, { l: "Bloqueados", v: usuarios.filter((u) => u.estado === "Revocado").length }]}
+          onClick={() => setDetalle(detalle === "usuarios" ? null : "usuarios")}
+          activo={detalle === "usuarios"}
+        />
       </div>
+
+      {detalle === "pacientes" && (
+        <Seccion icon={Users} titulo="Pacientes registrados" sub="Discriminados por día, mes y total">
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {([["hoy", "Hoy", regHoy.length], ["mes", "Este mes", regMes.length], ["total", "Total", total]] as [PeriodoReg, string, number][]).map(([id, l, n]) => (
+              <button key={id} onClick={() => setPeriodo(id)} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition ${periodo === id ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                {l} <span className={`rounded-full px-1.5 tabular-nums ${periodo === id ? "bg-white/20" : "bg-background"}`}>{n}</span>
+              </button>
+            ))}
+          </div>
+          {porDia.length === 0 ? (
+            <Vacio icon={Users} texto={periodo === "hoy" ? "Hoy no se registraron pacientes." : periodo === "mes" ? "Este mes no se registraron pacientes." : "Todavía no hay pacientes."} />
+          ) : (
+            <div className="space-y-5">
+              {porDia.map(([dia, lista]) => (
+                <div key={dia}>
+                  <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    <CalendarDays className="size-3.5" /> {dia === "sin-fecha" ? "Sin fecha de registro" : new Date(`${dia}T12:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] tabular-nums">{lista.length}</span>
+                  </p>
+                  <ul className="divide-y divide-border/60 rounded-2xl border border-border/60">
+                    {lista.map((p) => (
+                      <li key={p.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                        <Avatar nombre={p.nombre} size="size-9" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{p.nombre}</p>
+                          <p className="truncate text-xs text-muted-foreground">{[p.dni ? `C.C. ${p.dni}` : null, p.telefono, p.ficha?.obraSocial].filter(Boolean).join(" · ") || "Sin datos"}</p>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${p.origen === "padron" ? "bg-sky-100 text-sky-800 ring-sky-200" : p.origen === "portal" ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>
+                          {p.origen === "padron" ? "Cargado en clínica" : p.origen === "portal" ? "Portal" : "Desde turno"}
+                        </span>
+                        <button onClick={() => { setAbiertoId(p.id); setDetalle(null); window.setTimeout(() => document.getElementById(`pac-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">Abrir carpeta</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </Seccion>
+      )}
+
+      {detalle === "usuarios" && (
+        <Seccion icon={LogIn} titulo="Usuarios registrados" sub={`${usuarios.length} con acceso al portal · ${usuarios.filter((u) => diaLocal(u.fecha) === isoDe(new Date())).length} hoy · ${usuarios.filter((u) => diaLocal(u.fecha).slice(0, 7) === isoDe(new Date()).slice(0, 7)).length} este mes`}>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {(["Todos", "Activo", "Invitado", "Revocado"] as const).map((e) => {
+              const n = e === "Todos" ? usuarios.length : usuarios.filter((u) => u.estado === e).length;
+              const on = estadoU === e;
+              return (
+                <button key={e} onClick={() => setEstadoU(e)} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                  {e === "Activo" ? "Activos" : e === "Invitado" ? "Invitados" : e === "Revocado" ? "Bloqueados" : "Todos"} <span className={`rounded-full px-1.5 tabular-nums ${on ? "bg-white/20" : "bg-background"}`}>{n}</span>
+                </button>
+              );
+            })}
+          </div>
+          {usuariosVis.length === 0 ? (
+            <Vacio icon={LogIn} texto="No hay usuarios en este estado. Se crean al invitar pacientes desde Portal del paciente." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-left text-sm">
+                <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-border">
+                    <th className="pb-3 pr-3 font-medium">Usuario</th>
+                    <th className="pb-3 pr-3 font-medium">Contacto</th>
+                    <th className="pb-3 pr-3 font-medium">Estado</th>
+                    <th className="pb-3 pr-3 font-medium">Registrado</th>
+                    <th className="pb-3 font-medium">Último ingreso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usuariosVis.map((u) => (
+                    <tr key={u.id} className="border-b border-border/60 last:border-0">
+                      <td className="py-3 pr-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar nombre={u.nombre} size="size-9" />
+                          <div className="min-w-0">
+                            <p className="font-medium">{u.nombre}</p>
+                            <p className="text-xs text-muted-foreground">C.C. {u.dni}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-3 text-xs">
+                        <p>{u.email || "—"}</p>
+                        <p className="text-muted-foreground">{u.telefono || "—"}</p>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${u.estado === "Activo" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : u.estado === "Invitado" ? "bg-amber-100 text-amber-800 ring-amber-200" : "bg-red-100 text-red-700 ring-red-200"}`}>
+                          {u.estado === "Revocado" ? "Bloqueado" : u.estado}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-3 text-xs">
+                        <p>{fechaHora(u.fecha)}</p>
+                        <p className="text-muted-foreground">Por {nombreCorto(u.invitadoPor)}</p>
+                      </td>
+                      <td className="py-3 text-xs">{u.ultimoIngreso ? fechaHora(u.ultimoIngreso) : <span className="text-muted-foreground">Nunca ingresó</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Seccion>
+      )}
 
       {editando && (
         <form onSubmit={guardar} className="pn-card pn-up space-y-5 p-6">
@@ -4514,7 +4680,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
                 .filter((t) => (t.pacienteId === p.id || norm(t.paciente) === norm(p.nombre)) && t.fecha >= hoyIso && (t.estado === "Pendiente" || t.estado === "Confirmado"))
                 .sort((x, y) => (x.fecha + x.hora).localeCompare(y.fecha + y.hora))[0];
               return (
-                <li key={p.id} className={`-mx-2 rounded-2xl px-2 transition-colors ${abierto ? "bg-[rgba(var(--acc),.04)]" : "hover:bg-secondary/40"}`}>
+                <li key={p.id} id={`pac-${p.id}`} className={`-mx-2 scroll-mt-24 rounded-2xl px-2 transition-colors ${abierto ? "bg-[rgba(var(--acc),.04)]" : "hover:bg-secondary/40"}`}>
                   <div className="grid grid-cols-1 items-center gap-3 py-3.5 lg:grid-cols-[minmax(220px,1.6fr)_1.1fr_0.9fr_1fr_auto] lg:gap-4">
                     {/* Paciente */}
                     <div className="flex min-w-0 items-center gap-3">
