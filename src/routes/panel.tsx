@@ -167,6 +167,7 @@ type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 const ESTADOS: Estado[] = ["Pendiente", "Confirmado", "Atendido", "Cancelado"];
 
 const MODULOS = [
+  "Enfermería – Triage",
   "Turnos",
   "Pacientes",
   "Historias clínicas",
@@ -184,12 +185,31 @@ const MODULOS = [
   "Permisos",
 ];
 
+/** Qué pestaña del panel abre cada módulo de permisos. */
+const MODULO_TAB: Partial<Record<string, Tab>> = {
+  "Enfermería – Triage": "triage",
+  Turnos: "turnos",
+  Pacientes: "padron",
+  "Historias clínicas": "historia",
+  Recetas: "recetas",
+  Laboratorio: "laboratorio",
+  Finanzas: "finanzas",
+  Facturación: "facturacion",
+  Reportes: "analitica",
+  "Asistente IA": "asistente",
+  Automatizaciones: "automatizaciones",
+  Horarios: "horarios",
+  "Portal del paciente": "pacientes",
+  Auditoría: "auditoria",
+  Permisos: "permisos",
+};
+
 type Area = { nombre: string; desc: string; icon: LucideIcon };
 const AREAS: Area[] = [
   { nombre: "Recepción", desc: "Atención al público, agenda y admisión de pacientes", icon: ConciergeBell },
   { nombre: "Secretaría médica", desc: "Agenda de los doctores, recetas y documentación", icon: NotebookPen },
   { nombre: "Atención al paciente", desc: "WhatsApp, llamadas y consultas de pacientes", icon: Headphones },
-  { nombre: "Enfermería", desc: "Controles, preparación y seguimiento de pacientes", icon: Syringe },
+  { nombre: "Enfermería", desc: "Triage y signos vitales. Se aplica al personal de enfermería cuando ingresa al panel", icon: Syringe },
   { nombre: "Cardiología", desc: "Equipo técnico de electro, ergometría y Holter", icon: HeartPulse },
   { nombre: "Nefrología", desc: "Equipo de seguimiento renal", icon: Droplets },
   { nombre: "Estudios y laboratorio", desc: "Extracciones, muestras y resultados", icon: FlaskConical },
@@ -256,7 +276,7 @@ const SEED_PERMISOS: Permisos = {
   "Recepción": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", Horarios: "ver", "Portal del paciente": "editar" }),
   "Secretaría médica": mk({ Turnos: "editar", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver", Horarios: "editar", "Portal del paciente": "editar" }),
   "Atención al paciente": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", "Portal del paciente": "editar" }),
-  "Enfermería": mk({ Turnos: "ver", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver" }),
+  "Enfermería": mk({ "Enfermería – Triage": "editar", Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "ver" }),
   "Cardiología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
   "Nefrología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
   "Estudios y laboratorio": mk({ Turnos: "ver", Pacientes: "ver", Estudios: "editar", "Asistente IA": "ver" }),
@@ -442,11 +462,14 @@ function Panel() {
 
   if (!user) return null;
 
-  // Permisos: enfermería solo ve su pestaña de triage
+  // Permisos: enfermería ve solo los módulos habilitados en Permisos → Enfermería
   const esEnf = user.rol === "enfermeria";
-  const TABS_ENF: Tab[] = ["triage"];
+  const nivelEnf = (m: string) => nivelDe(permisos, "Enfermería", m);
+  const TABS_ENF: Tab[] = Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!);
   const permitido = (t: Tab) => !esEnf || TABS_ENF.includes(t);
-  const tabVisible: Tab = permitido(tab) ? tab : "triage";
+  const tabVisible: Tab = permitido(tab) ? tab : (TABS_ENF[0] ?? "triage");
+  const moduloDe = (t: Tab) => Object.entries(MODULO_TAB).find(([, x]) => x === t)?.[0] ?? "";
+  const soloLectura = (t: Tab) => esEnf && nivelEnf(moduloDe(t)) === "ver";
   const gruposVisibles = esEnf
     ? [{ grupo: "Enfermería", items: GRUPOS_NAV.flatMap((g) => g.items).filter((i) => TABS_ENF.includes(i.id)) }]
     : GRUPOS_NAV;
@@ -750,7 +773,7 @@ function Panel() {
       {/* ───────── NAVEGACIÓN INFERIOR (celular) ───────── */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/90 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
-          {([...NAV.filter((n) => (esEnf ? ["triage"] : ["resumen", "turnos", "padron", "historia"]).includes(n.id))] as typeof NAV).map((n) => {
+          {([...NAV.filter((n) => (esEnf ? TABS_ENF.slice(0, 4) : ["resumen", "turnos", "padron", "historia"]).includes(n.id))] as typeof NAV).map((n) => {
             const on = tabVisible === n.id;
             const b = badges[n.id];
             return (
@@ -826,11 +849,15 @@ function Panel() {
           </span>
         </div>
 
-        {tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
-        {tabVisible === "turnos" && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
-        {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
-        {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} />}
-        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
+        {esEnf && TABS_ENF.length === 0 && (
+          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto="Pedile a un médico que te habilite módulos en Permisos → Enfermería." /></section>
+        )}
+        {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
+        {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
+        {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
+        {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
+        {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
+        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || esEnf} />}
         {tabVisible === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
@@ -4011,7 +4038,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
 /** Diagnósticos de una evolución (CIE-10 o los de texto de evoluciones anteriores). */
 const dxDe = (e: Evolucion): Cie[] => e.cie10 ?? e.diagnosticos.map((d) => ({ codigo: "", descripcion: d }));
 
-function HistoriaTab({ user, log, turnos, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null }) {
+function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null; soloLectura?: boolean }) {
   const [evols, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
@@ -4109,6 +4136,7 @@ function HistoriaTab({ user, log, turnos, inicial }: { user: SessionUser; log: L
         ) : (
           <FichaHC
             key={sel.id}
+            soloLectura={soloLectura}
             p={sel}
             evols={evols.filter((e) => esDe(sel, e.pacienteId))}
             estudios={estudios.filter((e) => esDe(sel, e.pacienteId))}
@@ -4160,10 +4188,10 @@ ${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} �
 }
 
 function FichaHC({
-  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user,
+  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user, soloLectura = false,
 }: {
   p: PacienteHC; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; meds: Medicamento[];
-  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser;
+  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean;
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "estudios">("todo");
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
@@ -4215,9 +4243,13 @@ function FichaHC({
               </p>
             </div>
           </div>
-          <Button onClick={() => setNueva(!nueva)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
-            {nueva ? <X className="size-4" /> : <Plus className="size-4" />} {nueva ? "Cancelar" : "Nueva evolución"}
-          </Button>
+          {soloLectura ? (
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold ring-1 ring-white/25"><Eye className="size-4" /> Solo lectura</span>
+          ) : (
+            <Button onClick={() => setNueva(!nueva)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
+              {nueva ? <X className="size-4" /> : <Plus className="size-4" />} {nueva ? "Cancelar" : "Nueva evolución"}
+            </Button>
+          )}
         </div>
         <div className="relative mt-5 flex flex-wrap gap-2">
           {p.ficha?.alergias ? (
@@ -4264,11 +4296,11 @@ function FichaHC({
             <p className="text-xs text-muted-foreground">{pendiente.enfermera} · {fechaHora(pendiente.fecha)}{pendiente.motivo ? ` · Motivo: ${pendiente.motivo}` : ""}</p>
             <div className="mt-2"><ChipsSignos s={pendiente.signos} /></div>
           </div>
-          {user.rol !== "enfermeria" && <Button className="rounded-xl" onClick={() => setNueva(true)}><NotebookPen className="size-4" /> Iniciar evolución</Button>}
+          {!soloLectura && user.rol !== "enfermeria" && <Button className="rounded-xl" onClick={() => setNueva(true)}><NotebookPen className="size-4" /> Iniciar evolución</Button>}
         </div>
       )}
 
-      {nueva && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
+      {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Registro de consultas */}
@@ -4723,7 +4755,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
 type PeriodoReg = "hoy" | "mes" | "total";
 type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal";
 
-function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null }) {
+function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
   const [abiertoId, setAbiertoId] = useState<string | null>(inicial);
   const [detalle, setDetalle] = useState<"pacientes" | "usuarios" | null>(null);
   const [periodo, setPeriodo] = useState<PeriodoReg>("total");
@@ -4990,7 +5022,7 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
             <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Email", "Obra social", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
               <Download className="size-4" /> Exportar
             </Button>
-            <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>
+            {!soloLectura && <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>}
           </div>
         }
       >
@@ -5061,12 +5093,12 @@ function PadronTab({ user, log, turnos, abrir, inicial }: { user: SessionUser; l
                       <button onClick={() => setAbiertoId(abierto ? null : p.id)} aria-expanded={abierto} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${abierto ? "bg-secondary text-foreground" : "pn-acc-tile text-white hover:-translate-y-0.5"}`}>
                         <FileText className="size-4" /> {abierto ? "Cerrar carpeta" : "Abrir carpeta"} <ChevronDown className={`size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
                       </button>
-                      <button onClick={() => editar(p)} aria-label={`Editar a ${p.nombre}`} className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"><Pencil className="size-4" /></button>
+                      {!soloLectura && <button onClick={() => editar(p)} aria-label={`Editar a ${p.nombre}`} className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"><Pencil className="size-4" /></button>}
                     </div>
                   </div>
                   {abierto && (
                     <div className="pb-4">
-                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} onEditar={() => { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} soloLectura={soloLectura || user.rol === "enfermeria"} onEditar={() => { if (!soloLectura) { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); } }} />
                     </div>
                   )}
                 </li>
@@ -6561,7 +6593,7 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
   },
 ];
 
-function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; onEditar: () => void }) {
+function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = false }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; onEditar: () => void; soloLectura?: boolean }) {
   const [sec, setSec] = useState<SecCarpeta>("resumen");
   const [evolsTodas, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estTodos] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
@@ -6763,6 +6795,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar }: { p: Pacient
           {sec === "historia" && (
             <div className="space-y-4">
               <FichaHC
+                soloLectura={soloLectura}
                 p={p}
                 evols={evols}
                 estudios={estudios}
@@ -6991,7 +7024,7 @@ function ChipsSignos({ s }: { s: Triage["signos"] }) {
   );
 }
 
-function TriageTab({ user, log, turnos, esMedico, abrirHistoria }: { user: SessionUser; log: LogFn; turnos: Turno[]; esMedico: boolean; abrirHistoria: (pacienteId: string) => void }) {
+function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; esMedico: boolean; abrirHistoria: (pacienteId: string) => void; soloLectura?: boolean }) {
   const pacientes = usePacientesClinica(turnos);
   const [triages, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const [pacId, setPacId] = useState("");
@@ -7023,6 +7056,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria }: { user: Sessi
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
+    if (soloLectura) { toast.error("Tu permiso en Enfermería – Triage es solo de lectura"); return; }
     if (!pac) { toast.error("Seleccioná un paciente"); return; }
     const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), spo2: num(f.spo2), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
     if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registrá al menos un signo vital"); return; }
@@ -7181,7 +7215,11 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria }: { user: Sessi
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-secondary/40 px-6 py-4">
             <p className="text-xs text-muted-foreground">Queda registrado a nombre de {user.nombre} con fecha y hora, y se envía a la Historia Clínica.</p>
-            <Button type="submit" disabled={!pac} className="rounded-xl px-6"><Check className="size-4" /> Guardar signos vitales</Button>
+            {soloLectura ? (
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-2 text-xs font-semibold text-muted-foreground"><Eye className="size-4" /> Solo lectura: no podés registrar</span>
+            ) : (
+              <Button type="submit" disabled={!pac} className="rounded-xl px-6"><Check className="size-4" /> Guardar signos vitales</Button>
+            )}
           </div>
         </form>
       </div>
@@ -7294,6 +7332,38 @@ function PersonalEnfermeria({ user, log }: { user: SessionUser; log: LogFn }) {
               <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Enfermería bloqueada" : "Enfermería habilitada", n.nombre); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
                 {n.activo ? "Bloquear" : "Habilitar"}
               </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Seccion>
+  );
+}
+
+/** Agenda en solo lectura (para áreas con permiso "Ver" en Turnos). */
+function TurnosLectura({ turnos }: { turnos: Turno[] }) {
+  const [dia, setDia] = useState(hoy());
+  const lista = turnos.filter((t) => t.fecha === dia).sort((a, b) => a.hora.localeCompare(b.hora));
+  return (
+    <Seccion
+      icon={CalendarDays}
+      titulo="Agenda del día"
+      sub="Solo lectura"
+      acciones={<input type="date" value={dia} onChange={(e) => setDia(e.target.value)} className={inp + " h-10 w-44"} />}
+    >
+      {lista.length === 0 ? (
+        <Vacio icon={CalendarDays} texto="No hay turnos para este día." />
+      ) : (
+        <ul className="divide-y divide-border/60">
+          {lista.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center gap-3 py-3">
+              <span className="w-14 font-display text-lg font-semibold tabular-nums">{t.hora}</span>
+              <Avatar nombre={t.paciente} size="size-9" />
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{t.paciente}</p>
+                <p className="text-xs text-muted-foreground">{t.motivo || "Consulta"} · {nombreCorto(t.doctor)}</p>
+              </div>
+              <Estadito estado={t.estado} />
             </li>
           ))}
         </ul>
