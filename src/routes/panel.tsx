@@ -11,6 +11,7 @@ import {
   X,
   Menu,
   ArrowDownLeft,
+  ArrowRight,
   ArrowUpRight,
   Ban,
   Bell,
@@ -398,6 +399,7 @@ function Panel() {
   const [hcFiltro, setHcFiltro] = useState<FiltroHC>("todas");
   const [factVista, setFactVista] = useState<VistaFact>("comprobantes");
   const [pacSel, setPacSel] = useState<string | null>(null);
+  const [focoTurnos, setFocoTurnos] = useState<FocoTurnos>(null);
   const [turnos, setTurnos] = usePersist<Turno[]>("gb_turnos", SEED_TURNOS);
   const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
   const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
@@ -459,6 +461,7 @@ function Panel() {
 
   const irTab = (t: Tab) => {
     if (t !== tab) setPacSel(null);
+    if (t !== "turnos") setFocoTurnos(null);
     setTab(t);
     setMenu(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -812,8 +815,8 @@ function Panel() {
           </span>
         </div>
 
-        {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} />}
-        {tab === "turnos" && <TurnosTab turnos={turnos} setTurnos={setTurnos} log={log} />}
+        {tab === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
+        {tab === "turnos" && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
         {tab === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} />}
         {tab === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} filtro={hcFiltro} setFiltro={setHcFiltro} inicial={pacSel} />}
         {tab === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
@@ -1173,9 +1176,44 @@ function iconoEvento(accion: string): { icon: LucideIcon; clase: string } {
 }
 
 /* ---------- Resumen ---------- */
-function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; audit: Evento[]; irA: (t: Tab) => void }) {
+/** Turnos que son estudios o procedimientos (no consultas). */
+const esProcedimiento = (motivo: string) => /eco|electro|holter|mapa|ergom|doppler|ecograf|estudio|procedim|monitoreo|biopsia|punci|infiltra/i.test(motivo);
+
+/** Tarjeta del resumen: se toca entera (o el ícono) y abre la agenda de hoy. */
+function TarjetaDia({ icon: Icon, label, valor, detalle, onClick, delay = 0 }: { icon: LucideIcon; label: string; valor: number; detalle: string; onClick: () => void; delay?: number }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ animationDelay: `${delay}s` }}
+      className="pn-up group relative w-full overflow-hidden rounded-[1.4rem] border border-violet-100 bg-gradient-to-br from-white via-white to-fuchsia-50 p-5 text-left shadow-[0_18px_40px_-28px_rgba(124,58,237,.55)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-26px_rgba(124,58,237,.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 dark:border-violet-500/20 dark:from-[#151a33] dark:via-[#151a33] dark:to-[#2a1640]"
+    >
+      <span className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-fuchsia-300/25 blur-2xl transition-transform duration-500 group-hover:scale-125" />
+      <div className="relative flex items-start justify-between gap-3">
+        <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">{label}</p>
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-[0_10px_22px_-8px_rgba(192,38,211,.75)] transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
+          <Icon className="size-5" />
+        </span>
+      </div>
+      <p className="relative mt-1 font-display text-4xl font-bold tabular-nums text-violet-600 dark:text-violet-300">{valor}</p>
+      <div className="relative mt-1 flex items-center justify-between gap-2">
+        <p className="text-sm text-slate-500 dark:text-slate-300">{detalle}</p>
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100 dark:text-violet-300">
+          Ver agenda <ArrowRight className="size-3.5" />
+        </span>
+      </div>
+    </button>
+  );
+}
+
+const plural = (n: number, palabra: string) => `${n} ${palabra}${n === 1 ? "" : "s"}`;
+
+type FocoTurnos = "agenda" | "procedimientos" | null;
+
+function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; movs: Mov[]; audit: Evento[]; irA: (t: Tab) => void; abrirTurnos: (f: FocoTurnos) => void }) {
   const h = hoy();
   const deHoy = turnos.filter((t) => t.fecha === h);
+  const procHoy = deHoy.filter((t) => t.estado !== "Cancelado" && esProcedimiento(t.motivo));
   const turnosHoy = deHoy.filter((t) => t.estado !== "Cancelado").length;
   const pendientes = turnos.filter((t) => t.estado === "Pendiente").length;
   const ingresos = movs.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0);
@@ -1192,11 +1230,22 @@ function Resumen({ turnos, movs, audit, irA }: { turnos: Turno[]; movs: Mov[]; a
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={CalendarDays} label="Turnos de hoy" value={String(turnosHoy)} hint={`${deHoy.filter((t) => t.estado === "Atendido").length} atendidos`} tono="azul" delay={0.05} />
-        <Kpi icon={Users} label="Pendientes" value={String(pendientes)} hint={pendientes ? "Requieren confirmación" : "Todo confirmado"} tono="ambar" delay={0.1} />
-        <Kpi icon={Wallet} label="Balance" value={dinero(balance)} hint={`${dinero(ingresos)} ingresados`} tono="verde" delay={0.15} />
-        <Kpi icon={ClipboardList} label="Eventos de hoy" value={String(eventosHoy)} hint="Registrados en auditoría" tono="violeta" delay={0.2} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:max-w-3xl">
+        <TarjetaDia
+          icon={Clock}
+          label="Agenda del día"
+          valor={turnosHoy}
+          detalle={`${plural(deHoy.filter((t) => t.estado === "Confirmado").length, "confirmado")} · ${plural(deHoy.filter((t) => t.estado === "Pendiente").length, "pendiente")}`}
+          onClick={() => abrirTurnos("agenda")}
+        />
+        <TarjetaDia
+          icon={Stethoscope}
+          label="Procedimientos del día"
+          valor={procHoy.length}
+          detalle={`${plural(procHoy.filter((t) => t.estado === "Atendido").length, "realizado")} · ${procHoy.filter((t) => t.estado === "Pendiente" || t.estado === "Confirmado").length} por hacer`}
+          onClick={() => abrirTurnos("procedimientos")}
+          delay={0.06}
+        />
       </div>
 
       {/* Tarjeta de inteligencia */}
@@ -1568,7 +1617,14 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
   );
 }
 
-function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn }) {
+function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; foco?: FocoTurnos }) {
+  const [procHoy, setProcHoy] = useState(foco === "procedimientos");
+  useEffect(() => {
+    if (!foco) return;
+    const id = foco === "procedimientos" ? "lista-turnos" : "agenda-hoy";
+    const t = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
+    return () => window.clearTimeout(t);
+  }, [foco]);
   const [f, setF] = useState({ fecha: hoy(), hora: "", paciente: "", telefono: "", doctor: ADMINS[0]!.nombre, motivo: "" });
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [otraHora, setOtraHora] = useState(false);
@@ -1593,9 +1649,10 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
     () =>
       [...turnos]
         .filter((t) => filtro === "Todos" || t.estado === filtro)
+        .filter((t) => !procHoy || (t.fecha === hoy() && esProcedimiento(t.motivo)))
         .filter((t) => norm(`${t.paciente} ${t.motivo} ${t.doctor}`).includes(norm(q)))
         .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora)),
-    [turnos, filtro, q],
+    [turnos, filtro, q, procHoy],
   );
 
   const agregar = (e: FormEvent) => {
@@ -1639,6 +1696,7 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
 
   return (
     <div className="space-y-6">
+      <div id="agenda-hoy" className="scroll-mt-24" />
       <AgendaDia turnos={turnos} setTurnos={setTurnos} log={log} onCargaManual={() => { setManual(true); window.setTimeout(() => document.getElementById("carga-manual")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
 
       {!manual && (
@@ -1789,7 +1847,8 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
       </section>
       )}
 
-      <Seccion icon={ClipboardList} titulo="Todos los turnos" sub={`${lista.length} turno${lista.length === 1 ? "" : "s"} · lista completa con filtros`} delay={0.08}
+      <div id="lista-turnos" className="scroll-mt-24" />
+      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : "Todos los turnos"} sub={`${lista.length} turno${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -1797,6 +1856,10 @@ function TurnosTab({ turnos, setTurnos, log }: { turnos: Turno[]; setTurnos: Dis
           </div>
         }>
         <div className="mb-4 flex flex-wrap gap-2">
+          <button onClick={() => setProcHoy(!procHoy)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${procHoy ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-md" : "bg-violet-50 text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30"}`}>
+            <Stethoscope className="size-3.5" /> Procedimientos de hoy
+            <span className={`rounded-full px-1.5 tabular-nums ${procHoy ? "bg-white/20" : "bg-white dark:bg-white/10"}`}>{turnos.filter((t) => t.fecha === hoy() && t.estado !== "Cancelado" && esProcedimiento(t.motivo)).length}</span>
+          </button>
           {filtros.map((x) => {
             const n = x === "Todos" ? turnos.length : turnos.filter((t) => t.estado === x).length;
             const on = filtro === x;
