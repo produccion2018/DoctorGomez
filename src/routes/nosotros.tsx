@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Building2, CalendarPlus, HeartHandshake, Microscope, Quote, Radar, Sparkles, Users } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Check, Compass, Eye, Gauge, HeartHandshake, HeartPulse, Lightbulb, Quote, Scale, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Waves, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
 import { DOCTORS } from "@/data/clinic";
@@ -20,13 +20,32 @@ export const Route = createFileRoute("/nosotros")({
   component: Nosotros,
 });
 
-const PILARES = [
-  { icon: HeartHandshake, t: "Atención personalizada", d: "Consultas de 40 minutos con escucha real y un plan escrito para cada paciente." },
-  { icon: Microscope, t: "Diagnóstico integral", d: "Interpretación conjunta de laboratorio, imágenes y clínica para una respuesta precisa." },
-  { icon: Radar, t: "Tecnología médica", d: "Ecocardiografía doppler, Holter, MAPA y registro clínico digital." },
-  { icon: Users, t: "Seguimiento médico", d: "Controles programados y comunicación continua por WhatsApp y teléfono." },
-  { icon: Sparkles, t: "Experiencia", d: "Más de 25 años combinados en medicina interna, nefrología y cardiología." },
-  { icon: Building2, t: "Infraestructura", d: "Consultorios equipados, sala de estudios y circuito de atención ágil." },
+const VALORES = [
+  { icon: HeartHandshake, t: "Compromiso", d: "Dedicación al bienestar de nuestros pacientes.", c: "#ef4444" },
+  { icon: ShieldCheck, t: "Calidad", d: "Atención médica con altos estándares.", c: "#0ea5e9" },
+  { icon: Smile, t: "Humanización", d: "Trato cálido, empático y respetuoso.", c: "#f59e0b" },
+  { icon: Scale, t: "Ética", d: "Actuamos con responsabilidad y transparencia.", c: "#10b981" },
+  { icon: Lightbulb, t: "Innovación", d: "Uso de tecnología y actualización constante.", c: "#8b5cf6" },
+];
+
+const SERVICIOS_OFRECIDOS = [
+  { icon: Stethoscope, t: "Consulta de cardiología general" },
+  { icon: Gauge, t: "Evaluación de riesgo cardiovascular" },
+  { icon: Activity, t: "Electrocardiograma (ECG)" },
+  { icon: Waves, t: "Ecocardiograma" },
+  { icon: HeartPulse, t: "Monitoreo Holter" },
+  { icon: Zap, t: "Prueba de esfuerzo" },
+  { icon: TrendingUp, t: "Control y seguimiento de hipertensión arterial" },
+  { icon: HeartHandshake, t: "Manejo de insuficiencia cardíaca" },
+  { icon: ShieldCheck, t: "Programa de prevención cardiovascular" },
+  { icon: Sparkles, t: "Todo lo relacionado con Medicina Interna" },
+];
+
+const OBJETIVOS = [
+  "Brindar atención oportuna y de calidad en salud cardiovascular y medicina interna.",
+  "Promover la prevención de enfermedades del corazón y en general.",
+  "Mejorar la calidad de vida de nuestros pacientes.",
+  "Generar confianza y seguridad en cada atención.",
 ];
 
 const HITOS = [
@@ -56,12 +75,12 @@ function Nosotros() {
             Medicina especializada, <span className="text-gradient-clinic italic">con trato humano</span>
           </h2>
           <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-            La Clínica Gómez Bolaño nació del trabajo conjunto de dos hermanos médicos que compartieron formación, guardias y la misma convicción:
-            que la medicina especializada sólo tiene sentido cuando se acompaña de tiempo, escucha y continuidad.
+            <b className="font-semibold text-foreground">Heartcare Center</b> es un centro especializado en salud cardiovascular y medicina interna dedicado a la
+            prevención, diagnóstico y tratamiento de enfermedades del corazón y en general.
           </p>
           <p className="mt-4 leading-relaxed text-muted-foreground">
-            Hoy la clínica integra Medicina Interna, Nefrología y Cardiología en un mismo circuito de atención, con historia clínica digital,
-            estudios propios y un equipo que ordena cada paso del proceso.
+            Nuestro compromiso es brindar atención integral, con calidad médica, tecnología adecuada y avanzada, con enfoque humano que garantice
+            bienestar y confianza a cada paciente.
           </p>
 
           <div className="mt-10 grid grid-cols-3 divide-x divide-border border-y border-border">
@@ -120,32 +139,63 @@ function Nosotros() {
         </div>
       </section>
 
-      {/* ───────── FILOSOFÍA (oscuro) ───────── */}
+      {/* ───────── MISIÓN Y VISIÓN ───────── */}
+      <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
+        <div className="grid gap-6 lg:grid-cols-2">
+          {[
+            { icon: Target, k: "Misión", t: "Lo que hacemos cada día", d: "Ofrecer servicios integrales en salud cardiovascular con altos estándares de calidad, enfocados en la prevención, diagnóstico y tratamiento oportuno, a través de un equipo especializado y tecnología adecuada, brindando atención segura, humana y centrada en el paciente.", g: "from-rose-500 to-red-700", glow: "rgba(239,68,68,.45)" },
+            { icon: Eye, k: "Visión", t: "Hacia dónde vamos", d: "Consolidarnos como un centro de referencia en atención integral y cardiovascular, reconocido por la excelencia en nuestros servicios, la confianza de nuestros pacientes y el compromiso continuo con la innovación y el cuidado de la vida.", g: "from-sky-500 to-blue-700", glow: "rgba(14,165,233,.45)" },
+          ].map((m, i) => (
+            <article
+              key={m.k}
+              data-reveal
+              style={{ transitionDelay: `${i * 120}ms` }}
+              className="group relative overflow-hidden rounded-[2rem] border border-border bg-card p-8 shadow-[0_30px_70px_-45px_rgba(10,25,70,.6)] transition-all duration-500 hover:-translate-y-1 sm:p-10"
+            >
+              <span className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${m.g}`} />
+              <span className={`pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-gradient-to-br ${m.g} opacity-10 blur-2xl transition-opacity duration-500 group-hover:opacity-25`} />
+              <m.icon className="pointer-events-none absolute -bottom-6 -right-4 size-40 text-foreground/[0.04] transition-transform duration-700 group-hover:-rotate-6" />
+              <div className="relative flex items-center gap-4">
+                <span className={`flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br ${m.g} text-white ring-1 ring-white/30 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110`} style={{ boxShadow: `0 18px 36px -14px ${m.glow}` }}>
+                  <m.icon className="size-6" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{m.t}</p>
+                  <h2 className="text-3xl leading-tight sm:text-4xl">{m.k}</h2>
+                </div>
+              </div>
+              <p className="relative mt-6 text-lg leading-relaxed text-muted-foreground">{m.d}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ───────── VALORES INSTITUCIONALES (oscuro) ───────── */}
       <section className="relative overflow-hidden bg-[oklch(0.17_0.05_262)] py-24 text-white">
         <div className="pointer-events-none absolute -left-32 top-0 size-[28rem] rounded-full bg-sky-500/20 blur-3xl" />
         <div className="pointer-events-none absolute -right-32 bottom-0 size-[28rem] rounded-full bg-rose-500/15 blur-3xl" />
         <div className="pointer-events-none absolute inset-0 bg-grid opacity-30 [mask-image:radial-gradient(ellipse_at_center,#000_20%,transparent_75%)]" />
         <div className="relative mx-auto grid max-w-7xl gap-14 px-4 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
           <div data-reveal className="lg:sticky lg:top-28 lg:self-start">
-            <span className="glass inline-flex rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]">Filosofía</span>
+            <span className="glass inline-flex rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]">Valores institucionales</span>
             <h2 className="mt-5 text-4xl leading-tight text-white sm:text-5xl">
-              Cómo entendemos <span className="italic text-sky-300">la atención</span>
+              Lo que nos <span className="italic text-sky-300">define</span>
             </h2>
-            <p className="mt-5 max-w-md text-white/65">Seis principios que guían cada consulta, cada estudio y cada control.</p>
+            <p className="mt-5 max-w-md text-white/65">Cinco valores que guían cada consulta, cada estudio y cada control.</p>
           </div>
           <div className="grid gap-x-10 sm:grid-cols-2">
-            {PILARES.map((p, i) => (
+            {VALORES.map((p, i) => (
               <div
                 key={p.t}
                 data-reveal
                 style={{ transitionDelay: `${(i % 2) * 90}ms` }}
-                className="group relative border-t border-white/10 py-8 transition-colors duration-500 hover:border-sky-400/60"
+                className={`group relative border-t border-white/10 py-8 transition-colors duration-500 ${i === VALORES.length - 1 ? "sm:col-span-2" : ""}`}
               >
-                <span className="absolute left-0 top-0 h-px w-0 bg-gradient-to-r from-sky-400 to-rose-400 transition-all duration-700 group-hover:w-full" />
+                <span className="absolute left-0 top-0 h-px w-0 transition-all duration-700 group-hover:w-full" style={{ background: p.c }} />
                 <div className="flex items-start gap-5">
                   <span className="font-display text-sm text-white/30">{String(i + 1).padStart(2, "0")}</span>
                   <div>
-                    <span className="flex size-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 transition-all duration-500 group-hover:-rotate-6 group-hover:bg-gradient-to-br group-hover:from-sky-500 group-hover:to-blue-700 group-hover:shadow-[0_15px_35px_-12px_rgba(56,189,248,.7)]">
+                    <span className="flex size-12 items-center justify-center rounded-2xl ring-1 ring-white/15 transition-all duration-500 group-hover:-rotate-6 group-hover:scale-110" style={{ background: `${p.c}26`, color: p.c, boxShadow: `0 15px 35px -18px ${p.c}` }}>
                       <p.icon className="size-5" />
                     </span>
                     <h3 className="mt-5 text-lg font-semibold text-white">{p.t}</h3>
@@ -156,6 +206,52 @@ function Nosotros() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ───────── SERVICIOS OFRECIDOS + OBJETIVOS ───────── */}
+      <section className="mx-auto grid max-w-7xl gap-14 px-4 py-24 lg:grid-cols-[1.25fr_0.75fr] lg:px-8">
+        <div>
+          <div data-reveal>
+            <span className="section-kicker">Servicios ofrecidos</span>
+            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Cuidamos tu <span className="text-gradient-clinic italic">corazón</span> y tu salud</h2>
+          </div>
+          <ul className="mt-10 grid gap-3 sm:grid-cols-2">
+            {SERVICIOS_OFRECIDOS.map((sv, i) => (
+              <li
+                key={sv.t}
+                data-reveal
+                style={{ transitionDelay: `${(i % 2) * 80}ms` }}
+                className="group flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-300/60 hover:shadow-[0_18px_40px_-28px_rgba(239,68,68,.7)]"
+              >
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 ring-1 ring-rose-500/15 transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-rose-500 group-hover:to-red-700 group-hover:text-white dark:text-rose-400">
+                  <sv.icon className="size-5" />
+                </span>
+                <span className="text-sm font-medium leading-snug">{sv.t}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <aside data-reveal className="relative self-start overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-8 text-white shadow-[0_40px_80px_-40px_rgba(10,25,70,.9)] sm:p-10 lg:sticky lg:top-28">
+          <div className="pointer-events-none absolute -right-20 -top-20 size-64 rounded-full bg-sky-500/25 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 size-64 rounded-full bg-rose-500/20 blur-3xl" />
+          <div className="relative">
+            <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]"><Compass className="size-3.5" /> Objetivos</span>
+            <h2 className="mt-5 text-3xl leading-tight text-white sm:text-4xl">Nuestro <span className="italic text-sky-300">propósito</span></h2>
+            <ol className="mt-8 space-y-5">
+              {OBJETIVOS.map((o, i) => (
+                <li key={o} className="group flex gap-4">
+                  <span className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-white/10 font-display text-sm ring-1 ring-white/20 transition-all duration-500 group-hover:bg-gradient-to-br group-hover:from-sky-400 group-hover:to-blue-600">
+                    <span className="transition-opacity group-hover:opacity-0">{i + 1}</span>
+                    <Check className="absolute size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </span>
+                  <p className="pt-1.5 leading-relaxed text-white/80">{o}</p>
+                </li>
+              ))}
+            </ol>
+            <Button asChild size="lg" className="btn-glow mt-9 w-full rounded-full"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+          </div>
+        </aside>
       </section>
 
       {/* ───────── TRAYECTORIA ───────── */}
