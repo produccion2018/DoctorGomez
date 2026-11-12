@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { subirAudioServidor } from "@/lib/servidor";
 import type { LucideIcon } from "lucide-react";
 import {
   Globe,
@@ -89,6 +90,9 @@ import {
   cerrarSesion,
   leerAuditoria,
   sesionActual,
+  sincronizarPersonal,
+  validarSesion,
+  modoServidor,
   useDato,
   leerDato,
   agendaDe,
@@ -502,6 +506,16 @@ function Panel() {
     if (s.rol === "enfermeria") setTab("triage");
     else if (s.rol === "personal") setTab("turnos");
     setAudit(leerAuditoria());
+    // Con backend: la sesión tiene que seguir vigente en el servidor
+    void validarSesion().then((v) => {
+      if (!v) {
+        toast.error("Tu sesión venció. Volvé a ingresar.");
+        navigate({ to: "/login" });
+        return;
+      }
+      setUser(v);
+      if (v.rol === "medico") void sincronizarPersonal();
+    });
   }, [navigate]);
 
   // Quita los turnos de ejemplo que pudieran haber quedado guardados
@@ -7585,8 +7599,24 @@ function SitioTab({ log }: { log: LogFn }) {
   const subirAudio = (f: File | undefined) => {
     if (!f) return;
     if (!f.type.startsWith("audio/")) { toast.error("Elegí un archivo de audio (mp3, ogg, wav)."); return; }
-    if (f.size > MAX_AUDIO_MB * 1024 * 1024) { toast.error(`El archivo supera ${MAX_AUDIO_MB} MB. Usá un enlace o un archivo más liviano.`); return; }
+    const enServidor = modoServidor();
+    const max = enServidor ? 15 : MAX_AUDIO_MB;
+    if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Usá un enlace o un archivo más liviano.`); return; }
     setCargando(true);
+    if (enServidor) {
+      // Con backend: el archivo se sube a Vercel Blob y queda disponible para todos los visitantes
+      void f.arrayBuffer().then(async (buf) => {
+        let bin = "";
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const r = await subirAudioServidor({ data: { nombre: f.name, tipo: f.type, base64: btoa(bin) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+        setCargando(false);
+        if (!r.ok) { toast.error(r.error); return; }
+        setNueva((n) => ({ ...n, url: r.url, nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
+        toast.success("Archivo subido.");
+      });
+      return;
+    }
     const fr = new FileReader();
     fr.onload = () => {
       setNueva((n) => ({ ...n, url: String(fr.result), nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
@@ -7621,6 +7651,10 @@ function SitioTab({ log }: { log: LogFn }) {
           <Globe className="size-4 text-[rgb(var(--acc))]" />
           {cambios ? <span className="font-semibold">Tenés cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guardes acá se ve en la web pública.</span>}
         </p>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
+          <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-emerald-500" : "bg-amber-500"}`} />
+          {modoServidor() ? "Conectado al servidor: lo ven todos" : "Modo local: solo en este navegador"}
+        </span>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm" className="rounded-xl"><a href="/contacto" target="_blank" rel="noreferrer"><Eye className="size-4" /> Ver la web</a></Button>
           {cambios && <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => setD(base)}>Descartar</Button>}
@@ -7703,14 +7737,14 @@ function SitioTab({ log }: { log: LogFn }) {
               <Campo label="Descripción"><input value={nueva.sub} onChange={(e) => setNueva({ ...nueva, sub: e.target.value })} placeholder="Ej.: Piano suave" className={inp} /></Campo>
               <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-4 py-5 text-center text-sm transition hover:bg-secondary">
                 <Upload className="size-5 text-[rgb(var(--acc))]" />
-                <span className="font-medium">{cargando ? "Leyendo archivo…" : nueva.url.startsWith("data:") ? "Archivo listo ✓" : "Subir archivo de audio"}</span>
-                <span className="text-xs text-muted-foreground">mp3, ogg o wav · hasta {MAX_AUDIO_MB} MB</span>
+                <span className="font-medium">{cargando ? "Subiendo archivo…" : nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "Archivo listo ✓" : "Subir archivo de audio"}</span>
+                <span className="text-xs text-muted-foreground">mp3, ogg o wav · hasta {modoServidor() ? 15 : MAX_AUDIO_MB} MB</span>
                 <input type="file" accept="audio/*" className="hidden" onChange={(e) => subirAudio(e.target.files?.[0])} />
               </label>
-              <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
+              <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
               {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
               <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes. Usá solo música con permiso de uso.</p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Usá solo música con permiso de uso.</p>
             </div>
           </div>
         </div>

@@ -1,8 +1,93 @@
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import {
+  aceptarInvitacionServidor,
+  cambiarClaveServidor,
+  crearClaveServidor,
+  estadoBackend,
+  guardarDatoServidor,
+  guardarPersonalServidor,
+  ingresarServidor,
+  leerDatos,
+  listaIngreso,
+  listarPersonalServidor,
+  salirServidor,
+  sesionServidor,
+  type PersonalServidor,
+} from "./servidor";
 
 const SESSION_KEY = "gb_session";
 const AUDIT_KEY = "gb_audit";
 const PW_KEY = "gb_admin_pw_";
+const BACKEND_KEY = "gb_backend";
+const CONCLAVE_KEY = "gb_conclave";
+
+/* =====================================================================
+   Backend (Neon + Vercel). Si la base está conectada, el acceso y los datos
+   compartidos van al servidor; si no, todo sigue funcionando en el navegador.
+   ===================================================================== */
+
+/** true cuando el servidor tiene la base de datos conectada. */
+export function modoServidor(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(BACKEND_KEY) === "1";
+}
+
+let inicio: Promise<boolean> | null = null;
+/** Consulta una vez por carga si hay backend y trae la lista de acceso. */
+export function iniciarBackend(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (!inicio) {
+    inicio = (async () => {
+      try {
+        const r = await estadoBackend();
+        localStorage.setItem(BACKEND_KEY, r.conectado ? "1" : "0");
+        if (!r.conectado) return false;
+        const l = await listaIngreso();
+        localStorage.setItem(CONCLAVE_KEY, JSON.stringify(l.conClave));
+        // Para la pantalla de ingreso alcanza con la lista pública (sin links de invitación)
+        const actuales = listarEnfermeras();
+        const porId = new Map(actuales.map((x) => [x.id, x]));
+        const fusion = l.personal.map((p) => ({ ...(porId.get(p.id) ?? {}), ...p }) as Personal);
+        localStorage.setItem(KEY_ENFERMERIA, JSON.stringify([...fusion, ...actuales.filter((x) => !x.activo && !fusion.some((y) => y.id === x.id))]));
+        window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_ENFERMERIA }));
+        return true;
+      } catch {
+        localStorage.setItem(BACKEND_KEY, "0");
+        return false;
+      }
+    })();
+  }
+  return inicio;
+}
+
+/** Con backend: confirma que la cookie de sesión siga vigente. */
+export async function validarSesion(): Promise<SessionUser | null> {
+  if (!(await iniciarBackend())) return sesionActual();
+  const u = await sesionServidor().catch(() => null);
+  if (!u) {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+  return u;
+}
+
+/** Trae del servidor el personal completo (con links) — solo médicos. */
+export async function sincronizarPersonal() {
+  if (!(await iniciarBackend())) return;
+  const r = await listarPersonalServidor().catch(() => null);
+  if (!r || !r.ok) return;
+  localStorage.setItem(CONCLAVE_KEY, JSON.stringify(r.conClave));
+  localStorage.setItem(KEY_ENFERMERIA, JSON.stringify(r.personal));
+  window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_ENFERMERIA }));
+}
+
+async function subirPersonal(lista: Personal[], resetear: string[] = []) {
+  const r = await guardarPersonalServidor({ data: { personal: lista as PersonalServidor[], resetear } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (!r.ok) toast.error(`No se pudo guardar en el servidor: ${r.error}`);
+  else void sincronizarPersonal();
+}
 
 export type Admin = { id: string; nombre: string };
 export type Rol = "medico" | "enfermeria" | "personal";
@@ -50,6 +135,7 @@ export function nuevoTokenInvitacion() {
 }
 function guardarPersonal(lista: Personal[]) {
   localStorage.setItem(KEY_ENFERMERIA, JSON.stringify(lista));
+  if (modoServidor()) void subirPersonal(lista);
   window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_ENFERMERIA }));
 }
 /** El link lleva los datos de la persona, así funciona también en otra computadora o celular. */
@@ -62,6 +148,8 @@ export function leerInvitacion(codigo: string): Personal | null {
   try {
     const d = JSON.parse(decodeURIComponent(escape(atob(codigo)))) as { i: string; n: string; a: string; t: string; d?: string };
     if (!d.i || !d.n || !d.t) return null;
+    // Con backend el link se valida en el servidor al crear la contraseña
+    if (modoServidor()) return { id: d.i, nombre: d.n, area: d.a, invitacion: d.t, activo: true, creado: new Date().toISOString(), creadoPor: "Invitación", ...(d.d ? { documento: d.d } : {}) };
     const local = listarEnfermeras().find((x) => x.id === d.i);
     if (local) return local.invitacion === d.t && local.activo ? local : null;
     // Abierto en otro dispositivo: se registra la persona acá
@@ -74,6 +162,12 @@ export function leerInvitacion(codigo: string): Personal | null {
 }
 export async function aceptarInvitacion(p: Personal, password: string): Promise<Result> {
   if (password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+  if (await iniciarBackend()) {
+    const r = await aceptarInvitacionServidor({ data: { id: p.id, token: p.invitacion ?? "", password } });
+    if (!r.ok) return r;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(r.usuario));
+    return { ok: true };
+  }
   localStorage.removeItem(PW_KEY + p.id);
   localStorage.setItem(PW_KEY + p.id, await hash(password));
   guardarPersonal(listarEnfermeras().map((x) => (x.id === p.id ? (({ invitacion: _i, ...resto }) => resto)(x) : x)));
@@ -81,6 +175,10 @@ export async function aceptarInvitacion(p: Personal, password: string): Promise<
   return ingresar(p.id, password);
 }
 export function borrarClave(id: string) {
+  if (modoServidor()) {
+    void subirPersonal(listarEnfermeras(), [id]);
+    return;
+  }
   localStorage.removeItem(PW_KEY + id);
 }
 
@@ -113,10 +211,16 @@ export function auditar(usuario: string, accion: string, detalle = ""): Evento[]
 }
 
 export function tieneClave(id: string): boolean {
+  if (modoServidor()) return leerDato<string[]>(CONCLAVE_KEY, []).includes(id);
   return localStorage.getItem(PW_KEY + id) !== null;
 }
 
 export async function crearClave(id: string, password: string): Promise<Result> {
+  if (await iniciarBackend()) {
+    const r = await crearClaveServidor({ data: { id, password } });
+    if (r.ok) localStorage.setItem(CONCLAVE_KEY, JSON.stringify([...leerDato<string[]>(CONCLAVE_KEY, []), id]));
+    return r;
+  }
   const admin = usuarioPorId(id);
   if (!admin) return { ok: false, error: "Usuario no autorizado." };
   if (tieneClave(id)) return { ok: false, error: "Este usuario ya tiene contraseña." };
@@ -127,6 +231,12 @@ export async function crearClave(id: string, password: string): Promise<Result> 
 }
 
 export async function ingresar(id: string, password: string): Promise<Result> {
+  if (await iniciarBackend()) {
+    const r = await ingresarServidor({ data: { id, password } });
+    if (!r.ok) return r;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(r.usuario));
+    return { ok: true };
+  }
   const admin = usuarioPorId(id);
   if (!admin) return { ok: false, error: "Usuario no autorizado." };
   const guardado = localStorage.getItem(PW_KEY + id);
@@ -141,6 +251,7 @@ export async function ingresar(id: string, password: string): Promise<Result> {
 }
 
 export async function cambiarClave(id: string, actual: string, nueva: string): Promise<Result> {
+  if (await iniciarBackend()) return cambiarClaveServidor({ data: { actual, nueva } });
   const guardado = localStorage.getItem(PW_KEY + id);
   if (!guardado) return { ok: false, error: "Todavía no hay una contraseña creada." };
   if ((await hash(actual)) !== guardado) return { ok: false, error: "La contraseña actual no es correcta." };
@@ -154,6 +265,7 @@ export function sesionActual(): SessionUser | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as SessionUser;
+    if (modoServidor()) return s; // la validez la confirma validarSesion()
     return usuarioPorId(s.id);
   } catch {
     return null;
@@ -162,6 +274,7 @@ export function sesionActual(): SessionUser | null {
 
 export function cerrarSesion() {
   localStorage.removeItem(SESSION_KEY);
+  if (modoServidor()) void salirServidor().catch(() => undefined);
 }
 
 /* =====================================================================
@@ -186,12 +299,46 @@ export function guardarDato<T>(key: string, val: T) {
   window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
 }
 
+/** Datos que viven en el servidor y se ven en la web pública. */
+const SINCRONIZADOS = ["gb_sitio", "gb_agenda"];
+const traidos = new Map<string, Promise<void>>();
+
+function traerDelServidor(key: string): Promise<void> {
+  if (!traidos.has(key)) {
+    traidos.set(
+      key,
+      (async () => {
+        if (!(await iniciarBackend())) return;
+        const r = await leerDatos({ data: { claves: [key] } }).catch(() => ({}) as Record<string, string>);
+        const remoto = r[key];
+        if (remoto !== undefined) {
+          localStorage.setItem(key, remoto);
+          window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
+        } else {
+          // Primera vez con backend: si un médico ya tenía datos en este navegador, se suben
+          const local = localStorage.getItem(key);
+          const s = sesionActual();
+          if (local && s?.rol === "medico") void guardarDatoServidor({ data: { clave: key, valor: local } }).catch(() => undefined);
+        }
+      })(),
+    );
+  }
+  return traidos.get(key)!;
+}
+
+async function subirAlServidor(key: string, val: unknown) {
+  if (!(await iniciarBackend())) return;
+  const r = await guardarDatoServidor({ data: { clave: key, valor: JSON.stringify(val) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (!r.ok) toast.error(`No se pudo publicar: ${r.error}`);
+}
+
 /** Estado sincronizado con localStorage (también entre pestañas). */
 export function useDato<T>(key: string, fallback: T): readonly [T, (fn: (prev: T) => T) => void] {
   const [val, setVal] = useState<T>(fallback);
   useEffect(() => {
     const cargar = () => setVal(leerDato(key, fallback));
     cargar();
+    if (SINCRONIZADOS.includes(key)) void traerDelServidor(key);
     const onCustom = (e: Event) => {
       if ((e as CustomEvent<string>).detail === key) cargar();
     };
@@ -211,6 +358,8 @@ export function useDato<T>(key: string, fallback: T): readonly [T, (fn: (prev: T
       const nuevo = fn(leerDato(key, fallback));
       guardarDato(key, nuevo);
       setVal(nuevo);
+      if (SINCRONIZADOS.includes(key) && modoServidor()) void subirAlServidor(key, nuevo);
+      if (key === KEY_ENFERMERIA && modoServidor()) void subirPersonal(nuevo as unknown as Personal[]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key],

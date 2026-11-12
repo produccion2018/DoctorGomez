@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import heroDoctors from "@/assets/hero-doctors.jpg";
-import { ADMINS, aceptarInvitacion, areaDe, crearClave, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
+import { ADMINS, aceptarInvitacion, areaDe, crearClave, iniciarBackend, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, validarSesion, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
 import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/login")({
@@ -70,7 +70,9 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
   const [p2, setP2] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  useEffect(() => setPersona(leerInvitacion(codigo)), [codigo]);
+  useEffect(() => {
+    void iniciarBackend().then(() => setPersona(leerInvitacion(codigo)));
+  }, [codigo]);
 
   const nombre = persona ? capitalizar(persona.nombre) : "";
   const iniciales = nombre.replace(/^(Enf\.|Lic\.|Dr\.|Dra\.)\s*/i, "").split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
@@ -271,9 +273,19 @@ function LoginNormal() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const [listo, setListo] = useState(0);
   useEffect(() => {
     if (sesionActual()) navigate({ to: "/panel" });
     setEnfermeras(listarEnfermeras().filter((e) => e.activo));
+    // Con backend: trae quién ya tiene contraseña y el personal habilitado
+    void iniciarBackend().then(async () => {
+      if (await validarSesion()) {
+        navigate({ to: "/panel" });
+        return;
+      }
+      setEnfermeras(listarEnfermeras().filter((e) => e.activo));
+      setListo((n) => n + 1);
+    });
   }, [navigate]);
 
   const cambiarRol = (r: Rol) => {
@@ -287,7 +299,7 @@ function LoginNormal() {
     setPrimera(!tieneClave(adminId));
     setPassword("");
     setPassword2("");
-  }, [adminId]);
+  }, [adminId, listo]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
