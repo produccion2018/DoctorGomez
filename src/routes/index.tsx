@@ -598,20 +598,20 @@ function Home() {
           <span className="section-kicker"><CalendarPlus className="size-3.5" /> Turnos online</span>
           <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu turno en <span className="text-gradient-clinic italic">tres pasos</span></h2>
         </div>
-        <div className="relative grid gap-6 md:grid-cols-3">
+        <div className="relative grid gap-3 md:grid-cols-3 md:gap-6">
           <div className="premium-divider absolute left-[16%] right-[16%] top-10 hidden md:block" />
           {[
             { n: "01", icon: Stethoscope, t: "Elegí la especialidad", d: "Cardiología, nefrología, medicina interna y más." },
             { n: "02", icon: Clock, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor." },
             { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones." },
           ].map((p, i) => (
-            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="relative rounded-3xl p-8 text-center">
-              <span className="relative mx-auto flex size-20 items-center justify-center rounded-3xl gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)]">
+            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="relative flex items-center gap-5 rounded-3xl border border-border/60 bg-card/60 p-4 text-left md:block md:border-0 md:bg-transparent md:p-8 md:text-center">
+              <span className="relative flex size-16 shrink-0 items-center justify-center rounded-3xl gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)] md:mx-auto md:size-20">
                 <p.icon className="size-8" />
                 <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-full bg-white font-display text-sm font-bold text-[var(--deep)] shadow-md">{p.n}</span>
               </span>
-              <h3 className="mt-6 text-lg font-semibold">{p.t}</h3>
-              <p className="mt-2 text-sm text-muted-foreground">{p.d}</p>
+              <div><h3 className="text-lg font-semibold md:mt-6">{p.t}</h3>
+              <p className="mt-1 text-sm text-muted-foreground md:mt-2">{p.d}</p></div>
             </div>
           ))}
         </div>

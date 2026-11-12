@@ -195,16 +195,18 @@ function Clinica() {
           <span className="section-kicker">Cómo te atendemos</span>
           <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Tu recorrido <span className="text-gradient-clinic italic">en la clínica</span></h2>
         </div>
-        <div className="relative mt-16 grid gap-10 md:grid-cols-4 md:gap-6">
+        <div className="relative mt-12 grid gap-3 md:mt-16 md:grid-cols-4 md:gap-6">
           <div className="premium-divider absolute left-[12%] right-[12%] top-10 hidden md:block" />
           {PASOS.map((p, i) => (
-            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 110}ms` }} className="group relative text-center">
-              <span className="relative z-10 mx-auto flex size-20 items-center justify-center rounded-[1.75rem] gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)] ring-8 ring-background transition-transform duration-500 group-hover:-translate-y-1 group-hover:rotate-3">
+            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 110}ms` }} className="group relative flex items-center gap-5 rounded-3xl border border-border/60 bg-card/60 p-4 text-left md:block md:border-0 md:bg-transparent md:p-0 md:text-center">
+              <span className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-[1.75rem] gradient-deep text-white md:mx-auto md:size-20 shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)] ring-8 ring-background transition-transform duration-500 group-hover:-translate-y-1 group-hover:rotate-3">
                 <p.icon className="size-7" />
                 <span className="absolute -right-2 -top-2 flex size-7 items-center justify-center rounded-full bg-rose-500 font-display text-[11px] font-semibold ring-4 ring-background">{p.n}</span>
               </span>
-              <h3 className="mt-6 text-lg font-semibold">{p.t}</h3>
-              <p className="mx-auto mt-1.5 max-w-[15rem] text-sm text-muted-foreground">{p.d}</p>
+              <div>
+                <h3 className="text-lg font-semibold md:mt-6">{p.t}</h3>
+                <p className="mt-1 text-sm text-muted-foreground md:mx-auto md:mt-1.5 md:max-w-[15rem]">{p.d}</p>
+              </div>
             </div>
           ))}
         </div>

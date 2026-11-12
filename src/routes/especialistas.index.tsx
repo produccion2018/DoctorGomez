@@ -37,9 +37,9 @@ function Especialistas() {
           <article
             key={d.id}
             data-reveal
-            className={`group grid overflow-hidden rounded-[2rem] border border-border bg-card shadow-elevated ${i % 2 ? "md:grid-cols-[1fr_360px]" : "md:grid-cols-[360px_1fr]"}`}
+            className={`group grid overflow-hidden rounded-[2rem] border border-border bg-card shadow-elevated ${i % 2 ? "lg:grid-cols-[1fr_360px]" : "lg:grid-cols-[360px_1fr]"}`}
           >
-            <div className={`relative min-h-96 overflow-hidden ${i % 2 ? "md:order-2" : ""}`}>
+            <div className={`relative h-[26rem] overflow-hidden sm:h-[32rem] lg:h-auto lg:min-h-96 ${i % 2 ? "lg:order-2" : ""}`}>
               <img src={fotoDoctor(d.foto)} alt={d.nombre} loading="lazy" className="absolute inset-0 size-full object-cover object-top transition-transform duration-1000 group-hover:scale-105" />
               <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-card via-card/40 to-transparent" />
             </div>

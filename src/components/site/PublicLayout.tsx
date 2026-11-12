@@ -365,7 +365,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-4 lg:px-8">
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:px-8">
           <div className="space-y-4">
             <Brand light />
             <p className="text-sm leading-relaxed text-deep-foreground/70">{CLINICA.claim}</p>
@@ -400,7 +400,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="relative border-t border-white/10">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-deep-foreground/60 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pb-24 pt-5 text-xs text-deep-foreground/60 lg:px-8 lg:pl-24">
             <span>© {new Date().getFullYear()} {CLINICA.nombre}. Todos los derechos reservados.</span>
             <Link to="/login" className="inline-flex items-center gap-1.5 opacity-70 transition-opacity hover:opacity-100">
               <Lock className="size-3" /> Acceso profesionales
