@@ -270,7 +270,7 @@ function HeroCarousel() {
             width={1600}
             height={1000}
             loading="lazy"
-            className={`absolute inset-0 size-full object-cover transition-all duration-[1400ms] ease-out ${
+            className={`absolute inset-0 size-full object-cover object-[center_22%] transition-all duration-[1400ms] ease-out ${
               idx === i ? "scale-100 opacity-100" : "scale-110 opacity-0"
             }`}
           />
