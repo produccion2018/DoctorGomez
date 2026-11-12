@@ -466,6 +466,46 @@
   30% { transform: scale(1.12); }
 }
 
+/* Panel: fondos animados por especialidad */
+.pn-latido {
+  animation: pn-latido 1.6s ease-in-out infinite;
+}
+@keyframes pn-latido {
+  0%, 40%, 100% { transform: translateY(-50%) scale(1); }
+  10% { transform: translateY(-50%) scale(1.06); }
+  20% { transform: translateY(-50%) scale(0.99); }
+  30% { transform: translateY(-50%) scale(1.04); }
+}
+.pn-latido-glow {
+  animation: pn-glow 1.6s ease-in-out infinite;
+}
+@keyframes pn-glow {
+  0%, 40%, 100% { opacity: 0.55; }
+  10%, 30% { opacity: 1; }
+}
+.pn-rinon {
+  animation: pn-rinon 4s ease-in-out infinite;
+}
+@keyframes pn-rinon {
+  0%, 100% { transform: translateY(-50%) scale(1); filter: brightness(1); }
+  50% { transform: translateY(-52%) scale(1.04); filter: brightness(1.25); }
+}
+.pn-flujo {
+  stroke-dasharray: 40 30;
+  animation: pn-flujo 4.8s linear infinite;
+}
+@keyframes pn-flujo {
+  to { stroke-dashoffset: -420; }
+}
+.pn-gota {
+  animation: pn-gota 5.5s linear infinite;
+}
+@keyframes pn-gota {
+  from { transform: translateX(-20px); opacity: 0; }
+  10%, 90% { opacity: 1; }
+  to { transform: translateX(820px); opacity: 0; }
+}
+
 /* Título del hero: palabra por palabra */
 .hero-word {
   opacity: 0;
@@ -566,6 +606,11 @@
   .spin-slow,
   .hero-kenburns,
   .hero-word,
+  .pn-latido,
+  .pn-latido-glow,
+  .pn-rinon,
+  .pn-flujo,
+  .pn-gota,
   .animate-heartbeat,
   .hero-shine,
   .hero-glow,

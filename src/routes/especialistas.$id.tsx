@@ -48,7 +48,7 @@ function PerfilDoctor() {
             <img src={fotoDoctor(doctor.foto)} alt={doctor.nombre} className="aspect-[4/5] w-full object-cover object-top" />
           </div>
           <div className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-card">
-            <p className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><Stethoscope className="size-4" /></span>{agenda.consultorio || doctor.consultorio}</p>
+            <p className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><Stethoscope className="size-4" /></span>{doctor.titulo}</p>
             <p className="flex items-center gap-3 text-sm"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><CalendarDays className="size-4" /></span>{resumenAgenda(agenda)}</p>
             <Button asChild className="btn-glow mt-2 h-12 w-full rounded-xl"><Link to="/turnos" search={{ doctor: doctor.id }}><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
             <Button asChild variant="outline" className="h-11 w-full rounded-xl">

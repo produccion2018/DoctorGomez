@@ -444,8 +444,8 @@ const agendaBase = (consultorio: string): AgendaDoctor => ({
 });
 
 export const AGENDA_INICIAL: Agendas = {
-  alberto: agendaBase("Consultorio 3"),
-  alonso: agendaBase("Consultorio 5"),
+  alberto: agendaBase(""),
+  alonso: agendaBase(""),
 };
 
 export function agendaDe(agendas: Agendas, id: string): AgendaDoctor {

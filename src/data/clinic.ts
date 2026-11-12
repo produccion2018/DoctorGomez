@@ -109,7 +109,7 @@ export const DOCTORS: Doctor[] = [
       "Evaluación de riesgo cardiovascular",
     ],
     foto: "alonso",
-    consultorio: "Consultorio 5",
+    consultorio: "",
     dias: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
   },
   {
@@ -133,7 +133,7 @@ export const DOCTORS: Doctor[] = [
       "Seguimiento de enfermedades crónicas",
     ],
     foto: "alberto",
-    consultorio: "Consultorio 3",
+    consultorio: "",
     dias: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
   },
 ];

@@ -270,7 +270,7 @@ function Turnos() {
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{d.nombre}</p>
                           <p className="mt-1 text-xs font-bold text-primary">{d.titulo}</p>
-                          <p className="mt-2 text-xs text-muted-foreground">{d.consultorio}</p>
+                          
                           <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(agendaDe(agendas, d.foto))}</p>
                         </div>
                         {on && <CheckCircle2 className="ml-auto size-6 shrink-0 text-primary" />}

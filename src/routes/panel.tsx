@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { subirAudioServidor } from "@/lib/servidor";
 import { Electro } from "@/components/site/PublicLayout";
+import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
+import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
   Globe,
@@ -883,7 +885,7 @@ function Panel() {
         <div className="pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
           <div className="pn-orb pointer-events-none absolute -right-10 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
-          <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 -bottom-1 h-9 w-full" />
+          <FondoEspecialidadMedico id={user.id} />
           <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               {foto && <img src={foto} alt="" className="hidden size-16 rounded-2xl object-cover object-top ring-2 ring-white/30 sm:block" />}
@@ -1699,7 +1701,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
                 {foto && <img src={foto} alt="" className="size-11 rounded-xl object-cover object-top" />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{a.nombre}</p>
-                  <p className="truncate text-xs text-muted-foreground">{atiende ? `${ag.desde} a ${ag.hasta} · ${ag.consultorio}` : "No atiende este día"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{atiende ? `${ag.desde} a ${ag.hasta}` : "No atiende este día"}</p>
                 </div>
                 {atiende && <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold">{suyos.length}/{slots.length}</span>}
               </div>
@@ -1982,7 +1984,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
                 {fotoDe(adminSel.id) && <img src={fotoDe(adminSel.id)!} alt="" className="size-12 rounded-xl object-cover object-top ring-2 ring-white/25" />}
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{nombreCorto(adminSel.nombre)}</p>
-                  <p className="text-xs text-white/65">{agendaSel.consultorio}</p>
+                  
                 </div>
               </div>
               <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
@@ -3455,7 +3457,6 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
               )}
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Campo label="Consultorio"><input value={draft.consultorio} onChange={(e) => set({ consultorio: e.target.value })} className={inp} /></Campo>
               <Campo label="Aviso para pacientes (se ve en la web)"><input value={draft.nota} placeholder="Ej: traer estudios previos" onChange={(e) => set({ nota: e.target.value })} className={inp} /></Campo>
             </div>
           </Seccion>
@@ -3488,7 +3489,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
                 {fotoDe(sel) && <img src={fotoDe(sel)!} alt="" className="size-12 rounded-xl object-cover object-top ring-2 ring-white/30" />}
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{doctor?.nombre ?? admin.nombre}</p>
-                  <p className="text-xs text-white/75">{draft.consultorio}</p>
+                  <p className="text-xs text-white/75">{doctor?.titulo}</p>
                 </div>
               </div>
             </div>
@@ -7759,4 +7760,49 @@ function SitioTab({ log }: { log: LogFn }) {
       </Seccion>
     </div>
   );
+}
+
+
+/**
+ * Fondo animado del encabezado del panel según el médico:
+ * cardiólogo → corazón + electro con latido; nefrólogo → riñones con pulso y flujo.
+ */
+function FondoEspecialidadMedico({ id }: { id: string }) {
+  if (id === "alonso") {
+    // Cardiología: corazón que late + electro rojo brillante
+    return (
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-y-0 right-0 w-[55%] bg-[radial-gradient(circle_at_78%_45%,rgba(244,63,94,.45),transparent_60%)] pn-latido-glow" />
+        <img src={fondoCorazonPanel} alt="" className="pn-latido absolute right-2 top-1/2 h-[135%] max-w-none -translate-y-1/2 opacity-45 mix-blend-screen [mask-image:radial-gradient(closest-side,#000_60%,transparent)] sm:right-10" />
+        <Electro latidos={6} grilla={false} color="#fb7185" className="absolute inset-x-0 bottom-1 h-20 w-full opacity-95" />
+      </div>
+    );
+  }
+  if (id === "alberto") {
+    // Nefrología: riñones que "filtran" + ondas de flujo celestes
+    const onda = (k: number) =>
+      `M0 ${50 + k * 8} ` +
+      Array.from({ length: 8 }, (_, i) => `C ${i * 100 + 25} ${30 + k * 8}, ${i * 100 + 75} ${70 + k * 8}, ${(i + 1) * 100} ${50 + k * 8}`).join(" ");
+    return (
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-y-0 right-0 w-[55%] bg-[radial-gradient(circle_at_78%_45%,rgba(56,189,248,.5),transparent_60%)] pn-latido-glow" />
+        <img src={fondoRinonesPanel} alt="" className="pn-rinon absolute right-2 top-1/2 h-[125%] max-w-none -translate-y-1/2 opacity-55 mix-blend-screen [mask-image:radial-gradient(closest-side,#000_62%,transparent)] sm:right-10" />
+        <svg viewBox="0 0 800 100" preserveAspectRatio="none" className="absolute inset-x-0 bottom-0 h-20 w-full">
+          <defs>
+            <filter id="flujo-glow" x="-5%" y="-50%" width="110%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="b" />
+              <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+          </defs>
+          {[0, 1, 2].map((k) => (
+            <g key={k}>
+              <path d={onda(k)} fill="none" stroke="#7dd3fc" strokeOpacity={0.28 - k * 0.06} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              <path className="electro-barrido" pathLength={1000} style={{ animationDelay: `${-k * 1.4}s`, animationDuration: `${5 + k}s` }} d={onda(k)} fill="none" stroke="#bae6fd" strokeWidth={3 - k * 0.6} strokeLinecap="round" vectorEffect="non-scaling-stroke" filter="url(#flujo-glow)" />
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  }
+  return <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 -bottom-1 h-9 w-full" />;
 }

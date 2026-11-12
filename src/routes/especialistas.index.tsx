@@ -48,7 +48,7 @@ function Especialistas() {
               <div className="relative space-y-7">
                 <div>
                   <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: ac.c }}>
-                    <span className="h-px w-6" style={{ background: ac.c }} /> {ag.consultorio || d.consultorio}
+                    <span className="h-px w-6" style={{ background: ac.c }} /> {d.foto === "alonso" ? "Cardiología" : "Nefrología"}
                   </p>
                   <h2 className="mt-2 text-3xl sm:text-4xl">{d.nombre}</h2>
                   <p className="mt-1.5 text-base font-bold" style={{ color: ac.c }}>{d.titulo}</p>
