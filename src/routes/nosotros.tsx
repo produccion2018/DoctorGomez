@@ -3,7 +3,6 @@ import { Activity, ArrowRight, CalendarPlus, Check, Compass, Eye, Gauge, HeartHa
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
 import { DOCTORS } from "@/data/clinic";
-import clinicaImg from "@/assets/clinica.jpg";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
@@ -83,15 +82,6 @@ function Nosotros() {
             bienestar y confianza a cada paciente.
           </p>
 
-          <div className="mt-10 grid grid-cols-3 divide-x divide-border border-y border-border">
-            {[["+25", "años de experiencia"], ["+12.000", "consultas"], ["13", "especialidades"]].map(([n, l]) => (
-              <div key={l} className="px-3 py-6 text-center first:pl-0 last:pr-0">
-                <p className="font-display text-3xl font-semibold text-gradient-clinic sm:text-4xl">{n}</p>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">{l}</p>
-              </div>
-            ))}
-          </div>
-
           <div className="mt-9 flex flex-wrap gap-3">
             <Button asChild size="lg" className="btn-glow rounded-full px-7"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
             <Link to="/especialistas" className="inline-flex items-center gap-2 px-3 text-sm font-semibold text-primary transition-all hover:gap-3">
@@ -101,15 +91,12 @@ function Nosotros() {
         </div>
 
         {/* Collage de fotos */}
-        <div data-reveal className="relative mx-auto w-full max-w-xl pb-16 pl-10 lg:max-w-none">
+        <div data-reveal className="relative mx-auto w-full max-w-xl lg:max-w-none">
           <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-gradient-to-tr from-sky-400/25 via-transparent to-rose-400/25 blur-3xl" />
           <div className="group relative overflow-hidden rounded-[2.25rem] shadow-[0_50px_100px_-50px_rgba(10,25,70,.9)] ring-1 ring-black/5">
             <img src={heroDoctors} alt="Los doctores Gómez Bolaño" loading="lazy" className="aspect-[4/5] w-full object-cover object-top transition-transform duration-[1500ms] group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_262/0.8)] via-transparent to-transparent" />
             <p className="absolute bottom-6 right-6 text-right text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Dirección médica</p>
-          </div>
-          <div className="absolute bottom-0 left-0 w-[46%] overflow-hidden rounded-[1.75rem] border-[6px] border-background shadow-2xl">
-            <img src={clinicaImg} alt="Instalaciones de la clínica" loading="lazy" className="aspect-square w-full object-cover" />
           </div>
           <div className="glass absolute right-4 top-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-xl">
             <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-700"><HeartHandshake className="size-4" /></span>
