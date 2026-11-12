@@ -9,8 +9,8 @@ const DIAS_SESION = 14;
 
 /** Los dos únicos administradores. */
 const ADMINS = [
-  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
   { id: "alonso", nombre: "Dr. Alonso Gómez Bolaño" },
+  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
 ];
 
 /** Datos que cualquiera puede leer (se muestran en la web pública). */

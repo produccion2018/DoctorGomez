@@ -78,7 +78,7 @@ export function imagenEspecialidad(slug: string) {
 
 export const CLINICA = {
   nombre: "HEGO · Centro de especialidades médicas",
-  claim: "Centro médico especializado en Medicina Interna, Nefrología y Cardiología",
+  claim: "Centro médico especializado en Medicina Interna, Cardiología y Nefrología",
   direccion: "Av. Libertador 2450, Piso 3 — Ciudad",
   telefono: "+54 11 4000-1200",
   whatsapp: "+54 9 11 6000-1200",
@@ -87,30 +87,6 @@ export const CLINICA = {
 };
 
 export const DOCTORS: Doctor[] = [
-  {
-    id: "d1",
-    nombre: "Dr. Carlos Alberto Gómez Bolaño",
-    titulo: "Especialista en Medicina Interna y Nefrología",
-    especialidades: ["Medicina Interna", "Nefrología"],
-    matricula: "MN 84.512",
-    bio: "Referente en medicina interna y enfermedad renal crónica, con enfoque en diagnóstico integral y seguimiento longitudinal del paciente.",
-    formacion: [
-      "Médico Cirujano — Universidad de Guayaquil, Ecuador",
-      "Especialista en Medicina Interna — Universidad del Zulia, Unidad Docente Hospital General del Sur, Maracaibo",
-      "Especialista en Nefrología — Universidad del Zulia, Unidad Docente Hospital Universitario de Maracaibo",
-    ],
-    areas: [
-      "Enfermedad renal crónica",
-      "Hipertensión arterial",
-      "Diabetes y síndrome metabólico",
-      "Trastornos hidroelectrolíticos",
-      "Evaluación prequirúrgica",
-      "Seguimiento de enfermedades crónicas",
-    ],
-    foto: "alberto",
-    consultorio: "Consultorio 3",
-    dias: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
-  },
   {
     id: "d2",
     nombre: "Dr. Carlos Alonso Gómez Bolaño",
@@ -133,6 +109,30 @@ export const DOCTORS: Doctor[] = [
     ],
     foto: "alonso",
     consultorio: "Consultorio 5",
+    dias: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
+  },
+  {
+    id: "d1",
+    nombre: "Dr. Carlos Alberto Gómez Bolaño",
+    titulo: "Especialista en Medicina Interna y Nefrología",
+    especialidades: ["Medicina Interna", "Nefrología"],
+    matricula: "MN 84.512",
+    bio: "Referente en medicina interna y enfermedad renal crónica, con enfoque en diagnóstico integral y seguimiento longitudinal del paciente.",
+    formacion: [
+      "Médico Cirujano — Universidad de Guayaquil, Ecuador",
+      "Especialista en Medicina Interna — Universidad del Zulia, Unidad Docente Hospital General del Sur, Maracaibo",
+      "Especialista en Nefrología — Universidad del Zulia, Unidad Docente Hospital Universitario de Maracaibo",
+    ],
+    areas: [
+      "Enfermedad renal crónica",
+      "Hipertensión arterial",
+      "Diabetes y síndrome metabólico",
+      "Trastornos hidroelectrolíticos",
+      "Evaluación prequirúrgica",
+      "Seguimiento de enfermedades crónicas",
+    ],
+    foto: "alberto",
+    consultorio: "Consultorio 3",
     dias: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"],
   },
 ];
@@ -163,30 +163,6 @@ export const ESPECIALIDADES = [
       "Controles programados cada 3 a 6 meses con revisión de estudios y ajuste terapéutico documentado en la historia clínica.",
   },
   {
-    slug: "nefrologia",
-    nombre: "Nefrología",
-    icono: "kidney",
-    doctorIds: ["d1"],
-    descripcion:
-      "Diagnóstico, tratamiento y seguimiento de las enfermedades del riñón y del medio interno.",
-    aborda: [
-      "Enfermedad renal crónica",
-      "Hipertensión de causa renal",
-      "Proteinuria y hematuria",
-      "Litiasis renal",
-      "Trastornos hidroelectrolíticos",
-    ],
-    cuando: [
-      "Creatinina o filtrado glomerular alterados",
-      "Presencia de proteínas o sangre en orina",
-      "Hipertensión de difícil control",
-      "Antecedentes familiares de enfermedad renal",
-    ],
-    estudios: ["Función renal", "Orina completa y proteinuria 24h", "Ecografía renal", "Doppler renal"],
-    seguimiento:
-      "Plan de nefroprotección con controles trimestrales, ajuste de medicación y educación sobre hábitos y dieta.",
-  },
-  {
     slug: "cardiologia",
     nombre: "Cardiología",
     icono: "heart",
@@ -209,6 +185,30 @@ export const ESPECIALIDADES = [
     estudios: ["Electrocardiograma", "Ergometría", "Holter 24h", "Ecocardiograma doppler"],
     seguimiento:
       "Programa de prevención cardiovascular con controles semestrales y monitoreo de factores de riesgo.",
+  },
+  {
+    slug: "nefrologia",
+    nombre: "Nefrología",
+    icono: "kidney",
+    doctorIds: ["d1"],
+    descripcion:
+      "Diagnóstico, tratamiento y seguimiento de las enfermedades del riñón y del medio interno.",
+    aborda: [
+      "Enfermedad renal crónica",
+      "Hipertensión de causa renal",
+      "Proteinuria y hematuria",
+      "Litiasis renal",
+      "Trastornos hidroelectrolíticos",
+    ],
+    cuando: [
+      "Creatinina o filtrado glomerular alterados",
+      "Presencia de proteínas o sangre en orina",
+      "Hipertensión de difícil control",
+      "Antecedentes familiares de enfermedad renal",
+    ],
+    estudios: ["Función renal", "Orina completa y proteinuria 24h", "Ecografía renal", "Doppler renal"],
+    seguimiento:
+      "Plan de nefroprotección con controles trimestrales, ajuste de medicación y educación sobre hábitos y dieta.",
   },
   {
     slug: "cardiologia-critica",

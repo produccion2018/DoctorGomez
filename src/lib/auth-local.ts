@@ -97,8 +97,8 @@ type Result = { ok: true } | { ok: false; error: string };
 
 // Los únicos usuarios con acceso. Cambiá los nombres acá si hace falta.
 export const ADMINS: Admin[] = [
-  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
   { id: "alonso", nombre: "Dr. Alonso Gómez Bolaño" },
+  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
 ];
 
 /* ---------- Personal de enfermería (lo dan de alta los médicos) ---------- */

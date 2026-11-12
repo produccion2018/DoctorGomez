@@ -81,11 +81,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "HEGO · Centro de especialidades médicas — Medicina Interna, Nefrología y Cardiología" },
+      { title: "HEGO · Centro de especialidades médicas — Medicina Interna, Cardiología y Nefrología" },
       {
         name: "description",
         content:
-          "Clínica privada especializada en Medicina Interna, Nefrología y Cardiología. Turnos online y atención personalizada.",
+          "Clínica privada especializada en Medicina Interna, Cardiología y Nefrología. Turnos online y atención personalizada.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/especialidades/")({
   head: () => ({
     meta: [
       { title: "Especialidades | HEGO · Centro de especialidades médicas" },
-      { name: "description", content: "Medicina Interna, Nefrología, Cardiología, Ecocardiografía, Holter, Laboratorio y más unidades de la clínica." },
+      { name: "description", content: "Medicina Interna, Cardiología, Nefrología, Ecocardiografía, Holter, Laboratorio y más unidades de la clínica." },
     ],
   }),
   component: Especialidades,

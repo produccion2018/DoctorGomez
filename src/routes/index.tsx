@@ -37,10 +37,10 @@ import fotoAlonso from "@/assets/doctor-alonso.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HEGO · Centro de especialidades médicas | Medicina Interna, Nefrología y Cardiología" },
-      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online y atención especializada en Medicina Interna, Nefrología y Cardiología." },
+      { title: "HEGO · Centro de especialidades médicas | Medicina Interna, Cardiología y Nefrología" },
+      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online y atención especializada en Medicina Interna, Cardiología y Nefrología." },
       { property: "og:title", content: "HEGO · Centro de especialidades médicas | Atención médica especializada" },
-      { property: "og:description", content: "Medicina Interna, Nefrología, Cardiología, Cardiología Crítica y Ecocardiografía." },
+      { property: "og:description", content: "Medicina Interna, Cardiología, Nefrología, Cardiología Crítica y Ecocardiografía." },
     ],
   }),
   component: Home,
@@ -318,7 +318,7 @@ function Home() {
           <div className="relative aspect-[4/3] overflow-hidden sm:aspect-[16/9] lg:absolute lg:inset-0 lg:left-[16%] lg:aspect-auto lg:[mask-image:linear-gradient(to_right,transparent,#000_22%)]">
             <img
               src={heroDoctors}
-              alt="Dr. Carlos Alberto y Dr. Carlos Alonso Gómez Bolaño"
+              alt="Dr. Carlos Alonso y Dr. Carlos Alberto Gómez Bolaño"
               width={1536}
               height={1024}
               className="hero-kenburns absolute inset-0 size-full object-cover object-center"
@@ -347,7 +347,7 @@ function Home() {
                 ))}
               </h1>
               <p className="hero-word max-w-lg text-lg text-deep-foreground/85" style={{ animationDelay: "1.05s" }}>
-                Atención médica especializada en Medicina Interna, Nefrología y Cardiología.
+                Atención médica especializada en Medicina Interna, Cardiología y Nefrología.
               </p>
               <div className="hero-word flex flex-wrap gap-3" style={{ animationDelay: "1.2s" }}>
                 <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white hover:!bg-[var(--clinic)]/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
@@ -358,7 +358,7 @@ function Home() {
 
               <div className="hero-word flex items-center gap-4 pt-2" style={{ animationDelay: "1.35s" }}>
                 <div className="flex -space-x-3">
-                  {[fotoAlberto, fotoAlonso].map((f, idx) => (
+                  {[fotoAlonso, fotoAlberto].map((f, idx) => (
                     <img key={idx} src={f} alt="" className="size-11 rounded-full object-cover object-top ring-2 ring-deep" />
                   ))}
                 </div>
@@ -384,7 +384,7 @@ function Home() {
             <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
           </div>
           <div className="glass absolute bottom-10 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
-            <p className="text-xs font-semibold leading-tight text-white">Dr. Alberto · Dr. Alonso</p>
+            <p className="text-xs font-semibold leading-tight text-white">Dr. Alonso · Dr. Alberto</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
           </div>
         </div>
@@ -394,8 +394,8 @@ function Home() {
           <div className="-mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {[
               { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral", slug: "medicina-interna", c: "#10b981", c2: "#047857" },
-              { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección", slug: "nefrologia", c: "#0ea5e9", c2: "#0369a1" },
               { icon: HeartPulse, t: "Cardiología", d: "Prevención y tratamiento", slug: "cardiologia", c: "#ef4444", c2: "#b91c1c" },
+              { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección", slug: "nefrologia", c: "#0ea5e9", c2: "#0369a1" },
               { icon: Waves, t: "Ecocardiografía", d: "Diagnóstico por imágenes", slug: "ecocardiografia", c: "#8b5cf6", c2: "#6d28d9" },
             ].map((c, idx) => (
               <Link

@@ -12,7 +12,7 @@ type Resultado<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const PUBLICOS = ["gb_sitio", "gb_agenda"] as const;
 /** Datos que solo los médicos administradores pueden modificar. */
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
-const ADMINS_IDS = ["alberto", "alonso"];
+const ADMINS_IDS = ["alonso", "alberto"];
 
 const modulo = () => import("./db.server");
 const acceso = () => import("./acceso.server");

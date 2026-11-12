@@ -11,7 +11,7 @@ export const Route = createFileRoute("/especialistas/")({
       { title: "Especialistas | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Perfiles profesionales del Dr. Carlos Alberto Gómez Bolaño y del Dr. Carlos Alonso Gómez Bolaño." },
       { property: "og:title", content: "Nuestros especialistas | HEGO · Centro de especialidades médicas" },
-      { property: "og:description", content: "Medicina Interna, Nefrología, Cardiología y Ecocardiografía." },
+      { property: "og:description", content: "Medicina Interna, Cardiología, Nefrología y Ecocardiografía." },
     ],
   }),
   component: Especialistas,
