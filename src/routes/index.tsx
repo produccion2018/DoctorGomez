@@ -309,13 +309,6 @@ function HeroCarousel() {
 function Home() {
   useReveal();
 
-  const stats = [
-    { n: "+25", l: "Años de experiencia combinada" },
-    { n: String(ESPECIALIDADES.length), l: "Departamentos y especialidades" },
-    { n: "+12.000", l: "Consultas realizadas" },
-    { n: "24 h", l: "Entrega de informes" },
-  ];
-
   return (
     <PublicLayout>
       {/* ───────── HERO ───────── */}
@@ -446,22 +439,6 @@ function Home() {
       <div className="py-16">
         <HeroCarousel />
       </div>
-
-      {/* ───────── ESTADÍSTICAS ───────── */}
-      <section className="mx-auto max-w-7xl px-4 lg:px-8">
-        <div data-reveal className="relative overflow-hidden rounded-[2rem] gradient-deep px-6 py-10 text-white shadow-[0_40px_80px_-40px_rgba(10,25,70,.8)] ring-1 ring-white/10 sm:px-10 sm:py-12">
-          <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-sky-400/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 right-0 size-80 rounded-full bg-rose-500/20 blur-3xl" />
-          <div className="relative grid grid-cols-2 gap-y-10 lg:grid-cols-4 lg:divide-x lg:divide-white/10">
-            {stats.map((s) => (
-              <div key={s.l} className="px-3 text-center">
-                <p className="font-display text-4xl font-semibold tracking-tight sm:text-5xl"><Contador valor={s.n} /></p>
-                <p className="mx-auto mt-2 max-w-[12rem] text-xs uppercase tracking-[0.14em] text-white/60 sm:text-[13px]">{s.l}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* ───────── DEPARTAMENTOS / ESPECIALIDADES ───────── */}
       <section className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8">
