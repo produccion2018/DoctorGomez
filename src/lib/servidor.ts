@@ -61,7 +61,14 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
       return { ok: false, error: (e as Error).message };
     }
     const sql = await db();
-    const json = data.valor;
+    let json = data.valor;
+    if (data.clave === "gb_agenda") {
+      // Cada médico solo puede guardar SU agenda: se toma su parte y se conserva la del otro
+      const nuevo = JSON.parse(data.valor || "{}") as Record<string, unknown>;
+      const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_agenda'`) as { valor: Record<string, unknown> }[];
+      const actual = filas[0]?.valor ?? {};
+      json = JSON.stringify({ ...actual, ...(u.id in nuevo ? { [u.id]: nuevo[u.id] } : {}) });
+    }
     await sql`INSERT INTO datos (clave, valor, por, actualizado) VALUES (${data.clave}, ${json}::jsonb, ${u.nombre}, now())
       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, por = EXCLUDED.por, actualizado = now()`;
     return { ok: true };

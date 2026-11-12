@@ -3337,7 +3337,12 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
   const slots = horariosDelDia(draft);
   const proximos = proximosDias(draft, 6);
 
+  const propia = sel === user.id;
   const guardar = () => {
+    if (!propia) {
+      toast.error("Solo podés modificar tus propios horarios.");
+      return;
+    }
     if (draft.dias.length === 0) {
       toast.error("Elegí al menos un día de atención.");
       return;
@@ -3382,7 +3387,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
               {f && <img src={f} alt="" className="size-14 rounded-2xl object-cover object-top" />}
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 font-semibold">
-                  {a.nombre} {a.id === user.id && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Vos</span>}
+                  {a.nombre} {a.id === user.id ? <span className="rounded-full bg-[rgba(var(--acc),.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--acc))]">Tus horarios</span> : <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Solo ver</span>}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
               </div>
@@ -3392,9 +3397,16 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
         })}
       </div>
 
+      {!propia && (
+        <div className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
+          <Lock className="size-4 shrink-0" /> Estás viendo los horarios de {admin.nombre}. Solo él puede modificarlos desde su usuario.
+        </div>
+      )}
+
+      <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-6 xl:col-span-3">
-          <Seccion icon={CalendarDays} titulo="Días y horario de atención" sub={admin.nombre}
+          <Seccion icon={CalendarDays} titulo={propia ? "Tus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar turno»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
             <p className="mb-2 text-xs font-medium text-muted-foreground">Días</p>
             <div className="flex flex-wrap gap-2">
@@ -3520,6 +3532,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
           </section>
         </div>
       </div>
+      </fieldset>
     </div>
   );
 }
@@ -7672,7 +7685,7 @@ function SitioTab({ log }: { log: LogFn }) {
           </div>
         </Seccion>
 
-        <Seccion icon={Clock} titulo="Horario de la clínica" sub={resumenHorarioClinica(d) || "Sin cargar: en la web dice «Horarios a confirmar»."}>
+        <Seccion icon={Clock} titulo="Horario de apertura del centro" sub={resumenHorarioClinica(d) || "Cuándo está abierta la recepción. Los horarios de cada médico se cargan en «Mis horarios»."}>
           <ul className="space-y-2">
             {DIAS_ORDEN.map((dia) => {
               const x = d.semana.find((y) => y.dia === dia)!;
