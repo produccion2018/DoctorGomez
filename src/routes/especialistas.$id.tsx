@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { ArrowUpRight, Award, CalendarDays, CalendarPlus, CheckCircle2, GraduationCap, MessageCircle, Stethoscope } from "lucide-react";
+import { ArrowUpRight, CalendarDays, CalendarPlus, Check, CheckCircle2, GraduationCap, MessageCircle, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
+import { Curriculum, FondoInfo, PageHero, PublicLayout, acentoDoctor, useReveal, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import { KEY_AGENDA, agendaDe, horariosDelDia, isoDe, proximosDias, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
 
@@ -29,6 +29,7 @@ function PerfilDoctor() {
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const agenda = agendaDe(agendas, doctor.foto);
   const proximos = proximosDias(agenda, 5);
+  const ac = acentoDoctor(doctor.foto);
   const ausente = agenda.bloqueos.find((b) => b.hasta >= isoDe(new Date()));
 
   return (
@@ -56,8 +57,9 @@ function PerfilDoctor() {
           </div>
         </aside>
 
-        <div className="space-y-8">
-          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+        <div className="relative space-y-8 rounded-[2.25rem] p-0 lg:-m-6 lg:p-6">
+          <FondoInfo foto={doctor.foto} />
+          <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/85 shadow-card backdrop-blur-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 gradient-deep px-7 py-5 text-white">
               <h2 className="flex items-center gap-2 font-sans text-lg font-semibold text-white"><CalendarDays className="size-5" /> Días y horarios de atención</h2>
               <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${agenda.activo && agenda.dias.length ? "bg-emerald-400/20 text-emerald-100" : "bg-white/15 text-white/80"}`}>
@@ -94,24 +96,36 @@ function PerfilDoctor() {
             </div>
           </div>
 
-          <div data-reveal className="rounded-3xl border border-border bg-card p-7 shadow-card">
-            <h2 className="flex items-center gap-2 font-sans text-lg font-semibold"><GraduationCap className="size-5 text-primary" /> Formación</h2>
-            <ol className="relative mt-5 space-y-5 before:absolute before:bottom-2 before:left-[11px] before:top-2 before:w-px before:bg-border">
-              {doctor.formacion.map((f) => (
-                <li key={f} className="relative flex gap-4">
-                  <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full gradient-deep text-white ring-4 ring-card"><Award className="size-3" /></span>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{f}</p>
-                </li>
-              ))}
-            </ol>
-          </div>
+          <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_1fr]">
+            <div data-reveal className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/80 p-7 shadow-card backdrop-blur-sm">
+              <span className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${ac.c}, transparent)` }} />
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-2xl text-white" style={{ background: `linear-gradient(135deg, ${ac.c}, ${ac.c}bb)`, boxShadow: `0 14px 28px -14px ${ac.c}` }}><GraduationCap className="size-5" /></span>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Currículum</p>
+                  <h2 className="font-sans text-lg font-semibold">Formación académica</h2>
+                </div>
+              </div>
+              <Curriculum items={doctor.formacion} color={ac.c} grande />
+            </div>
 
-          <div data-reveal className="rounded-3xl border border-border bg-card p-7 shadow-card">
-            <h2 className="flex items-center gap-2 font-sans text-lg font-semibold"><CheckCircle2 className="size-5 text-primary" /> Áreas de atención</h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {doctor.areas.map((a) => (
-                <p key={a} className="flex items-center gap-3 rounded-xl bg-secondary/50 p-3 text-sm"><span className="size-2 rounded-full bg-[var(--clinic)]" />{a}</p>
-              ))}
+            <div data-reveal className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/80 p-7 shadow-card backdrop-blur-sm">
+              <span className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${ac.c}, transparent)` }} />
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-2xl text-white" style={{ background: `linear-gradient(135deg, ${ac.c}, ${ac.c}bb)`, boxShadow: `0 14px 28px -14px ${ac.c}` }}><CheckCircle2 className="size-5" /></span>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Experiencia</p>
+                  <h2 className="font-sans text-lg font-semibold">Áreas de atención</h2>
+                </div>
+              </div>
+              <ul className="grid gap-2.5">
+                {doctor.areas.map((a) => (
+                  <li key={a} className="group/a flex items-center gap-3 rounded-xl border border-transparent bg-secondary/50 px-3.5 py-2.5 text-sm transition-all hover:bg-card" style={{ ["--b" as string]: ac.borde }}>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-lg" style={{ background: ac.suave, color: ac.c }}><Check className="size-3.5" /></span>
+                    {a}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
 
@@ -121,7 +135,7 @@ function PerfilDoctor() {
               {especialidades.map((e) => {
                 const I = iconoEspecialidad(e.icono);
                 return (
-                  <Link key={e.slug} to="/especialidades/$slug" params={{ slug: e.slug }} className="card-lift group flex gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
+                  <Link key={e.slug} to="/especialidades/$slug" params={{ slug: e.slug }} className="card-lift group relative flex gap-4 rounded-2xl border border-border/70 bg-card/85 p-5 shadow-card backdrop-blur-sm">
                     <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary transition-colors group-hover:gradient-deep group-hover:text-white"><I className="size-5" /></span>
                     <div className="min-w-0">
                       <p className="flex items-center gap-1 font-semibold">{e.nombre} <ArrowUpRight className="size-4 opacity-0 transition-opacity group-hover:opacity-100" /></p>

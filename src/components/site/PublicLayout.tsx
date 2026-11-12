@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode, Fragment, isValidElement } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -128,6 +128,73 @@ export function FondoEspecialidades() {
   );
 }
 
+/** Título que entra palabra por palabra (mismo efecto que el inicio). */
+export function TituloAnimado({ children, inicio = 0.15 }: { children: ReactNode; inicio?: number }) {
+  let n = 0;
+  const palabra = (contenido: ReactNode, key: string | number) => (
+    <span key={key} className="hero-word mr-[0.25em] inline-block last:mr-0" style={{ animationDelay: `${inicio + n++ * 0.1}s` }}>
+      {contenido}
+    </span>
+  );
+  const recorrer = (nodo: ReactNode): ReactNode[] => {
+    if (typeof nodo === "string") return nodo.split(/\s+/).filter(Boolean).map((w) => palabra(w, `${n}-${w}`));
+    if (Array.isArray(nodo)) return nodo.flatMap(recorrer);
+    if (isValidElement(nodo) && nodo.type === Fragment) return recorrer((nodo.props as { children?: ReactNode }).children);
+    if (nodo === null || nodo === undefined || typeof nodo === "boolean") return [];
+    return [palabra(nodo, `el-${n}`)];
+  };
+  return <>{recorrer(children)}</>;
+}
+
+/** Colores de acento por profesional: cardiología (rojo) y nefrología (azul). */
+export function acentoDoctor(foto: string) {
+  return foto === "alonso"
+    ? { c: "#e11d48", suave: "rgba(225,29,72,.07)", borde: "rgba(225,29,72,.18)", img: fondoCorazonDoc }
+    : { c: "#0284c7", suave: "rgba(2,132,199,.07)", borde: "rgba(2,132,199,.18)", img: fondoRinonesDoc };
+}
+
+/** Fondo muy sutil del área de información del profesional (corazón o riñones). */
+export function FondoInfo({ foto }: { foto: string }) {
+  const a = acentoDoctor(foto);
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+      <div className="absolute inset-0" style={{ background: `radial-gradient(900px 500px at 100% 0%, ${a.suave}, transparent 70%), radial-gradient(700px 400px at 0% 100%, ${a.suave}, transparent 70%)` }} />
+      <img
+        src={a.img}
+        alt=""
+        className="absolute -right-10 top-1/2 h-[115%] max-w-none -translate-y-1/2 opacity-[0.06] mix-blend-multiply grayscale-[30%] dark:opacity-[0.08] dark:mix-blend-screen [mask-image:radial-gradient(closest-side,#000_55%,transparent)]"
+      />
+    </div>
+  );
+}
+
+/** Línea de tiempo de formación: separa "Título — Institución". */
+export function Curriculum({ items, color, grande = false }: { items: string[]; color: string; grande?: boolean }) {
+  return (
+    <ol className="relative space-y-4">
+      <span className="absolute bottom-3 left-[13px] top-3 w-px" style={{ background: `linear-gradient(${color}, transparent)` }} />
+      {items.map((f, i) => {
+        const [titulo, ...resto] = f.split(" — ");
+        const lugar = resto.join(" — ");
+        return (
+          <li key={f} className="group/cv relative flex gap-4">
+            <span
+              className="relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white ring-4 ring-card transition-transform duration-300 group-hover/cv:scale-110"
+              style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)`, boxShadow: `0 8px 18px -8px ${color}` }}
+            >
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <div className="min-w-0 pt-0.5">
+              <p className={`font-semibold leading-snug text-foreground ${grande ? "text-[15px]" : "text-sm"}`}>{titulo}</p>
+              {lugar && <p className={`mt-0.5 leading-relaxed text-muted-foreground ${grande ? "text-sm" : "text-[13px]"}`}>{lugar}</p>}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function PageHero({
   kicker,
   title,
@@ -173,7 +240,7 @@ export function PageHero({
           <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground">
             <span className="pulse-dot size-1.5 rounded-full bg-emerald-400" /> {kicker}
           </span>
-          <h1 className="mt-5 text-4xl leading-[1.08] text-deep-foreground sm:text-5xl lg:text-6xl">{title}</h1>
+          <h1 className="mt-5 text-4xl leading-[1.08] text-deep-foreground sm:text-5xl lg:text-6xl"><TituloAnimado>{title}</TituloAnimado></h1>
           {text && <p className="mt-5 max-w-2xl text-lg text-deep-foreground/75">{text}</p>}
           {children && <div className="mt-8">{children}</div>}
         </div>
