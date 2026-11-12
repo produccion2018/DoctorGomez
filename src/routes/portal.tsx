@@ -1499,7 +1499,7 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
           <form onSubmit={pedir} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Tipo</span><select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })} className={inp}>{TIPOS_AUT.map((t) => <option key={t}>{t}</option>)}</select></label>
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">¿Qué necesitás?</span><input required placeholder="Ej: receta de enalapril" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} className={inp} /></label>
-            <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Detalle (obra social, número de afiliado, etc.)</span><textarea rows={3} value={f.detalle} onChange={(e) => setF({ ...f, detalle: e.target.value })} className={inp + " h-auto py-3"} /></label>
+            <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Detalle (EPS, número de afiliación, etc.)</span><textarea rows={3} value={f.detalle} onChange={(e) => setF({ ...f, detalle: e.target.value })} className={inp + " h-auto py-3"} /></label>
             <div className="sm:col-span-2"><Button type="submit" className="rounded-xl"><Check className="size-4" /> Enviar pedido</Button></div>
           </form>
         </Tarjeta>
@@ -1639,7 +1639,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
               <select value={f.grupo} onChange={(e) => setF({ ...f, grupo: e.target.value })} className={inp}><option value="">No sé</option>{["0+", "0-", "A+", "A-", "B+", "B-", "AB+", "AB-"].map((g) => <option key={g}>{g}</option>)}</select></label>
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">WhatsApp</span><input required value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></label>
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Email</span><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></label>
-            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Obra social / prepaga</span><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></label>
+            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">EPS / medicina prepagada</span><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></label>
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">N° de afiliado</span><input value={f.afiliado} onChange={(e) => setF({ ...f, afiliado: e.target.value })} className={inp} /></label>
           </div>
         </Tarjeta>

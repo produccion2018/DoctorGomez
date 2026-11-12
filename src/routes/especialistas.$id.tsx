@@ -43,7 +43,7 @@ function PerfilDoctor() {
       />
 
       <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[340px_1fr] lg:px-8">
-        <aside className="space-y-5 lg:sticky lg:top-24 lg:-mt-40 lg:self-start">
+        <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <div className="relative overflow-hidden rounded-[2rem] border-4 border-background shadow-elevated">
             <img src={fotoDoctor(doctor.foto)} alt={doctor.nombre} className="aspect-[4/5] w-full object-cover object-top" />
           </div>

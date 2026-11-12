@@ -41,7 +41,7 @@ const CATS: { id: Cat; icon: LucideIcon }[] = [
 
 function categoria(q: string): Exclude<Cat, "Todas"> {
   const t = q.toLowerCase();
-  if (/pago|obra social|prepaga/.test(t)) return "Pagos y coberturas";
+  if (/pago|eps|prepagad|obra social|prepaga/.test(t)) return "Pagos y coberturas";
   if (/estudio|holter|mapa|ayuno|análisis|resultado/.test(t)) return "Estudios";
   if (/turno|derivación|reprogramar/.test(t)) return "Turnos";
   return "Atención";

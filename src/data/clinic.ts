@@ -93,7 +93,7 @@ export const DOCTORS: Doctor[] = [
     titulo: "Especialista en Medicina Interna y Cardiología",
     especialidades: ["Medicina Interna", "Cardiología", "Cardiología Crítica", "Ecocardiografía"],
     matricula: "MN 84.513",
-    bio: "Cardiólogo con magíster en Cardiología Crítica y Ecocardiografía, dedicado a la prevención cardiovascular y al diagnóstico por imágenes cardíacas.",
+    bio: "Médico internista y cardiólogo, con magíster en Cardiología Crítica. Se dedica a la prevención, el diagnóstico y el tratamiento de las enfermedades del corazón.",
     formacion: [
       "Médico General — Universidad de Guayaquil, Ecuador",
       "Especialista en Medicina Interna — SMIBA / AMA / Fundación Barceló",
@@ -118,7 +118,7 @@ export const DOCTORS: Doctor[] = [
     titulo: "Especialista en Medicina Interna y Nefrología",
     especialidades: ["Medicina Interna", "Nefrología"],
     matricula: "MN 84.512",
-    bio: "Referente en medicina interna y enfermedad renal crónica, con enfoque en diagnóstico integral y seguimiento longitudinal del paciente.",
+    bio: "Médico internista y nefrólogo. Acompaña a pacientes con enfermedad renal crónica, hipertensión y diabetes, con una mirada integral y seguimiento continuo.",
     formacion: [
       "Médico Cirujano — Universidad de Guayaquil, Ecuador",
       "Especialista en Medicina Interna — Universidad del Zulia, Unidad Docente Hospital General del Sur, Maracaibo",
@@ -455,7 +455,7 @@ export const FAQS = [
   { q: "¿Puedo reprogramar o cancelar mi turno?", a: "Sí. Escribinos por WhatsApp o llamanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
   { q: "¿Atienden teleconsulta?", a: "Sí, la modalidad de teleconsulta está disponible para controles y seguimiento de enfermedades crónicas." },
   { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que estés tomando." },
-  { q: "¿Trabajan con obras sociales y prepagas?", a: "Sí. Consultá por WhatsApp o teléfono si tu cobertura está incluida y si el estudio requiere autorización previa." },
+  { q: "¿Trabajan con EPS y medicina prepagada?", a: "Sí. Consultá por WhatsApp o teléfono si tu EPS o plan de medicina prepagada está incluido y si el estudio requiere autorización previa." },
   { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Vení con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
   { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Te confirmamos las indicaciones al reservar." },
   { q: "¿Qué medios de pago aceptan?", a: "Efectivo, tarjetas de débito y crédito, y transferencia bancaria." },

@@ -364,7 +364,7 @@ function Home() {
                 </div>
                 <p className="text-sm leading-snug text-deep-foreground/85">
                   <span className="block font-semibold text-deep-foreground">Directores médicos</span>
-                  Atención personalizada de lunes a sábado
+                  Atención personalizada con turno previo
                 </p>
               </div>
 
@@ -375,11 +375,11 @@ function Home() {
           {/* Insignias flotantes sobre la foto */}
           <div className="animate-hero-float absolute right-6 top-8 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex">
             <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--clinic)]"><CalendarPlus className="size-4 text-white" /></span>
-            <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Confirmación inmediata</span>
+            <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Pedilo en minutos</span>
           </div>
           <div className="animate-hero-float absolute bottom-32 right-6 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex" style={{ animationDelay: "1.2s" }}>
             <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
-            <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
+            <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes claros</b>Explicados por tu médico</span>
           </div>
           <div className="glass absolute bottom-6 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
             <p className="text-xs font-semibold leading-snug text-white">Dr. Carlos Alonso Gómez Bolaño<br />Dr. Carlos Alberto Gómez Bolaño</p>
@@ -566,7 +566,7 @@ function Home() {
           <SectionTitle
             kicker="Servicios"
             title="Servicios destacados"
-            text="Consultas y estudios con turno online y confirmación inmediata."
+            text="Consultas y estudios con turno online. La clínica te confirma el horario."
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal><Link to="/servicios">Ver todos los servicios</Link></Button>
         </div>
