@@ -49,7 +49,6 @@ function PerfilDoctor() {
           <div className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-card">
             <p className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><Stethoscope className="size-4" /></span>{agenda.consultorio || doctor.consultorio}</p>
             <p className="flex items-center gap-3 text-sm"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><CalendarDays className="size-4" /></span>{resumenAgenda(agenda)}</p>
-            <p className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><GraduationCap className="size-4" /></span>Matrícula {doctor.matricula}</p>
             <Button asChild className="btn-glow mt-2 h-12 w-full rounded-xl"><Link to="/turnos" search={{ doctor: doctor.id }}><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
             <Button asChild variant="outline" className="h-11 w-full rounded-xl">
               <a href={waLink(`Hola, quiero un turno con ${doctor.nombre}.`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a>
@@ -61,8 +60,8 @@ function PerfilDoctor() {
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
             <div className="flex flex-wrap items-center justify-between gap-3 gradient-deep px-7 py-5 text-white">
               <h2 className="flex items-center gap-2 font-sans text-lg font-semibold text-white"><CalendarDays className="size-5" /> Días y horarios de atención</h2>
-              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${agenda.activo ? "bg-emerald-400/20 text-emerald-100" : "bg-white/15 text-white/80"}`}>
-                <span className={`size-2 rounded-full ${agenda.activo ? "bg-emerald-400" : "bg-white/60"}`} /> {agenda.activo ? "Agenda abierta" : "Agenda pausada"}
+              <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${agenda.activo && agenda.dias.length ? "bg-emerald-400/20 text-emerald-100" : "bg-white/15 text-white/80"}`}>
+                <span className={`size-2 rounded-full ${agenda.activo && agenda.dias.length ? "bg-emerald-400" : "bg-white/60"}`} /> {!agenda.activo ? "Agenda pausada" : agenda.dias.length ? "Agenda abierta" : "Horarios a confirmar"}
               </span>
             </div>
             <div className="space-y-5 p-7">
@@ -73,7 +72,11 @@ function PerfilDoctor() {
                   </span>
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · turnos de {agenda.duracion} minutos · {horariosDelDia(agenda).length} turnos por día</p>
+              {agenda.dias.length === 0 ? (
+                <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, podés consultar por WhatsApp.</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · turnos de {agenda.duracion} minutos · {horariosDelDia(agenda).length} turnos por día</p>
+              )}
               {agenda.nota && <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
               {ausente && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100">No atiende del {ausente.desde.split("-").reverse().join("/")} al {ausente.hasta.split("-").reverse().join("/")} ({ausente.motivo}).</p>}
               {proximos.length > 0 && (

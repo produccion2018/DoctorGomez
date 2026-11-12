@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Award, CalendarPlus, CheckCircle2, Clock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoDoctor } from "@/components/site/PublicLayout";
 import { DOCTORS, fotoDoctor } from "@/data/clinic";
 import { KEY_AGENDA, agendaDe, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
 
@@ -38,8 +38,7 @@ function Especialistas() {
           >
             <div className={`relative min-h-80 overflow-hidden ${i % 2 ? "md:order-2" : ""}`}>
               <img src={fotoDoctor(d.foto)} alt={d.nombre} loading="lazy" className="absolute inset-0 size-full object-cover object-top transition-transform duration-1000 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-deep/70 via-transparent to-transparent" />
-              <span className="glass absolute bottom-4 left-4 rounded-full px-3 py-1 text-xs font-medium text-white">{d.matricula}</span>
+              <FondoDoctor foto={d.foto} suave />
             </div>
             <div className="space-y-6 p-7 md:p-10">
               <div>

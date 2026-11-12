@@ -178,7 +178,6 @@ function Detalle() {
                   <div className="min-w-0">
                     <p className="font-semibold leading-tight">{d.nombre}</p>
                     <p className="text-xs text-primary">{d.titulo}</p>
-                    <p className="text-xs text-muted-foreground">MN {d.matricula.replace("MN ", "")}</p>
                   </div>
                   <ArrowRight className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
                 </Link>

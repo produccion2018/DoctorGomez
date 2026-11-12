@@ -8,6 +8,8 @@ import { Crumbs } from "./Crumbs";
 import { CLINICA } from "@/data/clinic";
 
 import logoClinica from "@/assets/logo.png";
+import fondoCorazonDoc from "@/assets/fondo-corazon.jpg";
+import fondoRinonesDoc from "@/assets/fondo-rinones.jpg";
 const LINKS = [
   { to: "/", label: "Inicio" },
   { to: "/nosotros", label: "Nosotros" },
@@ -63,6 +65,32 @@ export function Brand({ light = false }: { light?: boolean }) {
 }
 
 /* Encabezado premium para páginas internas */
+/**
+ * Degradé inferior de la foto de cada profesional, con el color e ilustración de su especialidad:
+ * corazón (rojo) para el cardiólogo y riñones (azul) para el nefrólogo.
+ */
+export function FondoDoctor({ foto, suave = false }: { foto: string; suave?: boolean }) {
+  const cardio = foto === "alonso";
+  return (
+    <>
+      <img
+        src={cardio ? fondoCorazonDoc : fondoRinonesDoc}
+        alt=""
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-x-0 bottom-0 h-[38%] w-full object-cover mix-blend-luminosity [mask-image:linear-gradient(to_top,#000_30%,transparent)] ${suave ? "opacity-20" : "opacity-30"}`}
+      />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: cardio
+            ? `linear-gradient(to top, rgba(76,10,24,${suave ? 0.75 : 0.95}) 0%, rgba(127,29,29,${suave ? 0.35 : 0.55}) 28%, transparent 55%)`
+            : `linear-gradient(to top, rgba(8,30,70,${suave ? 0.75 : 0.95}) 0%, rgba(3,105,161,${suave ? 0.35 : 0.55}) 28%, transparent 55%)`,
+        }}
+      />
+    </>
+  );
+}
+
 export function PageHero({
   kicker,
   title,

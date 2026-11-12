@@ -256,7 +256,7 @@ export const NOMBRES_DIA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves"
 
 const agendaBase = (consultorio: string): AgendaDoctor => ({
   activo: true,
-  dias: [1, 2, 3, 4, 5],
+  dias: [], // en blanco: cada médico carga sus días y horarios desde el panel
   desde: "08:00",
   hasta: "18:40",
   duracion: 40,
@@ -327,6 +327,7 @@ export function proximosDias(a: AgendaDoctor, cantidad = 15): string[] {
 /** Texto corto tipo "Lun a Vie · 08:00 a 18:40". */
 export function resumenAgenda(a: AgendaDoctor): string {
   if (!a.activo) return "Agenda pausada momentáneamente";
+  if (a.dias.length === 0) return "Horarios a confirmar";
   const d = [...a.dias].sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7));
   const corto = (n: number) => NOMBRES_DIA[n]!.slice(0, 3);
   const seguidos = d.length > 2 && d.every((v, i) => i === 0 || ((v + 6) % 7) - ((d[i - 1]! + 6) % 7) === 1);

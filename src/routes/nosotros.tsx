@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, CalendarPlus, Check, Compass, Eye, Gauge, HeartHandshake, HeartPulse, Lightbulb, Quote, Scale, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Waves, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoDoctor } from "@/components/site/PublicLayout";
 import { DOCTORS } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
@@ -289,7 +289,7 @@ function Nosotros() {
               className="group relative h-[600px] overflow-hidden rounded-[2rem] shadow-[0_50px_90px_-50px_rgba(10,25,70,.85)] ring-1 ring-black/5"
             >
               <img src={d.foto === "alberto" ? fotoAlberto : fotoAlonso} alt={d.nombre} loading="lazy" className="absolute inset-0 size-full object-cover object-top transition-transform duration-[1400ms] group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_262)] via-[oklch(0.15_0.05_262/0.55)] via-25% to-transparent to-50%" />
+              <FondoDoctor foto={d.foto} />
               <div className="absolute inset-x-0 bottom-0 p-8 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200/90">{d.titulo}</p>
                 <h3 className="mt-2 font-display text-3xl font-semibold">{d.nombre}</h3>

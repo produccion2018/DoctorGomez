@@ -25,7 +25,7 @@ import {
   Waves,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicLayout } from "@/components/site/PublicLayout";
+import { PublicLayout, FondoDoctor } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, imagenEspecialidad } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import imgInterna from "@/assets/medicina-interna.jpg";
@@ -528,7 +528,7 @@ function Home() {
           </div>
           <div className="grid gap-12 md:grid-cols-2 lg:gap-16">
             {DOCTORS.map((d, idx) => (
-              <article key={d.id} data-reveal style={{ transitionDelay: `${idx * 140}ms` }} className={`group ${idx === 1 ? "md:mt-16" : ""}`}>
+              <article key={d.id} data-reveal style={{ transitionDelay: `${idx * 140}ms` }} className="group">
                 <div className="relative h-[440px] overflow-hidden rounded-[2rem] shadow-[0_50px_90px_-50px_rgba(10,25,70,.85)] ring-1 ring-black/5 sm:h-[520px]">
                   <img
                     src={d.foto === "alberto" ? fotoAlberto : fotoAlonso}
@@ -538,10 +538,9 @@ function Home() {
                     loading="lazy"
                     className="size-full object-cover object-top transition-transform duration-[1400ms] ease-out group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_262)] via-[oklch(0.15_0.05_262/0.25)] to-transparent" />
-                  <span className="glass absolute left-6 top-6 rounded-full px-3 py-1 text-[11px] font-medium text-white">{d.matricula}</span>
+                  <FondoDoctor foto={d.foto} />
                   <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-200/90">{d.titulo}</p>
+                    <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${d.foto === "alonso" ? "text-rose-200" : "text-sky-200"}`}>{d.titulo}</p>
                     <h3 className="mt-2 font-display text-3xl font-semibold leading-tight">{d.nombre}</h3>
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {d.especialidades.map((esp) => (
