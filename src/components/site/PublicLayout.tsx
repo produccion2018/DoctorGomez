@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
 import { Crumbs } from "./Crumbs";
-import { CLINICA } from "@/data/clinic";
+import { CLINICA, ESPECIALIDADES, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
 import logoClinica from "@/assets/logo.png";
 import fondoCorazonDoc from "@/assets/fondo-corazon.jpg";
@@ -91,6 +91,43 @@ export function FondoDoctor({ foto, suave = false }: { foto: string; suave?: boo
   );
 }
 
+/**
+ * Fondo sutil con todas las especialidades de la clínica: mosaico de fotos + íconos flotantes.
+ * Se arma solo con la lista ESPECIALIDADES, así que crece cuando se agregan nuevas.
+ */
+export function FondoEspecialidades() {
+  const fotos = Array.from(new Set(ESPECIALIDADES.map((e) => imagenEspecialidad(e.slug))));
+  const mosaico = [fondoCorazonDoc, fondoRinonesDoc, ...fotos].slice(0, 6);
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div className="absolute inset-y-0 right-0 hidden w-[58%] grid-cols-3 grid-rows-2 gap-3 p-3 opacity-[0.22] mix-blend-luminosity [mask-image:linear-gradient(to_right,transparent,#000_40%)] md:grid">
+        {mosaico.map((src, i) => (
+          <div key={i} className={`overflow-hidden rounded-2xl ${i % 2 ? "translate-y-6" : "-translate-y-4"}`}>
+            <img src={src} alt="" className="hero-kenburns size-full object-cover" style={{ animationDelay: `${-i * 2.5}s` }} />
+          </div>
+        ))}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-r from-deep via-deep/70 via-40% to-deep/10" />
+      <div className="absolute inset-y-0 right-0 hidden w-[38%] lg:block">
+        {ESPECIALIDADES.map((e, i) => {
+          const Icono = iconoEspecialidad(e.icono);
+          const col = i % 3;
+          const fila = Math.floor(i / 3);
+          return (
+            <span
+              key={e.slug}
+              className="animate-hero-float absolute inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/[0.05] px-3 py-1.5 text-[11px] font-medium text-white/40 ring-1 ring-white/[0.08]"
+              style={{ left: `${2 + col * 29 + (fila % 2) * 3}%`, top: `${9 + fila * 17}%`, animationDelay: `${i * 0.45}s` }}
+            >
+              <Icono className="size-3.5" /> {e.nombre}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function PageHero({
   kicker,
   title,
@@ -98,8 +135,11 @@ export function PageHero({
   crumbs,
   children,
   fondo,
+  decoracion,
 }: {
   fondo?: string | undefined;
+  /** Capa decorativa de fondo (sutil) detrás del texto. */
+  decoracion?: ReactNode;
   kicker: string;
   title: ReactNode;
   text?: string;
@@ -121,6 +161,7 @@ export function PageHero({
         />
       )}
       {fondo && <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-deep via-deep/60 to-transparent" />}
+      {decoracion}
       <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full text-sky-300/30" aria-hidden="true">
         <polyline className="ecg-line" points="0,40 260,40 290,40 310,15 330,65 350,40 640,40 670,40 690,8 710,72 730,40 960,40 985,25 1005,55 1025,40 1200,40" fill="none" stroke="currentColor" strokeWidth="2" />
       </svg>

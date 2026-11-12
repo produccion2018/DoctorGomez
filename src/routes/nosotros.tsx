@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, CalendarPlus, Check, Compass, Eye, Gauge, HeartHandshake, HeartPulse, Lightbulb, Quote, Scale, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Waves, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, FondoDoctor } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoDoctor, FondoEspecialidades } from "@/components/site/PublicLayout";
 import { DOCTORS } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
@@ -61,6 +61,7 @@ function Nosotros() {
     <PublicLayout>
       <PageHero
         kicker="Nosotros"
+        decoracion={<FondoEspecialidades />}
         title={<>Una clínica construida sobre la <span className="text-shine italic">confianza</span></>}
         text="Dos hermanos médicos, una misma convicción: la medicina especializada sólo tiene sentido con tiempo, escucha y continuidad."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Nosotros" }]}
