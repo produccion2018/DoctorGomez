@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, CalendarPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoEspecialidades } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
 export const Route = createFileRoute("/especialidades/")({
@@ -28,6 +28,7 @@ function Especialidades() {
   return (
     <PublicLayout>
       <PageHero
+        decoracion={<FondoEspecialidades />}
         kicker="Departamentos médicos"
         title={<>Especialidades y <span className="text-shine italic">unidades</span></>}
         text={`${ESPECIALIDADES.length} áreas coordinadas por los directores médicos, con estudios e informes en el mismo lugar.`}

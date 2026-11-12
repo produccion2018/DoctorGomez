@@ -22,6 +22,16 @@ import imgNefro from "@/assets/nefrologia.jpg";
 import imgCardio from "@/assets/cardiologia.jpg";
 import imgClinica from "@/assets/clinica.jpg";
 
+import img_cardiologia_critica from "@/assets/esp-cardiologia-critica.jpg";
+import img_ecocardiografia from "@/assets/esp-ecocardiografia.jpg";
+import img_hipertension_arterial from "@/assets/esp-hipertension-arterial.jpg";
+import img_diabetes_metabolismo from "@/assets/esp-diabetes-metabolismo.jpg";
+import img_holter_mapa from "@/assets/esp-holter-mapa.jpg";
+import img_diagnostico_por_imagenes from "@/assets/esp-diagnostico-por-imagenes.jpg";
+import img_laboratorio from "@/assets/esp-laboratorio.jpg";
+import img_chequeos_preventivos from "@/assets/esp-chequeos-preventivos.jpg";
+import img_medicina_deporte from "@/assets/esp-medicina-deporte.jpg";
+import img_teleconsulta from "@/assets/esp-teleconsulta.jpg";
 const ICONOS: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
   kidney: Droplets,
@@ -50,15 +60,16 @@ const IMG_ESP: Record<string, string> = {
   "medicina-interna": imgInterna,
   nefrologia: imgNefro,
   cardiologia: imgCardio,
-  "cardiologia-critica": imgCardio,
-  ecocardiografia: imgCardio,
-  "holter-mapa": imgCardio,
-  "medicina-deporte": imgCardio,
-  "hipertension-arterial": imgInterna,
-  "diabetes-metabolismo": imgInterna,
-  "chequeos-preventivos": imgInterna,
-  laboratorio: imgNefro,
-  "diagnostico-por-imagenes": imgNefro,
+  "cardiologia-critica": img_cardiologia_critica,
+  "ecocardiografia": img_ecocardiografia,
+  "hipertension-arterial": img_hipertension_arterial,
+  "diabetes-metabolismo": img_diabetes_metabolismo,
+  "holter-mapa": img_holter_mapa,
+  "diagnostico-por-imagenes": img_diagnostico_por_imagenes,
+  "laboratorio": img_laboratorio,
+  "chequeos-preventivos": img_chequeos_preventivos,
+  "medicina-deporte": img_medicina_deporte,
+  "teleconsulta": img_teleconsulta,
 };
 
 export function imagenEspecialidad(slug: string) {
