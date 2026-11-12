@@ -176,7 +176,7 @@ function Detalle() {
                   <img src={fotoDoctor(d.foto)} alt={d.nombre} className="size-16 rounded-2xl object-cover object-top ring-2 ring-border" />
                   <div className="min-w-0">
                     <p className="font-semibold leading-tight">{d.nombre}</p>
-                    <p className="text-xs text-primary">{d.titulo}</p>
+                    <p className="text-xs font-bold text-primary">{d.titulo}</p>
                   </div>
                   <ArrowRight className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
                 </Link>

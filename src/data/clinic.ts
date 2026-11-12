@@ -95,9 +95,10 @@ export const DOCTORS: Doctor[] = [
     matricula: "MN 84.513",
     bio: "Cardiólogo con magíster en Cardiología Crítica y Ecocardiografía, dedicado a la prevención cardiovascular y al diagnóstico por imágenes cardíacas.",
     formacion: [
-      "Especialista en Medicina Interna",
-      "Especialista en Cardiología",
-      "Magíster en Cardiología Crítica y Ecocardiografía",
+      "Médico General — Universidad de Guayaquil, Ecuador",
+      "Especialista en Medicina Interna — SMIBA / AMA / Fundación Barceló",
+      "Especialista en Cardiología — UAI (Universidad Abierta Interamericana), Buenos Aires, Argentina",
+      "Magíster en Cardiología Crítica — UAI (Universidad Abierta Interamericana), Buenos Aires, Argentina",
     ],
     areas: [
       "Prevención cardiovascular",

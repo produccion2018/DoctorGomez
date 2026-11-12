@@ -269,7 +269,7 @@ function Turnos() {
                         <img src={fotoDoctor(d.foto)} alt={d.nombre} className="h-28 w-24 shrink-0 rounded-2xl object-cover object-top" />
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{d.nombre}</p>
-                          <p className="mt-1 text-xs text-primary">{d.titulo}</p>
+                          <p className="mt-1 text-xs font-bold text-primary">{d.titulo}</p>
                           <p className="mt-2 text-xs text-muted-foreground">{d.consultorio}</p>
                           <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(agendaDe(agendas, d.foto))}</p>
                         </div>

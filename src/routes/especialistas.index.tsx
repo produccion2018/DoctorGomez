@@ -51,7 +51,7 @@ function Especialistas() {
                     <span className="h-px w-6" style={{ background: ac.c }} /> {ag.consultorio || d.consultorio}
                   </p>
                   <h2 className="mt-2 text-3xl sm:text-4xl">{d.nombre}</h2>
-                  <p className="mt-1.5 font-medium text-muted-foreground">{d.titulo}</p>
+                  <p className="mt-1.5 text-base font-bold" style={{ color: ac.c }}>{d.titulo}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">

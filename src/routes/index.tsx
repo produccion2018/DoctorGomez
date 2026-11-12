@@ -540,7 +540,7 @@ function Home() {
                   />
                   <FondoDoctor foto={d.foto} />
                   <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-8">
-                    <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${d.foto === "alonso" ? "text-rose-200" : "text-sky-200"}`}>{d.titulo}</p>
+                    <p className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white shadow-lg ring-1 ring-white/30 ${d.foto === "alonso" ? "bg-rose-600/90" : "bg-sky-600/90"}`}>{d.titulo}</p>
                     <h3 className="mt-2 font-display text-3xl font-semibold leading-tight">{d.nombre}</h3>
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {d.especialidades.map((esp) => (
