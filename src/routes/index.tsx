@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
@@ -400,22 +400,40 @@ function Home() {
           {/* Tarjetas de especialidades: fila aparte, bien separada de la foto */}
           <div className="-mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {[
-              { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral" },
-              { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección" },
-              { icon: HeartPulse, t: "Cardiología", d: "Prevención y tratamiento" },
-              { icon: Waves, t: "Ecocardiografía", d: "Diagnóstico por imágenes" },
+              { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral", slug: "medicina-interna", c: "#10b981", c2: "#047857" },
+              { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección", slug: "nefrologia", c: "#0ea5e9", c2: "#0369a1" },
+              { icon: HeartPulse, t: "Cardiología", d: "Prevención y tratamiento", slug: "cardiologia", c: "#ef4444", c2: "#b91c1c" },
+              { icon: Waves, t: "Ecocardiografía", d: "Diagnóstico por imágenes", slug: "ecocardiografia", c: "#8b5cf6", c2: "#6d28d9" },
             ].map((c, idx) => (
-              <div
+              <Link
                 key={c.t}
-                className="glass group rounded-2xl p-5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.5)] transition-colors hover:bg-white/15 animate-hero-float"
-                style={{ animationDelay: `${idx * 0.6}s` }}
+                to="/especialidades/$slug"
+                params={{ slug: c.slug }}
+                className="esp-card hero-word group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-md transition-all duration-500 hover:-translate-y-1.5 hover:border-transparent hover:bg-white/[0.1] hover:shadow-[0_30px_60px_-25px_var(--c)]"
+                style={{ "--c": c.c, animationDelay: `${1.4 + idx * 0.12}s` } as CSSProperties}
               >
-                <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--clinic)] to-[var(--deep)] ring-1 ring-white/20 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110">
-                  <c.icon className="size-5 text-deep-foreground" />
+                {/* Línea de color arriba y halo */}
+                <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[var(--c)] to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
+                <span className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full opacity-25 blur-2xl transition-opacity duration-500 group-hover:opacity-50" style={{ background: c.c }} />
+                <c.icon className="pointer-events-none absolute -bottom-4 -right-3 size-24 opacity-[0.06] transition-all duration-700 group-hover:-rotate-6 group-hover:opacity-[0.12]" style={{ color: c.c }} />
+
+                <div className="relative flex items-start justify-between">
+                  <span
+                    className="relative flex size-12 items-center justify-center rounded-xl text-white shadow-lg ring-1 ring-white/25 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6"
+                    style={{ background: `linear-gradient(135deg, ${c.c}, ${c.c2})`, boxShadow: `0 12px 28px -10px ${c.c}` }}
+                  >
+                    <c.icon className={`size-6 ${c.slug === "cardiologia" ? "animate-heartbeat" : ""}`} />
+                  </span>
+                  <span className="flex size-8 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/15 transition-all duration-500 group-hover:translate-x-0.5 group-hover:text-white">
+                    <ArrowUpRight className="size-4" />
+                  </span>
+                </div>
+                <p className="relative mt-5 text-lg font-semibold text-white">{c.t}</p>
+                <p className="relative text-sm text-white/70">{c.d}</p>
+                <span className="relative mt-4 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: c.c }}>
+                  <span className="h-px w-6 transition-all duration-500 group-hover:w-10" style={{ background: c.c }} /> Ver especialidad
                 </span>
-                <p className="mt-4 font-semibold text-deep-foreground">{c.t}</p>
-                <p className="text-sm text-deep-foreground/70">{c.d}</p>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

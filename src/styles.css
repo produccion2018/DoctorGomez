@@ -445,6 +445,16 @@
   }
 }
 
+.animate-heartbeat {
+  animation: heartbeat 1.6s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%, 40%, 100% { transform: scale(1); }
+  10% { transform: scale(1.18); }
+  20% { transform: scale(0.96); }
+  30% { transform: scale(1.12); }
+}
+
 /* Título del hero: palabra por palabra */
 .hero-word {
   opacity: 0;
@@ -544,6 +554,7 @@
   .spin-slow,
   .hero-kenburns,
   .hero-word,
+  .animate-heartbeat,
   .hero-shine,
   .hero-glow,
   .pulse-dot::after {
