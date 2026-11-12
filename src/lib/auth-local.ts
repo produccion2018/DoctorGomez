@@ -13,6 +13,12 @@ import {
   listarPersonalServidor,
   salirServidor,
   sesionServidor,
+  leerColeccion,
+  aplicarCambios,
+  horariosOcupados,
+  reservarTurnoPublico,
+  ingresarPacienteServidor,
+  salirPacienteServidor,
   type PersonalServidor,
 } from "./servidor";
 
@@ -352,6 +358,73 @@ function traerDelServidor(key: string): Promise<void> {
   return traidos.get(key)!;
 }
 
+/* ---------- Colecciones fila por fila (turnos, padrón, pacientes) ---------- */
+const COLECCIONES = ["gb_turnos", "gb_padron", "gb_pacientes"];
+type ConId = { id: string };
+const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");
+
+async function traerColeccion(key: string) {
+  if (!(await iniciarBackend()) || !hayQuien()) return;
+  const r = await leerColeccion({ data: { coleccion: key } }).catch(() => null);
+  if (!r || !r.ok) return;
+  const remoto = JSON.parse(r.json) as ConId[];
+  const local = leerDato<ConId[]>(key, []);
+  const s = sesionActual();
+  // Primera vez con backend: un médico sube lo que tenía cargado en su navegador
+  if (remoto.length === 0 && local.length > 0 && s?.rol === "medico" && !localStorage.getItem(`gb_subido_${key}`)) {
+    localStorage.setItem(`gb_subido_${key}`, "1");
+    await enviarCambios(key, [], local);
+    return;
+  }
+  if (JSON.stringify(remoto) !== JSON.stringify(local)) {
+    localStorage.setItem(key, JSON.stringify(remoto));
+    window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
+  }
+}
+
+async function enviarCambios(key: string, antes: ConId[], despues: ConId[]) {
+  const previo = new Map(antes.map((x) => [x.id, JSON.stringify(x)]));
+  const upserts = despues.filter((x) => x && x.id && previo.get(x.id) !== JSON.stringify(x)).map((x) => JSON.stringify(x));
+  const ids = new Set(despues.map((x) => x.id));
+  const borrar = antes.filter((x) => !ids.has(x.id)).map((x) => x.id);
+  if (!upserts.length && !borrar.length) return;
+  const r = await aplicarCambios({ data: { coleccion: key, upserts, borrar } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (!r.ok) {
+    toast.error(r.error);
+    void traerColeccion(key);
+  }
+}
+
+/** Refresca las colecciones abiertas cada 20 s y al volver a la pestaña. */
+const abiertas = new Map<string, number>();
+let reloj: number | null = null;
+function vigilar(key: string) {
+  abiertas.set(key, (abiertas.get(key) ?? 0) + 1);
+  if (!reloj && typeof window !== "undefined") {
+    const tick = () => abiertas.forEach((n, k) => n > 0 && void traerColeccion(k));
+    reloj = window.setInterval(tick, 20000);
+    window.addEventListener("focus", tick);
+  }
+  return () => abiertas.set(key, (abiertas.get(key) ?? 1) - 1);
+}
+
+/** Horarios tomados (para la web pública y el portal). */
+export async function ocupadosServidor(desde: string) {
+  if (!(await iniciarBackend())) return null;
+  return horariosOcupados({ data: { desde } }).catch(() => null);
+}
+
+/** Reserva desde la web pública: con backend va al servidor. */
+export async function reservarTurnoWeb(t: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string }): Promise<Result | null> {
+  if (!(await iniciarBackend())) return null;
+  return reservarTurnoPublico({ data: t });
+}
+
+export async function salirPortal() {
+  localStorage.removeItem("gb_sesion_paciente");
+  if (modoServidor()) await salirPacienteServidor().catch(() => undefined);
+}
+
 async function subirAlServidor(key: string, val: unknown) {
   if (!(await iniciarBackend())) return;
   const r = await guardarDatoServidor({ data: { clave: key, valor: JSON.stringify(val) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
@@ -365,6 +438,8 @@ export function useDato<T>(key: string, fallback: T): readonly [T, (fn: (prev: T
     const cargar = () => setVal(leerDato(key, fallback));
     cargar();
     if (SINCRONIZADOS.includes(key)) void traerDelServidor(key);
+    const soltar = COLECCIONES.includes(key) ? vigilar(key) : null;
+    if (soltar) void traerColeccion(key);
     const onCustom = (e: Event) => {
       if ((e as CustomEvent<string>).detail === key) cargar();
     };
@@ -376,16 +451,19 @@ export function useDato<T>(key: string, fallback: T): readonly [T, (fn: (prev: T
     return () => {
       window.removeEventListener(EVT, onCustom);
       window.removeEventListener("storage", onStorage);
+      soltar?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const actualizar = useCallback(
     (fn: (prev: T) => T) => {
-      const nuevo = fn(leerDato(key, fallback));
+      const previo = leerDato(key, fallback);
+      const nuevo = fn(previo);
       guardarDato(key, nuevo);
       setVal(nuevo);
       if (SINCRONIZADOS.includes(key) && modoServidor()) void subirAlServidor(key, nuevo);
       if (key === KEY_ENFERMERIA && modoServidor()) void subirPersonal(nuevo as unknown as Personal[]);
+      if (COLECCIONES.includes(key) && modoServidor() && Array.isArray(nuevo)) void enviarCambios(key, previo as unknown as ConId[], nuevo as unknown as ConId[]);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key],
@@ -560,6 +638,16 @@ export async function hashTexto(t: string) {
 }
 
 export async function ingresarPaciente(dniOEmail: string, codigoOClave: string): Promise<{ ok: true; paciente: PacientePortal } | { ok: false; error: string }> {
+  if (await iniciarBackend()) {
+    const r = await ingresarPacienteServidor({ data: { usuario: dniOEmail, codigo: codigoOClave } });
+    if (!r.ok) return r;
+    const p = JSON.parse(r.json) as PacientePortal;
+    localStorage.setItem(KEY_PACIENTES, JSON.stringify([p]));
+    localStorage.setItem(KEY_SESION_PACIENTE, p.id);
+    window.dispatchEvent(new CustomEvent(EVT, { detail: KEY_PACIENTES }));
+    void traerColeccion(KEY_TURNOS);
+    return { ok: true, paciente: p };
+  }
   const lista = leerDato<PacientePortal[]>(KEY_PACIENTES, []);
   const u = dniOEmail.trim().toLowerCase();
   const dni = u.replace(/\D/g, "");

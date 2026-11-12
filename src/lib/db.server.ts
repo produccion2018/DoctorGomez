@@ -47,6 +47,18 @@ export async function db(): Promise<Sql> {
         usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
         expira timestamptz NOT NULL
       )`;
+      await sql`CREATE TABLE IF NOT EXISTS registros (
+        coleccion text NOT NULL,
+        id text NOT NULL,
+        valor jsonb NOT NULL,
+        actualizado timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (coleccion, id)
+      )`;
+      await sql`CREATE TABLE IF NOT EXISTS sesiones_pac (
+        token text PRIMARY KEY,
+        paciente_id text NOT NULL,
+        expira timestamptz NOT NULL
+      )`;
       await sql`CREATE TABLE IF NOT EXISTS auditoria (
         id bigserial PRIMARY KEY,
         fecha timestamptz NOT NULL DEFAULT now(),

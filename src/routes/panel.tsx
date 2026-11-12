@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { subirAudioServidor } from "@/lib/servidor";
@@ -493,7 +493,8 @@ function Panel() {
   const [factVista, setFactVista] = useState<VistaFact>("comprobantes");
   const [pacSel, setPacSel] = useState<string | null>(null);
   const [focoTurnos, setFocoTurnos] = useState<FocoTurnos>(null);
-  const [turnos, setTurnos] = usePersist<Turno[]>("gb_turnos", SEED_TURNOS);
+  const [turnos, setTurnosDato] = useDato<Turno[]>("gb_turnos", SEED_TURNOS);
+  const setTurnos = useCallback((v: SetStateAction<Turno[]>) => setTurnosDato((p) => (typeof v === "function" ? (v as (x: Turno[]) => Turno[])(p) : v)), [setTurnosDato]);
   const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
   const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
   const [audit, setAudit] = useState<Evento[]>([]);
@@ -526,20 +527,6 @@ function Panel() {
     setTurnos((p) => (p.some((t) => IDS_EJEMPLO.includes(t.id)) ? p.filter((t) => !IDS_EJEMPLO.includes(t.id)) : p));
   }, [setTurnos]);
 
-  // Si se reserva un turno desde la web (otra pestaña), se actualiza solo
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === "gb_turnos" && e.newValue) {
-        try {
-          setTurnos(JSON.parse(e.newValue) as Turno[]);
-        } catch {
-          /* ignorar */
-        }
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [setTurnos]);
 
   useEffect(() => {
     const t = setInterval(() => setAhora(new Date()), 30000);

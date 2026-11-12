@@ -266,3 +266,145 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
     const r = await put(`musica/${limpio}`, buf, { access: "public", contentType: data.tipo, addRandomSuffix: true });
     return { ok: true, url: r.url };
   });
+
+/* ===================================================================== */
+/* Colecciones: turnos, padrón y pacientes del portal                      */
+/* ===================================================================== */
+
+const colecciones = () => import("./colecciones.server");
+
+type Quien = { tipo: "staff"; nombre: string } | { tipo: "paciente"; id: string; nombre: string } | null;
+
+async function quienSoy(): Promise<Quien> {
+  const u = await (await acceso()).usuarioActual();
+  if (u) return { tipo: "staff", nombre: u.nombre };
+  const c = await colecciones();
+  const p = await c.pacienteActual().catch(() => null);
+  if (p) return { tipo: "paciente", id: p.id, nombre: String(p["nombre"] ?? "") };
+  return null;
+}
+
+/** Lee una colección. El personal ve todo; el paciente solo lo suyo. */
+export const leerColeccion = createServerFn({ method: "GET" })
+  .validator((d: { coleccion: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ json: string }>> => {
+    const { hayBase } = await modulo();
+    if (!hayBase()) return { ok: false, error: "Sin base de datos." };
+    const c = await colecciones();
+    if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
+    const q = await quienSoy();
+    if (!q) return { ok: false, error: "Sin sesión." };
+    let filas = await c.leer(data.coleccion);
+    if (q.tipo === "paciente") {
+      if (data.coleccion === "gb_turnos") filas = filas.filter((t) => t["pacienteId"] === q.id);
+      else if (data.coleccion === "gb_pacientes") filas = filas.filter((p) => p.id === q.id);
+      else filas = [];
+    }
+    return { ok: true, json: JSON.stringify(filas) };
+  });
+
+/** Aplica cambios fila por fila (así dos personas pueden trabajar a la vez sin pisarse). */
+export const aplicarCambios = createServerFn({ method: "POST" })
+  .validator((d: { coleccion: string; upserts: string[]; borrar: string[] }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const c = await colecciones();
+    if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
+    const q = await quienSoy();
+    if (!q) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
+    const filas = data.upserts.map((x) => JSON.parse(x) as Record<string, unknown> & { id: string }).filter((f) => typeof f.id === "string" && f.id);
+
+    if (q.tipo === "staff") {
+      for (const f of filas) await c.guardar(data.coleccion, f);
+      await c.borrar(data.coleccion, data.borrar);
+      return { ok: true };
+    }
+
+    // Paciente: solo pedir/cancelar sus turnos y editar su perfil
+    if (data.borrar.length) return { ok: false, error: "No autorizado." };
+    if (data.coleccion === "gb_turnos") {
+      for (const f of filas) {
+        const previo = await c.uno("gb_turnos", f.id);
+        if (previo) {
+          if (previo["pacienteId"] !== q.id) return { ok: false, error: "No autorizado." };
+          if (f["estado"] === "Cancelado") await c.guardar("gb_turnos", { ...previo, estado: "Cancelado" } as typeof f);
+          continue;
+        }
+        const t: Record<string, unknown> & { id: string } = { ...f, pacienteId: q.id, paciente: q.nombre, estado: "Pendiente", origen: "portal" };
+        if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elegí otro." };
+        await c.guardar("gb_turnos", t);
+        await (await acceso()).auditar(q.nombre, "Turno pedido desde el portal", `${t["fecha"]} ${t["hora"]} · ${t["doctor"]}`);
+      }
+      return { ok: true };
+    }
+    if (data.coleccion === "gb_pacientes") {
+      const f = filas.find((x) => x.id === q.id);
+      const previo = await c.uno("gb_pacientes", q.id);
+      if (!f || !previo) return { ok: false, error: "No autorizado." };
+      const permitido: Record<string, unknown> = {};
+      for (const k of ["telefono", "email", "ficha", "clave"]) if (k in f) permitido[k] = f[k];
+      await c.guardar("gb_pacientes", { ...previo, ...permitido, id: q.id });
+      return { ok: true };
+    }
+    return { ok: false, error: "No autorizado." };
+  });
+
+/** Horarios tomados (sin datos de pacientes) para mostrar disponibilidad en la web. */
+export const horariosOcupados = createServerFn({ method: "GET" })
+  .validator((d: { desde: string }) => d)
+  .handler(async ({ data }) => {
+    const { hayBase } = await modulo();
+    if (!hayBase()) return [] as { doctor: string; fecha: string; hora: string }[];
+    return (await colecciones()).ocupadosDesde(data.desde);
+  });
+
+/** Reserva desde la web pública (sin cuenta). */
+export const reservarTurnoPublico = createServerFn({ method: "POST" })
+  .validator((d: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ id: string }>> => {
+    const c = await colecciones();
+    const limpio = (s: string, n: number) => String(s ?? "").trim().slice(0, n);
+    const t = {
+      id: (await modulo()).tokenAleatorio(5),
+      fecha: limpio(data.fecha, 10),
+      hora: limpio(data.hora, 5),
+      paciente: limpio(data.paciente, 120),
+      doctor: limpio(data.doctor, 120),
+      motivo: limpio(data.motivo, 300),
+      telefono: limpio(data.telefono, 40),
+      email: limpio(data.email, 120),
+      estado: "Pendiente",
+      origen: "web",
+    };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha) || !/^\d{2}:\d{2}$/.test(t.hora) || t.paciente.length < 3 || !t.telefono) return { ok: false, error: "Faltan datos del turno." };
+    if (await c.horarioOcupado(t.doctor, t.fecha, t.hora)) return { ok: false, error: "Ese horario se acaba de ocupar. Elegí otro, por favor." };
+    await c.guardar("gb_turnos", t);
+    await (await acceso()).auditar("Web", "Turno solicitado desde la web", `${t.paciente} · ${t.fecha} ${t.hora} · ${t.doctor}`);
+    return { ok: true, id: t.id };
+  });
+
+/** Ingreso al portal del paciente. */
+export const ingresarPacienteServidor = createServerFn({ method: "POST" })
+  .validator((d: { usuario: string; codigo: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ json: string }>> => {
+    const c = await colecciones();
+    const u = data.usuario.trim().toLowerCase();
+    const dni = u.replace(/\D/g, "");
+    const lista = await c.leer("gb_pacientes");
+    const p = lista.find((x) => (dni.length >= 5 && x["dni"] === dni) || (u.includes("@") && String(x["email"] ?? "").toLowerCase() === u));
+    if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pedile a la clínica que te envíe la invitación." };
+    if (p["estado"] === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunicate con la clínica." };
+    const cod = data.codigo.trim();
+    const valida = cod === p["codigo"] || (!!p["clave"] && c.sha256(cod) === p["clave"]);
+    if (!valida) return { ok: false, error: p["clave"] ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisá el mensaje de la clínica." };
+    const primero = p["estado"] === "Invitado";
+    const act = { ...p, estado: "Activo", ultimoIngreso: new Date().toISOString() };
+    await c.guardar("gb_pacientes", act);
+    await c.abrirSesionPaciente(p.id, (await modulo()).tokenAleatorio());
+    await (await acceso()).auditar(String(p["nombre"]), primero ? "Primer ingreso al portal" : "Ingreso al portal", `Paciente C.C. ${p["dni"]}`);
+    return { ok: true, json: JSON.stringify(act) };
+  });
+
+export const salirPacienteServidor = createServerFn({ method: "POST" }).handler(async () => {
+  await (await colecciones()).cerrarSesionPaciente();
+  return { ok: true };
+});

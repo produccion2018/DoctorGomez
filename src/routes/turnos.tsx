@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
+import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -94,7 +94,15 @@ function Turnos() {
       setPaso(2);
     }
     setOcupados(leer());
+    void refrescarOcupados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.doctor, search.especialidad]);
+
+  /** Con backend: trae los horarios tomados del servidor (sin datos de pacientes). */
+  const refrescarOcupados = async () => {
+    const r = await ocupadosServidor(iso(new Date()));
+    if (r) setOcupados(r.map((x, i) => ({ id: `o${i}`, ...x, paciente: "", motivo: "", estado: "Pendiente" as const })));
+  };
 
   const especialidad = ESPECIALIDADES.find((e) => e.slug === esp);
   const doctor = DOCTORS.find((d) => d.id === doc);
@@ -115,11 +123,25 @@ function Turnos() {
     }));
   }, [doctor, fecha, ocupados, agenda]);
 
-  const confirmar = (e: FormEvent) => {
+  const confirmar = async (e: FormEvent) => {
     e.preventDefault();
     if (!doctor || !fecha || !hora || !especialidad) return;
-    const actuales = leer();
     const nom = nombrePanel(doctor.id);
+    const motivo = especialidad.nombre + (datos.comentario.trim() ? ` · ${datos.comentario.trim()}` : "");
+    const r = await reservarTurnoWeb({ fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim() });
+    if (r) {
+      if (!r.ok) {
+        toast.error(r.error);
+        void refrescarOcupados();
+        setHora(null);
+        setPaso(2);
+        return;
+      }
+      setListo({ id: "web", fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, estado: "Pendiente", telefono: datos.telefono.trim(), email: datos.email.trim(), origen: "web" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const actuales = leer();
     if (actuales.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === hora && t.estado !== "Cancelado")) {
       toast.error("Ese horario se acaba de ocupar. Elegí otro, por favor.");
       setOcupados(actuales);

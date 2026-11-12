@@ -86,8 +86,7 @@ import {
   type TurnoClinica,
   KEY_SITIO,
   sitioDe,
-  leerDato,
-} from "@/lib/auth-local";
+  leerDato, ocupadosServidor, salirPortal } from "@/lib/auth-local";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 
 import logoClinica from "@/assets/logo.png";
@@ -243,7 +242,7 @@ function Portal() {
     <Interior
       paciente={paciente}
       onSalir={() => {
-        localStorage.removeItem(KEY_SESION_PACIENTE);
+        void salirPortal();
         setSesion(null);
       }}
     />
@@ -862,7 +861,13 @@ function Inicio({ ctx }: { ctx: Ctx }) {
 
 function Turnos({ ctx }: { ctx: Ctx }) {
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
-  const [todos] = useDato<TurnoClinica[]>(KEY_TURNOS, []);
+  const [propios] = useDato<TurnoClinica[]>(KEY_TURNOS, []);
+  const [ajenos, setAjenos] = useState<TurnoClinica[]>([]);
+  useEffect(() => {
+    // Con backend el paciente solo ve sus turnos: los horarios tomados por otros vienen aparte
+    void ocupadosServidor(isoDe(new Date())).then((r) => r && setAjenos(r.map((x, i) => ({ id: `o${i}`, ...x, paciente: "", motivo: "", estado: "Pendiente" as const }))));
+  }, [propios.length]);
+  const todos = useMemo(() => [...propios, ...ajenos], [propios, ajenos]);
   const [pidiendo, setPidiendo] = useState(false);
   const [esp, setEsp] = useState("");
   const [doc, setDoc] = useState("");
