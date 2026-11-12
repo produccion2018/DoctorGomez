@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, fotoDoctor, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
+import fondoCorazon from "@/assets/fondo-corazon.jpg";
+import fondoRinones from "@/assets/fondo-rinones.jpg";
+
+/** Fondo ilustrado suave del encabezado según la especialidad. */
+const FONDOS: Record<string, string> = {
+  cardiologia: fondoCorazon,
+  "cardiologia-critica": fondoCorazon,
+  ecocardiografia: fondoCorazon,
+  "holter-mapa": fondoCorazon,
+  nefrologia: fondoRinones,
+};
 export const Route = createFileRoute("/especialidades/$slug")({
   loader: ({ params }) => {
     const esp = ESPECIALIDADES.find((e) => e.slug === params.slug);
@@ -105,6 +116,7 @@ function Detalle() {
     <PublicLayout>
       <PageHero
         kicker="Especialidad"
+        fondo={FONDOS[esp.slug]}
         title={esp.nombre}
         text={esp.descripcion}
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Especialidades", to: "/especialidades" }, { label: esp.nombre }]}

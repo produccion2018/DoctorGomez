@@ -164,6 +164,7 @@ import { DOCTORS, SERVICIOS } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
+import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/panel")({
   head: () => ({
     meta: [
@@ -576,8 +577,8 @@ function Panel() {
           <Link to="/" className="flex items-center gap-2.5">
             <span className="relative shrink-0">
               <span aria-hidden className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-sky-400 to-rose-500 opacity-50 blur-md" />
-              <span className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 via-blue-600 to-blue-800 ring-1 ring-white/25">
-                <Activity className="size-[18px]" />
+              <span className="relative flex size-9 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25">
+                <img src={logoClinica} alt="" className="size-full object-cover" />
               </span>
             </span>
             <span className="leading-tight">

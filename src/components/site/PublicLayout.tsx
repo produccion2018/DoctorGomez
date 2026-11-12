@@ -7,6 +7,7 @@ import { ScrollTop } from "./ScrollTop";
 import { Crumbs } from "./Crumbs";
 import { CLINICA } from "@/data/clinic";
 
+import logoClinica from "@/assets/logo.png";
 const LINKS = [
   { to: "/", label: "Inicio" },
   { to: "/nosotros", label: "Nosotros" },
@@ -50,8 +51,8 @@ export function useReveal(dep?: unknown) {
 export function Brand({ light = false }: { light?: boolean }) {
   return (
     <Link to="/" className="group flex items-center gap-2.5">
-      <span className="flex size-10 items-center justify-center rounded-xl gradient-deep shadow-[0_8px_20px_-8px_rgba(20,50,120,.7)] transition-transform duration-500 group-hover:rotate-6">
-        <Activity className="size-5 text-deep-foreground" />
+      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-[0_8px_20px_-8px_rgba(20,50,120,.7)] ring-1 ring-black/5 transition-transform duration-500 group-hover:rotate-6">
+        <img src={logoClinica} alt="" className="size-full object-cover" />
       </span>
       <span className="whitespace-nowrap leading-tight">
         <span className={`block text-sm font-bold tracking-tight ${light ? "text-deep-foreground" : "text-foreground"}`}>Gómez Bolaño</span>
@@ -68,7 +69,9 @@ export function PageHero({
   text,
   crumbs,
   children,
+  fondo,
 }: {
+  fondo?: string | undefined;
   kicker: string;
   title: ReactNode;
   text?: string;
@@ -81,6 +84,15 @@ export function PageHero({
       <div className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top_left,#000_25%,transparent_75%)]" />
       <div className="blob -left-20 -top-10 size-72 bg-[var(--clinic)]" />
       <div className="blob -right-10 bottom-0 size-64 bg-[var(--accent)] opacity-25" style={{ animationDelay: "-7s" }} />
+      {fondo && (
+        <img
+          src={fondo}
+          alt=""
+          aria-hidden="true"
+          className="hero-kenburns pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover opacity-30 mix-blend-luminosity sm:w-[70%] sm:opacity-40 lg:w-[55%] [mask-image:linear-gradient(to_right,transparent,#000_45%,#000_80%,transparent)]"
+        />
+      )}
+      {fondo && <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-deep via-deep/60 to-transparent" />}
       <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full text-sky-300/30" aria-hidden="true">
         <polyline className="ecg-line" points="0,40 260,40 290,40 310,15 330,65 350,40 640,40 670,40 690,8 710,72 730,40 960,40 985,25 1005,55 1025,40 1200,40" fill="none" stroke="currentColor" strokeWidth="2" />
       </svg>

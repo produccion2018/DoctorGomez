@@ -5,6 +5,8 @@ import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/Pub
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import { KEY_AGENDA, agendaDe, horariosDelDia, isoDe, proximosDias, resumenAgenda, useDato, type Agendas } from "@/lib/auth-local";
 
+import fondoCorazon from "@/assets/fondo-corazon.jpg";
+import fondoRinones from "@/assets/fondo-rinones.jpg";
 export const Route = createFileRoute("/especialistas/$id")({
   loader: ({ params }) => {
     const doctor = DOCTORS.find((d) => d.id === params.id);
@@ -33,6 +35,7 @@ function PerfilDoctor() {
     <PublicLayout>
       <PageHero
         kicker={doctor.titulo}
+        fondo={doctor.foto === "alonso" ? fondoCorazon : fondoRinones}
         title={doctor.nombre}
         text={doctor.bio}
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Especialistas", to: "/especialistas" }, { label: doctor.nombre }]}

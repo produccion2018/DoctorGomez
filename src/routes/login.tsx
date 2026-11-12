@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import { ADMINS, aceptarInvitacion, areaDe, crearClave, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
+import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
@@ -122,7 +123,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
         <div className="iv-orb pointer-events-none absolute -bottom-32 right-0 size-96 rounded-full bg-rose-500/20 blur-3xl" style={{ animationDelay: "-5s" }} />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <Link to="/" className="flex w-fit items-center gap-3">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur"><Activity className="size-5" /></span>
+            <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
             <span className="leading-tight">
               <span className="block font-display text-lg font-semibold">Gómez Bolaño</span>
               <span className="block text-[11px] uppercase tracking-[0.2em] text-white/60">Clínica médica</span>
@@ -161,7 +162,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
         <div className="pointer-events-none absolute -bottom-40 -left-24 size-96 rounded-full bg-fuchsia-400/10 blur-3xl" />
 
         <div className="relative flex items-center gap-3 lg:hidden">
-          <span className="gradient-deep flex size-10 items-center justify-center rounded-xl text-white"><Activity className="size-5" /></span>
+          <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-black/5"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
           <span className="leading-tight">
             <span className="block font-semibold">Gómez Bolaño</span>
             <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Clínica médica</span>
@@ -332,8 +333,8 @@ function LoginNormal() {
         <div className="lg-orb-b pointer-events-none absolute -bottom-24 -left-16 size-72 rounded-full bg-white/10 blur-3xl" />
 
         <div className="relative flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-            <Activity className="size-5" />
+          <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25">
+            <img src={logoClinica} alt="" className="size-full object-cover" />
           </span>
           <div className="leading-tight">
             <p className="font-semibold">Gómez Bolaño</p>
