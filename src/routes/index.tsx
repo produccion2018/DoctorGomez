@@ -37,9 +37,9 @@ import fotoAlonso from "@/assets/doctor-alonso.jpg";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Clínica Gómez Bolaño | Medicina Interna, Nefrología y Cardiología" },
+      { title: "HEGO · Centro de especialidades médicas | Medicina Interna, Nefrología y Cardiología" },
       { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online y atención especializada en Medicina Interna, Nefrología y Cardiología." },
-      { property: "og:title", content: "Clínica Gómez Bolaño | Atención médica especializada" },
+      { property: "og:title", content: "HEGO · Centro de especialidades médicas | Atención médica especializada" },
       { property: "og:description", content: "Medicina Interna, Nefrología, Cardiología, Cardiología Crítica y Ecocardiografía." },
     ],
   }),
@@ -334,7 +334,7 @@ function Home() {
             <div className="max-w-xl space-y-7">
               <span className="hero-word glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-deep-foreground" style={{ animationDelay: "0.05s" }}>
                 <span className="pulse-dot size-2 rounded-full bg-[oklch(0.75_0.17_155)]" />
-                <ShieldCheck className="size-3.5" /> Clínica médica especializada
+                <ShieldCheck className="size-3.5" /> Centro de especialidades médicas
               </span>
 
               <h1 className="text-4xl leading-[1.05] text-deep-foreground drop-shadow-[0_4px_24px_rgba(0,0,0,.35)] sm:text-5xl lg:text-[4.25rem]">

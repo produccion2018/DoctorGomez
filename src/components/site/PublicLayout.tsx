@@ -65,8 +65,8 @@ export function Brand({ light = false }: { light?: boolean }) {
         <img src={logoClinica} alt="" className="size-full object-cover" />
       </span>
       <span className="whitespace-nowrap leading-tight">
-        <span className={`block text-sm font-bold tracking-tight ${light ? "text-deep-foreground" : "text-foreground"}`}>Gómez Bolaño</span>
-        <span className={`block text-[10px] uppercase tracking-[0.2em] ${light ? "text-deep-foreground/70" : "text-muted-foreground"}`}>Clínica médica</span>
+        <span className={`block text-sm font-bold tracking-tight ${light ? "text-deep-foreground" : "text-foreground"}`}>HEGO</span>
+        <span className={`block text-[10px] uppercase tracking-[0.2em] ${light ? "text-deep-foreground/70" : "text-muted-foreground"}`}>Especialidades médicas</span>
       </span>
     </Link>
   );

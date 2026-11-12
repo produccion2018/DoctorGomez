@@ -9,8 +9,8 @@ import { resumenHorarioClinica } from "@/lib/auth-local";
 export const Route = createFileRoute("/contacto")({
   head: () => ({
     meta: [
-      { title: "Contacto | Clínica Gómez Bolaño" },
-      { name: "description", content: "Teléfono, WhatsApp, email, dirección y horarios de la Clínica Gómez Bolaño." },
+      { title: "Contacto | HEGO · Centro de especialidades médicas" },
+      { name: "description", content: "Teléfono, WhatsApp, email, dirección y horarios del Centro HEGO." },
     ],
   }),
   component: Contacto,

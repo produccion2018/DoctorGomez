@@ -184,7 +184,7 @@ import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/panel")({
   head: () => ({
     meta: [
-      { title: "Panel administrativo | Clínica Gómez Bolaño" },
+      { title: "Panel administrativo | HEGO · Centro de especialidades médicas" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -610,8 +610,8 @@ function Panel() {
               </span>
             </span>
             <span className="leading-tight">
-              <span className="block font-display text-[15px] font-semibold tracking-tight">Gómez Bolaño</span>
-              <span className="block text-[10px] uppercase tracking-[0.18em] text-white/50">Cardio · Nefro</span>
+              <span className="block font-display text-[15px] font-semibold tracking-tight">HEGO</span>
+              <span className="block text-[10px] uppercase tracking-[0.18em] text-white/50">Especialidades médicas</span>
             </span>
           </Link>
           <button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-white/80 hover:bg-white/10 lg:hidden">
@@ -1626,7 +1626,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
         )}
         {t.estado === "Atendido" && <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700"><Check className="size-3" /> Atendido</span>}
         {t.telefono && (
-          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño por tu turno del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
+          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos del Centro HEGO por tu turno del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
             <Send className="size-3.5" />
           </a>
         )}
@@ -2494,7 +2494,7 @@ function imprimirRecibo(c: Cobro) {
   const filas = c.pagos.map((p) => `<tr><td>${fechaHora(p.fecha)}</td><td>${p.metodo}</td><td>${p.cobradoPor}</td><td style="text-align:right">${dinero(p.monto)}</td></tr>`).join("");
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
   <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700}.m{color:#64748b;font-size:13px}</style></head><body>
-  <h1>Clínica Gómez Bolaño</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
+  <h1>HEGO · Centro de especialidades médicas</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
   <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>Obra social:</b> ${c.obraSocial}` : ""}</p>
   <table><thead><tr><th>Fecha</th><th>Medio</th><th>Cobró</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
   <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Arancel ${dinero(c.arancel)} · Saldo ${dinero(saldoDe(c))}</p>
@@ -3533,7 +3533,7 @@ function waPaciente(tel: string, texto: string) {
 
 function mensajeInvitacion(p: PacientePortal) {
   const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
-  return `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+  return `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
 }
 
 const ESTADO_ACCESO: Record<EstadoAcceso, string> = {
@@ -3658,7 +3658,7 @@ function verPortal(id: string) {
 }
 
 function mailInvitacion(p: PacientePortal) {
-  return `mailto:${p.email}?subject=${encodeURIComponent("Tu acceso al Portal del paciente · Clínica Gómez Bolaño")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
+  return `mailto:${p.email}?subject=${encodeURIComponent("Tu acceso al Portal del paciente · HEGO · Centro de especialidades médicas")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
 }
 
 function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; turnos: Turno[] }) {
@@ -4302,7 +4302,7 @@ function htmlEvolucion(p: PacienteHC, e: Evolucion) {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Evolución · ${p.nombre}</title>
 <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:780px;margin:auto;font-size:14px;line-height:1.55}h1{font-size:20px;margin:0}.m{color:#64748b;font-size:12px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#475569;margin:22px 0 6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}.dx b{font-family:ui-monospace,monospace}</style></head><body>
-<h1>Clínica Gómez Bolaño · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-AR")} · ${e.doctor}</p>
+<h1>HEGO · Centro de especialidades médicas · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-AR")} · ${e.doctor}</p>
 <h2>Motivo de consulta</h2><p>${esc(e.motivo || "—")}</p>${vit ? `<h2>Signos vitales</h2><p>${vit}</p>` : ""}
 ${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} · ${new Date(e.signosPor.fecha).toLocaleString("es-AR")}</p>` : ""}
 <h2>Evolución del cuadro clínico</h2><p>${esc(e.nota || "—")}</p>${e.sintomas ? `<h2>Signos y síntomas</h2><p>${esc(e.sintomas)}</p>` : ""}${e.semiologia ? `<h2>Semiología médica</h2><p>${esc(e.semiologia)}</p>` : ""}
@@ -5322,7 +5322,7 @@ function htmlReceta(r: Receta, firma: string | undefined) {
 .anulada{color:#dc2626;font-weight:800;border:2px solid #dc2626;padding:6px 10px;border-radius:8px;display:inline-block;margin-bottom:10px}
 @media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
 </style></head><body><div class="hoja">
-<div class="top"><div><h1>Clínica Gómez Bolaño</h1><p>${r.doctor} · ${r.especialidad} · ${r.matricula}</p></div><div class="rx">Rp/</div></div>
+<div class="top"><div><h1>HEGO · Centro de especialidades médicas</h1><p>${r.doctor} · ${r.especialidad} · ${r.matricula}</p></div><div class="rx">Rp/</div></div>
 <div class="body">${r.anulada ? `<div class="anulada">RECETA ANULADA</div>` : ""}
 <div class="grid"><div><b>Paciente:</b> ${r.paciente}</div><div><b>Fecha:</b> ${fechaDe(r.fecha)}</div>
 <div><b>Cédula:</b> ${r.dni ?? "—"}</div><div><b>Receta N°:</b> ${String(r.numero).padStart(6, "0")}</div>
@@ -5519,7 +5519,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
                     <button onClick={() => imprimirHtml(htmlReceta(r, firmas[r.doctorId]))} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"><FileText className="size-3.5" /> Ver / imprimir</button>
                     {tel && !r.anulada && (
                       <a
-                        href={waDe(tel, `Hola ${r.paciente.split(" ")[0]}, te enviamos tu receta N° ${r.numero} de la Clínica Gómez Bolaño:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo de verificación: ${r.codigo}`)}
+                        href={waDe(tel, `Hola ${r.paciente.split(" ")[0]}, te enviamos tu receta N° ${r.numero} del Centro HEGO:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo de verificación: ${r.codigo}`)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
@@ -5660,7 +5660,7 @@ function htmlOrdenLab(p: PedidoLab, med: ReturnType<typeof datosMedico>, firma?:
 .box{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-top:14px}.box h3{margin:0 0 6px;font-size:14px}.box p{margin:0;font-size:13px;color:#334155}
 .tag{display:inline-block;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;margin-right:6px}
 .firma{text-align:right;margin-top:40px}.firma img{height:64px}.firma div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
-<h1>Clínica Gómez Bolaño · Orden de laboratorio</h1><p class="m">${fechaDe(p.fecha)} · ${med.nombre} · ${med.matricula}</p>
+<h1>HEGO · Centro de especialidades médicas · Orden de laboratorio</h1><p class="m">${fechaDe(p.fecha)} · ${med.nombre} · ${med.matricula}</p>
 <p><b>Paciente:</b> ${p.paciente}</p>${p.urgente ? `<span class="tag">URGENTE</span>` : ""}${p.ayuno ? `<span class="tag" style="background:#e0f2fe;color:#075985">Con ayuno de 8 a 12 h</span>` : ""}
 ${paneles.map((x) => `<div class="box"><h3>${x.nombre}</h3><p>${x.det.map((d) => d.nombre).join(" · ")}</p></div>`).join("")}
 ${p.nota ? `<p class="m" style="margin-top:14px"><b>Nota:</b> ${p.nota}</p>` : ""}
@@ -5910,7 +5910,7 @@ function htmlFactura(f: Factura) {
 .letra{font-size:34px;font-weight:800;border:2px solid #0f172a;border-radius:8px;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
 h1{margin:0;font-size:20px}.m{color:#64748b;font-size:12px;margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border-bottom:1px solid #e2e8f0;padding:9px;font-size:13px;text-align:left}
 .tot{text-align:right;font-size:20px;font-weight:800;margin-top:14px}.nota{margin-top:26px;font-size:11px;color:#64748b;border-top:1px dashed #cbd5e1;padding-top:10px}</style></head><body>
-<div class="cab"><div><h1>Clínica Gómez Bolaño</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</div>
+<div class="cab"><div><h1>HEGO · Centro de especialidades médicas</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</div>
 <div style="text-align:right"><b>${f.tipo}</b><p class="m">N° ${f.numero}</p><p class="m">${fechaDe(f.fecha)}</p></div></div>
 <p style="margin-top:16px;font-size:14px"><b>Receptor:</b> ${f.receptor}${f.docReceptor ? ` · ${f.docReceptor}` : ""}<br><b>Cobertura:</b> ${f.cobertura}</p>
 <table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
@@ -6404,7 +6404,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("recordatorio24"))
     d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu turno de mañana a las ${t.hora} con ${t.doctor} en la Clínica Gómez Bolaño. Si no podés venir, avisanos por acá.` });
+      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu turno de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no podés venir, avisanos por acá.` });
     });
   if (on("confirmar"))
     d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
@@ -6419,7 +6419,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("encuesta"))
     d.turnos.filter((t) => t.estado === "Atendido" && t.fecha === ayer).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `enc-${t.id}`, auto: "encuesta", titulo: `Encuesta a ${t.paciente}`, detalle: "Consulta de ayer", tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, gracias por atenderte ayer en la Clínica Gómez Bolaño. Del 1 al 5, ¿cómo fue tu experiencia?` });
+      if (tl) out.push({ key: `enc-${t.id}`, auto: "encuesta", titulo: `Encuesta a ${t.paciente}`, detalle: "Consulta de ayer", tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, gracias por atenderte ayer en el Centro HEGO. Del 1 al 5, ¿cómo fue tu experiencia?` });
     });
 
   // Último valor por paciente
@@ -6434,7 +6434,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     tas.forEach((x) => { if (x.s > 180 || x.dd > 120) out.push({ key: `crisis-${x.id}-${x.f}`, auto: "crisisTA", titulo: `Presión en crisis: ${nombreDe(x.id)}`, detalle: `${x.s}/${x.dd} mmHg · ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
   if (on("controlTA"))
     d.pacientes.filter((p) => (p.ficha?.antecedentes ?? []).includes("Hipertensión arterial") && p.telefono).forEach((p) => {
-      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cargala en tu portal de la Clínica Gómez Bolaño así tu médico la ve.` });
+      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cargala en tu portal del Centro HEGO así tu médico la ve.` });
     });
   if (on("feviBaja")) {
     const fv = ult(d.evols.filter((e) => e.cardio?.fevi).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.cardio!.fevi! })));
@@ -6474,7 +6474,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("labListo"))
     d.labs.filter((l) => l.estado === "Resultado" && (l.fechaResultado ?? "").slice(0, 10) >= isoDe(new Date(Date.now() - 3 * 86400000))).forEach((l) => {
       const tl = tel(l.paciente);
-      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Podés verlos en tu portal de la Clínica Gómez Bolaño.` });
+      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Podés verlos en tu portal del Centro HEGO.` });
     });
   if (on("labDemorado"))
     d.labs.filter((l) => l.estado !== "Resultado" && l.fecha.slice(0, 10) < isoDe(new Date(Date.now() - 7 * 86400000))).forEach((l) => out.push({ key: `labdem-${l.id}`, auto: "labDemorado", titulo: `Laboratorio demorado: ${l.paciente}`, detalle: `Pedido el ${fechaDe(l.fecha)}`, tipo: "alerta", ir: "laboratorio" }));
@@ -6492,7 +6492,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     if (pend.length) out.push({ key: `liq-${hoy.slice(0, 7)}`, auto: "liquidacion", titulo: "Liquidación de obras sociales", detalle: `${pend.length} comprobantes · ${dinero(pend.reduce((a, f) => a + f.total, 0))}`, tipo: "alerta", ir: "facturacion" });
   }
   if (on("cumple"))
-    d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Te saludamos con mucho cariño desde la Clínica Gómez Bolaño.` }));
+    d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Te saludamos con mucho cariño desdel Centro HEGO.` }));
   if (on("invitarPortal")) {
     const sin = d.pacientes.filter((p) => !p.portal && d.turnos.some((t) => norm(t.paciente) === norm(p.nombre) && t.fecha >= hoy));
     if (sin.length) out.push({ key: `inv-${hoy}`, auto: "invitarPortal", titulo: `${sin.length} pacientes con turno sin portal`, detalle: sin.slice(0, 3).map((p) => p.nombre).join(", "), tipo: "alerta", ir: "pacientes" });
@@ -6830,7 +6830,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {p.telefono && (
-                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos de la Clínica Gómez Bolaño.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
+                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
                     )}
                     <Button size="sm" variant="outline" className="rounded-xl" onClick={onEditar}><Pencil className="size-3.5" /> Editar paciente</Button>
                   </div>
@@ -7433,7 +7433,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
   const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
 
   const mensaje = (p: Personal) =>
-    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel de la Clínica Gómez Bolaño como ${areaDe(p)}.\n\nEntrá a este link y creá tu contraseña:\n${linkInvitacion(p, origen)}`;
+    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntrá a este link y creá tu contraseña:\n${linkInvitacion(p, origen)}`;
   const copiar = async (p: Personal) => {
     try {
       await navigator.clipboard.writeText(linkInvitacion(p, origen));

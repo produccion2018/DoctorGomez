@@ -25,8 +25,8 @@ export const Route = createFileRoute("/especialidades/$slug")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.nombre ?? "Especialidad"} | Clínica Gómez Bolaño` },
-      { name: "description", content: loaderData?.descripcion ?? "Especialidad de la Clínica Gómez Bolaño." },
+      { title: `${loaderData?.nombre ?? "Especialidad"} | HEGO · Centro de especialidades médicas` },
+      { name: "description", content: loaderData?.descripcion ?? "Especialidad del Centro HEGO." },
     ],
   }),
   component: Detalle,

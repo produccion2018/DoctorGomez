@@ -10,9 +10,9 @@ import fotoAlonso from "@/assets/doctor-alonso.jpg";
 export const Route = createFileRoute("/nosotros")({
   head: () => ({
     meta: [
-      { title: "Nosotros | Clínica Gómez Bolaño" },
+      { title: "Nosotros | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Historia, filosofía de atención y tecnología de una clínica dirigida por dos hermanos médicos especialistas." },
-      { property: "og:title", content: "Nosotros | Clínica Gómez Bolaño" },
+      { property: "og:title", content: "Nosotros | HEGO · Centro de especialidades médicas" },
       { property: "og:description", content: "Historia, filosofía de atención, experiencia y tecnología médica." },
     ],
   }),
@@ -75,7 +75,7 @@ function Nosotros() {
             Medicina especializada, <span className="text-gradient-clinic italic">con trato humano</span>
           </h2>
           <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-            <b className="font-semibold text-foreground">Heartcare Center</b> es un centro especializado en salud cardiovascular y medicina interna dedicado a la
+            <b className="font-semibold text-foreground">HEGO, Centro de especialidades médicas,</b> es un centro especializado en salud cardiovascular y medicina interna dedicado a la
             prevención, diagnóstico y tratamiento de enfermedades del corazón y en general.
           </p>
           <p className="mt-4 leading-relaxed text-muted-foreground">

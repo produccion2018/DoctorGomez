@@ -94,7 +94,7 @@ import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/portal")({
   head: () => ({
     meta: [
-      { title: "Portal del paciente | Clínica Gómez Bolaño" },
+      { title: "Portal del paciente | HEGO · Centro de especialidades médicas" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -281,7 +281,7 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold">Gómez Bolaño</span><span className="block text-[10px] uppercase tracking-[0.2em] text-white/70">Clínica médica</span></span>
+            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[10px] uppercase tracking-[0.2em] text-white/70">Especialidades médicas</span></span>
           </Link>
           <div className="max-w-md space-y-5">
             <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]"><span className="pulse-dot size-1.5 rounded-full bg-emerald-400" /> Portal del paciente</span>
@@ -396,7 +396,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
     <>
           <div className="flex items-center justify-between gap-2 px-6 pb-4 pt-6"><Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold">Gómez Bolaño</span><span className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
+            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
           </Link><button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-muted-foreground hover:bg-secondary lg:hidden"><X className="size-5" /></button></div>
           <div className="mx-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-background/60 p-3 dark:bg-white/5">
             <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-violet-600 text-sm font-bold text-white shadow-md">{iniciales}</span>

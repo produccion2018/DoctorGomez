@@ -28,7 +28,7 @@ export const Route = createFileRoute("/turnos")({
   }),
   head: () => ({
     meta: [
-      { title: "Solicitar turno | Clínica Gómez Bolaño" },
+      { title: "Solicitar turno | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Reservá tu turno online: elegí especialidad, profesional, día y horario." },
     ],
   }),

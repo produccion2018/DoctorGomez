@@ -22,7 +22,7 @@ import { FAQS } from "@/data/clinic";
 export const Route = createFileRoute("/preguntas-frecuentes")({
   head: () => ({
     meta: [
-      { title: "Preguntas frecuentes | Clínica Gómez Bolaño" },
+      { title: "Preguntas frecuentes | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Turnos, estudios, coberturas, pagos y preparación para la consulta." },
     ],
   }),

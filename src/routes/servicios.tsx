@@ -24,7 +24,7 @@ import { DOCTORS, SERVICIOS, fotoDoctor } from "@/data/clinic";
 export const Route = createFileRoute("/servicios")({
   head: () => ({
     meta: [
-      { title: "Servicios | Clínica Gómez Bolaño" },
+      { title: "Servicios | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reservá tu turno online." },
     ],
   }),

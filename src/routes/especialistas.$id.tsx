@@ -15,7 +15,7 @@ export const Route = createFileRoute("/especialistas/$id")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.nombre ?? "Perfil profesional"} | Clínica Gómez Bolaño` },
+      { title: `${loaderData?.nombre ?? "Perfil profesional"} | HEGO · Centro de especialidades médicas` },
       { name: "description", content: loaderData?.bio ?? "Perfil del especialista." },
     ],
   }),

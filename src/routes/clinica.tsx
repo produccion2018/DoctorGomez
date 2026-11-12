@@ -32,8 +32,8 @@ import imgInterna from "@/assets/medicina-interna.jpg";
 export const Route = createFileRoute("/clinica")({
   head: () => ({
     meta: [
-      { title: "La clínica | Clínica Gómez Bolaño" },
-      { name: "description", content: "Instalaciones, tecnología médica, horarios y ubicación de la Clínica Gómez Bolaño." },
+      { title: "La clínica | HEGO · Centro de especialidades médicas" },
+      { name: "description", content: "Instalaciones, tecnología médica, horarios y ubicación del Centro HEGO." },
     ],
   }),
   component: Clinica,

@@ -25,7 +25,7 @@ import logoClinica from "@/assets/logo.png";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Acceso administrativo | Clínica Gómez Bolaño" },
+      { title: "Acceso administrativo | HEGO · Centro de especialidades médicas" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -127,8 +127,8 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
           <Link to="/" className="flex w-fit items-center gap-3">
             <span className="flex size-11 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
             <span className="leading-tight">
-              <span className="block font-display text-lg font-semibold">Gómez Bolaño</span>
-              <span className="block text-[11px] uppercase tracking-[0.2em] text-white/60">Clínica médica</span>
+              <span className="block font-display text-lg font-semibold">HEGO</span>
+              <span className="block text-[11px] uppercase tracking-[0.2em] text-white/60">Especialidades médicas</span>
             </span>
           </Link>
 
@@ -166,8 +166,8 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
         <div className="relative flex items-center gap-3 lg:hidden">
           <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-black/5"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
           <span className="leading-tight">
-            <span className="block font-semibold">Gómez Bolaño</span>
-            <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Clínica médica</span>
+            <span className="block font-semibold">HEGO</span>
+            <span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Especialidades médicas</span>
           </span>
         </div>
 
@@ -349,8 +349,8 @@ function LoginNormal() {
             <img src={logoClinica} alt="" className="size-full object-cover" />
           </span>
           <div className="leading-tight">
-            <p className="font-semibold">Gómez Bolaño</p>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-deep-foreground/70">Clínica médica</p>
+            <p className="font-semibold">HEGO</p>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-deep-foreground/70">Especialidades médicas</p>
           </div>
         </div>
 

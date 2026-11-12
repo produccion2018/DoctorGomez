@@ -77,7 +77,7 @@ export function imagenEspecialidad(slug: string) {
 }
 
 export const CLINICA = {
-  nombre: "Clínica Gómez Bolaño",
+  nombre: "HEGO · Centro de especialidades médicas",
   claim: "Centro médico especializado en Medicina Interna, Nefrología y Cardiología",
   direccion: "Av. Libertador 2450, Piso 3 — Ciudad",
   telefono: "+54 11 4000-1200",

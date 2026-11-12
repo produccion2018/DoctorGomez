@@ -8,7 +8,7 @@ import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad, imagenEspeciali
 export const Route = createFileRoute("/especialidades/")({
   head: () => ({
     meta: [
-      { title: "Especialidades | Clínica Gómez Bolaño" },
+      { title: "Especialidades | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Medicina Interna, Nefrología, Cardiología, Ecocardiografía, Holter, Laboratorio y más unidades de la clínica." },
     ],
   }),

@@ -8,9 +8,9 @@ import { KEY_AGENDA, agendaDe, resumenAgenda, useDato, type Agendas } from "@/li
 export const Route = createFileRoute("/especialistas/")({
   head: () => ({
     meta: [
-      { title: "Especialistas | Clínica Gómez Bolaño" },
+      { title: "Especialistas | HEGO · Centro de especialidades médicas" },
       { name: "description", content: "Perfiles profesionales del Dr. Carlos Alberto Gómez Bolaño y del Dr. Carlos Alonso Gómez Bolaño." },
-      { property: "og:title", content: "Nuestros especialistas | Clínica Gómez Bolaño" },
+      { property: "og:title", content: "Nuestros especialistas | HEGO · Centro de especialidades médicas" },
       { property: "og:description", content: "Medicina Interna, Nefrología, Cardiología y Ecocardiografía." },
     ],
   }),
