@@ -320,82 +320,85 @@ function Home() {
     <PublicLayout>
       {/* ───────── HERO ───────── */}
       <section className="relative overflow-hidden border-b border-border bg-deep">
-        {/* Fondo: la misma foto muy desenfocada, solo como ambiente */}
-        <img src={heroDoctors} alt="" aria-hidden="true" width={1600} height={1000} className="absolute inset-0 size-full scale-110 object-cover opacity-25 blur-2xl" />
-        <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep/90 to-deep/60" />
-        <div className="absolute inset-0 bg-grid [mask-image:radial-gradient(ellipse_at_top_left,#000_30%,transparent_75%)]" />
-        <div className="blob -left-24 top-10 size-80 bg-[var(--clinic)]" />
-        <div className="blob bottom-0 right-10 size-72 bg-[var(--accent)] opacity-30" style={{ animationDelay: "-6s" }} />
-
-        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 lg:grid-cols-2 lg:px-8 lg:py-24">
-          {/* ── Foto de los dos médicos: SIEMPRE visible, nítida y completa ── */}
-          <div className="relative order-first px-2 sm:px-6 lg:order-2 lg:px-0 animate-in fade-in zoom-in-95 duration-1000">
-            <div className="hero-glow absolute -inset-3 rounded-[2.5rem] bg-gradient-to-tr from-[var(--clinic)] via-white/10 to-[var(--accent)] blur-2xl sm:-inset-5" />
-            <div className="relative overflow-hidden rounded-[2rem] ring-1 ring-white/30 shadow-[0_40px_80px_-30px_rgba(0,0,0,0.7)]">
-              <img
-                src={heroDoctors}
-                alt="Dr. Carlos Alberto y Dr. Carlos Alonso Gómez Bolaño"
-                width={1536}
-                height={1024}
-                className="hero-kenburns block aspect-[3/2] w-full object-cover"
-              />
-              <div className="hero-shine pointer-events-none absolute inset-0" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-deep/60 to-transparent" />
-              <div className="glass absolute bottom-3 right-3 rounded-xl px-3 py-2 text-right sm:bottom-4 sm:right-4">
-                <p className="text-[11px] font-semibold leading-tight text-white sm:text-xs">Dr. Alberto · Dr. Alonso</p>
-                <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
-              </div>
-            </div>
-
-            {/* Insignias flotantes (ubicadas en los bordes, sin tapar a los médicos) */}
-            <div className="animate-hero-float absolute border border-white/15 bg-deep/90 backdrop-blur-md -right-1 -top-4 hidden items-center gap-2.5 rounded-2xl px-3.5 py-2.5 shadow-lg sm:flex lg:-right-6">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--clinic)]"><CalendarPlus className="size-4 text-white" /></span>
-              <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Confirmación inmediata</span>
-            </div>
-            <div className="animate-hero-float absolute border border-white/15 bg-deep/90 backdrop-blur-md -bottom-5 -left-1 hidden items-center gap-2.5 rounded-2xl px-3.5 py-2.5 shadow-lg sm:flex lg:-left-8" style={{ animationDelay: "1.2s" }}>
-              <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
-              <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
-            </div>
+        {/* Foto de los médicos ocupando todo el hero */}
+        <div className="relative lg:min-h-[780px]">
+          <div className="relative aspect-[4/3] overflow-hidden sm:aspect-[16/9] lg:absolute lg:inset-0 lg:left-[16%] lg:aspect-auto lg:[mask-image:linear-gradient(to_right,transparent,#000_22%)]">
+            <img
+              src={heroDoctors}
+              alt="Dr. Carlos Alberto y Dr. Carlos Alonso Gómez Bolaño"
+              width={1536}
+              height={1024}
+              className="hero-kenburns absolute inset-0 size-full object-cover object-center"
+            />
+            <div className="hero-shine pointer-events-none absolute inset-0" />
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-deep to-transparent lg:hidden" />
           </div>
+          {/* Velo azul suave, solo detrás del texto (escritorio) */}
+          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-deep/90 via-deep/45 via-30% to-transparent to-55% lg:block" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-32 bg-gradient-to-t from-deep to-transparent lg:block" />
 
-          <div className="space-y-7 lg:order-1 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-            <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-deep-foreground">
-              <span className="pulse-dot size-2 rounded-full bg-[oklch(0.75_0.17_155)]" />
-              <ShieldCheck className="size-3.5" /> Clínica médica especializada
-            </span>
+          <div className="relative mx-auto -mt-10 max-w-7xl px-4 pb-14 lg:mt-0 lg:flex lg:min-h-[780px] lg:items-center lg:px-8 lg:py-24">
+            <div className="max-w-xl space-y-7">
+              <span className="hero-word glass inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-deep-foreground" style={{ animationDelay: "0.05s" }}>
+                <span className="pulse-dot size-2 rounded-full bg-[oklch(0.75_0.17_155)]" />
+                <ShieldCheck className="size-3.5" /> Clínica médica especializada
+              </span>
 
-            <h1 className="text-4xl leading-[1.05] text-deep-foreground sm:text-5xl lg:text-[4.25rem]">
-              Ciencia, experiencia y <span className="text-shine italic">compromiso</span> con tu salud.
-            </h1>
-            <p className="max-w-xl text-lg text-deep-foreground/80">
-              Atención médica especializada en Medicina Interna, Nefrología y Cardiología.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white hover:!bg-[var(--clinic)]/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
-              <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-6 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
-                <Link to="/especialistas">Conocer a nuestros especialistas</Link>
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex -space-x-3">
-                {[fotoAlberto, fotoAlonso].map((f, idx) => (
-                  <img key={idx} src={f} alt="" className="size-11 rounded-full object-cover object-top ring-2 ring-deep" />
+              <h1 className="text-4xl leading-[1.05] text-deep-foreground drop-shadow-[0_4px_24px_rgba(0,0,0,.35)] sm:text-5xl lg:text-[4.25rem]">
+                {["Ciencia,", "experiencia", "y"].map((w, k) => (
+                  <span key={w} className="hero-word mr-[0.25em] inline-block" style={{ animationDelay: `${0.2 + k * 0.12}s` }}>{w}</span>
                 ))}
-              </div>
-              <p className="text-sm leading-snug text-deep-foreground/80">
-                <span className="block font-semibold text-deep-foreground">Directores médicos</span>
-                Atención personalizada de lunes a sábado
+                <span className="hero-word mr-[0.25em] inline-block" style={{ animationDelay: "0.56s" }}><span className="text-shine italic">compromiso</span></span>
+                {["con", "tu", "salud."].map((w, k) => (
+                  <span key={w} className="hero-word mr-[0.25em] inline-block" style={{ animationDelay: `${0.68 + k * 0.12}s` }}>{w}</span>
+                ))}
+              </h1>
+              <p className="hero-word max-w-lg text-lg text-deep-foreground/85" style={{ animationDelay: "1.05s" }}>
+                Atención médica especializada en Medicina Interna, Nefrología y Cardiología.
               </p>
-            </div>
+              <div className="hero-word flex flex-wrap gap-3" style={{ animationDelay: "1.2s" }}>
+                <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white hover:!bg-[var(--clinic)]/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+                <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-6 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
+                  <Link to="/especialistas">Conocer a nuestros especialistas</Link>
+                </Button>
+              </div>
 
-            <svg viewBox="0 0 600 60" className="h-12 w-full max-w-md text-[var(--clinic)]" aria-hidden="true">
-              <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
-            </svg>
+              <div className="hero-word flex items-center gap-4 pt-2" style={{ animationDelay: "1.35s" }}>
+                <div className="flex -space-x-3">
+                  {[fotoAlberto, fotoAlonso].map((f, idx) => (
+                    <img key={idx} src={f} alt="" className="size-11 rounded-full object-cover object-top ring-2 ring-deep" />
+                  ))}
+                </div>
+                <p className="text-sm leading-snug text-deep-foreground/85">
+                  <span className="block font-semibold text-deep-foreground">Directores médicos</span>
+                  Atención personalizada de lunes a sábado
+                </p>
+              </div>
+
+              <svg viewBox="0 0 600 60" className="h-12 w-full max-w-md text-[var(--clinic)]" aria-hidden="true">
+                <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
+              </svg>
+            </div>
           </div>
 
+          {/* Insignias flotantes sobre la foto */}
+          <div className="animate-hero-float absolute right-6 top-8 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--clinic)]"><CalendarPlus className="size-4 text-white" /></span>
+            <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Confirmación inmediata</span>
+          </div>
+          <div className="animate-hero-float absolute bottom-28 right-6 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex" style={{ animationDelay: "1.2s" }}>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
+            <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
+          </div>
+          <div className="glass absolute bottom-10 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
+            <p className="text-xs font-semibold leading-tight text-white">Dr. Alberto · Dr. Alonso</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
+          </div>
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 pb-16 lg:px-8">
           {/* Tarjetas de especialidades: fila aparte, bien separada de la foto */}
-          <div className="grid gap-5 sm:grid-cols-2 lg:order-3 lg:col-span-2 lg:mt-6 lg:grid-cols-4 lg:gap-6">
+          <div className="-mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {[
               { icon: Stethoscope, t: "Medicina Interna", d: "Visión clínica integral" },
               { icon: Droplets, t: "Nefrología", d: "Salud renal y nefroprotección" },
