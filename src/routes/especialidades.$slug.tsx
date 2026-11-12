@@ -158,7 +158,6 @@ function Detalle() {
                     <p className="font-semibold">{s.nombre}</p>
                     <p className="mt-1 flex-1 text-sm text-muted-foreground">{s.descripcion}</p>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">{s.duracion} min</span>
                       <Link to="/turnos" search={{ doctor: s.doctorId }} className="text-sm font-semibold text-primary hover:underline">Reservar →</Link>
                     </div>
                   </div>

@@ -583,7 +583,6 @@ function Home() {
               </div>
               <div className="flex items-center gap-4 sm:gap-6">
                 <span className="hidden rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground md:inline">{s.especialidad}</span>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground sm:w-20"><Clock className="size-3.5" /> {s.duracion} min</span>
                 <Button asChild size="sm" variant="outline" className="ml-auto rounded-full transition-all group-hover:border-transparent group-hover:bg-primary group-hover:text-primary-foreground">
                   <Link to="/turnos" search={{ doctor: s.doctorId }}>Reservar</Link>
                 </Button>

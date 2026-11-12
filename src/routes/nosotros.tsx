@@ -102,8 +102,8 @@ function Nosotros() {
           <div className="glass absolute right-4 top-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-xl">
             <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-700"><HeartHandshake className="size-4" /></span>
             <div className="text-xs leading-tight">
-              <p className="font-semibold">Atención de 40 min</p>
-              <p className="text-white/70">por consulta</p>
+              <p className="font-semibold">Atención personalizada</p>
+              <p className="text-white/70">con tiempo y escucha</p>
             </div>
           </div>
         </div>
