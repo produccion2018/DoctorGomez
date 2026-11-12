@@ -17,8 +17,8 @@ import {
   Wifi,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FondoEspecialidades, PageHero, PublicLayout, useReveal } from "@/components/site/PublicLayout";
-import { CLINICA } from "@/data/clinic";
+import { FondoEspecialidades, PageHero, PublicLayout, useReveal, useSitio } from "@/components/site/PublicLayout";
+import { resumenHorarioClinica } from "@/lib/auth-local";
 import imgPasillo from "@/assets/hero-doctors.jpg";
 import imgCardio from "@/assets/cardiologia.jpg";
 import imgEco from "@/assets/esp-ecocardiografia.jpg";
@@ -73,7 +73,9 @@ function Clinica() {
   useReveal();
   const [eq, setEq] = useState(0);
   const sel = EQUIPAMIENTO[eq]!;
-  const mapa = `https://www.google.com/maps?q=${encodeURIComponent(CLINICA.direccion)}&output=embed`;
+  const sitio = useSitio();
+  const horario = resumenHorarioClinica(sitio);
+  const mapa = sitio.direccion ? `https://www.google.com/maps?q=${encodeURIComponent(sitio.direccion)}&output=embed` : "";
 
   return (
     <PublicLayout>
@@ -211,14 +213,21 @@ function Clinica() {
       {/* ───────── UBICACIÓN ───────── */}
       <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div data-reveal className="relative overflow-hidden rounded-[2rem] shadow-[0_50px_100px_-50px_rgba(10,25,70,.8)] ring-1 ring-black/5">
-          <iframe title="Ubicación de la clínica" src={mapa} className="h-[560px] w-full border-0 grayscale-[35%]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+          {mapa ? (
+            <iframe title="Ubicación de la clínica" src={mapa} className="h-[560px] w-full border-0 grayscale-[35%]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+          ) : (
+            <div className="relative h-[560px] w-full overflow-hidden bg-[oklch(0.2_0.05_262)]">
+              <img src={imgPasillo} alt="" className="absolute inset-0 size-full object-cover opacity-35" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.15_0.05_262)] via-[oklch(0.15_0.05_262/0.6)] to-transparent" />
+            </div>
+          )}
           <div className="relative m-4 rounded-[1.75rem] bg-[oklch(0.17_0.05_262/0.94)] p-8 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-xl lg:absolute lg:left-6 lg:top-6 lg:m-0 lg:w-[400px]">
             <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">Visitanos</span>
             <h2 className="mt-4 text-3xl text-white">Te esperamos</h2>
             <ul className="mt-6 space-y-4">
               {[
-                { icon: MapPin, t: CLINICA.direccion },
-                { icon: Clock, t: CLINICA.horarios },
+                { icon: MapPin, t: sitio.direccion || "Dirección: próximamente" },
+                { icon: Clock, t: horario || "Horarios: próximamente" },
                 { icon: Accessibility, t: "Acceso para personas con movilidad reducida" },
                 { icon: Wifi, t: "Wi-Fi gratuito en sala de espera" },
                 { icon: ShieldCheck, t: "Protocolos de higiene y bioseguridad" },
@@ -233,14 +242,14 @@ function Clinica() {
               <Button asChild className="rounded-full !bg-white px-5 text-[oklch(0.25_0.08_260)] hover:!bg-white/90">
                 <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link>
               </Button>
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(CLINICA.direccion)}`}
+              {sitio.direccion && <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(sitio.direccion)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-full border border-white/25 px-5 py-2 text-sm font-medium transition hover:bg-white/10"
               >
                 <Navigation className="size-4" /> Cómo llegar
-              </a>
+              </a>}
             </div>
           </div>
         </div>

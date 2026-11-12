@@ -647,3 +647,73 @@ export function clasificarFevi(fevi: number): { texto: string; tono: "verde" | "
   if (fevi >= 41) return { texto: "Levemente reducida", tono: "ambar" };
   return { texto: "Reducida", tono: "rojo" };
 }
+
+/* ===================================================================== */
+/* Datos del sitio público que cargan los administradores en el panel      */
+/* (contacto, horarios de la clínica y música de espera).                  */
+/* ===================================================================== */
+
+export const KEY_SITIO = "gb_sitio";
+
+export type PistaMusica = {
+  id: string;
+  nombre: string;
+  sub: string;
+  /** Archivo subido (data URL) o enlace a un .mp3 / .ogg. */
+  url: string;
+  color: string;
+};
+
+export type DiaClinica = { dia: number; abierto: boolean; desde: string; hasta: string };
+
+export type DatosSitio = {
+  direccion: string;
+  telefono: string;
+  whatsapp: string;
+  email: string;
+  /** Horario de atención de la clínica, día por día (0 = domingo). */
+  semana: DiaClinica[];
+  musicaActiva: boolean;
+  musicaEjemplo: boolean;
+  pistas: PistaMusica[];
+};
+
+export const SITIO_BASE: DatosSitio = {
+  direccion: "",
+  telefono: "",
+  whatsapp: "",
+  email: "",
+  semana: [1, 2, 3, 4, 5, 6, 0].map((dia) => ({ dia, abierto: false, desde: "08:00", hasta: "18:00" })),
+  musicaActiva: true,
+  musicaEjemplo: true,
+  pistas: [],
+};
+
+export function sitioDe(d: Partial<DatosSitio> | null | undefined): DatosSitio {
+  return { ...SITIO_BASE, ...(d ?? {}), pistas: d?.pistas ?? [], semana: d?.semana?.length ? d.semana : SITIO_BASE.semana };
+}
+
+/** "Lun a Vie 08:00–20:00 · Sáb 09:00–13:00" — vacío si todavía no se cargó. */
+export function resumenHorarioClinica(s: DatosSitio): string {
+  const corto = (n: number) => NOMBRES_DIA[n]!.slice(0, 3);
+  const abiertos = s.semana.filter((d) => d.abierto);
+  if (!abiertos.length) return "";
+  const grupos: { dias: number[]; desde: string; hasta: string }[] = [];
+  for (const d of abiertos) {
+    const g = grupos[grupos.length - 1];
+    if (g && g.desde === d.desde && g.hasta === d.hasta) g.dias.push(d.dia);
+    else grupos.push({ dias: [d.dia], desde: d.desde, hasta: d.hasta });
+  }
+  return grupos
+    .map((g) => `${g.dias.length > 2 ? `${corto(g.dias[0]!)} a ${corto(g.dias[g.dias.length - 1]!)}` : g.dias.map(corto).join(" y ")} ${g.desde}–${g.hasta}`)
+    .join(" · ");
+}
+
+export const COLORES_PISTA = [
+  "from-sky-400 to-indigo-600",
+  "from-amber-300 to-rose-500",
+  "from-emerald-300 to-teal-600",
+  "from-violet-400 to-fuchsia-600",
+  "from-rose-400 to-red-600",
+  "from-cyan-300 to-blue-600",
+];

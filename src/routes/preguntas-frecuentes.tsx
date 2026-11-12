@@ -16,8 +16,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
-import { CLINICA, FAQS } from "@/data/clinic";
+import { PageHero, PublicLayout, useReveal, useSitio, waLink } from "@/components/site/PublicLayout";
+import { FAQS } from "@/data/clinic";
 
 export const Route = createFileRoute("/preguntas-frecuentes")({
   head: () => ({
@@ -76,6 +76,7 @@ const COLOR_CAT: Record<Cat, string> = {
 };
 
 function Faq() {
+  const sitio = useSitio();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<Cat>("Todas");
   const [sel, setSel] = useState<string>(FAQS[0]!.q);
@@ -258,7 +259,7 @@ function Faq() {
             </div>
             <div className="flex flex-wrap gap-3">
               <Button asChild className="h-11 rounded-full !bg-[#25D366] px-6 text-white hover:!bg-[#1ebe5b]"><a href={waLink("Hola, tengo una consulta.")} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a></Button>
-              <a href={`tel:${CLINICA.telefono.replace(/\s/g, "")}`} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-sm font-medium transition hover:bg-white/10"><Phone className="size-4" /> {CLINICA.telefono}</a>
+              {sitio.telefono && <a href={`tel:${sitio.telefono.replace(/\s/g, "")}`} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-sm font-medium transition hover:bg-white/10"><Phone className="size-4" /> {sitio.telefono}</a>}
               <Link to="/turnos" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition hover:bg-white/90"><CalendarPlus className="size-4" /> Solicitar turno</Link>
             </div>
           </div>

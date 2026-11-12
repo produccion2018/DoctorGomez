@@ -3,6 +3,11 @@ import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
+  Globe,
+  Music2,
+  Upload,
+  ChevronUp,
+  Phone,
   Activity,
   Accessibility,
   Apple,
@@ -159,6 +164,13 @@ import {
   type PacientePortal,
   type Evento,
   type SessionUser,
+  KEY_SITIO,
+  sitioDe,
+  resumenHorarioClinica,
+  COLORES_PISTA,
+  type DatosSitio,
+  type DiaClinica,
+  type PistaMusica,
 } from "@/lib/auth-local";
 import { DOCTORS, SERVICIOS } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
@@ -181,7 +193,7 @@ type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Nivel = "ninguno" | "ver" | "editar";
 type Permisos = Record<string, Record<string, Nivel>>;
-type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria";
+type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -436,6 +448,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
   {
     grupo: "Sistema",
     items: [
+      { id: "sitio", label: "Sitio web", icon: Globe, tono: "text-sky-300" },
       { id: "permisos", label: "Permisos y accesos", icon: KeyRound, tono: "text-violet-300" },
       { id: "auditoria", label: "Auditoría", icon: ClipboardList, tono: "text-slate-300" },
     ],
@@ -459,6 +472,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   permisos: ["Permisos", "Definí qué puede ver y hacer cada departamento."],
   asistente: ["Asistente IA", "Consultas rápidas sobre turnos, finanzas, permisos y actividad."],
   auditoria: ["Auditoría", "Registro de todas las acciones realizadas en el panel."],
+  sitio: ["Sitio web", "Datos de contacto, horario de la clínica y música de espera que se ven en la web."],
 };
 
 /* ---------- Panel principal ---------- */
@@ -930,6 +944,7 @@ function Panel() {
         {tabVisible === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
         {tabVisible === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
         {tabVisible === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
+        {tabVisible === "sitio" && <SitioTab log={log} />}
       </main>
     </div>
   );
@@ -1064,6 +1079,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   permisos: { a: "139,92,246", b: "79,70,229", c: "56,132,246" },
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
   auditoria: { a: "79,70,229", b: "56,132,246", c: "100,116,139" },
+  sitio: { a: "14,165,233", b: "56,132,246", c: "236,72,153" },
 };
 
 function FondoModulo({ tab }: { tab: Tab }) {
@@ -7529,5 +7545,176 @@ function TurnosLectura({ turnos }: { turnos: Turno[] }) {
         </ul>
       )}
     </Seccion>
+  );
+}
+
+
+/* ===================================================================== */
+/* Sitio web: contacto, horario de la clínica y música de espera           */
+/* ===================================================================== */
+
+const MAX_AUDIO_MB = 4;
+const DIAS_ORDEN = [1, 2, 3, 4, 5, 6, 0];
+
+function SitioTab({ log }: { log: LogFn }) {
+  const [guardado, setGuardado] = useDato<Partial<DatosSitio>>(KEY_SITIO, {});
+  const base = sitioDe(guardado);
+  const [d, setD] = useState<DatosSitio>(base);
+  const firma = JSON.stringify(base);
+  useEffect(() => {
+    setD(sitioDe(guardado));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firma]);
+  const cambios = JSON.stringify(d) !== firma;
+  const set = (patch: Partial<DatosSitio>) => setD((x) => ({ ...x, ...patch }));
+  const setDia = (dia: number, patch: Partial<DiaClinica>) => set({ semana: d.semana.map((x) => (x.dia === dia ? { ...x, ...patch } : x)) });
+  const [nueva, setNueva] = useState({ nombre: "", sub: "", url: "" });
+  const [cargando, setCargando] = useState(false);
+
+  const guardar = () => {
+    for (const x of d.semana) if (x.abierto && x.desde >= x.hasta) { toast.error(`Revisá el horario del ${NOMBRES_DIA[x.dia]}`); return; }
+    try {
+      setGuardado(() => d);
+      log("Sitio web actualizado", "Contacto, horarios y música");
+      toast.success("Cambios publicados en la web.");
+    } catch {
+      toast.error("No hay espacio suficiente en este navegador. Usá un enlace en lugar de subir el audio.");
+    }
+  };
+
+  const subirAudio = (f: File | undefined) => {
+    if (!f) return;
+    if (!f.type.startsWith("audio/")) { toast.error("Elegí un archivo de audio (mp3, ogg, wav)."); return; }
+    if (f.size > MAX_AUDIO_MB * 1024 * 1024) { toast.error(`El archivo supera ${MAX_AUDIO_MB} MB. Usá un enlace o un archivo más liviano.`); return; }
+    setCargando(true);
+    const fr = new FileReader();
+    fr.onload = () => {
+      setNueva((n) => ({ ...n, url: String(fr.result), nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
+      setCargando(false);
+    };
+    fr.onerror = () => { setCargando(false); toast.error("No se pudo leer el archivo."); };
+    fr.readAsDataURL(f);
+  };
+
+  const agregar = () => {
+    if (!nueva.nombre.trim()) { toast.error("Poné un nombre para el tema"); return; }
+    if (!nueva.url) { toast.error("Subí un archivo o pegá un enlace de audio"); return; }
+    const p: PistaMusica = { id: nuevoId(), nombre: nueva.nombre.trim(), sub: nueva.sub.trim() || "Instrumental", url: nueva.url.trim(), color: COLORES_PISTA[d.pistas.length % COLORES_PISTA.length]! };
+    set({ pistas: [...d.pistas, p] });
+    setNueva({ nombre: "", sub: "", url: "" });
+  };
+  const mover = (i: number, k: number) => {
+    const l = [...d.pistas];
+    const j = i + k;
+    if (j < 0 || j >= l.length) return;
+    [l[i], l[j]] = [l[j]!, l[i]!];
+    set({ pistas: l });
+  };
+
+  const total = d.pistas.length + (d.musicaEjemplo ? 4 : 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Barra de guardado */}
+      <div className={`pn-card pn-up sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 p-4 ${cambios ? "ring-2 ring-[rgba(var(--acc),.35)]" : ""}`}>
+        <p className="flex items-center gap-2 text-sm">
+          <Globe className="size-4 text-[rgb(var(--acc))]" />
+          {cambios ? <span className="font-semibold">Tenés cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guardes acá se ve en la web pública.</span>}
+        </p>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="rounded-xl"><a href="/contacto" target="_blank" rel="noreferrer"><Eye className="size-4" /> Ver la web</a></Button>
+          {cambios && <Button variant="ghost" size="sm" className="rounded-xl" onClick={() => setD(base)}>Descartar</Button>}
+          <Button size="sm" className="rounded-xl" disabled={!cambios} onClick={guardar}><Check className="size-4" /> Publicar cambios</Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Seccion icon={Phone} titulo="Datos de contacto" sub="Se muestran en el encabezado, el pie, Contacto y Clínica. Lo que quede vacío no aparece.">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo label="Dirección" className="sm:col-span-2"><input value={d.direccion} onChange={(e) => set({ direccion: e.target.value })} placeholder="Calle, número, piso — Ciudad" className={inp} /></Campo>
+            <Campo label="Teléfono"><input value={d.telefono} onChange={(e) => set({ telefono: e.target.value })} placeholder="+57 601 000 0000" className={inp} /></Campo>
+            <Campo label="WhatsApp"><input value={d.whatsapp} onChange={(e) => set({ whatsapp: e.target.value })} placeholder="+57 300 000 0000" className={inp} /></Campo>
+            <Campo label="Email" className="sm:col-span-2"><input type="email" value={d.email} onChange={(e) => set({ email: e.target.value })} placeholder="contacto@clinica.com" className={inp} /></Campo>
+          </div>
+        </Seccion>
+
+        <Seccion icon={Clock} titulo="Horario de la clínica" sub={resumenHorarioClinica(d) || "Sin cargar: en la web dice «Horarios a confirmar»."}>
+          <ul className="space-y-2">
+            {DIAS_ORDEN.map((dia) => {
+              const x = d.semana.find((y) => y.dia === dia)!;
+              return (
+                <li key={dia} className={`flex flex-wrap items-center gap-3 rounded-xl px-3 py-2 transition-colors ${x.abierto ? "bg-[rgba(var(--acc),.06)]" : "bg-secondary/40"}`}>
+                  <span className="w-24 text-sm font-semibold">{NOMBRES_DIA[dia]}</span>
+                  <Interruptor on={x.abierto} onChange={(v) => setDia(dia, { abierto: v })} label={x.abierto ? "Abierto" : "Cerrado"} />
+                  {x.abierto && (
+                    <span className="ml-auto flex items-center gap-2">
+                      <input type="time" value={x.desde} onChange={(e) => setDia(dia, { desde: e.target.value })} className={inp + " h-9 w-32 py-1"} />
+                      <span className="text-muted-foreground">a</span>
+                      <input type="time" value={x.hasta} onChange={(e) => setDia(dia, { hasta: e.target.value })} className={inp + " h-9 w-32 py-1"} />
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Seccion>
+      </div>
+
+      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Subí tus temas o usá las pistas de ejemplo.">
+        <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-secondary/40 p-4">
+          <Interruptor on={d.musicaActiva} onChange={(v) => set({ musicaActiva: v })} label="Mostrar el reproductor en la web" />
+          <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Incluir las 4 pistas de ejemplo" />
+          <span className="ml-auto self-center text-xs text-muted-foreground">{d.musicaActiva ? `${total} ${total === 1 ? "tema" : "temas"} en la web` : "Reproductor oculto"}</span>
+        </div>
+
+        <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_380px]">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tus temas</p>
+            {d.pistas.length === 0 ? (
+              <Vacio icon={Music2} titulo="Todavía no subiste música" texto="Agregá tu primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
+            ) : (
+              <ol className="space-y-2">
+                {d.pistas.map((p, i) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-3">
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} text-white`}><Music2 className="size-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <input value={p.nombre} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, nombre: e.target.value } : y)) })} className="w-full bg-transparent text-sm font-semibold outline-none" />
+                      <input value={p.sub} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, sub: e.target.value } : y)) })} className="w-full bg-transparent text-xs text-muted-foreground outline-none" />
+                    </div>
+                    <audio src={p.url} controls preload="none" className="h-9 w-56 max-w-full" />
+                    <div className="flex items-center gap-1">
+                      <select value={p.color} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, color: e.target.value } : y)) })} className="h-9 rounded-lg border border-input bg-background px-2 text-xs" aria-label="Color">
+                        {COLORES_PISTA.map((c, k) => <option key={c} value={c}>Color {k + 1}</option>)}
+                      </select>
+                      <Button size="icon" variant="ghost" className="size-9 rounded-lg" disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><ChevronUp className="size-4" /></Button>
+                      <Button size="icon" variant="ghost" className="size-9 rounded-lg" disabled={i === d.pistas.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar"><ChevronDown className="size-4" /></Button>
+                      <Button size="icon" variant="ghost" className="size-9 rounded-lg text-rose-600 hover:bg-rose-50" onClick={() => set({ pistas: d.pistas.filter((y) => y.id !== p.id) })} aria-label="Quitar"><Trash2 className="size-4" /></Button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-dashed border-border p-5">
+            <p className="text-sm font-semibold">Agregar un tema</p>
+            <div className="mt-4 space-y-3">
+              <Campo label="Nombre"><input value={nueva.nombre} onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })} placeholder="Ej.: Calma" className={inp} /></Campo>
+              <Campo label="Descripción"><input value={nueva.sub} onChange={(e) => setNueva({ ...nueva, sub: e.target.value })} placeholder="Ej.: Piano suave" className={inp} /></Campo>
+              <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-4 py-5 text-center text-sm transition hover:bg-secondary">
+                <Upload className="size-5 text-[rgb(var(--acc))]" />
+                <span className="font-medium">{cargando ? "Leyendo archivo…" : nueva.url.startsWith("data:") ? "Archivo listo ✓" : "Subir archivo de audio"}</span>
+                <span className="text-xs text-muted-foreground">mp3, ogg o wav · hasta {MAX_AUDIO_MB} MB</span>
+                <input type="file" accept="audio/*" className="hidden" onChange={(e) => subirAudio(e.target.files?.[0])} />
+              </label>
+              <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
+              {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
+              <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes. Usá solo música con permiso de uso.</p>
+            </div>
+          </div>
+        </div>
+      </Seccion>
+    </div>
   );
 }

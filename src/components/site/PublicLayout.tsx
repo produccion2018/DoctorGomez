@@ -10,6 +10,7 @@ import { CLINICA, ESPECIALIDADES, iconoEspecialidad, imagenEspecialidad } from "
 import logoClinica from "@/assets/logo.png";
 import fondoCorazonDoc from "@/assets/fondo-corazon.jpg";
 import fondoRinonesDoc from "@/assets/fondo-rinones.jpg";
+import { KEY_SITIO, leerDato, resumenHorarioClinica, sitioDe, useDato, type DatosSitio } from "@/lib/auth-local";
 const LINKS = [
   { to: "/", label: "Inicio" },
   { to: "/nosotros", label: "Nosotros" },
@@ -21,9 +22,16 @@ const LINKS = [
   { to: "/contacto", label: "Contacto" },
 ];
 
-/* Link de WhatsApp con mensaje armado */
+/** Datos de contacto y música que cargan los administradores en el panel. */
+export function useSitio(): DatosSitio {
+  const [d] = useDato<Partial<DatosSitio>>(KEY_SITIO, {});
+  return sitioDe(d);
+}
+
+/* Link de WhatsApp con mensaje armado (usa el número cargado en el panel) */
 export function waLink(texto: string) {
-  return `https://wa.me/${CLINICA.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
+  const numero = typeof window === "undefined" ? "" : sitioDe(leerDato<Partial<DatosSitio>>(KEY_SITIO, {})).whatsapp.replace(/\D/g, "");
+  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 
 /* Aparición suave al hacer scroll (elementos con data-reveal) */
@@ -250,6 +258,8 @@ export function PageHero({
 }
 
 export function PublicLayout({ children }: { children: ReactNode }) {
+  const sitio = useSitio();
+  const horario = resumenHorarioClinica(sitio);
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -268,18 +278,20 @@ export function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <div className="public-bg min-h-screen">
       {/* Barra superior */}
+      {(sitio.direccion || horario || sitio.telefono || sitio.email) && (
       <div className="hidden bg-deep text-deep-foreground/80 md:block">
         <div className="mx-auto flex h-9 max-w-7xl items-center justify-between px-4 text-xs lg:px-8">
           <div className="flex items-center gap-5">
-            <span className="flex items-center gap-1.5"><MapPin className="size-3.5" /> {CLINICA.direccion}</span>
-            <span className="hidden items-center gap-1.5 lg:flex"><Clock className="size-3.5" /> {CLINICA.horarios}</span>
+            {sitio.direccion && <span className="flex items-center gap-1.5"><MapPin className="size-3.5" /> {sitio.direccion}</span>}
+            {horario && <span className="hidden items-center gap-1.5 lg:flex"><Clock className="size-3.5" /> {horario}</span>}
           </div>
           <div className="flex items-center gap-5">
-            <a href={`tel:${CLINICA.telefono.replace(/\s/g, "")}`} className="flex items-center gap-1.5 transition-colors hover:text-white"><Phone className="size-3.5" /> {CLINICA.telefono}</a>
-            <a href={`mailto:${CLINICA.email}`} className="hidden items-center gap-1.5 transition-colors hover:text-white lg:flex"><Mail className="size-3.5" /> {CLINICA.email}</a>
+            {sitio.telefono && <a href={`tel:${sitio.telefono.replace(/\s/g, "")}`} className="flex items-center gap-1.5 transition-colors hover:text-white"><Phone className="size-3.5" /> {sitio.telefono}</a>}
+            {sitio.email && <a href={`mailto:${sitio.email}`} className="hidden items-center gap-1.5 transition-colors hover:text-white lg:flex"><Mail className="size-3.5" /> {sitio.email}</a>}
           </div>
         </div>
       </div>
+      )}
 
       <header
         className={`sticky top-0 z-40 border-b transition-all duration-300 ${
@@ -379,10 +391,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground/60">Contacto</h3>
             <ul className="mt-4 space-y-3 text-sm text-deep-foreground/80">
-              <li className="flex gap-2.5"><MapPin className="mt-0.5 size-4 shrink-0 text-sky-300" />{CLINICA.direccion}</li>
-              <li className="flex gap-2.5"><Phone className="mt-0.5 size-4 shrink-0 text-sky-300" />{CLINICA.telefono}</li>
-              <li className="flex gap-2.5"><Mail className="mt-0.5 size-4 shrink-0 text-sky-300" />{CLINICA.email}</li>
-              <li className="flex gap-2.5"><Clock className="mt-0.5 size-4 shrink-0 text-sky-300" />{CLINICA.horarios}</li>
+              {sitio.direccion && <li className="flex gap-2.5"><MapPin className="mt-0.5 size-4 shrink-0 text-sky-300" />{sitio.direccion}</li>}
+              {sitio.telefono && <li className="flex gap-2.5"><Phone className="mt-0.5 size-4 shrink-0 text-sky-300" />{sitio.telefono}</li>}
+              {sitio.email && <li className="flex gap-2.5"><Mail className="mt-0.5 size-4 shrink-0 text-sky-300" />{sitio.email}</li>}
+              {horario && <li className="flex gap-2.5"><Clock className="mt-0.5 size-4 shrink-0 text-sky-300" />{horario}</li>}
+              {!sitio.direccion && !sitio.telefono && !sitio.email && !horario && <li className="text-deep-foreground/55">Datos de contacto próximamente.</li>}
             </ul>
           </div>
         </div>
@@ -414,40 +427,46 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 }
 
 /* ===================================================================== */
-/* Música instrumental de fondo                                            */
-/* Se genera en vivo con el navegador (Web Audio): es original, no usa      */
-/* archivos ni canciones con derechos de autor.                             */
+/* Música de espera                                                        */
+/* Las pistas las cargan los administradores en Panel → Sitio web.         */
+/* Mientras tanto se pueden usar pistas de ejemplo generadas en vivo       */
+/* con el navegador (Web Audio): son originales y sin derechos de autor.   */
 /* ===================================================================== */
 
-type Tema = {
-  nombre: string;
-  sub: string;
-  bpm: number;
-  // acordes en semitonos MIDI (nota más grave primero)
-  acordes: number[][];
-  color: string;
-};
+type TemaGenerado = { tipo: "generado"; id: string; nombre: string; sub: string; bpm: number; acordes: number[][]; color: string };
+type TemaAudio = { tipo: "audio"; id: string; nombre: string; sub: string; url: string; color: string };
+type Tema = TemaGenerado | TemaAudio;
 
-const TEMAS: Tema[] = [
-  { nombre: "Calma", sub: "Piano y pads suaves", bpm: 62, color: "from-sky-400 to-indigo-600", acordes: [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 53, 59]] },
-  { nombre: "Amanecer", sub: "Luminoso y sereno", bpm: 70, color: "from-amber-300 to-rose-500", acordes: [[50, 57, 61, 66], [47, 54, 57, 62], [43, 50, 54, 59], [45, 52, 57, 61]] },
-  { nombre: "Respirar", sub: "Lento, para relajarse", bpm: 54, color: "from-emerald-300 to-teal-600", acordes: [[45, 52, 55, 59, 60], [41, 48, 52, 55], [48, 55, 59, 62], [43, 50, 55, 59]] },
-  { nombre: "Horizonte", sub: "Cálido y envolvente", bpm: 66, color: "from-violet-400 to-fuchsia-600", acordes: [[51, 58, 62, 67], [48, 55, 58, 63], [44, 51, 55, 60], [46, 53, 58, 62]] },
+const TEMAS_EJEMPLO: TemaGenerado[] = [
+  { tipo: "generado", id: "ej-1", nombre: "Calma", sub: "Piano y pads suaves", bpm: 62, color: "from-sky-400 to-indigo-600", acordes: [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 53, 59]] },
+  { tipo: "generado", id: "ej-2", nombre: "Amanecer", sub: "Luminoso y sereno", bpm: 70, color: "from-amber-300 to-rose-500", acordes: [[50, 57, 61, 66], [47, 54, 57, 62], [43, 50, 54, 59], [45, 52, 57, 61]] },
+  { tipo: "generado", id: "ej-3", nombre: "Respirar", sub: "Lento, para relajarse", bpm: 54, color: "from-emerald-300 to-teal-600", acordes: [[45, 52, 55, 59, 60], [41, 48, 52, 55], [48, 55, 59, 62], [43, 50, 55, 59]] },
+  { tipo: "generado", id: "ej-4", nombre: "Horizonte", sub: "Cálido y envolvente", bpm: 66, color: "from-violet-400 to-fuchsia-600", acordes: [[51, 58, 62, 67], [48, 55, 58, 63], [44, 51, 55, 60], [46, 53, 58, 62]] },
 ];
+
+/** Lista que se escucha en la web según lo configurado en el panel. */
+function listaMusica(sitio: DatosSitio): Tema[] {
+  if (!sitio.musicaActiva) return [];
+  const propias: Tema[] = sitio.pistas.filter((p) => p.url).map((p) => ({ tipo: "audio", ...p }));
+  return [...propias, ...(sitio.musicaEjemplo ? TEMAS_EJEMPLO : [])];
+}
 
 const midiAHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
-type EstadoMusica = { sonando: boolean; tema: number; volumen: number };
+type EstadoMusica = { sonando: boolean; tema: number; volumen: number; lista: Tema[] };
 
 const motor = (() => {
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
   let timer: number | null = null;
+  let audio: HTMLAudioElement | null = null;
+  let fade: number | null = null;
   let paso = 0;
   let proximo = 0;
-  const estado: EstadoMusica = { sonando: false, tema: 0, volumen: 0.6 };
+  const estado: EstadoMusica = { sonando: false, tema: 0, volumen: 0.6, lista: [] };
   const subs = new Set<() => void>();
   const avisar = () => subs.forEach((f) => f());
+  const actual = () => estado.lista[estado.tema];
 
   const crear = () => {
     if (ctx) return;
@@ -455,7 +474,6 @@ const motor = (() => {
     ctx = new AC();
     master = ctx.createGain();
     master.gain.value = 0;
-    // reverb con impulso generado
     const largo = ctx.sampleRate * 3.5;
     const imp = ctx.createBuffer(2, largo, ctx.sampleRate);
     for (let c = 0; c < 2; c++) {
@@ -492,22 +510,20 @@ const motor = (() => {
   };
 
   const programar = () => {
-    if (!ctx) return;
-    const tema = TEMAS[estado.tema]!;
+    const tema = actual();
+    if (!ctx || !tema || tema.tipo !== "generado") return;
     const corchea = 60 / tema.bpm / 2;
     while (proximo < ctx.currentTime + 0.4) {
       const compas = Math.floor(paso / 16);
       const acorde = tema.acordes[compas % tema.acordes.length]!;
       const p = paso % 16;
       if (p === 0) {
-        // pad: el acorde entero, ataque lento
         acorde.forEach((m, i) => {
           nota(midiAHz(m + 12), proximo, corchea * 17, 0.035, "sine", 1.6);
           nota(midiAHz(m + 12) * 1.004, proximo, corchea * 17, 0.02, "triangle", 2.0 + i * 0.1);
         });
-        nota(midiAHz(acorde[0]! - 12), proximo, corchea * 16, 0.07, "sine", 0.8); // bajo
+        nota(midiAHz(acorde[0]! - 12), proximo, corchea * 16, 0.07, "sine", 0.8);
       }
-      // piano: arpegio suave con algo de azar
       if (p % 2 === 0 && Math.random() > 0.18) {
         const idx = [0, 2, 1, 3, 2, 4, 3, 1][(p / 2) % 8]! % acorde.length;
         const alt = Math.random() > 0.7 ? 24 : 12;
@@ -516,7 +532,6 @@ const motor = (() => {
         nota(midiAHz(m), proximo, corchea * 6, vel, "triangle", 0.01);
         nota(midiAHz(m) * 2, proximo, corchea * 3, vel * 0.25, "sine", 0.01);
       }
-      // destellos agudos ocasionales
       if (p === 10 && Math.random() > 0.5) nota(midiAHz(acorde[acorde.length - 1]! + 24), proximo, corchea * 8, 0.025, "sine", 0.3);
       proximo += corchea;
       paso++;
@@ -524,10 +539,82 @@ const motor = (() => {
   };
 
   const fundido = (destino: number, seg: number) => {
-    if (!ctx || !master) return;
-    master.gain.cancelScheduledValues(ctx.currentTime);
-    master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
-    master.gain.linearRampToValueAtTime(destino, ctx.currentTime + seg);
+    if (ctx && master) {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+      master.gain.linearRampToValueAtTime(destino, ctx.currentTime + seg);
+    }
+  };
+  const fundidoAudio = (destino: number, seg: number, alTerminar?: () => void) => {
+    if (!audio) return alTerminar?.();
+    if (fade) window.clearInterval(fade);
+    const a = audio;
+    const ini = a.volume;
+    const pasos = Math.max(1, Math.round(seg * 20));
+    let k = 0;
+    fade = window.setInterval(() => {
+      k++;
+      a.volume = Math.min(1, Math.max(0, ini + ((destino - ini) * k) / pasos));
+      if (k >= pasos) {
+        if (fade) window.clearInterval(fade);
+        fade = null;
+        alTerminar?.();
+      }
+    }, 50);
+  };
+
+  const detenerTodo = () => {
+    fundido(0, 0.4);
+    if (timer) {
+      window.clearInterval(timer);
+      timer = null;
+    }
+    if (audio) {
+      const a = audio;
+      audio = null;
+      fundidoAudio(0, 0.3, () => a.pause());
+      a.pause();
+    }
+  };
+
+  const arrancar = async () => {
+    const tema = actual();
+    if (!tema) return;
+    if (tema.tipo === "audio") {
+      fundido(0, 0.4);
+      if (timer) {
+        window.clearInterval(timer);
+        timer = null;
+      }
+      if (!audio || audio.src !== tema.url) {
+        audio?.pause();
+        audio = new Audio(tema.url);
+        audio.loop = true;
+        audio.volume = 0;
+      }
+      try {
+        await audio.play();
+      } catch {
+        estado.sonando = false;
+        avisar();
+        return;
+      }
+      fundidoAudio(estado.volumen, 1.5);
+    } else {
+      audio?.pause();
+      audio = null;
+      crear();
+      if (!ctx) return;
+      await ctx.resume();
+      if (!timer) {
+        paso = 0;
+        proximo = ctx.currentTime + 0.1;
+        timer = window.setInterval(programar, 100);
+      }
+      fundido(estado.volumen * 0.9, 2);
+    }
+    estado.sonando = true;
+    avisar();
   };
 
   return {
@@ -538,19 +625,23 @@ const motor = (() => {
         subs.delete(f);
       };
     },
-    async play() {
-      crear();
-      if (!ctx) return;
-      await ctx.resume();
-      if (!timer) {
-        paso = 0;
-        proximo = ctx.currentTime + 0.1;
-        timer = window.setInterval(programar, 100);
+    fijarLista(lista: Tema[]) {
+      const firma = (l: Tema[]) => l.map((t) => t.id + (t.tipo === "audio" ? t.url.length : "")).join("|");
+      if (firma(lista) === firma(estado.lista)) return;
+      const antes = actual()?.id;
+      estado.lista = lista;
+      const idx = lista.findIndex((t) => t.id === antes);
+      if (idx >= 0) estado.tema = idx;
+      else {
+        estado.tema = 0;
+        if (estado.sonando) {
+          detenerTodo();
+          estado.sonando = false;
+        }
       }
-      fundido(estado.volumen * 0.9, 2);
-      estado.sonando = true;
       avisar();
     },
+    play: arrancar,
     pausa() {
       fundido(0, 0.8);
       window.setTimeout(() => {
@@ -559,34 +650,52 @@ const motor = (() => {
           timer = null;
         }
       }, 900);
+      if (audio) {
+        const a = audio;
+        fundidoAudio(0, 0.6, () => {
+          if (!estado.sonando) a.pause();
+        });
+      }
       estado.sonando = false;
       avisar();
     },
     elegir(i: number) {
-      estado.tema = (i + TEMAS.length) % TEMAS.length;
-      paso = 0;
+      if (!estado.lista.length) return;
+      const nuevo = (i + estado.lista.length) % estado.lista.length;
+      const cambia = nuevo !== estado.tema;
+      if (cambia) {
+        detenerTodo();
+        estado.tema = nuevo;
+        paso = 0;
+      }
       avisar();
-      if (!estado.sonando) void this.play();
+      void arrancar();
     },
     volumen(v: number) {
       estado.volumen = v;
-      if (estado.sonando) fundido(v * 0.9, 0.2);
+      if (estado.sonando) {
+        fundido(v * 0.9, 0.2);
+        if (audio) audio.volume = v;
+      }
       avisar();
     },
   };
 })();
 
 function useMusica() {
+  const sitio = useSitio();
   const [, setN] = useState(0);
   useEffect(() => motor.suscribir(() => setN((n) => n + 1)), []);
-  return motor.estado;
+  const lista = listaMusica(sitio);
+  useEffect(() => motor.fijarLista(lista));
+  return { ...motor.estado, lista: motor.estado.lista.length ? motor.estado.lista : lista };
 }
 
 /** Botón flotante chico: aparece cuando la música está sonando, en todas las páginas. */
 function MiniReproductor() {
   const e = useMusica();
-  if (!e.sonando) return null;
-  const t = TEMAS[e.tema]!;
+  const t = e.lista[e.tema];
+  if (!e.sonando || !t) return null;
   return (
     <button
       onClick={() => motor.pausa()}
@@ -600,77 +709,126 @@ function MiniReproductor() {
   );
 }
 
-/** Reproductor grande al final de cada página. */
+/** Reproductor premium al final de cada página (se oculta si en el panel no hay música). */
 export function Reproductor() {
   const e = useMusica();
-  const t = TEMAS[e.tema]!;
+  const t = e.lista[e.tema];
+  if (!t) return null;
+  const barras = 56;
   return (
     <section className="relative mx-auto max-w-7xl px-4 pt-20 lg:px-8">
-      <div className="relative overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_260)] p-6 text-white shadow-[0_40px_80px_-40px_rgba(10,20,60,.9)] ring-1 ring-white/10 sm:p-10">
-        <div className={`pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-gradient-to-br ${t.color} opacity-40 blur-3xl transition-all duration-1000`} />
-        <div className="pointer-events-none absolute -bottom-32 right-0 size-96 rounded-full bg-sky-500/20 blur-3xl" />
-        <div className="absolute inset-0 bg-grid opacity-30 [mask-image:linear-gradient(to_bottom,#000,transparent)]" />
+      {/* Borde degradé */}
+      <div className={`relative rounded-[2.4rem] bg-gradient-to-br ${t.color} p-px shadow-[0_50px_100px_-50px_rgba(10,20,60,.95)] transition-all duration-1000`}>
+        <div className="relative overflow-hidden rounded-[calc(2.4rem-1px)] bg-[oklch(0.15_0.04_262)] text-white">
+          {/* Ambiente */}
+          <div className={`pointer-events-none absolute -left-32 -top-32 size-[28rem] rounded-full bg-gradient-to-br ${t.color} opacity-30 blur-[100px] transition-all duration-1000`} />
+          <div className={`pointer-events-none absolute -bottom-40 right-10 size-[26rem] rounded-full bg-gradient-to-br ${t.color} opacity-20 blur-[110px] transition-all duration-1000`} />
+          <div className="pointer-events-none absolute inset-0 bg-grid opacity-20 [mask-image:radial-gradient(ellipse_at_30%_40%,#000_10%,transparent_70%)]" />
 
-        <div className="relative grid items-center gap-10 lg:grid-cols-[auto_1fr_1fr]">
-          {/* Disco */}
-          <div className="relative mx-auto size-44 sm:size-52">
-            <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${t.color} opacity-60 blur-2xl transition-all duration-1000`} />
-            <div className={`relative flex size-full items-center justify-center rounded-full bg-[conic-gradient(from_0deg,#0b1120,#1e293b,#0b1120,#1e293b,#0b1120)] shadow-2xl ring-1 ring-white/10 ${e.sonando ? "spin-slow" : ""}`}>
-              {[0.86, 0.72, 0.58].map((k) => <span key={k} className="absolute rounded-full ring-1 ring-white/5" style={{ inset: `${(1 - k) * 50}%` }} />)}
-              <span className={`relative flex size-16 items-center justify-center rounded-full bg-gradient-to-br ${t.color} shadow-inner`}>
-                <Music2 className="size-6 text-white" />
-              </span>
-            </div>
-          </div>
+          <div className="relative grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-14 lg:p-12">
+            {/* Reproduciendo */}
+            <div className="grid items-center gap-8 sm:grid-cols-[auto_1fr]">
+              {/* Arte de tapa */}
+              <div className="relative mx-auto size-56 sm:size-60">
+                <div className={`absolute -inset-4 rounded-[2.2rem] bg-gradient-to-br ${t.color} opacity-40 blur-2xl transition-all duration-1000 ${e.sonando ? "animate-pulse" : ""}`} />
+                <div className={`relative size-full overflow-hidden rounded-[2rem] bg-gradient-to-br ${t.color} shadow-2xl ring-1 ring-white/25 transition-all duration-1000`}>
+                  <div className={`absolute -inset-1/2 bg-[conic-gradient(from_0deg,transparent,rgba(255,255,255,.35),transparent_40%)] ${e.sonando ? "spin-slow" : "opacity-40"}`} />
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.45),transparent_45%)]" />
+                  {[0.9, 0.7, 0.5].map((k) => (
+                    <span key={k} className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" style={{ width: `${k * 100}%`, height: `${k * 100}%` }} />
+                  ))}
+                  <span className="absolute left-1/2 top-[42%] flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/40 backdrop-blur-md">
+                    <Music2 className="size-7" />
+                  </span>
+                  {/* Visualizador */}
+                  <div className="absolute inset-x-4 bottom-4 flex h-12 items-end justify-between gap-[3px]" aria-hidden="true">
+                    {Array.from({ length: 22 }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`w-full rounded-full bg-white/85 ${e.sonando ? "eq-bar" : ""}`}
+                        style={{ height: e.sonando ? "100%" : `${18 + ((i * 37) % 50)}%`, animationDelay: `${(i % 7) * 0.11}s`, animationDuration: `${0.7 + (i % 5) * 0.18}s`, opacity: e.sonando ? 0.9 : 0.45 }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
 
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/15">
-              <Headphones className="size-3.5" /> Música para tu espera
-            </span>
-            <h2 className="mt-4 text-3xl text-white sm:text-4xl">{t.nombre}</h2>
-            <p className="mt-1 text-white/65">{t.sub} · instrumental</p>
-            <div className="mt-6 flex items-center gap-3">
-              <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="flex size-11 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors hover:bg-white/20"><SkipBack className="size-4" /></button>
-              <button
-                onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
-                aria-label={e.sonando ? "Pausar" : "Reproducir"}
-                className={`flex size-16 items-center justify-center rounded-full bg-gradient-to-br ${t.color} shadow-[0_15px_40px_-10px_rgba(56,189,248,.7)] transition-transform hover:scale-105 active:scale-95`}
-              >
-                {e.sonando ? <Pause className="size-6" /> : <Play className="ml-1 size-6" />}
-              </button>
-              <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-11 items-center justify-center rounded-full bg-white/10 ring-1 ring-white/15 transition-colors hover:bg-white/20"><SkipForward className="size-4" /></button>
-              <div className="ml-2 flex h-10 items-end gap-1" aria-hidden="true">
-                {Array.from({ length: 12 }, (_, i) => (
-                  <span key={i} className={`w-1 rounded-full bg-gradient-to-t ${t.color} ${e.sonando ? "eq-bar" : ""}`} style={{ height: e.sonando ? "100%" : "20%", animationDelay: `${(i % 5) * 0.13}s`, animationDuration: `${0.8 + (i % 4) * 0.2}s` }} />
-                ))}
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/15">
+                  <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/50"}`} />
+                  {e.sonando ? "Sonando ahora" : "Música para tu espera"}
+                </span>
+                <h2 key={t.id} className="mt-4 truncate text-4xl text-white animate-in fade-in slide-in-from-bottom-2 duration-500 sm:text-5xl">{t.nombre}</h2>
+                <p className="mt-1.5 text-white/60">{t.sub}</p>
+
+                {/* Onda */}
+                <div className="mt-6 flex h-10 items-center gap-[3px]" aria-hidden="true">
+                  {Array.from({ length: barras }, (_, i) => {
+                    const h = 18 + Math.abs(Math.sin(i * 0.55) * 60) + ((i * 13) % 22);
+                    return (
+                      <span
+                        key={i}
+                        className={`w-full rounded-full transition-colors duration-700 ${e.sonando ? "bg-gradient-to-t " + t.color : "bg-white/20"}`}
+                        style={{ height: `${Math.min(100, h)}%`, animation: e.sonando ? `eq 1.${(i % 9) + 1}s ease-in-out ${(i % 6) * 0.08}s infinite` : undefined }}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="flex size-12 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/15 transition-all hover:bg-white/15 hover:ring-white/30"><SkipBack className="size-4" /></button>
+                  <button
+                    onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
+                    aria-label={e.sonando ? "Pausar" : "Reproducir"}
+                    className="relative flex size-[4.5rem] items-center justify-center rounded-full bg-white text-[oklch(0.2_0.06_262)] shadow-[0_20px_45px_-12px_rgba(255,255,255,.45)] transition-transform hover:scale-105 active:scale-95"
+                  >
+                    {e.sonando && <span className="absolute inset-0 animate-ping rounded-full bg-white/30" />}
+                    {e.sonando ? <Pause className="relative size-7" /> : <Play className="relative ml-1 size-7" />}
+                  </button>
+                  <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-12 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/15 transition-all hover:bg-white/15 hover:ring-white/30"><SkipForward className="size-4" /></button>
+                  <label className="ml-auto flex w-full items-center gap-3 rounded-full bg-white/[0.06] px-4 py-2.5 text-white/70 ring-1 ring-white/10 sm:w-48">
+                    <Volume2 className="size-4 shrink-0" />
+                    <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-full cursor-pointer accent-white" aria-label="Volumen" />
+                  </label>
+                </div>
               </div>
             </div>
-            <label className="mt-6 flex max-w-xs items-center gap-3 text-white/70">
-              <Volume2 className="size-4 shrink-0" />
-              <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-full cursor-pointer accent-sky-400" aria-label="Volumen" />
-            </label>
-          </div>
 
-          <ol className="space-y-2">
-            {TEMAS.map((x, i) => {
-              const on = i === e.tema;
-              return (
-                <li key={x.nombre}>
-                  <button onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))} className={`flex w-full items-center gap-4 rounded-2xl p-3 text-left transition-all ${on ? "bg-white/12 ring-1 ring-white/20" : "hover:bg-white/5"}`}>
-                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${x.color} shadow-md`}>
-                      {on && e.sonando ? <span className="flex h-4 items-end gap-0.5">{[0, 1, 2].map((k) => <span key={k} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${k * 0.2}s` }} />)}</span> : <Play className="ml-0.5 size-4" />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{x.nombre}</span>
-                      <span className="block text-xs text-white/55">{x.sub}</span>
-                    </span>
-                    <span className="text-xs tabular-nums text-white/40">{String(i + 1).padStart(2, "0")}</span>
-                  </button>
-                </li>
-              );
-            })}
-            <li className="px-3 pt-2 text-[11px] leading-relaxed text-white/40">Música instrumental original, creada en vivo en tu navegador. Sin anuncios ni interrupciones.</li>
-          </ol>
+            {/* Lista */}
+            <div className="rounded-[1.75rem] bg-white/[0.04] p-3 ring-1 ring-white/10 backdrop-blur-xl">
+              <div className="flex items-center justify-between px-3 pb-2 pt-1">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/50"><Headphones className="size-3.5" /> Lista</p>
+                <span className="text-xs text-white/40">{e.lista.length} {e.lista.length === 1 ? "tema" : "temas"}</span>
+              </div>
+              <ol className="max-h-80 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
+                {e.lista.map((x, i) => {
+                  const on = i === e.tema;
+                  return (
+                    <li key={x.id}>
+                      <button
+                        onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))}
+                        className={`group flex w-full items-center gap-3.5 rounded-2xl p-2.5 text-left transition-all duration-300 ${on ? "bg-white/[0.12] shadow-lg ring-1 ring-white/20" : "hover:bg-white/[0.06]"}`}
+                      >
+                        <span className={`relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br ${x.color} shadow-md`}>
+                          <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.4),transparent_55%)]" />
+                          {on && e.sonando ? (
+                            <span className="relative flex h-4 items-end gap-0.5">{[0, 1, 2].map((k) => <span key={k} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${k * 0.2}s` }} />)}</span>
+                          ) : (
+                            <Play className="relative ml-0.5 size-4 transition-transform group-hover:scale-110" />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className={`block truncate font-semibold ${on ? "text-white" : "text-white/85"}`}>{x.nombre}</span>
+                          <span className="block truncate text-xs text-white/50">{x.sub}</span>
+                        </span>
+                        <span className="text-xs tabular-nums text-white/35">{String(i + 1).padStart(2, "0")}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </div>
         </div>
       </div>
     </section>

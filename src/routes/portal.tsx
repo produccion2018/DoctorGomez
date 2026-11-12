@@ -84,6 +84,9 @@ import {
   type Medicamento,
   type PacientePortal,
   type TurnoClinica,
+  KEY_SITIO,
+  sitioDe,
+  leerDato,
 } from "@/lib/auth-local";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 
@@ -168,7 +171,7 @@ function descargarICS(t: TurnoClinica) {
     `DTSTART:${f(ini)}`,
     `DTEND:${f(fin)}`,
     `SUMMARY:Turno ${t.motivo.split(" · ")[0]} - ${d?.nombre ?? t.doctor}`,
-    `LOCATION:${CLINICA.direccion}`,
+    `LOCATION:${sitioDe(leerDato(KEY_SITIO, {})).direccion}`,
     "BEGIN:VALARM",
     "TRIGGER:-PT2H",
     "ACTION:DISPLAY",
@@ -527,7 +530,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             {sec === "autorizaciones" && <Autorizaciones ctx={ctx} />}
             {sec === "ficha" && <Ficha ctx={ctx} />}
             <p className="mt-12 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-muted-foreground">
-              <span>{CLINICA.nombre}</span><span>{CLINICA.telefono}</span><span>Ante una emergencia llamá al 107</span>
+              <span>{CLINICA.nombre}</span>{sitioDe(leerDato(KEY_SITIO, {})).telefono && <span>{sitioDe(leerDato(KEY_SITIO, {})).telefono}</span>}<span>Ante una emergencia llamá al 107</span>
             </p>
           </main>
         </div>
