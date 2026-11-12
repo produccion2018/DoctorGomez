@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type For
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { subirAudioServidor } from "@/lib/servidor";
+import { Electro } from "@/components/site/PublicLayout";
 import type { LucideIcon } from "lucide-react";
 import {
   Globe,
@@ -632,7 +633,7 @@ function Panel() {
             <span className="pn-online absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-emerald-400 ring-2 ring-blue-700" />
           </span>
           <div className="relative min-w-0 flex-1 leading-tight">
-            <p className="truncate font-display text-sm font-bold">{corto}</p>
+            <p className="font-display text-[13px] font-bold leading-snug">{corto}</p>
             <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-white/80">
               {user.id === "alonso" ? <HeartPulse className="size-3 shrink-0" /> : <Droplets className="size-3 shrink-0" />}
               {esEnf ? `${areaUsuario} · ${esAreaMedica(areaUsuario) ? "Médico" : "Equipo"}` : `${user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : "Clínica"} · Administrador`}
@@ -882,9 +883,7 @@ function Panel() {
         <div className="pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
           <div className="pn-orb pointer-events-none absolute -right-10 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
-          <svg viewBox="0 0 600 60" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 -bottom-1 h-9 w-full text-sky-300/35" aria-hidden="true">
-            <polyline className="pn-ecg" points="0,30 120,30 140,30 155,12 170,48 185,30 300,30 315,30 330,4 345,56 360,30 470,30 485,18 500,42 515,30 600,30" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-          </svg>
+          <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 -bottom-1 h-9 w-full" />
           <div className="relative flex flex-wrap items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               {foto && <img src={foto} alt="" className="hidden size-16 rounded-2xl object-cover object-top ring-2 ring-white/30 sm:block" />}
@@ -1123,9 +1122,7 @@ function FondoModulo({ tab }: { tab: Tab }) {
       <div className="pn-cross-dark absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,#000_15%,transparent_70%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(rgba(30,64,175,.07)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:linear-gradient(to_bottom,transparent,#000_40%,transparent)]" />
       {/* Línea de pulso de fondo */}
-      <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="absolute inset-x-0 bottom-10 h-24 w-full text-[rgba(56,132,246,.10)]">
-        <polyline className="pn-ecg" style={{ animationDuration: "7s" }} points="0,60 260,60 290,60 310,25 330,95 350,60 640,60 670,60 690,10 710,110 730,60 960,60 985,40 1005,80 1025,60 1200,60" fill="none" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
-      </svg>
+      <Electro latidos={4} grilla={false} color="#7dd3fc" className="absolute inset-x-0 bottom-10 h-24 w-full" />
     </div>
   );
 }
@@ -1137,7 +1134,7 @@ function fotoDe(id: string): string | null {
   return null;
 }
 function nombreCorto(nombre: string) {
-  return nombre.split(" ").slice(0, 2).join(" ");
+  return nombre;
 }
 function iniciales(nombre: string) {
   return nombre
@@ -1978,9 +1975,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
           {/* Resumen */}
           <aside className="relative flex flex-col justify-between gap-6 overflow-hidden gradient-deep p-6 text-white sm:p-7">
             <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
-            <svg viewBox="0 0 300 40" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-24 h-10 w-full text-sky-300/30" aria-hidden="true">
-              <polyline className="pn-ecg" points="0,20 70,20 85,20 95,6 105,34 115,20 190,20 200,20 210,2 220,38 230,20 300,20" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
+            <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 bottom-24 h-10 w-full" />
             <div className="relative space-y-5">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Resumen del turno</p>
               <div className="flex items-center gap-3">
@@ -2957,7 +2952,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
         <Kpi icon={Bot} label="Con acceso a IA" value={String(AREAS.filter((a) => nivelDe(permisos, a.nombre, "Asistente IA") !== "ninguno").length)} hint="Departamentos que pueden consultar" tono="verde" delay={0.15} />
       </div>
 
-      <Seccion icon={KeyRound} titulo="Permisos por departamento" sub="Los administradores (Dr. Alberto y Dr. Alonso) tienen acceso total." delay={0.2}
+      <Seccion icon={KeyRound} titulo="Permisos por departamento" sub="Los administradores (Dr. Carlos Alonso y Dr. Carlos Alberto Gómez Bolaño) tienen acceso total." delay={0.2}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -3163,7 +3158,7 @@ const SUGERENCIAS = [
   "¿Cuántos turnos hay hoy?",
   "¿Qué turnos están pendientes?",
   "¿Cómo está el balance?",
-  "Agenda del Dr. Alonso",
+  "Agenda del Dr. Carlos Alonso Gómez Bolaño",
   "Permisos de Recepción",
   "¿Quién hizo los últimos cambios?",
 ];

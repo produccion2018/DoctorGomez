@@ -9,8 +9,8 @@ const DIAS_SESION = 14;
 
 /** Los dos únicos administradores. */
 const ADMINS = [
-  { id: "alonso", nombre: "Dr. Alonso Gómez Bolaño" },
-  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
+  { id: "alonso", nombre: "Dr. Carlos Alonso Gómez Bolaño" },
+  { id: "alberto", nombre: "Dr. Carlos Alberto Gómez Bolaño" },
 ];
 
 /** Datos que cualquiera puede leer (se muestran en la web pública). */
@@ -24,7 +24,7 @@ export async function sembrarAdmins() {
   const { db } = await modulo();
   const sql = await db();
   for (const a of ADMINS) {
-    await sql`INSERT INTO usuarios (id, nombre, rol, creado_por) VALUES (${a.id}, ${a.nombre}, 'medico', 'sistema') ON CONFLICT (id) DO NOTHING`;
+    await sql`INSERT INTO usuarios (id, nombre, rol, creado_por) VALUES (${a.id}, ${a.nombre}, 'medico', 'sistema') ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre`;
   }
   return sql;
 }

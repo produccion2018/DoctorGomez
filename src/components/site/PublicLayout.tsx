@@ -203,6 +203,46 @@ export function Curriculum({ items, color, grande = false }: { items: string[]; 
   );
 }
 
+/** Trazo de un latido (P, QRS, T) de 200 de ancho, línea base en y=50. */
+function latido(x: number) {
+  const X = (n: number) => (x + n).toFixed(1);
+  return `L${X(28)},50 C${X(33)},50 ${X(36)},38 ${X(42)},38 C${X(48)},38 ${X(51)},50 ${X(56)},50 L${X(66)},50 L${X(70)},57 L${X(78)},4 L${X(86)},82 L${X(91)},50 L${X(106)},50 C${X(114)},50 ${X(118)},30 ${X(130)},30 C${X(142)},30 ${X(146)},50 ${X(154)},50 L${X(200)},50`;
+}
+
+/**
+ * Electrocardiograma propio (dibujado en SVG): línea azul brillante sobre cuadrícula,
+ * con un barrido luminoso que recorre el trazo como en un monitor.
+ */
+export function Electro({ latidos = 4, className = "", grilla = true, color = "#38bdf8" }: { latidos?: number; className?: string; grilla?: boolean; color?: string }) {
+  const ancho = latidos * 200;
+  const d = `M0,50 ${Array.from({ length: latidos }, (_, i) => latido(i * 200)).join(" ")}`;
+  const id = `ecg-${latidos}-${color.replace("#", "")}`;
+  return (
+    <svg viewBox={`0 0 ${ancho} 100`} preserveAspectRatio="none" className={className} aria-hidden="true">
+      <defs>
+        <filter id={`${id}-glow`} x="-5%" y="-40%" width="110%" height="180%">
+          <feGaussianBlur stdDeviation="3" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {grilla && (
+          <pattern id={`${id}-grid`} width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0H0V20" fill="none" stroke={color} strokeOpacity="0.12" strokeWidth="0.6" />
+          </pattern>
+        )}
+      </defs>
+      {grilla && <rect width={ancho} height="100" fill={`url(#${id}-grid)`} />}
+      {/* trazo tenue */}
+      <path d={d} fill="none" stroke={color} strokeOpacity="0.35" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      {/* barrido brillante */}
+      <path className="electro-barrido" pathLength={1000} d={d} fill="none" stroke={color} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" filter={`url(#${id}-glow)`} />
+    </svg>
+  );
+}
+
 export function PageHero({
   kicker,
   title,
@@ -237,9 +277,7 @@ export function PageHero({
       )}
       {fondo && <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-deep via-deep/60 to-transparent" />}
       {decoracion}
-      <svg viewBox="0 0 1200 80" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full text-sky-300/30" aria-hidden="true">
-        <polyline className="ecg-line" points="0,40 260,40 290,40 310,15 330,65 350,40 640,40 670,40 690,8 710,72 730,40 960,40 985,25 1005,55 1025,40 1200,40" fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
+      <Electro latidos={6} className="pointer-events-none absolute inset-x-0 bottom-0 h-20 w-full opacity-80" grilla={false} />
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:py-20 lg:px-8">
         <div className="[&_a]:text-deep-foreground/70 [&_a:hover]:text-white [&_nav]:text-deep-foreground/60 [&_span.font-medium]:text-white">
           <Crumbs items={crumbs} />

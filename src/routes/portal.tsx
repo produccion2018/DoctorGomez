@@ -42,7 +42,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
-import { waLink } from "@/components/site/PublicLayout";
+import { waLink, Electro } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import {
   ADMINS,
@@ -297,9 +297,7 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
               ))}
             </ul>
           </div>
-          <svg viewBox="0 0 600 60" className="h-10 w-full max-w-md text-sky-300/60" aria-hidden="true">
-            <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
-          </svg>
+          <Electro latidos={3} grilla={false} className="h-10 w-full max-w-md" />
         </div>
       </div>
 
@@ -696,9 +694,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
       <div className="relative overflow-hidden rounded-[2rem] gradient-deep p-7 text-white shadow-[0_30px_60px_-30px_rgba(10,30,80,.8)] sm:p-9">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
         <div className="blob -right-16 -top-16 size-72 bg-white/20" />
-        <svg viewBox="0 0 600 60" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full text-sky-300/30" aria-hidden="true">
-          <polyline className="ecg-line" points="0,30 120,30 140,30 155,12 170,48 185,30 300,30 315,30 330,4 345,56 360,30 470,30 485,18 500,42 515,30 600,30" fill="none" stroke="currentColor" strokeWidth="2" />
-        </svg>
+        <Electro latidos={3} grilla={false} className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full" />
         <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
           <div>
             <p className="text-sm text-white/70">{hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches"}</p>

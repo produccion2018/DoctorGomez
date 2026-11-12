@@ -25,7 +25,7 @@ import {
   Waves,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicLayout, FondoDoctor } from "@/components/site/PublicLayout";
+import { PublicLayout, FondoDoctor, Electro } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, imagenEspecialidad } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import imgInterna from "@/assets/medicina-interna.jpg";
@@ -368,9 +368,7 @@ function Home() {
                 </p>
               </div>
 
-              <svg viewBox="0 0 600 60" className="h-12 w-full max-w-md text-[var(--clinic)]" aria-hidden="true">
-                <polyline className="ecg-line" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
-              </svg>
+              <Electro latidos={3} className="h-24 w-full max-w-xl" />
             </div>
           </div>
 
@@ -379,12 +377,12 @@ function Home() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--clinic)]"><CalendarPlus className="size-4 text-white" /></span>
             <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Confirmación inmediata</span>
           </div>
-          <div className="animate-hero-float absolute bottom-28 right-6 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex" style={{ animationDelay: "1.2s" }}>
+          <div className="animate-hero-float absolute bottom-32 right-6 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex" style={{ animationDelay: "1.2s" }}>
             <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
             <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes en 24 h</b>Rápidos y claros</span>
           </div>
-          <div className="glass absolute bottom-10 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
-            <p className="text-xs font-semibold leading-tight text-white">Dr. Alonso · Dr. Alberto</p>
+          <div className="glass absolute bottom-6 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
+            <p className="text-xs font-semibold leading-snug text-white">Dr. Carlos Alonso Gómez Bolaño<br />Dr. Carlos Alberto Gómez Bolaño</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
           </div>
         </div>
@@ -686,7 +684,7 @@ function Home() {
                       </div>
                     ))}
                   </div>
-                  <svg viewBox="0 0 200 40" className="h-8 w-full text-rose-400"><polyline className="ecg-line" points="0,20 50,20 60,20 66,6 72,34 78,20 130,20 140,20 146,2 152,38 158,20 200,20" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+                  <Electro latidos={2} grilla={false} color="#fb7185" className="h-8 w-full" />
                 </div>
               </div>
             </div>

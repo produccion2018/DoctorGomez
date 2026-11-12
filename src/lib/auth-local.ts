@@ -28,6 +28,32 @@ const CONCLAVE_KEY = "gb_conclave";
    ===================================================================== */
 
 /** true cuando el servidor tiene la base de datos conectada. */
+/** Pasa los nombres viejos ("Dr. Alonso Gómez Bolaño") a los completos en los datos guardados. */
+function migrarNombres() {
+  if (typeof window === "undefined" || localStorage.getItem("gb_nombres_v2")) return;
+  const pares: [string, string][] = [
+    ["Dr. Alonso Gómez Bolaño", "Dr. Carlos Alonso Gómez Bolaño"],
+    ["Dr. Alberto Gómez Bolaño", "Dr. Carlos Alberto Gómez Bolaño"],
+  ];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith("gb_")) continue;
+    const v = localStorage.getItem(k);
+    if (!v) continue;
+    let n = v;
+    for (const [a, b] of pares) n = n.split(a).join(b);
+    if (n !== v) localStorage.setItem(k, n);
+  }
+  localStorage.setItem("gb_nombres_v2", "1");
+}
+if (typeof window !== "undefined") {
+  try {
+    migrarNombres();
+  } catch {
+    /* sin acceso a almacenamiento */
+  }
+}
+
 export function modoServidor(): boolean {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(BACKEND_KEY) === "1";
@@ -97,8 +123,8 @@ type Result = { ok: true } | { ok: false; error: string };
 
 // Los únicos usuarios con acceso. Cambiá los nombres acá si hace falta.
 export const ADMINS: Admin[] = [
-  { id: "alonso", nombre: "Dr. Alonso Gómez Bolaño" },
-  { id: "alberto", nombre: "Dr. Alberto Gómez Bolaño" },
+  { id: "alonso", nombre: "Dr. Carlos Alonso Gómez Bolaño" },
+  { id: "alberto", nombre: "Dr. Carlos Alberto Gómez Bolaño" },
 ];
 
 /* ---------- Personal de enfermería (lo dan de alta los médicos) ---------- */

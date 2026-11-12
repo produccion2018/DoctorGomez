@@ -429,6 +429,17 @@
   }
 }
 
+.electro-barrido {
+  stroke-dasharray: 160 1000;
+  stroke-dashoffset: 1160;
+  animation: electro-barrido 4.5s linear infinite;
+}
+@keyframes electro-barrido {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .ecg-line {
   stroke-dasharray: 12 6;
   animation: ecg-dash 14s linear infinite;
@@ -550,6 +561,7 @@
   .blob,
   .animate-hero-float,
   .ecg-line,
+  .electro-barrido,
   .eq-bar,
   .spin-slow,
   .hero-kenburns,
@@ -562,5 +574,8 @@
   }
   .hero-word {
     opacity: 1;
+  }
+  .electro-barrido {
+    stroke-dasharray: none;
   }
 }

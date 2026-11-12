@@ -22,6 +22,7 @@ import heroDoctors from "@/assets/hero-doctors.jpg";
 import { ADMINS, aceptarInvitacion, areaDe, crearClave, iniciarBackend, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, validarSesion, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
 import logoClinica from "@/assets/logo.png";
+import { Electro } from "@/components/site/PublicLayout";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
@@ -152,9 +153,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
             </ul>
           </div>
 
-          <svg viewBox="0 0 600 60" className="h-12 w-full max-w-lg text-sky-300/60" aria-hidden="true">
-            <polyline className="iv-ecg" points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30" fill="none" stroke="currentColor" strokeWidth="2.5" />
-          </svg>
+          <Electro latidos={3} grilla={false} color="#7dd3fc" className="h-12 w-full max-w-lg" />
         </div>
       </div>
 
@@ -367,15 +366,7 @@ function LoginNormal() {
           </ul>
         </div>
 
-        <svg viewBox="0 0 600 60" className="relative h-12 w-full max-w-md text-white/70" aria-hidden="true">
-          <polyline
-            className="lg-ecg"
-            points="0,30 80,30 100,10 120,50 140,30 220,30 240,5 260,55 280,30 380,30 400,14 420,46 440,30 600,30"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-          />
-        </svg>
+        <Electro latidos={3} grilla={false} color="#ffffff" className="relative h-12 w-full max-w-md" />
       </div>
 
       {/* Formulario */}

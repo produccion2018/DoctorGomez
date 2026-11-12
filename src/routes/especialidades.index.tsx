@@ -38,7 +38,7 @@ function Especialidades() {
       <section className="mx-auto max-w-7xl px-4 py-14 lg:px-8">
         <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-wrap gap-2">
-            {[{ id: "todos", label: "Todas" }, ...DOCTORS.map((d) => ({ id: d.id, label: d.nombre.replace("Carlos ", "").split(" ").slice(0, 2).join(" ") }))].map((o) => (
+            {[{ id: "todos", label: "Todas" }, ...DOCTORS.map((d) => ({ id: d.id, label: d.nombre }))].map((o) => (
               <button
                 key={o.id}
                 onClick={() => setDoc(o.id)}
