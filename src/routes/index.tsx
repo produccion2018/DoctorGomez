@@ -170,40 +170,74 @@ function DepartmentsMarquee() {
   );
 }
 
-/* Explorador de especialidades: lista elegante + panel grande con foto */
+/* Color propio de cada especialidad (mismo criterio en toda la web) */
+const COLOR_ESP: Record<string, string> = {
+  "medicina-interna": "#10b981",
+  cardiologia: "#ef4444",
+  nefrologia: "#0ea5e9",
+  "cardiologia-critica": "#f43f5e",
+  ecocardiografia: "#8b5cf6",
+  "hipertension-arterial": "#f97316",
+  "diabetes-metabolismo": "#14b8a6",
+  "holter-mapa": "#ec4899",
+  "diagnostico-por-imagenes": "#06b6d4",
+  laboratorio: "#22c55e",
+  "chequeos-preventivos": "#3b82f6",
+  "medicina-deporte": "#84cc16",
+  teleconsulta: "#6366f1",
+};
+const colorEsp = (slug: string) => COLOR_ESP[slug] ?? "#3b82f6";
+
+/* Explorador de especialidades: lista con color propio + panel grande que rota solo */
 function ExploradorEspecialidades() {
   const [act, setAct] = useState(0);
+  const [pausa, setPausa] = useState(false);
+  const total = ESPECIALIDADES.length;
+  useEffect(() => {
+    if (pausa) return;
+    const t = setInterval(() => setAct((v) => (v + 1) % total), 6000);
+    return () => clearInterval(t);
+  }, [pausa, total]);
   const e = ESPECIALIDADES[act]!;
   const Icon = iconFor(e.icono);
+  const c = colorEsp(e.slug);
   const docs = DOCTORS.filter((d) => e.doctorIds.includes(d.id));
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-14">
-      <ol className="border-y border-border/70" data-reveal>
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)] lg:gap-12" onMouseEnter={() => setPausa(true)} onMouseLeave={() => setPausa(false)}>
+      {/* Lista */}
+      <ol className="space-y-1.5" data-reveal>
         {ESPECIALIDADES.map((x, i) => {
           const I = iconFor(x.icono);
           const on = i === act;
+          const col = colorEsp(x.slug);
           return (
-            <li key={x.slug} className="border-b border-border/70 last:border-0">
+            <li key={x.slug}>
               <button
                 type="button"
                 onMouseEnter={() => setAct(i)}
                 onFocus={() => setAct(i)}
                 onClick={() => setAct(i)}
                 aria-expanded={on}
-                className={`group relative flex w-full items-center gap-4 py-3.5 text-left transition-all duration-300 ${on ? "lg:pl-4" : "hover:lg:pl-2"}`}
+                className={`group relative flex w-full items-center gap-3.5 overflow-hidden rounded-2xl border px-3.5 py-2.5 text-left transition-all duration-300 ${on ? "border-transparent bg-card shadow-[0_18px_40px_-24px_rgba(10,25,70,.55)]" : "border-transparent hover:bg-card/70"}`}
+                style={on ? { boxShadow: `inset 3px 0 0 ${col}, 0 18px 40px -24px rgba(10,25,70,.55)` } : undefined}
               >
-                <span className={`absolute left-0 top-1/2 hidden h-8 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-[var(--clinic)] to-rose-500 transition-opacity lg:block ${on ? "opacity-100" : "opacity-0"}`} />
-                <span className="w-7 font-display text-sm tabular-nums text-muted-foreground/60">{String(i + 1).padStart(2, "0")}</span>
-                <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl transition-all duration-500 ${on ? "gradient-deep text-white shadow-[0_10px_25px_-10px_rgba(20,50,120,.9)]" : "bg-secondary text-primary"}`}>
-                  <I className="size-4" />
+                {on && !pausa && <span key={act} className="absolute inset-x-0 bottom-0 h-0.5 origin-left animate-[barra_6s_linear_forwards]" style={{ background: col }} />}
+                <span
+                  className="flex size-10 shrink-0 items-center justify-center rounded-xl transition-all duration-500 group-hover:scale-105"
+                  style={on ? { background: `linear-gradient(135deg, ${col}, ${col}bb)`, color: "#fff", boxShadow: `0 10px 22px -10px ${col}` } : { background: `${col}14`, color: col }}
+                >
+                  <I className="size-[18px]" />
                 </span>
-                <span className={`flex-1 text-[15px] font-medium transition-colors sm:text-base ${on ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>{x.nombre}</span>
-                <ArrowRight className={`size-4 text-clinic transition-all duration-300 ${on ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0"}`} />
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-[15px] font-semibold transition-colors ${on ? "text-foreground" : "text-foreground/70 group-hover:text-foreground"}`}>{x.nombre}</span>
+                  {on && <span className="block truncate text-xs text-muted-foreground animate-in fade-in duration-300">{x.estudios?.slice(0, 2).join(" · ")}</span>}
+                </span>
+                <span className="font-display text-xs tabular-nums text-muted-foreground/50">{String(i + 1).padStart(2, "0")}</span>
               </button>
               {on && (
-                <div className="animate-in fade-in slide-in-from-top-1 pb-5 pl-11 duration-300 lg:hidden">
+                <div className="animate-in fade-in slide-in-from-top-1 px-4 pb-4 pt-2 duration-300 lg:hidden">
                   <p className="text-sm text-muted-foreground">{x.descripcion}</p>
-                  <Link to="/especialidades/$slug" params={{ slug: x.slug }} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-clinic">
+                  <Link to="/especialidades/$slug" params={{ slug: x.slug }} className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: col }}>
                     Conocer más <ArrowUpRight className="size-4" />
                   </Link>
                 </div>
@@ -213,36 +247,53 @@ function ExploradorEspecialidades() {
         })}
       </ol>
 
+      {/* Panel */}
       <div className="relative hidden lg:block">
         <div className="sticky top-28">
-          <div key={e.slug} className="relative h-[640px] overflow-hidden rounded-[2rem] shadow-[0_50px_100px_-50px_rgba(10,25,70,.85)] ring-1 ring-white/10 animate-in fade-in zoom-in-[0.98] duration-500">
-            <img src={imagenEspecialidad(e.slug)} alt={e.nombre} className="absolute inset-0 size-full scale-105 object-cover animate-in zoom-in-110 duration-[1400ms]" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.14_0.05_262)] via-[oklch(0.16_0.05_262/0.7)] to-[oklch(0.16_0.05_262/0.05)]" />
-            <div className="absolute -bottom-24 -left-16 size-80 rounded-full bg-sky-500/25 blur-3xl" />
-            <div className="absolute -right-16 top-10 size-64 rounded-full bg-rose-500/15 blur-3xl" />
-            <span className="glass absolute left-7 top-7 rounded-full px-3 py-1 font-display text-xs tracking-widest text-white">
-              {String(act + 1).padStart(2, "0")} / {String(ESPECIALIDADES.length).padStart(2, "0")}
-            </span>
-            <div className="absolute inset-x-0 bottom-0 p-10 text-white">
-              <span className="mb-5 flex size-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-md"><Icon className="size-6" /></span>
-              <h3 className="font-display text-4xl font-semibold leading-tight">{e.nombre}</h3>
-              <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/75">{e.descripcion}</p>
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    {docs.map((d) => (
-                      <img key={d.id} src={d.foto === "alberto" ? fotoAlberto : fotoAlonso} alt={d.nombre} className="size-9 rounded-full object-cover object-top ring-2 ring-white/70" />
+          <div className="relative rounded-[2.2rem] p-px transition-all duration-700" style={{ background: `linear-gradient(140deg, ${c}, transparent 45%, ${c}55)` }}>
+            <div key={e.slug} className="relative h-[660px] overflow-hidden rounded-[calc(2.2rem-1px)] bg-[oklch(0.14_0.05_262)] animate-in fade-in duration-500">
+              <img src={imagenEspecialidad(e.slug)} alt={e.nombre} className="hero-kenburns absolute inset-0 size-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.13_0.05_262)] via-[oklch(0.15_0.05_262/0.55)] to-transparent" />
+              <div className="pointer-events-none absolute -bottom-32 -left-20 size-96 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: c }} />
+
+              <div className="absolute inset-x-7 top-7 flex items-center justify-between">
+                <span className="glass rounded-full px-3 py-1 font-display text-xs tracking-widest text-white">
+                  {String(act + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+                </span>
+                <div className="flex gap-1.5">
+                  <button type="button" aria-label="Anterior" onClick={() => setAct((v) => (v - 1 + total) % total)} className="glass flex size-9 items-center justify-center rounded-full text-white transition hover:bg-white/20"><ChevronLeft className="size-4" /></button>
+                  <button type="button" aria-label="Siguiente" onClick={() => setAct((v) => (v + 1) % total)} className="glass flex size-9 items-center justify-center rounded-full text-white transition hover:bg-white/20"><ChevronRight className="size-4" /></button>
+                </div>
+              </div>
+
+              <div className="absolute inset-x-0 bottom-0 p-10 text-white">
+                <span className="mb-5 flex size-14 items-center justify-center rounded-2xl text-white ring-1 ring-white/30 animate-in zoom-in-75 duration-500" style={{ background: `linear-gradient(135deg, ${c}, ${c}aa)`, boxShadow: `0 18px 36px -14px ${c}` }}>
+                  <Icon className="size-6" />
+                </span>
+                <h3 className="font-display text-4xl font-semibold leading-tight animate-in fade-in slide-in-from-bottom-2 duration-500">{e.nombre}</h3>
+                <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/75">{e.descripcion}</p>
+                {e.estudios?.length ? (
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {e.estudios.slice(0, 4).map((x) => (
+                      <span key={x} className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/85 ring-1 ring-white/15 backdrop-blur">{x}</span>
                     ))}
                   </div>
-                  <p className="text-xs leading-snug text-white/70">
-                    {docs.length > 1 ? "Ambos directores" : docs[0]?.nombre}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Link to="/turnos" className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10">Solicitar turno</Link>
-                  <Link to="/especialidades/$slug" params={{ slug: e.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition-all hover:gap-2.5">
-                    Conocer más <ArrowRight className="size-4" />
-                  </Link>
+                ) : null}
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/15 pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-2">
+                      {docs.map((d) => (
+                        <img key={d.id} src={d.foto === "alberto" ? fotoAlberto : fotoAlonso} alt={d.nombre} className="size-10 rounded-full object-cover object-top ring-2 ring-white/70" />
+                      ))}
+                    </div>
+                    <p className="max-w-[14rem] text-xs leading-snug text-white/75">{docs.map((d) => d.nombre).join(" · ")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link to="/turnos" className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10">Solicitar turno</Link>
+                    <Link to="/especialidades/$slug" params={{ slug: e.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition-all hover:gap-2.5">
+                      Conocer más <ArrowRight className="size-4" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
@@ -444,7 +495,7 @@ function Home() {
           <SectionTitle
             kicker="Departamentos"
             title="Especialidades y unidades de la clínica"
-            text={`${ESPECIALIDADES.length} áreas médicas coordinadas por los directores de la clínica, con estudios e informes en el mismo lugar.`}
+            text={`${ESPECIALIDADES.length} áreas médicas coordinadas por los directores del centro, con consultas y estudios en un mismo lugar.`}
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal>
             <Link to="/especialidades">Ver todas <ArrowRight className="size-4" /></Link>

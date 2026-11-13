@@ -506,6 +506,11 @@
   to { transform: translateX(820px); opacity: 0; }
 }
 
+@keyframes barra {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 /* Título del hero: palabra por palabra */
 .hero-word {
   opacity: 0;
