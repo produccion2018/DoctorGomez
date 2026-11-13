@@ -254,7 +254,7 @@ export const ESPECIALIDADES = [
     ],
     estudios: ["Ecocardiograma doppler color", "Ecocardiograma de estrés", "Doppler vascular"],
     seguimiento:
-      "Informe entregado el mismo día en el portal del paciente y revisión con el cardiólogo tratante.",
+      "Informe disponible en el portal del paciente y revisión con el cardiólogo tratante.",
   },
   {
     slug: "hipertension-arterial",
@@ -443,7 +443,7 @@ export const SERVICIOS = [
   { id: "s6", nombre: "Seguimiento de enfermedades crónicas", icono: "clipboard-list", especialidad: "Medicina Interna", doctorId: "d1", duracion: 30, precio: 28000, descripcion: "Control programado de diabetes, hipertensión y dislipemia." },
   { id: "s7", nombre: "Prevención cardiovascular", icono: "shield-check", especialidad: "Cardiología", doctorId: "d2", duracion: 45, precio: 42000, descripcion: "Programa personalizado de prevención primaria y secundaria." },
   { id: "s8", nombre: "Estudios cardiológicos", icono: "line-chart", especialidad: "Cardiología", doctorId: "d2", duracion: 45, precio: 45000, descripcion: "Electrocardiograma, ergometría y Holter con informe profesional." },
-  { id: "s9", nombre: "Ecocardiografía", icono: "waves", especialidad: "Ecocardiografía", doctorId: "d2", duracion: 45, precio: 58000, descripcion: "Ecocardiograma doppler color con informe el mismo día." },
+  { id: "s9", nombre: "Ecocardiografía", icono: "waves", especialidad: "Ecocardiografía", doctorId: "d2", duracion: 45, precio: 58000, descripcion: "Ecocardiograma doppler color con informe del especialista." },
   { id: "s10", nombre: "Segunda opinión médica", icono: "users", especialidad: "Medicina Interna", doctorId: "d2", duracion: 45, precio: 40000, descripcion: "Revisión de diagnóstico y tratamiento por un segundo especialista." },
   { id: "s11", nombre: "Seguimiento integral", icono: "calendar-check", especialidad: "Medicina Interna", doctorId: "d1", duracion: 30, precio: 26000, descripcion: "Plan de controles coordinado entre las distintas especialidades." },
 ];
@@ -451,7 +451,7 @@ export const SERVICIOS = [
 export const FAQS = [
   { q: "¿Cómo solicito un turno?", a: "Podés reservar desde la sección Turnos eligiendo especialidad, profesional, fecha y horario. La clínica te contacta para confirmarlo." },
   { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Podés consultar directamente con Medicina Interna, Nefrología o Cardiología." },
-  { q: "¿Cuánto demora la entrega de estudios?", a: "Los estudios cardiológicos se informan el mismo día y se entregan en la clínica o por correo electrónico." },
+  { q: "¿Cuánto demora la entrega de estudios?", a: "Los informes se entregan en la clínica o por correo electrónico. Al hacer el estudio te indicamos cuándo vas a tenerlo." },
   { q: "¿Puedo reprogramar o cancelar mi turno?", a: "Sí. Escribinos por WhatsApp o llamanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
   { q: "¿Atienden teleconsulta?", a: "Sí, la modalidad de teleconsulta está disponible para controles y seguimiento de enfermedades crónicas." },
   { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que estés tomando." },
@@ -459,7 +459,7 @@ export const FAQS = [
   { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Vení con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
   { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Te confirmamos las indicaciones al reservar." },
   { q: "¿Qué medios de pago aceptan?", a: "Efectivo, tarjetas de débito y crédito, y transferencia bancaria." },
-  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico; los cardiológicos suelen estar el mismo día." },
+  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico. También los podés ver en el portal del paciente." },
   { q: "¿Atienden urgencias?", a: "No somos un servicio de guardia. Ante una emergencia llamá al 107 o acudí a la guardia más cercana." },
 ];
 

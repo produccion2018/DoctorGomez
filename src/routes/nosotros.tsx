@@ -50,7 +50,7 @@ const OBJETIVOS = [
 const HITOS = [
   { t: "La formación", d: "Dos hermanos que eligen la medicina y se forman en clínica médica, nefrología y cardiología." },
   { t: "Los primeros consultorios", d: "Nace la idea de atender con tiempo, escucha y un seguimiento que no se corta." },
-  { t: "Unidad cardiológica", d: "Se suman la ecocardiografía doppler, el Holter y el MAPA con informe en el día." },
+  { t: "Unidad cardiológica", d: "Se suman la ecocardiografía doppler, el Holter y el MAPA." },
   { t: "Cuidado del riñón", d: "Programas de nefroprotección coordinados con cardiología y medicina interna." },
   { t: "Clínica digital", d: "Turnos online, historia clínica digital y portal del paciente en el celular." },
 ];

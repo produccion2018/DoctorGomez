@@ -40,7 +40,7 @@ export const Route = createFileRoute("/clinica")({
 });
 
 const EQUIPAMIENTO = [
-  { icon: HeartPulse, t: "Ecocardiógrafo doppler color", d: "Estudios cardíacos de alta resolución con informe en el día.", img: imgEco, tag: "Cardiología", c: "#8b5cf6" },
+  { icon: HeartPulse, t: "Ecocardiógrafo doppler color", d: "Estudios cardíacos de alta resolución, informados por el especialista.", img: imgEco, tag: "Cardiología", c: "#8b5cf6" },
   { icon: ScanLine, t: "Ecografía y doppler vascular", d: "Imágenes renales, abdominales y vasculares en la misma visita.", img: imgImagenes, tag: "Imágenes", c: "#06b6d4" },
   { icon: ClipboardCheck, t: "Holter y MAPA 24 h", d: "Monitoreo ambulatorio del ritmo cardíaco y la presión arterial.", img: imgHolter, tag: "Monitoreo", c: "#ec4899" },
   { icon: Stethoscope, t: "Consultorios equipados", d: "Electrocardiógrafo, balanza clínica y material de evaluación completo.", img: imgInterna, tag: "Consultorios", c: "#10b981" },
