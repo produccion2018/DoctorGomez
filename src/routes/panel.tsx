@@ -7375,11 +7375,11 @@ function GrillaSignos({ s, compacta = false }: { s: Triage["signos"]; compacta?:
 }
 
 /** Ventana de toma de signos vitales (se abre desde la card «Turnos de hoy»). */
-function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: SessionUser; log: LogFn; turnos: Turno[]; soloLectura: boolean; onCerrar: () => void }) {
+function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" }: { user: SessionUser; log: LogFn; turnos: Turno[]; soloLectura: boolean; onCerrar: () => void; inicial?: string }) {
   const pacientes = usePacientesClinica(turnos);
   const [triages, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const [pacId, setPacId] = useState("");
-  const esMedicoV = user.rol === "medico";
+  const esMedicoV = false; // los médicos (dueños) también pueden registrar
   const bloqueado = soloLectura || esMedicoV;
   const vacio = { s: "", d: "", fc: "", fr: "", temp: "", peso: "", talla: "" };
   const [f, setF] = useState(vacio);
@@ -7413,6 +7413,10 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
     const ult = p ? triages.filter((t) => esDe(p, t.pacienteId) && t.signos.talla).sort((a, b) => b.fecha.localeCompare(a.fecha))[0] : undefined;
     setF({ ...vacio, talla: ult?.signos.talla ? String(ult.signos.talla) : "" });
   };
+  useEffect(() => {
+    if (inicial) elegir(inicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
@@ -7568,6 +7572,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
 function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; esMedico: boolean; abrirHistoria: (pacienteId: string) => void; soloLectura?: boolean }) {
   const [triages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const [ventana, setVentana] = useState(false);
+  const [pacSignos, setPacSignos] = useState("");
   const pacientes = usePacientesClinica(turnos);
   const hoyIso = isoDe(new Date());
   const deHoy = triages.filter((t) => diaLocal(t.fecha) === hoyIso).sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -7580,7 +7585,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
 
   return (
     <div className="space-y-6">
-      <AccionesEnfermeria user={user} log={log} turnos={turnos} pacientes={pacientes} citasHoy={turnosHoy.length} sinSignos={sinSignos} soloLectura={soloLectura || esMedico} abrirSignos={() => setVentana(true)} />
+      <AccionesEnfermeria user={user} log={log} turnos={turnos} pacientes={pacientes} citasHoy={turnosHoy.length} sinSignos={sinSignos} soloLectura={soloLectura} abrirSignos={(id) => { setPacSignos(id ?? ""); setVentana(true); }} abrirHistoria={abrirHistoria} />
 
       <div className="hidden">
         <Kpi
@@ -7594,9 +7599,9 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
         />
       </div>
 
-      {ventana && <VentanaSignos user={user} log={log} turnos={turnos} soloLectura={soloLectura} onCerrar={() => setVentana(false)} />}
+      {ventana && <VentanaSignos user={user} log={log} turnos={turnos} soloLectura={soloLectura} inicial={pacSignos} onCerrar={() => setVentana(false)} />}
 
-      <ProcedimientosHoy user={user} log={log} turnos={turnosHoy} pacientes={pacientes} soloLectura={soloLectura || esMedico} />
+      <ProcedimientosHoy user={user} log={log} turnos={turnosHoy} pacientes={pacientes} soloLectura={soloLectura} />
 
       <RegistrosEnfHoy pacientes={pacientes} esMedico={esMedico} abrirHistoria={abrirHistoria} />
 
@@ -8668,28 +8673,102 @@ const ACCIONES_ENF: AccionEnf[] = [
   { id: "Nota de enfermería", t: "Nota de enfermería", d: "Observaciones, educación al paciente o novedades", icon: NotebookPen, c: "#14b8a6" },
 ];
 
-function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos, soloLectura, abrirSignos }: { user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; citasHoy: number; sinSignos: number; soloLectura: boolean; abrirSignos: () => void }) {
+function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos, soloLectura, abrirSignos, abrirHistoria }: { user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; citasHoy: number; sinSignos: number; soloLectura: boolean; abrirSignos: (pacId?: string) => void; abrirHistoria: (id: string) => void }) {
   const [accion, setAccion] = useState<AccionEnf | null>(null);
+  const [pacSel, setPacSel] = useState("");
+  const [q, setQ] = useState("");
+  const [triages] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const [notas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const hoyIso = isoDe(new Date());
+  const conCitaHoy = new Set(turnos.filter((t) => t.fecha === hoyIso && t.estado !== "Cancelado").map((t) => norm(t.paciente)));
+  const visibles = pacientes
+    .filter((p) => norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q)))
+    .sort((a, b) => Number(conCitaHoy.has(norm(b.nombre))) - Number(conCitaHoy.has(norm(a.nombre))) || a.nombre.localeCompare(b.nombre))
+    .slice(0, q ? 20 : 12);
+  const pac = pacientes.find((p) => p.id === pacSel);
+  const esDeP = (id: string) => !!pac && (id === pac.id || id === pac.portalId);
+  const ultSignos = pac ? triages.filter((t) => esDeP(t.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha))[0] : undefined;
+  const ultNotas = pac ? notas.filter((n) => esDeP(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3) : [];
   return (
     <section className="pn-card pn-up overflow-hidden p-5 sm:p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">Enfermería</p>
           <h2 className="mt-1 text-2xl font-semibold">¿Qué va a registrar?</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Toque una opción, elija al paciente y complete los datos. Todo queda en su historia clínica.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Elija al paciente, toque lo que va a registrar y complete los datos. Todo queda en su historia clínica y lo ven los médicos.</p>
         </div>
         <div className="flex gap-2 text-xs">
           <span className="rounded-full bg-secondary px-3 py-1.5 font-semibold">{citasHoy} {citasHoy === 1 ? "cita" : "citas"} hoy</span>
           {sinSignos > 0 && <span className="rounded-full bg-amber-100 px-3 py-1.5 font-semibold text-amber-800">{sinSignos} sin signos vitales</span>}
         </div>
       </div>
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+      {/* 1. Paciente */}
+      <div className="mt-5 rounded-2xl border border-border/70 bg-secondary/30 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex size-7 items-center justify-center rounded-full bg-[rgb(var(--acc))] text-xs font-bold text-white">1</span>
+          <p className="font-semibold">Paciente</p>
+          <div className="relative ml-auto w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " h-10 pl-9"} />
+          </div>
+        </div>
+        {pacientes.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">Todavía no hay pacientes registrados. Se cargan en <b>Pacientes</b> o al agendar una cita.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {visibles.map((p) => (
+              <button key={p.id} type="button" onClick={() => setPacSel(p.id === pacSel ? "" : p.id)}
+                className={`inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[rgb(var(--acc))] text-white ring-transparent shadow-md" : "bg-card ring-border hover:bg-secondary"}`}>
+                <Avatar nombre={p.nombre} size="size-7" />
+                {p.nombre}
+                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-full px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-emerald-100 text-emerald-700"}`}>cita hoy</span>}
+                {p.ficha?.alergias && <AlertTriangle className={`size-3.5 ${p.id === pacSel ? "text-white" : "text-red-500"}`} />}
+              </button>
+            ))}
+            {visibles.length === 0 && <p className="text-sm text-muted-foreground">No se encontró ese paciente.</p>}
+          </div>
+        )}
+        {pac && (
+          <div className="mt-4 grid gap-3 rounded-2xl bg-card p-4 ring-1 ring-border animate-in fade-in slide-in-from-top-1 duration-300 lg:grid-cols-[1fr_1.2fr]">
+            <div className="flex items-start gap-3">
+              <Avatar nombre={pac.nombre} size="size-12" />
+              <div className="min-w-0">
+                <p className="text-lg font-semibold">{pac.nombre}</p>
+                <p className="text-xs text-muted-foreground">{pac.dni ? `C.C. ${pac.dni}` : "Sin cédula"}{pac.telefono ? ` · ${pac.telefono}` : ""}</p>
+                {pac.ficha?.alergias ? (
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {pac.ficha.alergias}</p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">Sin alergias registradas</p>
+                )}
+                <Button size="sm" variant="outline" className="mt-3 rounded-xl" onClick={() => abrirHistoria(pac.id)}><FileText className="size-3.5" /> Ver historia clínica</Button>
+              </div>
+            </div>
+            <div className="space-y-2 text-sm">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos signos vitales</p>
+              {ultSignos ? <div><GrillaSignos s={ultSignos.signos} compacta /><p className="mt-1 text-[11px] text-muted-foreground">{fechaHora(ultSignos.fecha)} · {ultSignos.enfermera}</p></div> : <p className="text-xs text-muted-foreground">Sin registros.</p>}
+              <p className="pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos registros de enfermería</p>
+              {ultNotas.length ? (
+                <ul className="space-y-1">
+                  {ultNotas.map((n) => <li key={n.id} className="text-xs"><span className={`mr-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>{n.texto}</li>)}
+                </ul>
+              ) : <p className="text-xs text-muted-foreground">Sin registros.</p>}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 2. Qué registrar */}
+      <div className="mt-4 flex items-center gap-3">
+        <span className="flex size-7 items-center justify-center rounded-full bg-[rgb(var(--acc))] text-xs font-bold text-white">2</span>
+        <p className="font-semibold">{pac ? `¿Qué le va a registrar a ${pac.nombre.split(" ")[0]}?` : "¿Qué va a registrar?"}</p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
         {ACCIONES_ENF.map((a, i) => (
           <button
             key={a.id}
             type="button"
             disabled={soloLectura}
-            onClick={() => (a.id === "signos" ? abrirSignos() : setAccion(a))}
+            onClick={() => (a.id === "signos" ? abrirSignos(pacSel || undefined) : setAccion(a))}
             className="group relative flex flex-col items-start gap-3 overflow-hidden rounded-2xl border border-border/70 bg-card p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-24px_var(--c)] disabled:opacity-50"
             style={{ ["--c" as string]: a.c, animationDelay: `${i * 40}ms` } as CSSProperties}
           >
@@ -8705,14 +8784,14 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
         ))}
       </div>
       {soloLectura && <p className="mt-3 text-xs text-muted-foreground">Los registros de enfermería los carga el personal de enfermería.</p>}
-      {accion && <VentanaRegistroEnf accion={accion} user={user} log={log} turnos={turnos} pacientes={pacientes} onCerrar={() => setAccion(null)} />}
+      {accion && <VentanaRegistroEnf accion={accion} user={user} log={log} turnos={turnos} pacientes={pacientes} inicial={pacSel} onCerrar={() => setAccion(null)} />}
     </section>
   );
 }
 
-function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar }: { accion: AccionEnf; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; onCerrar: () => void }) {
+function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, inicial = "" }: { accion: AccionEnf; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; onCerrar: () => void; inicial?: string }) {
   const [, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
-  const [pacId, setPacId] = useState("");
+  const [pacId, setPacId] = useState(inicial);
   const hora = () => new Date().toTimeString().slice(0, 5);
   type CamposEnf = { hora: string; valor?: string; momento?: string; obs?: string; entregado?: string; muestra?: string; examenes?: string; med?: string; dosis?: string; via?: string; indica?: string; tipo?: string; zona?: string; desc?: string };
   const [f, setF] = useState<CamposEnf>({ hora: hora() });
