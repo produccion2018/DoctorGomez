@@ -75,6 +75,28 @@ export async function exigirDireccion(): Promise<UsuarioServidor> {
   return u;
 }
 
+/* ---------- Freno contra adivinar contraseñas: 5 fallos → 15 minutos bloqueado ---------- */
+const MAX_FALLOS = 5;
+const MINUTOS_BLOQUEO = 15;
+export async function bloqueado(clave: string): Promise<string | null> {
+  const sql = await (await modulo()).db();
+  const f = (await sql`SELECT hasta FROM intentos WHERE clave = ${clave} AND hasta > now()`) as { hasta: string }[];
+  if (!f[0]) return null;
+  const min = Math.max(1, Math.ceil((new Date(f[0].hasta).getTime() - Date.now()) / 60000));
+  return `Demasiados intentos fallidos. Probá de nuevo en ${min} minuto${min === 1 ? "" : "s"}.`;
+}
+export async function registrarFallo(clave: string) {
+  const sql = await (await modulo()).db();
+  await sql`INSERT INTO intentos (clave, fallos) VALUES (${clave}, 1)
+    ON CONFLICT (clave) DO UPDATE SET fallos = CASE WHEN intentos.hasta IS NOT NULL AND intentos.hasta < now() THEN 1 ELSE intentos.fallos + 1 END,
+      hasta = CASE WHEN (CASE WHEN intentos.hasta IS NOT NULL AND intentos.hasta < now() THEN 1 ELSE intentos.fallos + 1 END) >= ${MAX_FALLOS}
+        THEN now() + make_interval(mins => ${MINUTOS_BLOQUEO}) ELSE NULL END`;
+}
+export async function limpiarFallos(clave: string) {
+  const sql = await (await modulo()).db();
+  await sql`DELETE FROM intentos WHERE clave = ${clave}`;
+}
+
 export async function abrirSesion(id: string) {
   const { db, tokenAleatorio } = await modulo();
   const sql = await db();

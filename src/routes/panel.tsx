@@ -3010,7 +3010,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
       <Seccion icon={Lock} titulo="Seguridad" sub={`Cambiá tu contraseña de administrador (${user.nombre}).`} delay={0.25}>
         <form onSubmit={guardarClave} className="grid gap-4 sm:grid-cols-3">
           <Campo label="Contraseña actual"><input type="password" required value={actual} onChange={(e) => setActual(e.target.value)} className={inp} /></Campo>
-          <Campo label="Nueva contraseña"><input type="password" required placeholder="Mínimo 6 caracteres" value={nueva} onChange={(e) => setNueva(e.target.value)} className={inp} /></Campo>
+          <Campo label="Nueva contraseña"><input type="password" required placeholder="Mínimo 8 caracteres" value={nueva} onChange={(e) => setNueva(e.target.value)} className={inp} /></Campo>
           <div className="flex items-end"><Button type="submit" className="h-11 w-full rounded-xl"><Check className="size-4" /> Guardar contraseña</Button></div>
         </form>
       </Seccion>

@@ -132,7 +132,7 @@ export const crearClaveServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado> => {
     const { hashClave } = await modulo();
     const sql = await (await acceso()).sembrarAdmins();
-    if (data.password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    if (data.password.length < 8) return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
     const filas = (await sql`SELECT nombre, rol, hash FROM usuarios WHERE id = ${data.id} AND activo = true`) as { nombre: string; rol: string; hash: string | null }[];
     const f = filas[0];
     if (!f || f.rol !== "medico") return { ok: false, error: "Usuario no autorizado." };
@@ -153,10 +153,15 @@ export const ingresarServidor = createServerFn({ method: "POST" })
     const f = filas[0];
     if (!f) return { ok: false, error: "Usuario no autorizado." };
     if (!f.hash) return { ok: false, error: "Este usuario todavía no creó su contraseña." };
+    const a = await acceso();
+    const freno = await a.bloqueado(`staff:${f.id}`);
+    if (freno) return { ok: false, error: freno };
     if (!verificarClave(data.password, f.hash)) {
-      await (await acceso()).auditar(f.nombre, "Intento de acceso fallido", "Contraseña incorrecta");
-      return { ok: false, error: "Contraseña incorrecta." };
+      await a.registrarFallo(`staff:${f.id}`);
+      await a.auditar(f.nombre, "Intento de acceso fallido", "Contraseña incorrecta");
+      return { ok: false, error: (await a.bloqueado(`staff:${f.id}`)) ?? "Contraseña incorrecta." };
     }
+    await a.limpiarFallos(`staff:${f.id}`);
     await (await acceso()).abrirSesion(f.id);
     const usuario = (await acceso()).aUsuario(f);
     await (await acceso()).auditar(f.nombre, "Inicio de sesión", usuario.rol === "medico" ? "Acceso al panel administrativo" : `Acceso al panel · ${usuario.area ?? ""}`);
@@ -186,7 +191,7 @@ export const cambiarClaveServidor = createServerFn({ method: "POST" })
     const sql = await db();
     const filas = (await sql`SELECT hash FROM usuarios WHERE id = ${u.id}`) as { hash: string | null }[];
     if (!verificarClave(data.actual, filas[0]?.hash ?? null)) return { ok: false, error: "La contraseña actual no es correcta." };
-    if (data.nueva.length < 6) return { ok: false, error: "La nueva contraseña debe tener al menos 6 caracteres." };
+    if (data.nueva.length < 8) return { ok: false, error: "La nueva contraseña debe tener al menos 8 caracteres." };
     await sql`UPDATE usuarios SET hash = ${hashClave(data.nueva)} WHERE id = ${u.id}`;
     await (await acceso()).auditar(u.nombre, "Contraseña cambiada");
     return { ok: true };
@@ -268,7 +273,7 @@ export const aceptarInvitacionServidor = createServerFn({ method: "POST" })
   .validator((d: { id: string; token: string; password: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ usuario: UsuarioServidor }>> => {
     const { db, hashClave } = await modulo();
-    if (data.password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+    if (data.password.length < 8) return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
     const sql = await db();
     const filas = (await sql`UPDATE usuarios SET hash = ${hashClave(data.password)}, invitacion = NULL
       WHERE id = ${data.id} AND invitacion = ${data.token} AND activo = true AND rol <> 'medico'
@@ -498,9 +503,17 @@ export const ingresarPacienteServidor = createServerFn({ method: "POST" })
     const p = lista.find((x) => (dni.length >= 5 && x["dni"] === dni) || (u.includes("@") && String(x["email"] ?? "").toLowerCase() === u));
     if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pedile a la clínica que te envíe la invitación." };
     if (p["estado"] === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunicate con la clínica." };
+    const a = await acceso();
+    const llave = `pac:${p.id}`;
+    const freno = await a.bloqueado(llave);
+    if (freno) return { ok: false, error: freno };
     const cod = data.codigo.trim();
     const valida = cod === p["codigo"] || (!!p["clave"] && c.sha256(cod) === p["clave"]);
-    if (!valida) return { ok: false, error: p["clave"] ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisá el mensaje de la clínica." };
+    if (!valida) {
+      await a.registrarFallo(llave);
+      return { ok: false, error: (await a.bloqueado(llave)) ?? (p["clave"] ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisá el mensaje de la clínica.") };
+    }
+    await a.limpiarFallos(llave);
     const primero = p["estado"] === "Invitado";
     const act = { ...p, estado: "Activo", ultimoIngreso: new Date().toISOString() };
     await c.guardar("gb_pacientes", act);

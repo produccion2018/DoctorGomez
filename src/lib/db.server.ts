@@ -59,6 +59,11 @@ export async function db(): Promise<Sql> {
         paciente_id text NOT NULL,
         expira timestamptz NOT NULL
       )`;
+      await sql`CREATE TABLE IF NOT EXISTS intentos (
+        clave text PRIMARY KEY,
+        fallos int NOT NULL DEFAULT 0,
+        hasta timestamptz
+      )`;
       await sql`CREATE TABLE IF NOT EXISTS auditoria (
         id bigserial PRIMARY KEY,
         fecha timestamptz NOT NULL DEFAULT now(),

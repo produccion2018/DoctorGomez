@@ -86,7 +86,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
   const iniciales = nombre.replace(/^(Enf\.|Lic\.|Dr\.|Dra\.)\s*/i, "").split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
   const fuerza = fuerzaClave(p1);
   const reglas = [
-    { ok: p1.length >= 6, t: "Al menos 6 caracteres" },
+    { ok: p1.length >= 8, t: "Al menos 8 caracteres" },
     { ok: /\d/.test(p1), t: "Un número" },
     { ok: /[A-Z]/.test(p1), t: "Una mayúscula" },
     { ok: p1.length > 0 && p1 === p2, t: "Las dos contraseñas coinciden" },
@@ -95,7 +95,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     if (!persona) return;
-    if (p1.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres."); return; }
+    if (p1.length < 8) { toast.error("La contraseña debe tener al menos 8 caracteres."); return; }
     if (p1 !== p2) { toast.error("Las contraseñas no coinciden."); return; }
     setLoading(true);
     const r = await aceptarInvitacion(persona, p1);
@@ -221,7 +221,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
                     <label htmlFor="inv1" className="text-sm font-medium">Nueva contraseña</label>
                     <div className="group relative">
                       <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                      <input id="inv1" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} />
+                      <input id="inv1" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Mínimo 8 caracteres" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} />
                       <button type="button" onClick={() => setShow((v) => !v)} aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground">{show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>
                     </div>
                     {p1 && (
@@ -311,7 +311,7 @@ function LoginNormal() {
     e.preventDefault();
     if (!adminId) return toast.error("Elegí tu usuario.");
     if (primera) {
-      if (password.length < 6) return toast.error("La contraseña debe tener al menos 6 caracteres.");
+      if (password.length < 8) return toast.error("La contraseña debe tener al menos 8 caracteres.");
       if (password !== password2) return toast.error("Las contraseñas no coinciden.");
     }
     setLoading(true);
@@ -460,7 +460,7 @@ function LoginNormal() {
                   type={show ? "text" : "password"}
                   required
                   autoComplete={primera ? "new-password" : "current-password"}
-                  placeholder={primera ? "Mínimo 6 caracteres" : "••••••••"}
+                  placeholder={primera ? "Mínimo 8 caracteres" : "••••••••"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={inputClass}

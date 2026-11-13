@@ -1620,7 +1620,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
 
   const clave = async (e: FormEvent) => {
     e.preventDefault();
-    if (c.nueva.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres."); return; }
+    if (c.nueva.length < 8) { toast.error("La contraseña debe tener al menos 8 caracteres."); return; }
     if (c.nueva !== c.repetir) { toast.error("Las contraseñas no coinciden."); return; }
     const h = await hashTexto(c.nueva);
     setPacientes((l) => l.map((x) => (x.id === ctx.paciente.id ? { ...x, clave: h } : x)));

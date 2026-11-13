@@ -206,7 +206,7 @@ export function leerInvitacion(codigo: string): Personal | null {
   }
 }
 export async function aceptarInvitacion(p: Personal, password: string): Promise<Result> {
-  if (password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+  if (password.length < 8) return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
   if (await iniciarBackend()) {
     const r = await aceptarInvitacionServidor({ data: { id: p.id, token: p.invitacion ?? "", password } });
     if (!r.ok) return r;
@@ -270,7 +270,7 @@ export async function crearClave(id: string, password: string): Promise<Result> 
   const admin = usuarioPorId(id);
   if (!admin) return { ok: false, error: "Usuario no autorizado." };
   if (tieneClave(id)) return { ok: false, error: "Este usuario ya tiene contraseña." };
-  if (password.length < 6) return { ok: false, error: "La contraseña debe tener al menos 6 caracteres." };
+  if (password.length < 8) return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
   localStorage.setItem(PW_KEY + id, await hash(password));
   auditar(admin.nombre, "Contraseña creada", "Primer ingreso");
   return { ok: true };
@@ -301,7 +301,7 @@ export async function cambiarClave(id: string, actual: string, nueva: string): P
   const guardado = localStorage.getItem(PW_KEY + id);
   if (!guardado) return { ok: false, error: "Todavía no hay una contraseña creada." };
   if ((await hash(actual)) !== guardado) return { ok: false, error: "La contraseña actual no es correcta." };
-  if (nueva.length < 6) return { ok: false, error: "La nueva contraseña debe tener al menos 6 caracteres." };
+  if (nueva.length < 8) return { ok: false, error: "La nueva contraseña debe tener al menos 8 caracteres." };
   localStorage.setItem(PW_KEY + id, await hash(nueva));
   return { ok: true };
 }
