@@ -7668,6 +7668,21 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                     <a href={`https://wa.me/?text=${encodeURIComponent(`Hola ${n.nombre.split(" ")[0]}, este es el link para entrar al panel de HEGO: ${origen}/login (en "Equipo" elija su nombre y ponga su contraseña).`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> WhatsApp</a>
                   </>
                 )}
+                {n.activo && conClave && (
+                  <button
+                    title="Si perdió o cambió el celular: la próxima vez que entre configura la verificación de nuevo"
+                    onClick={async () => {
+                      if (!window.confirm(`¿Restablecer la verificación en dos pasos de ${n.nombre}? Úselo si perdió o cambió el celular.`)) return;
+                      const r = await restablecer2fa(n.id);
+                      if (!r.ok) return toast.error(r.error);
+                      log("Restableció la verificación en dos pasos", n.nombre);
+                      toast.success("Listo. Ya puede entrar solo con su contraseña y volver a activarla.");
+                    }}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  >
+                    Perdió el celular
+                  </button>
+                )}
                 {n.activo && (conClave || !n.invitacion) && (
                   <button onClick={() => { nuevaInvitacion(n); refrescar((x) => x + 1); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">{conClave ? "Reiniciar contraseña" : "Generar link"}</button>
                 )}
