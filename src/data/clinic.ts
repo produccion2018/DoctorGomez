@@ -79,9 +79,9 @@ export function imagenEspecialidad(slug: string) {
 export const CLINICA = {
   nombre: "HEGO · Centro de especialidades médicas",
   claim: "Centro médico especializado en Medicina Interna, Cardiología y Nefrología",
-  direccion: "Av. Libertador 2450, Piso 3 — Ciudad",
-  telefono: "+54 11 4000-1200",
-  whatsapp: "+54 9 11 6000-1200",
+  direccion: "",
+  telefono: "",
+  whatsapp: "",
   email: "contacto@clinicagomezbolano.com",
   horarios: "Lunes a viernes de 08:00 a 20:00 · Sábados de 09:00 a 13:00",
 };
@@ -92,7 +92,7 @@ export const DOCTORS: Doctor[] = [
     nombre: "Dr. Carlos Alonso Gómez Bolaño",
     titulo: "Especialista en Medicina Interna y Cardiología",
     especialidades: ["Medicina Interna", "Cardiología", "Cardiología Crítica", "Ecocardiografía"],
-    matricula: "MN 84.513",
+    matricula: "",
     bio: "Médico internista y cardiólogo, con magíster en Cardiología Crítica. Se dedica a la prevención, el diagnóstico y el tratamiento de las enfermedades del corazón.",
     formacion: [
       "Médico General — Universidad de Guayaquil, Ecuador",
@@ -117,8 +117,8 @@ export const DOCTORS: Doctor[] = [
     nombre: "Dr. Carlos Alberto Gómez Bolaño",
     titulo: "Especialista en Medicina Interna y Nefrología",
     especialidades: ["Medicina Interna", "Nefrología"],
-    matricula: "MN 84.512",
-    bio: "Médico internista y nefrólogo. Acompañe a pacientes con enfermedad renal crónica, hipertensión y diabetes, con una mirada integral y seguimiento continuo.",
+    matricula: "",
+    bio: "Médico internista y nefrólogo. Acompaña a pacientes con enfermedad renal crónica, hipertensión y diabetes, con una mirada integral y seguimiento continuo.",
     formacion: [
       "Médico Cirujano — Universidad de Guayaquil, Ecuador",
       "Especialista en Medicina Interna — Universidad del Zulia, Unidad Docente Hospital General del Sur, Maracaibo",

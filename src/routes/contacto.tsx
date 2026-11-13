@@ -52,7 +52,7 @@ function Contacto() {
 
   const canales = [
     { icon: MessageCircle, t: "WhatsApp", v: sitio.whatsapp, s: "Respuesta más rápida", href: sitio.whatsapp ? waLink("Hola, quisiera hacer una consulta.") : "", c: "from-emerald-400 to-green-600", glow: "group-hover:shadow-[0_18px_40px_-14px_rgba(16,185,129,.8)]" },
-    { icon: Phone, t: "Teléfono", v: sitio.telefono, s: "Llamanos", href: sitio.telefono ? `tel:${sitio.telefono.replace(/\s/g, "")}` : "", c: "from-sky-500 to-blue-700", glow: "group-hover:shadow-[0_18px_40px_-14px_rgba(56,189,248,.8)]" },
+    { icon: Phone, t: "Teléfono", v: sitio.telefono, s: "Llámenos", href: sitio.telefono ? `tel:${sitio.telefono.replace(/\s/g, "")}` : "", c: "from-sky-500 to-blue-700", glow: "group-hover:shadow-[0_18px_40px_-14px_rgba(56,189,248,.8)]" },
     { icon: Mail, t: "Email", v: sitio.email, s: "Estudios y documentación", href: sitio.email ? `mailto:${sitio.email}` : "", c: "from-violet-500 to-indigo-700", glow: "group-hover:shadow-[0_18px_40px_-14px_rgba(139,92,246,.8)]" },
     { icon: MapPin, t: "Dirección", v: sitio.direccion, s: "Ver en el mapa", href: sitio.direccion ? `https://www.google.com/maps?q=${encodeURIComponent(sitio.direccion)}` : "", c: "from-rose-500 to-red-600", glow: "group-hover:shadow-[0_18px_40px_-14px_rgba(244,63,94,.8)]" },
   ];

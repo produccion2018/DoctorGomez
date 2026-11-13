@@ -889,7 +889,9 @@ export type PedidoLab = {
 export const KEY_LAB = "gb_laboratorio";
 
 /* ---------- Facturación ---------- */
-export type TipoComprobante = "Factura B" | "Factura C" | "Recibo";
+export type TipoComprobante = "Factura de venta" | "Cuenta de cobro" | "Recibo de caja" | "Factura B" | "Factura C" | "Recibo"; // los tres últimos: datos viejos
+/** Sigla corta del comprobante (FV, CC, RC). */
+export const siglaComp = (t: string) => (t.startsWith("Factura de venta") ? "FV" : t.startsWith("Cuenta") ? "CC" : t.startsWith("Recibo") ? "RC" : "FV");
 export type Factura = {
   id: string;
   numero: string;
@@ -897,7 +899,7 @@ export type Factura = {
   fecha: string;
   receptor: string;
   docReceptor?: string;
-  cobertura: string; // "Particular" u obra social
+  cobertura: string; // "Particular" o EPS
   items: { desc: string; cant: number; precio: number }[];
   total: number;
   estado: "Emitida" | "Cobrada" | "Anulada";

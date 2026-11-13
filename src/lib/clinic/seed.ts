@@ -48,11 +48,11 @@ export function buildSeed(): DB {
   const users: DB["users"] = [
     {
       id: "u-dir1", nombre: "Dr. Carlos Alberto Gómez Bolaño", email: "alberto@clinica.com", password: "director123",
-      role: "director", activo: true, doctorId: "d1", permisos: ["*"], creadoEl: nowISO, ultimoAcceso: nowISO, telefono: "+54 11 4000-1201",
+      role: "director", activo: true, doctorId: "d1", permisos: ["*"], creadoEl: nowISO, ultimoAcceso: nowISO, telefono: "+57 300 000 1201",
     },
     {
       id: "u-dir2", nombre: "Dr. Carlos Alonso Gómez Bolaño", email: "alonso@clinica.com", password: "director123",
-      role: "director", activo: true, doctorId: "d2", permisos: ["*"], creadoEl: nowISO, ultimoAcceso: nowISO, telefono: "+54 11 4000-1202",
+      role: "director", activo: true, doctorId: "d2", permisos: ["*"], creadoEl: nowISO, ultimoAcceso: nowISO, telefono: "+57 300 000 1202",
     },
     {
       id: "u-med1", nombre: "Dra. Paula Sanabria", email: "medico@clinica.com", password: "medico123",
@@ -71,7 +71,7 @@ export function buildSeed(): DB {
     ...pacientes.map((p, i) => ({
       id: p.id, nombre: p.nombre, email: p.email, password: "paciente123", role: "paciente" as const,
       activo: true, documento: p.doc, permisos: ["turnos.propios"], creadoEl: toISO(addDays(now, -30 + i * 4)),
-      ultimoAcceso: nowISO, telefono: "+54 11 5555-00" + (10 + i),
+      ultimoAcceso: nowISO, telefono: "+57 300 555 00" + (10 + i),
     })),
   ];
 

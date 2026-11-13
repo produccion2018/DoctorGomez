@@ -145,6 +145,7 @@ import {
   KEY_FIRMAS,
   KEY_LAB,
   KEY_FACTURAS,
+  siglaComp,
   KEY_AUTOS,
   KEY_AUTOS_HECHAS,
   type PacienteClinica,
@@ -5048,7 +5049,7 @@ function exportarCSV(nombre: string, filas: (string | number | undefined)[][]) {
 }
 
 /** Selector de paciente con buscador. */
-function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteHC[]; valor: string; onChange: (id: string) => void }) {
+function SelectorPaciente({ pacientes, valor, onChange, arriba = false }: { pacientes: PacienteHC[]; valor: string; onChange: (id: string) => void; arriba?: boolean }) {
   const [q, setQ] = useState("");
   const [abierto, setAbierto] = useState(false);
   const sel = pacientes.find((p) => p.id === valor);
@@ -5060,7 +5061,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
         <ChevronDown className="size-4 text-muted-foreground" />
       </button>
       {abierto && (
-        <div className="absolute inset-x-0 top-12 z-30 rounded-xl border border-border bg-card p-2 shadow-2xl">
+        <div className={`absolute inset-x-0 z-30 rounded-xl border border-border bg-card p-2 shadow-2xl ${arriba ? "bottom-12" : "top-12"}`}>
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar…" className={inp + " h-9"} />
           <ul className="mt-1 max-h-60 overflow-y-auto">
             {lista.map((p) => (
@@ -5447,11 +5448,12 @@ const MEDICAMENTOS_FRECUENTES = [
   "Bicarbonato de sodio", "Eritropoyetina", "Hierro sacarato", "Alopurinol", "Febuxostat", "Metformina", "Levotiroxina", "Omeprazol",
 ];
 
-function datosMedico(user: SessionUser) {
+function datosMedico(user: SessionUser, firmas?: Record<string, string>) {
   const d = DOCTORS.find((x) => x.foto === user.id);
+  const rm = firmas?.[`rm:${user.id}`]?.trim();
   return {
     nombre: d?.nombre ?? user.nombre,
-    matricula: d?.matricula ?? "",
+    matricula: rm ? `R.M. ${rm}` : d?.matricula ?? "",
     especialidad: user.id === "alonso" ? "Cardiología" : user.id === "alberto" ? "Nefrología" : (user.area ?? "Medicina General").replace(" (médicos)", ""),
     titulo: d?.titulo ?? "",
   };
@@ -5545,7 +5547,7 @@ function selloSvg(m: { nombre: string; especialidad: string; matricula: string }
 <text x="100" y="${l2 ? 96 : 104}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12.5" font-weight="700" stroke="none" textLength="${Math.min(112, l1.length * 7.2)}" lengthAdjust="spacingAndGlyphs">${esc(l1)}</text>
 ${l2 ? `<text x="100" y="112" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12.5" font-weight="700" stroke="none" textLength="${Math.min(112, l2.length * 7.2)}" lengthAdjust="spacingAndGlyphs">${esc(l2)}</text>` : ""}
 <line x1="64" y1="121" x2="136" y2="121" stroke-width="0.9"/>
-<text x="100" y="135" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" stroke="none">${esc(m.matricula ? `Reg. médico ${m.matricula}` : "Médico especialista")}</text>
+<text x="100" y="135" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" stroke="none">${esc(m.matricula || "Médico especialista")}</text>
 <text x="100" y="147" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" stroke="none" letter-spacing="1">COLOMBIA</text>
 </g></svg>`;
 }
@@ -5600,7 +5602,7 @@ h2{margin:22px 0 6px;font-size:10px;letter-spacing:.22em;text-transform:uppercas
 @media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style></head><body><div class="hoja"><div class="marca"></div>
 <div class="top"><div><div class="marcas"><img src="${logo}" alt=""><div><h1>HEGO</h1><p class="sub">Centro de especialidades médicas</p></div></div>
-<p class="doc"><b>${r.doctor}</b> · ${r.especialidad}${r.matricula ? ` · Reg. ${r.matricula}` : ""}</p></div><div class="rx">Rp/</div>
+<p class="doc"><b>${r.doctor}</b> · ${r.especialidad}${r.matricula ? ` · ${r.matricula}` : ""}</p></div><div class="rx">Rp/</div>
 <svg class="ecg" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline fill="none" stroke="#fff" stroke-width="1.6" points="0,18 120,18 135,18 142,4 150,28 158,10 165,18 300,18 315,18 322,4 330,28 338,10 345,18 480,18 495,18 502,4 510,28 518,10 525,18 600,18"/></svg></div>
 <div class="franja"></div>
 <div class="body">${r.anulada ? `<div class="anulada">ANULADA</div>` : ""}
@@ -5610,7 +5612,7 @@ ${r.afiliado ? `<div class="full"><small>Afiliado</small>${r.afiliado}</div>` : 
 <h2>Prescripción</h2>${items}
 <p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
 <div class="pie"><div class="ver">${qr ? `<img src="${qr}" alt="QR">` : ""}<div class="cod">Código de verificación<b>${r.codigo}</b>Firmada digitalmente<br>${new Date(r.fecha).toLocaleString("es-CO")}</div></div>
-<div class="firma"><div class="sello">${sello}</div><div class="f">${firma ? `<img src="${firma}" alt="Firma">` : ""}</div><div class="l"><b>${r.doctor}</b><br>${r.especialidad}${r.matricula ? ` · Reg. ${r.matricula}` : ""}</div></div></div>
+<div class="firma"><div class="sello">${sello}</div><div class="f">${firma ? `<img src="${firma}" alt="Firma">` : ""}</div><div class="l"><b>${r.doctor}</b><br>${r.especialidad}${r.matricula ? ` · ${r.matricula}` : ""}</div></div></div>
 <p class="legal">Documento generado por HEGO · Centro de especialidades médicas. Verifique la receta con el código o el QR.</p>
 </div></div><script>window.onload=()=>setTimeout(()=>window.print(),400)</script></body></html>`;
 }
@@ -5636,8 +5638,9 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
   const vacioItem = (): ItemReceta => ({ droga: "", presentacion: "", cantidad: "1 caja", posologia: "" });
   const [items, setItems] = useState<ItemReceta[]>([vacioItem()]);
   const [q, setQ] = useState("");
-  const med = datosMedico(user);
+  const med = datosMedico(user, firmas);
   const firma = firmas[user.id];
+  const [rm, setRm] = useState(firmas[`rm:${user.id}`] ?? "");
   const pac = pacientes.find((p) => p.id === pacId);
 
   const emitir = (e: FormEvent) => {
@@ -5701,7 +5704,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Receta digital</p>
                 <h3 className="font-display text-2xl font-semibold tracking-tight">Nueva receta</h3>
-                <p className="mt-0.5 text-xs text-white/75">{med.nombre} · {med.especialidad}{med.matricula ? ` · Reg. ${med.matricula}` : ""}</p>
+                <p className="mt-0.5 text-xs text-white/75">{med.nombre} · {med.especialidad}{med.matricula ? ` · ${med.matricula}` : ""}</p>
               </div>
               <div className="flex gap-1.5 text-[11px] font-semibold">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 ${firma ? "bg-emerald-400/20 text-emerald-100 ring-emerald-300/30" : "bg-amber-400/20 text-amber-100 ring-amber-300/30"}`}>{firma ? <Check className="size-3" /> : <AlertTriangle className="size-3" />} Firma</span>
@@ -5783,6 +5786,23 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
             </div>
           </Seccion>
           <Seccion icon={PenLine} titulo="Firma y sello" sub={firma ? "Registrados · se usan en cada receta" : "Dibuje su firma una sola vez"} delay={0.05}>
+            <form
+              className="mb-4 flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = rm.replace(/^R\.?\s*M\.?\s*/i, "").trim();
+                setFirmas((p) => ({ ...p, [`rm:${user.id}`]: v }));
+                setRm(v);
+                log("Registro médico actualizado", v || "(vacío)");
+                toast.success(v ? "Registro médico guardado: sale en la receta y en el sello" : "Registro médico borrado");
+              }}
+            >
+              <label className="flex-1">
+                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Registro médico (R.M.)</span>
+                <input value={rm} onChange={(e) => setRm(e.target.value)} placeholder="Ej.: 1234567" className={inp} />
+              </label>
+              <Button type="submit" variant="outline" className="h-11 rounded-xl"><Check className="size-4" /> Guardar</Button>
+            </form>
             {firmando ? (
               <FirmaPad
                 onCancelar={() => setFirmando(false)}
@@ -6008,7 +6028,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
   const [cargando, setCargando] = useState<PedidoLab | null>(null);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [verEstado, setVerEstado] = useState<"todos" | EstadoLab>("todos");
-  const med = datosMedico(user);
+  const med = datosMedico(user, firmas);
 
   const crear = (e: FormEvent) => {
     e.preventDefault();
@@ -6191,7 +6211,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                     <button onClick={() => { setCargando(p); setNuevo(false); setValores(Object.fromEntries(Object.entries(p.resultados).map(([k, v]) => [k, String(v)]))); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="inline-flex items-center gap-1 rounded-lg bg-[rgba(var(--acc),.1)] px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))]">
                       <Pencil className="size-3.5" /> {p.estado === "Resultado" ? "Editar resultados" : "Cargar resultados"}
                     </button>
-                    <button onClick={() => imprimirHtml(htmlOrdenLab(p, datosMedico({ id: ADMINS.find((a) => a.nombre === p.doctor)?.id ?? user.id, nombre: p.doctor }), firmas[ADMINS.find((a) => a.nombre === p.doctor)?.id ?? ""]))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Orden</button>
+                    <button onClick={() => imprimirHtml(htmlOrdenLab(p, datosMedico({ id: ADMINS.find((a) => a.nombre === p.doctor)?.id ?? user.id, nombre: p.doctor }, firmas), firmas[ADMINS.find((a) => a.nombre === p.doctor)?.id ?? ""]))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Orden</button>
                   </div>
                 </div>
                 {p.estado === "Resultado" && Object.keys(p.resultados).length > 0 && (
@@ -6237,7 +6257,7 @@ function htmlFactura(f: Factura) {
 .letra{font-size:34px;font-weight:800;border:2px solid #0f172a;border-radius:8px;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
 h1{margin:0;font-size:20px}.m{color:#64748b;font-size:12px;margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border-bottom:1px solid #e2e8f0;padding:9px;font-size:13px;text-align:left}
 .tot{text-align:right;font-size:20px;font-weight:800;margin-top:14px}.nota{margin-top:26px;font-size:11px;color:#64748b;border-top:1px dashed #cbd5e1;padding-top:10px}</style></head><body>
-<div class="cab"><div><h1>HEGO · Centro de especialidades médicas</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</div>
+<div class="cab"><div><h1>HEGO · Centro de especialidades médicas</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${siglaComp(f.tipo)}</div>
 <div style="text-align:right"><b>${f.tipo}</b><p class="m">N° ${f.numero}</p><p class="m">${fechaDe(f.fecha)}</p></div></div>
 <p style="margin-top:16px;font-size:14px"><b>Receptor:</b> ${f.receptor}${f.docReceptor ? ` · ${f.docReceptor}` : ""}<br><b>Cobertura:</b> ${f.cobertura}</p>
 <table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
@@ -6258,7 +6278,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
     return `0001-${String(n).padStart(8, "0")}`;
   };
   const nuevo = (base?: Partial<Factura>) =>
-    setForm({ tipo: "Factura C", fecha: new Date().toISOString(), receptor: "", cobertura: "Particular", items: [{ desc: SERVICIOS[0]?.nombre ?? "Consulta", cant: 1, precio: SERVICIOS[0]?.precio ?? 0 }], ...base } as Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total">);
+    setForm({ tipo: "Factura de venta", fecha: new Date().toISOString(), receptor: "", cobertura: "Particular", items: [{ desc: SERVICIOS[0]?.nombre ?? "Consulta", cant: 1, precio: SERVICIOS[0]?.precio ?? 0 }], ...base } as Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total">);
 
   const emitir = (e: FormEvent) => {
     e.preventDefault();
@@ -6320,7 +6340,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Campo label="Tipo">
               <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value as TipoComprobante })} className={inp}>
-                <option>Factura C</option><option>Factura B</option><option>Recibo</option>
+                <option>Factura de venta</option><option>Cuenta de cobro</option><option>Recibo de caja</option>
               </select>
             </Campo>
             <Campo label="Paciente / receptor">
@@ -6388,7 +6408,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
               {lista.map((f) => (
                 <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-sm font-bold text-white">{f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</span>
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-sm font-bold text-white">{siglaComp(f.tipo)}</span>
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span></p>
                       <p className="text-xs text-muted-foreground">{f.tipo} {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}</p>
@@ -7460,7 +7480,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                   ))}
                   {facturas.map((f) => (
                     <Fila key={f.id}>
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-sm font-bold">{f.tipo === "Recibo" ? "R" : f.tipo.slice(-1)}</span>
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-sm font-bold">{siglaComp(f.tipo)}</span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{f.tipo} {f.numero}</p>
                         <p className="text-xs text-muted-foreground">{fechaHora(f.fecha)} · {f.cobertura}</p>
@@ -7657,7 +7677,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
             </ul>
             <div className="mt-3 border-t border-border/60 pt-3">
               <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Otro paciente</p>
-              <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={elegir} />
+              <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={elegir} arriba />
             </div>
           </aside>
 

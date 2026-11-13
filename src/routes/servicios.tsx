@@ -69,7 +69,7 @@ function Servicios() {
         kicker="Servicios"
         decoracion={<FondoEspecialidades />}
         title={<>Consultas y estudios con <span className="text-shine italic">cita en línea</span></>}
-        text="Consultas y estudios de cada especialidad. El valor de la consulta y la cobertura de su EPS o prepagada le los confirmamos al reservar."
+        text="Consultas y estudios de cada especialidad. El valor de la consulta y la cobertura de su EPS o prepagada se los confirmamos al reservar."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Servicios" }]}
       />
 
