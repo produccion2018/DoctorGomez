@@ -95,6 +95,7 @@ import {
   sesionActual,
   sincronizarPersonal,
   validarSesion,
+  refrescarTodo,
   modoServidor,
   useDato,
   leerDato,
@@ -495,9 +496,13 @@ function Panel() {
   const [focoTurnos, setFocoTurnos] = useState<FocoTurnos>(null);
   const [turnos, setTurnosDato] = useDato<Turno[]>("gb_turnos", SEED_TURNOS);
   const setTurnos = useCallback((v: SetStateAction<Turno[]>) => setTurnosDato((p) => (typeof v === "function" ? (v as (x: Turno[]) => Turno[])(p) : v)), [setTurnosDato]);
-  const [movs, setMovs] = usePersist<Mov[]>("gb_movs", SEED_MOVS);
-  const [permisos, setPermisos] = usePersist<Permisos>("gb_permisos", SEED_PERMISOS);
+  const [movs, setMovsDato] = useDato<Mov[]>("gb_movs", SEED_MOVS);
+  const setMovs = useCallback((v: SetStateAction<Mov[]>) => setMovsDato((p) => (typeof v === "function" ? (v as (x: Mov[]) => Mov[])(p) : v)), [setMovsDato]);
+  const [permisos, setPermisosDato] = useDato<Permisos>("gb_permisos", SEED_PERMISOS);
+  const setPermisos = useCallback((v: SetStateAction<Permisos>) => setPermisosDato((p) => (typeof v === "function" ? (v as (x: Permisos) => Permisos)(p) : v)), [setPermisosDato]);
+  const [auditGuardada] = useDato<Evento[]>("gb_audit", []);
   const [audit, setAudit] = useState<Evento[]>([]);
+  useEffect(() => setAudit(auditGuardada), [auditGuardada]);
   const [ahora, setAhora] = useState(() => new Date());
 
   useEffect(() => {
@@ -519,6 +524,7 @@ function Panel() {
       }
       setUser(v);
       if (v.rol === "medico") void sincronizarPersonal();
+      void refrescarTodo();
     });
   }, [navigate]);
 

@@ -4,7 +4,17 @@ import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server
 
 const db = async () => (await import("./db.server")).db();
 
-export const COLECCIONES = ["gb_turnos", "gb_padron", "gb_pacientes"] as const;
+export const COLECCIONES = [
+  "gb_turnos", "gb_padron", "gb_pacientes",
+  "gb_evoluciones", "gb_triage", "gb_recetas", "gb_laboratorio", "gb_estudios",
+  "gb_controles", "gb_medicacion", "gb_autorizaciones",
+  "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
+  "gb_audit",
+] as const;
+/** Colecciones donde el paciente ve solo sus registros. */
+export const DEL_PACIENTE: readonly string[] = ["gb_turnos", "gb_estudios", "gb_controles", "gb_medicacion", "gb_autorizaciones", "gb_cobros", "gb_recetas", "gb_laboratorio"];
+/** Colecciones que el paciente puede editar (solo lo suyo). */
+export const EDITA_PACIENTE: readonly string[] = ["gb_controles", "gb_medicacion", "gb_autorizaciones"];
 export type Coleccion = (typeof COLECCIONES)[number];
 export const esColeccion = (c: string): c is Coleccion => (COLECCIONES as readonly string[]).includes(c);
 
@@ -13,7 +23,9 @@ const COOKIE_PAC = "gb_pac";
 
 export async function leer(col: Coleccion): Promise<Fila[]> {
   const sql = await db();
-  const filas = (await sql`SELECT valor FROM registros WHERE coleccion = ${col} ORDER BY actualizado`) as { valor: Fila }[];
+  const filas = (col === "gb_audit"
+    ? await sql`SELECT valor FROM registros WHERE coleccion = ${col} ORDER BY valor->>'fecha' DESC LIMIT 1000`
+    : await sql`SELECT valor FROM registros WHERE coleccion = ${col} ORDER BY actualizado`) as { valor: Fila }[];
   return filas.map((f) => f.valor);
 }
 

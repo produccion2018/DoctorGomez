@@ -10,6 +10,10 @@ type Resultado<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 /** Datos que cualquiera puede leer (se muestran en la web pública). */
 const PUBLICOS = ["gb_sitio", "gb_agenda"] as const;
+/** Datos internos: los lee y guarda cualquier persona del equipo con sesión. */
+const PRIVADOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas"] as const;
+/** Datos internos que solo los médicos pueden modificar. */
+const PRIVADOS_MEDICOS = ["gb_permisos"] as const;
 /** Datos que solo los médicos administradores pueden modificar. */
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
@@ -42,7 +46,9 @@ export const leerDatos = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { hayBase, db } = await modulo();
     if (!hayBase()) return {} as Record<string, string>;
-    const permitidas = data.claves.filter((c) => (PUBLICOS as readonly string[]).includes(c));
+    let permitidas = data.claves.filter((c) => (PUBLICOS as readonly string[]).includes(c));
+    const internas = data.claves.filter((c) => ([...PRIVADOS, ...PRIVADOS_MEDICOS] as readonly string[]).includes(c));
+    if (internas.length && (await (await acceso()).usuarioActual())) permitidas = [...permitidas, ...internas];
     if (!permitidas.length) return {} as Record<string, string>;
     const sql = await db();
     const filas = (await sql`SELECT clave, valor FROM datos WHERE clave = ANY(${permitidas})`) as { clave: string; valor: unknown }[];
@@ -53,10 +59,17 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
   .validator((d: { clave: string; valor: string }) => d)
   .handler(async ({ data }): Promise<Resultado> => {
     const { db } = await modulo();
-    if (!(SOLO_MEDICOS as readonly string[]).includes(data.clave)) return { ok: false, error: "Dato no habilitado." };
+    const deMedicos = ([...SOLO_MEDICOS, ...PRIVADOS_MEDICOS] as readonly string[]).includes(data.clave);
+    if (!deMedicos && !(PRIVADOS as readonly string[]).includes(data.clave)) return { ok: false, error: "Dato no habilitado." };
     let u: UsuarioServidor;
     try {
-      u = await (await acceso()).exigirMedico();
+      const a = await acceso();
+      if (deMedicos) u = await a.exigirMedico();
+      else {
+        const x = await a.usuarioActual();
+        if (!x) throw new Error("Tu sesión venció. Volvé a ingresar.");
+        u = x;
+      }
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }
@@ -296,8 +309,8 @@ export const leerColeccion = createServerFn({ method: "GET" })
     if (!q) return { ok: false, error: "Sin sesión." };
     let filas = await c.leer(data.coleccion);
     if (q.tipo === "paciente") {
-      if (data.coleccion === "gb_turnos") filas = filas.filter((t) => t["pacienteId"] === q.id);
-      else if (data.coleccion === "gb_pacientes") filas = filas.filter((p) => p.id === q.id);
+      if (data.coleccion === "gb_pacientes") filas = filas.filter((p) => p.id === q.id);
+      else if (c.DEL_PACIENTE.includes(data.coleccion)) filas = filas.filter((t) => t["pacienteId"] === q.id);
       else filas = [];
     }
     return { ok: true, json: JSON.stringify(filas) };
@@ -319,6 +332,23 @@ export const aplicarCambios = createServerFn({ method: "POST" })
       return { ok: true };
     }
 
+    // Paciente: lo que carga en su portal (controles, medicación, autorizaciones) solo si es suyo
+    if (c.EDITA_PACIENTE.includes(data.coleccion)) {
+      for (const f of filas) {
+        const previo = await c.uno(data.coleccion, f.id);
+        if (previo && previo["pacienteId"] !== q.id) return { ok: false, error: "No autorizado." };
+        await c.guardar(data.coleccion, { ...f, pacienteId: q.id });
+      }
+      for (const id of data.borrar) {
+        const previo = await c.uno(data.coleccion, id);
+        if (previo && previo["pacienteId"] === q.id) await c.borrar(data.coleccion, [id]);
+      }
+      return { ok: true };
+    }
+    if (data.coleccion === "gb_audit") {
+      for (const f of filas) if (!(await c.uno("gb_audit", f.id))) await c.guardar("gb_audit", { ...f, usuario: q.nombre });
+      return { ok: true };
+    }
     // Paciente: solo pedir/cancelar sus turnos y editar su perfil
     if (data.borrar.length) return { ok: false, error: "No autorizado." };
     if (data.coleccion === "gb_turnos") {

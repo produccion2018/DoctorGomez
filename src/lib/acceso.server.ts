@@ -33,7 +33,9 @@ export async function auditar(usuario: string, accion: string, detalle = "") {
   try {
     const { db } = await modulo();
     const sql = await db();
-    await sql`INSERT INTO auditoria (usuario, accion, detalle) VALUES (${usuario}, ${accion}, ${detalle})`;
+    const id = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    const ev = { id, fecha: new Date().toISOString(), usuario, accion, detalle };
+    await sql`INSERT INTO registros (coleccion, id, valor) VALUES ('gb_audit', ${id}, ${JSON.stringify(ev)}::jsonb)`;
   } catch {
     /* la auditoría nunca bloquea */
   }

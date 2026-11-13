@@ -239,6 +239,7 @@ export function auditar(usuario: string, accion: string, detalle = ""): Evento[]
   };
   const lista = [evento, ...leerAuditoria()].slice(0, 500);
   localStorage.setItem(AUDIT_KEY, JSON.stringify(lista));
+  if (modoServidor() && hayQuien()) void enviarCambios(AUDIT_KEY, [], [evento]);
   return lista;
 }
 
@@ -332,7 +333,8 @@ export function guardarDato<T>(key: string, val: T) {
 }
 
 /** Datos que viven en el servidor y se ven en la web pública. */
-const SINCRONIZADOS = ["gb_sitio", "gb_agenda"];
+const SINCRONIZADOS = ["gb_sitio", "gb_agenda", "gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos"];
+const INTERNOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos"];
 const traidos = new Map<string, Promise<void>>();
 
 function traerDelServidor(key: string): Promise<void> {
@@ -341,6 +343,7 @@ function traerDelServidor(key: string): Promise<void> {
       key,
       (async () => {
         if (!(await iniciarBackend())) return;
+        if (INTERNOS.includes(key) && !sesionActual()) return;
         const r = await leerDatos({ data: { claves: [key] } }).catch(() => ({}) as Record<string, string>);
         const remoto = r[key];
         if (remoto !== undefined) {
@@ -359,9 +362,22 @@ function traerDelServidor(key: string): Promise<void> {
 }
 
 /* ---------- Colecciones fila por fila (turnos, padrón, pacientes) ---------- */
-const COLECCIONES = ["gb_turnos", "gb_padron", "gb_pacientes"];
+const COLECCIONES = [
+  "gb_turnos", "gb_padron", "gb_pacientes",
+  "gb_evoluciones", "gb_triage", "gb_recetas", "gb_laboratorio", "gb_estudios",
+  "gb_controles", "gb_medicacion", "gb_autorizaciones",
+  "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
+  "gb_audit",
+];
 type ConId = { id: string };
 const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");
+
+/** Vuelve a traer del servidor todo lo que el panel usa (al iniciar sesión). */
+export async function refrescarTodo() {
+  if (!(await iniciarBackend())) return;
+  for (const k of INTERNOS) traidos.delete(k);
+  await Promise.all([...INTERNOS.map((k) => traerDelServidor(k)), ...COLECCIONES.map((k) => traerColeccion(k))]);
+}
 
 async function traerColeccion(key: string) {
   if (!(await iniciarBackend()) || !hayQuien()) return;
