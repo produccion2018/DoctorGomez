@@ -18,7 +18,11 @@ const PRIVADOS_MEDICOS = ["gb_permisos"] as const;
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
 
-import { permiteColeccion, type Permisos } from "./permisos";
+import { permiteColeccion, nivelDe, type Permisos } from "./permisos";
+const permiteModulo = (p: Permisos, area: string, modulo: string, accion: "ver" | "editar") => {
+  const n = nivelDe(p, area, modulo);
+  return accion === "ver" ? n !== "ninguno" : n === "editar";
+};
 const modulo = () => import("./db.server");
 const acceso = () => import("./acceso.server");
 
@@ -60,12 +64,20 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
   .validator((d: { clave: string; valor: string }) => d)
   .handler(async ({ data }): Promise<Resultado> => {
     const { db } = await modulo();
-    const deMedicos = ([...SOLO_MEDICOS, ...PRIVADOS_MEDICOS] as readonly string[]).includes(data.clave);
+    const esAgenda = data.clave === "gb_agenda";
+    const deMedicos = !esAgenda && ([...SOLO_MEDICOS, ...PRIVADOS_MEDICOS] as readonly string[]).includes(data.clave);
     if (!deMedicos && !(PRIVADOS as readonly string[]).includes(data.clave)) return { ok: false, error: "Dato no habilitado." };
     let u: UsuarioServidor;
     try {
       const a = await acceso();
       if (deMedicos) u = await a.exigirMedico();
+      else if (esAgenda) {
+        // Agenda: los médicos, o el personal con permiso de editar Horarios (secretaría)
+        const x = await a.usuarioActual();
+        if (!x) throw new Error("Tu sesión venció. Volvé a ingresar.");
+        if (x.rol !== "medico" && !permiteModulo(await permisosGuardados(), x.area ?? "", "Horarios", "editar")) throw new Error("Tu área no tiene permiso para modificar horarios.");
+        u = x;
+      }
       else {
         const x = await a.usuarioActual();
         if (!x) throw new Error("Tu sesión venció. Volvé a ingresar.");
@@ -78,10 +90,19 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
     let json = data.valor;
     if (data.clave === "gb_agenda") {
       // Cada médico solo puede guardar SU agenda: se toma su parte y se conserva la del otro
+      // Cada médico solo cambia SU agenda; las de los demás profesionales las cambian
+      // los médicos o la secretaría. La agenda de un médico nunca la toca otro.
       const nuevo = JSON.parse(data.valor || "{}") as Record<string, unknown>;
       const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_agenda'`) as { valor: Record<string, unknown> }[];
-      const actual = filas[0]?.valor ?? {};
-      json = JSON.stringify({ ...actual, ...(u.id in nuevo ? { [u.id]: nuevo[u.id] } : {}) });
+      const actual: Record<string, unknown> = { ...(filas[0]?.valor ?? {}) };
+      const admins = ["alonso", "alberto"];
+      const puede = (k: string) => (admins.includes(k) ? u.rol === "medico" && k === u.id : true);
+      for (const k of new Set([...Object.keys(actual), ...Object.keys(nuevo)])) {
+        if (!puede(k)) continue;
+        if (k in nuevo) actual[k] = nuevo[k];
+        else if (!admins.includes(k)) delete actual[k];
+      }
+      json = JSON.stringify(actual);
     }
     await sql`INSERT INTO datos (clave, valor, por, actualizado) VALUES (${data.clave}, ${json}::jsonb, ${u.nombre}, now())
       ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, por = EXCLUDED.por, actualizado = now()`;

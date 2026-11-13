@@ -132,6 +132,19 @@ export const ADMINS: Admin[] = [
   { id: "alonso", nombre: "Dr. Carlos Alonso Gómez Bolaño" },
   { id: "alberto", nombre: "Dr. Carlos Alberto Gómez Bolaño" },
 ];
+export const ADMIN_IDS = ADMINS.map((a) => a.id);
+
+/** Todos los profesionales con agenda: los dos médicos y los que agregó la secretaría. */
+export type ProfesionalAgenda = { id: string; nombre: string; especialidad: string; admin: boolean };
+export function profesionalesAgenda(agendas: Record<string, { nombre?: string; especialidad?: string }>): ProfesionalAgenda[] {
+  const esp: Record<string, string> = { alonso: "Cardiología", alberto: "Nefrología" };
+  return [
+    ...ADMINS.map((a) => ({ id: a.id, nombre: a.nombre, especialidad: esp[a.id] ?? "", admin: true })),
+    ...Object.entries(agendas)
+      .filter(([id, a]) => !ADMIN_IDS.includes(id) && a?.nombre)
+      .map(([id, a]) => ({ id, nombre: a.nombre!, especialidad: a.especialidad ?? "", admin: false })),
+  ];
+}
 
 /* ---------- Personal de enfermería (lo dan de alta los médicos) ---------- */
 /** Persona del equipo con acceso al panel (enfermería, recepción, secretaría, etc.). */
@@ -518,9 +531,13 @@ export type AgendaDoctor = {
   consultorio: string;
   nota: string;
   bloqueos: Bloqueo[];
-  /** Horario propio de cada día (clave = número de día). Si un día no tiene, usa desde/hasta. */
-  porDia?: Record<string, { desde: string; hasta: string }>;
+  /** Horario propio de cada día (clave = número de día), con pausa opcional de ese día. */
+  porDia?: Record<string, RangoDia>;
+  /** Solo profesionales que no son los médicos administradores (los carga la secretaría). */
+  nombre?: string;
+  especialidad?: string;
 };
+export type RangoDia = { desde: string; hasta: string; pausaDesde?: string; pausaHasta?: string };
 export type Agendas = Record<string, AgendaDoctor>;
 export const KEY_AGENDA = "gb_agenda";
 export const NOMBRES_DIA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -530,9 +547,9 @@ const agendaBase = (consultorio: string): AgendaDoctor => ({
   dias: [], // en blanco: cada médico carga sus días y horarios desde el panel
   desde: "08:00",
   hasta: "18:40",
-  duracion: 40,
-  pausa: true,
-  pausaDesde: "12:40",
+  duracion: 0, // la elige cada profesional
+  pausa: false,
+  pausaDesde: "13:00",
   pausaHasta: "14:00",
   consultorio,
   nota: "",
@@ -557,21 +574,23 @@ export const isoDe = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** Horario (desde / hasta) de un día de la semana: el propio del día o el general. */
-export function rangoDia(a: AgendaDoctor, dia: number): { desde: string; hasta: string } {
-  return a.porDia?.[String(dia)] ?? { desde: a.desde, hasta: a.hasta };
+export function rangoDia(a: AgendaDoctor, dia: number): RangoDia {
+  return a.porDia?.[String(dia)] ?? { desde: a.desde, hasta: a.hasta, ...(a.pausa ? { pausaDesde: a.pausaDesde, pausaHasta: a.pausaHasta } : {}) };
 }
 
 /** Horarios de inicio de turno. Con fecha usa el horario de ese día; sin fecha, el general. */
 export function horariosDelDia(a: AgendaDoctor, fecha?: string): string[] {
-  const r = fecha ? rangoDia(a, new Date(fecha + "T12:00:00").getDay()) : { desde: a.desde, hasta: a.hasta };
+  const r = fecha ? rangoDia(a, new Date(fecha + "T12:00:00").getDay()) : rangoDia(a, -1);
   const out: string[] = [];
+  if (!a.duracion || a.duracion < 5) return out; // sin duración elegida todavía
   const fin = aMin(r.hasta);
-  const pD = aMin(a.pausaDesde);
-  const pH = aMin(a.pausaHasta);
+  const hayPausa = !!(r.pausaDesde && r.pausaHasta && r.pausaDesde < r.pausaHasta);
+  const pD = aMin(r.pausaDesde ?? "00:00");
+  const pH = aMin(r.pausaHasta ?? "00:00");
   let t = aMin(r.desde);
-  const dur = Math.max(5, Number(a.duracion) || 5);
+  const dur = a.duracion;
   while (t + dur <= fin && out.length < 300) {
-    if (a.pausa && t < pH && t + dur > pD) {
+    if (hayPausa && t < pH && t + dur > pD) {
       t = pH;
       continue;
     }
@@ -587,7 +606,7 @@ export function bloqueoEn(a: AgendaDoctor, fecha: string): Bloqueo | undefined {
 
 export function atiendeEl(a: AgendaDoctor, fecha: string): boolean {
   const d = new Date(fecha + "T12:00:00");
-  return a.activo && a.dias.includes(d.getDay()) && !bloqueoEn(a, fecha);
+  return a.activo && (a.duracion ?? 0) >= 5 && a.dias.includes(d.getDay()) && !bloqueoEn(a, fecha);
 }
 
 /** Próximos días en que el doctor atiende. */
@@ -607,12 +626,12 @@ export function resumenAgenda(a: AgendaDoctor): string {
   if (a.dias.length === 0) return "Horarios a confirmar";
   const d = [...a.dias].sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7));
   const corto = (n: number) => NOMBRES_DIA[n]!.slice(0, 3);
-  const pausa = a.pausa ? ` (pausa ${a.pausaDesde}–${a.pausaHasta})` : "";
+  const pausa = "";
   // Agrupa los días que comparten horario
   const grupos = new Map<string, number[]>();
   for (const n of d) {
     const r = rangoDia(a, n);
-    const k = `${r.desde}–${r.hasta}`;
+    const k = `${r.desde}–${r.hasta}` + (r.pausaDesde && r.pausaHasta ? ` (pausa ${r.pausaDesde}–${r.pausaHasta})` : "");
     grupos.set(k, [...(grupos.get(k) ?? []), n]);
   }
   const nombreDias = (ds: number[]) => {

@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
+import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -65,6 +65,8 @@ const nombrePanel = (doctorId: string) => {
   return ADMINS.find((a) => a.id === d?.foto)?.nombre ?? d?.nombre ?? "";
 };
 
+type Prof = { id: string; nombre: string; titulo: string; img: string | null; agendaId: string; panel: string; esp: string | null };
+
 const inp =
   "h-12 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/15";
 
@@ -105,15 +107,28 @@ function Turnos() {
   };
 
   const especialidad = ESPECIALIDADES.find((e) => e.slug === esp);
-  const doctor = DOCTORS.find((d) => d.id === doc);
-  const doctoresDisp = especialidad ? DOCTORS.filter((d) => especialidad.doctorIds.includes(d.id)) : DOCTORS;
+  // Profesionales: los dos médicos y los que la secretaría agregó a la agenda
+  const todos: Prof[] = useMemo(
+    () => [
+      ...DOCTORS.map((d) => ({ id: d.id, nombre: d.nombre, titulo: d.titulo, img: fotoDoctor(d.foto), agendaId: d.foto, panel: nombrePanel(d.id), esp: null as string | null })),
+      ...profesionalesAgenda(agendas)
+        .filter((p) => !p.admin)
+        .map((p) => ({ id: p.id, nombre: p.nombre, titulo: p.especialidad, img: null, agendaId: p.id, panel: p.nombre, esp: p.especialidad })),
+    ],
+    [agendas],
+  );
+  const doctor = todos.find((d) => d.id === doc);
+  const sinTilde = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const doctoresDisp = especialidad
+    ? todos.filter((d) => (d.esp === null ? especialidad.doctorIds.includes(d.id) : sinTilde(d.esp) === sinTilde(especialidad.nombre)))
+    : todos;
 
-  const agenda = doctor ? agendaDe(agendas, doctor.foto) : null;
+  const agenda = doctor ? agendaDe(agendas, doctor.agendaId) : null;
   const fechas = useMemo(() => (agenda ? proximosDias(agenda, 15).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda]);
 
   const horarios = useMemo(() => {
     if (!doctor || !fecha || !agenda || !atiendeEl(agenda, fecha)) return [] as { h: string; libre: boolean }[];
-    const nom = nombrePanel(doctor.id);
+    const nom = doctor.panel;
     const ahora = new Date();
     const esHoy = fecha === iso(ahora);
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
@@ -126,7 +141,7 @@ function Turnos() {
   const confirmar = async (e: FormEvent) => {
     e.preventDefault();
     if (!doctor || !fecha || !hora || !especialidad) return;
-    const nom = nombrePanel(doctor.id);
+    const nom = doctor.panel;
     const motivo = especialidad.nombre + (datos.comentario.trim() ? ` · ${datos.comentario.trim()}` : "");
     const r = await reservarTurnoWeb({ fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim() });
     if (r) {
@@ -276,7 +291,7 @@ function Turnos() {
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                   {doctoresDisp.map((d) => {
                     const on = doc === d.id;
-                    const ag = agendaDe(agendas, d.foto);
+                    const ag = agendaDe(agendas, d.agendaId);
                     const sinAgenda = !ag.activo || proximosDias(ag, 15).length === 0;
                     return (
                       <button
@@ -290,7 +305,11 @@ function Turnos() {
                         }}
                         className={`group flex gap-5 overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${on ? "border-primary bg-secondary/60 shadow-elevated ring-4 ring-primary/10" : "border-border bg-card shadow-card hover:-translate-y-1 hover:border-primary/30"}`}
                       >
-                        <img src={fotoDoctor(d.foto)} alt={d.nombre} className="h-28 w-24 shrink-0 rounded-2xl object-cover object-top" />
+                        {d.img ? (
+                          <img src={d.img} alt={d.nombre} className="h-28 w-24 shrink-0 rounded-2xl object-cover object-top" />
+                        ) : (
+                          <span className="flex h-28 w-24 shrink-0 items-center justify-center rounded-2xl gradient-deep font-display text-2xl text-white">{d.nombre.replace(/^(Dra?\.)\s*/, "").split(" ").slice(0, 2).map((x) => x[0]).join("")}</span>
+                        )}
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{d.nombre}</p>
                           <p className="mt-1 text-xs font-bold text-primary">{d.titulo}</p>
@@ -410,8 +429,8 @@ function Turnos() {
               </div>
               <div className="space-y-4 p-5 text-sm">
                 <div className="flex items-center gap-3">
-                  {doctor ? (
-                    <img src={fotoDoctor(doctor.foto)} alt="" className="size-11 rounded-xl object-cover object-top" />
+                  {doctor?.img ? (
+                    <img src={doctor.img} alt="" className="size-11 rounded-xl object-cover object-top" />
                   ) : (
                     <span className="flex size-11 items-center justify-center rounded-xl bg-secondary text-muted-foreground"><Stethoscope className="size-5" /></span>
                   )}

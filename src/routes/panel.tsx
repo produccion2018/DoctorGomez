@@ -88,6 +88,9 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import {
   ADMINS,
+  ADMIN_IDS,
+  profesionalesAgenda,
+  type RangoDia,
   auditar,
   cambiarClave,
   cerrarSesion,
@@ -181,7 +184,7 @@ import {
   type DiaClinica,
   type PistaMusica,
 } from "@/lib/auth-local";
-import { DOCTORS, SERVICIOS } from "@/data/clinic";
+import { DOCTORS, ESPECIALIDADES, SERVICIOS } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
@@ -909,7 +912,7 @@ function Panel() {
         {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
         {tabVisible === "analitica" && <AnaliticaTab log={log} turnos={turnos} />}
         {tabVisible === "automatizaciones" && <AutomatizacionesTab log={log} turnos={turnos} irA={irTab} />}
-        {tabVisible === "horarios" && <HorariosTab user={user} log={log} />}
+        {tabVisible === "horarios" && <HorariosTab user={user} log={log} puedeEditarOtros={!soloLectura("horarios")} />}
         {tabVisible === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
         {tabVisible === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
         {tabVisible === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
@@ -1513,7 +1516,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
     return isoDe(d);
   });
 
-  const columnas = ADMINS.map((a) => {
+  const columnas = profesionalesAgenda(agendas).filter((p) => p.admin || agendaDe(agendas, p.id).dias.length > 0).map((a) => {
     const ag = agendaDe(agendas, a.id);
     const atiende = atiendeEl(ag, dia);
     const bloqueo = ag.bloqueos.find((b) => dia >= b.desde && dia <= b.hasta);
@@ -1743,7 +1746,8 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [otraHora, setOtraHora] = useState(false);
   const [manual, setManual] = useState(false);
-  const adminSel = ADMINS.find((a) => a.nombre === f.doctor) ?? ADMINS[0]!;
+  const profs = profesionalesAgenda(agendas);
+  const adminSel = profs.find((a) => a.nombre === f.doctor) ?? profs[0]!;
   const agendaSel = agendaDe(agendas, adminSel.id);
   const diasRapidos = Array.from({ length: 10 }, (_, i) => {
     const d = new Date();
@@ -1841,7 +1845,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
             <div>
               <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">1</span> Profesional</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                {ADMINS.map((a) => {
+                {profs.map((a) => {
                   const on = f.doctor === a.nombre;
                   const ag = agendaDe(agendas, a.id);
                   const foto = fotoDe(a.id);
@@ -3276,9 +3280,14 @@ function isoDiaSemana(d: number) {
   return isoDe(x);
 }
 
-function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
+function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: LogFn; puedeEditarOtros: boolean }) {
   const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
-  const [sel, setSel] = useState<string>(ADMINS.some((a) => a.id === user.id) ? user.id : ADMINS[0]!.id);
+  const [personal] = useDato<Personal[]>(KEY_ENFERMERIA, []);
+  const esAdmin = ADMIN_IDS.includes(user.id);
+  const profesionales = profesionalesAgenda(agendas);
+  const [sel, setSel] = useState<string>(esAdmin ? user.id : ADMINS[0]!.id);
+  const [nuevo, setNuevo] = useState({ nombre: "", especialidad: "" });
+  const [agregando, setAgregando] = useState(false);
   const guardada = agendaDe(agendas, sel);
   const [draft, setDraft] = useState<AgendaDoctor>(guardada);
   const [bloq, setBloq] = useState({ desde: hoy(), hasta: hoy(), motivo: "" });
@@ -3291,8 +3300,11 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
 
   const cambios = JSON.stringify(draft) !== firma;
   const set = (patch: Partial<AgendaDoctor>) => setDraft((d) => ({ ...d, ...patch }));
-  const admin = ADMINS.find((a) => a.id === sel)!;
+  const prof = profesionales.find((p) => p.id === sel) ?? profesionales[0]!;
+  const admin = { nombre: prof.nombre };
   const doctor = DOCTORS.find((d) => d.id === ADMIN_A_DOCTOR[sel]);
+  /** Los médicos editan lo suyo; los demás profesionales los maneja la secretaría (o los médicos). */
+  const editable = (id: string) => (ADMIN_IDS.includes(id) ? id === user.id : esAdmin || puedeEditarOtros);
   const proximos = proximosDias(draft, 6);
   const slots = horariosDelDia(draft, proximos[0]);
   /** Prende / apaga un día y le pone un horario inicial (el del último día cargado). */
@@ -3306,17 +3318,56 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
     }
     set({ dias: on ? draft.dias.filter((x) => x !== d) : [...draft.dias, d], porDia: pd });
   };
-  const setRango = (d: number, patch: Partial<{ desde: string; hasta: string }>) =>
+  const setRango = (d: number, patch: Partial<RangoDia>) =>
     set({ porDia: { ...(draft.porDia ?? {}), [String(d)]: { ...rangoDia(draft, d), ...patch } } });
+  const togglePausa = (d: number) => {
+    const r = rangoDia(draft, d);
+    // Pausa sugerida: 30 minutos a mitad del horario de ese día (después la cambian)
+    const m = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+    const hh = (x: number) => `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+    const medio = Math.floor((m(r.desde) + m(r.hasta)) / 2 / 30) * 30;
+    const nuevo: RangoDia = r.pausaDesde ? { desde: r.desde, hasta: r.hasta } : { ...r, pausaDesde: hh(medio), pausaHasta: hh(medio + 30) };
+    set({ porDia: { ...(draft.porDia ?? {}), [String(d)]: nuevo } });
+  };
 
-  const propia = sel === user.id;
+  const propia = editable(sel);
+  const agregarProfesional = () => {
+    const nombre = nuevo.nombre.trim();
+    if (!nombre || !nuevo.especialidad.trim()) {
+      toast.error("Completá el nombre y la especialidad.");
+      return;
+    }
+    const id = "p-" + uid();
+    setAgendas((p) => ({ ...p, [id]: { ...agendaDe({}, id), nombre, especialidad: nuevo.especialidad.trim() } }));
+    log("Profesional agregado a la agenda", `${nombre} · ${nuevo.especialidad}`);
+    setNuevo({ nombre: "", especialidad: "" });
+    setAgregando(false);
+    setSel(id);
+    toast.success("Profesional agregado. Ahora cargá sus días y horarios.");
+  };
+  const quitarProfesional = () => {
+    if (ADMIN_IDS.includes(sel) || !propia) return;
+    if (!window.confirm(`¿Quitar a ${prof.nombre} de la agenda? Deja de aparecer para pedir turnos.`)) return;
+    setAgendas((p) => {
+      const c = { ...p };
+      delete c[sel];
+      return c;
+    });
+    log("Profesional quitado de la agenda", prof.nombre);
+    setSel(ADMINS[0]!.id);
+  };
+
   const guardar = () => {
     if (!propia) {
-      toast.error("Solo podés modificar tus propios horarios.");
+      toast.error("No podés modificar estos horarios.");
       return;
     }
     if (draft.dias.length === 0) {
       toast.error("Elegí al menos un día de atención.");
+      return;
+    }
+    if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
+      toast.error("Elegí cuánto dura cada turno (entre 5 y 240 minutos).");
       return;
     }
     const malo = draft.dias.find((d) => { const r = rangoDia(draft, d); return r.desde >= r.hasta; });
@@ -3324,13 +3375,14 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
       toast.error(`${NOMBRES_DIA[malo]}: la hora de inicio tiene que ser anterior a la de fin.`);
       return;
     }
-    if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
-      toast.error("La duración de cada turno tiene que ser entre 5 y 240 minutos.");
+    const pausaMala = draft.dias.find((d) => { const r = rangoDia(draft, d); return !!r.pausaDesde && (r.pausaDesde! >= r.pausaHasta! || r.pausaDesde! < r.desde || r.pausaHasta! > r.hasta); });
+    if (pausaMala !== undefined) {
+      toast.error(`${NOMBRES_DIA[pausaMala]}: la pausa tiene que quedar dentro del horario de ese día.`);
       return;
     }
     // desde / hasta generales = el rango más amplio (para resúmenes viejos)
     const rs = draft.dias.map((d) => rangoDia(draft, d));
-    const final = { ...draft, porDia: Object.fromEntries(draft.dias.map((d) => [String(d), rangoDia(draft, d)])), desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
+    const final = { ...draft, pausa: false, porDia: Object.fromEntries(draft.dias.map((d) => [String(d), rangoDia(draft, d)])), desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
     setAgendas((p) => ({ ...p, [sel]: final }));
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
     toast.success("Horarios publicados en la web.");
@@ -3348,11 +3400,12 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {ADMINS.map((a) => {
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {profesionales.map((a) => {
           const ag = agendaDe(agendas, a.id);
           const on = sel === a.id;
           const f = fotoDe(a.id);
+          const etiqueta = a.id === user.id ? "Tus horarios" : editable(a.id) ? "Podés editar" : "Solo ver";
           return (
             <button
               key={a.id}
@@ -3360,22 +3413,48 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
               onClick={() => setSel(a.id)}
               className={`pn-card pn-up flex items-center gap-4 p-4 text-left transition-all ${on ? "ring-4 ring-[rgba(var(--acc),.18)]" : "opacity-80 hover:opacity-100"}`}
             >
-              {f && <img src={f} alt="" className="size-14 rounded-2xl object-cover object-top" />}
+              {f ? <img src={f} alt="" className="size-14 rounded-2xl object-cover object-top" /> : <span className="pn-acc-tile flex size-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold text-white">{iniciales(a.nombre)}</span>}
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 font-semibold">
-                  {a.nombre} {a.id === user.id ? <span className="rounded-full bg-[rgba(var(--acc),.12)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[rgb(var(--acc))]">Tus horarios</span> : <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Solo ver</span>}
+                <p className="truncate font-semibold">{a.nombre}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">{a.especialidad}{a.admin ? " · Administrador" : ""}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${etiqueta === "Solo ver" ? "bg-secondary text-muted-foreground" : "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]"}`}>{etiqueta}</span>
                 </p>
-                <p className="truncate text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
               </div>
-              <span className={`size-2.5 shrink-0 rounded-full ${ag.activo ? "bg-emerald-500" : "bg-slate-400"}`} />
+              <span className={`size-2.5 shrink-0 rounded-full ${ag.activo && ag.dias.length ? "bg-emerald-500" : "bg-slate-400"}`} />
             </button>
           );
         })}
+        {(esAdmin || puedeEditarOtros) && (
+          agregando ? (
+            <div className="pn-card flex flex-col gap-2 p-4">
+              <input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Nombre del profesional" list="personal-medico" className={inp + " h-10"} />
+              <datalist id="personal-medico">{personal.filter((p) => p.activo && esAreaMedica(areaDe(p))).map((p) => <option key={p.id} value={p.nombre} />)}</datalist>
+              <input value={nuevo.especialidad} onChange={(e) => setNuevo({ ...nuevo, especialidad: e.target.value })} placeholder="Especialidad (ej: Cardiología)" list="especialidades-web" className={inp + " h-10"} />
+              <datalist id="especialidades-web">{ESPECIALIDADES.map((e) => <option key={e.slug} value={e.nombre} />)}</datalist>
+              <div className="flex gap-2">
+                <Button type="button" onClick={agregarProfesional} className="h-9 flex-1 rounded-xl"><Plus className="size-4" /> Agregar a la agenda</Button>
+                <Button type="button" variant="ghost" onClick={() => setAgregando(false)} className="h-9 rounded-xl">Cancelar</Button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setAgregando(true)} className="flex min-h-[5.5rem] items-center justify-center gap-2 rounded-[1.25rem] border-2 border-dashed border-border text-sm font-semibold text-muted-foreground transition hover:border-[rgb(var(--acc))] hover:text-[rgb(var(--acc))]">
+              <Plus className="size-4" /> Agregar profesional
+            </button>
+          )
+        )}
       </div>
 
+      {propia && !prof.admin && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-900 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-200 dark:ring-sky-500/30">
+          <Users className="size-4 shrink-0" /> <span className="flex-1">Horarios de {prof.nombre}: los carga la secretaría según lo que indique el profesional, con supervisión de los médicos. Cada cambio queda en Auditoría.</span>
+          <Button type="button" variant="ghost" size="sm" onClick={quitarProfesional} className="rounded-xl text-rose-600 hover:bg-rose-100"><Trash2 className="size-4" /> Quitar de la agenda</Button>
+        </div>
+      )}
       {!propia && (
         <div className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
-          <Lock className="size-4 shrink-0" /> Estás viendo los horarios de {admin.nombre}. Solo él puede modificarlos desde su usuario.
+          <Lock className="size-4 shrink-0" /> Estás viendo los horarios de {admin.nombre}. {prof.admin ? "Solo él puede modificarlos desde su usuario." : "Los carga la secretaría o un médico administrador."}
         </div>
       )}
 
@@ -3390,17 +3469,27 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
                 const on = draft.dias.includes(d);
                 const r = rangoDia(draft, d);
                 return (
-                  <div key={d} className={`flex flex-wrap items-center gap-3 rounded-2xl p-2 transition-colors ${on ? "bg-secondary/70" : ""}`}>
+                  <div key={d} className={`flex flex-col gap-2 rounded-2xl p-2 transition-colors sm:flex-row sm:items-center sm:gap-3 ${on ? "bg-secondary/70" : ""}`}>
                     <button type="button" onClick={() => toggleDia(d)} aria-pressed={on}
-                      className={`h-11 w-28 shrink-0 rounded-xl text-sm font-semibold transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                      className={`h-11 w-full shrink-0 rounded-xl text-sm font-semibold sm:w-28 transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
                       {NOMBRES_DIA[d]}
                     </button>
                     {on ? (
-                      <div className="flex items-center gap-2">
-                        <input type="time" aria-label={`${NOMBRES_DIA[d]} desde`} value={r.desde} onChange={(e) => setRango(d, { desde: e.target.value })} className={inp + " h-11 w-32"} />
+                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                        <input type="time" aria-label={`${NOMBRES_DIA[d]} desde`} value={r.desde} onChange={(e) => setRango(d, { desde: e.target.value })} className={inp.replace("w-full", "") + " h-11 w-[7.5rem] sm:w-32"} />
                         <span className="text-sm text-muted-foreground">a</span>
-                        <input type="time" aria-label={`${NOMBRES_DIA[d]} hasta`} value={r.hasta} onChange={(e) => setRango(d, { hasta: e.target.value })} className={inp + " h-11 w-32"} />
-                        <span className="text-xs text-muted-foreground tabular-nums">{horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} turnos</span>
+                        <input type="time" aria-label={`${NOMBRES_DIA[d]} hasta`} value={r.hasta} onChange={(e) => setRango(d, { hasta: e.target.value })} className={inp.replace("w-full", "") + " h-11 w-[7.5rem] sm:w-32"} />
+                        <button type="button" onClick={() => togglePausa(d)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${r.pausaDesde ? "bg-amber-100 text-amber-800 ring-1 ring-amber-200" : "bg-background text-muted-foreground ring-1 ring-border hover:text-foreground"}`}>
+                          {r.pausaDesde ? "Con pausa" : "+ Pausa"}
+                        </button>
+                        {r.pausaDesde && (
+                          <span className="flex items-center gap-1.5">
+                            <input type="time" aria-label={`${NOMBRES_DIA[d]} pausa desde`} value={r.pausaDesde} onChange={(e) => setRango(d, { pausaDesde: e.target.value })} className={inp.replace("w-full", "") + " h-9 w-[7.5rem] text-xs sm:w-32"} />
+                            <span className="text-xs text-muted-foreground">a</span>
+                            <input type="time" aria-label={`${NOMBRES_DIA[d]} pausa hasta`} value={r.pausaHasta} onChange={(e) => setRango(d, { pausaHasta: e.target.value })} className={inp.replace("w-full", "") + " h-9 w-[7.5rem] text-xs sm:w-32"} />
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground tabular-nums">{draft.duracion >= 5 ? `${horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} turnos` : ""}</span>
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">No atiende</span>
@@ -3420,7 +3509,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
                     inputMode="numeric"
                     value={draft.duracion || ""}
                     onChange={(e) => set({ duracion: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0))) })}
-                    onBlur={() => draft.duracion < 5 && set({ duracion: 5 })}
+                    placeholder="Elegí"
                     className={inp + " pr-14 tabular-nums"}
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">min</span>
@@ -3437,25 +3526,17 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
               ))}
               <span className="text-xs text-muted-foreground">o escribí el tiempo que quieras (5 a 240 min)</span>
             </div>
-            <div className="mt-5 rounded-2xl bg-secondary/50 p-4">
-              <Interruptor on={draft.pausa} onChange={(v) => set({ pausa: v })} label="Pausa (almuerzo / cirugías)" />
-              {draft.pausa && (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <Campo label="Pausa desde"><input type="time" value={draft.pausaDesde} onChange={(e) => set({ pausaDesde: e.target.value })} className={inp} /></Campo>
-                  <Campo label="Pausa hasta"><input type="time" value={draft.pausaHasta} onChange={(e) => set({ pausaHasta: e.target.value })} className={inp} /></Campo>
-                </div>
-              )}
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">La duración, los días, los horarios y las pausas los define cada profesional. Si un día no hay pausa, no se toca nada.</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <Campo label="Aviso para pacientes (se ve en la web)"><input value={draft.nota} placeholder="Ej: traer estudios previos" onChange={(e) => set({ nota: e.target.value })} className={inp} /></Campo>
             </div>
           </Seccion>
 
-          <Seccion icon={Ban} titulo="Vacaciones, congresos y días sin atención" sub="Esos días no se pueden reservar turnos" delay={0.05}>
+          <Seccion icon={Ban} titulo="Vacaciones, ausencias y días sin atención" sub="Vacaciones, un trámite, un congreso: esos días no se pueden reservar turnos" delay={0.05}>
             <form onSubmit={agregarBloqueo} className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
               <Campo label="Desde"><input type="date" required value={bloq.desde} onChange={(e) => setBloq({ ...bloq, desde: e.target.value })} className={inp} /></Campo>
               <Campo label="Hasta"><input type="date" required value={bloq.hasta} onChange={(e) => setBloq({ ...bloq, hasta: e.target.value })} className={inp} /></Campo>
-              <Campo label="Motivo"><input placeholder="Ej: vacaciones" value={bloq.motivo} onChange={(e) => setBloq({ ...bloq, motivo: e.target.value })} className={inp} /></Campo>
+              <Campo label="Motivo"><input placeholder="Ej: vacaciones, trámite personal" value={bloq.motivo} onChange={(e) => setBloq({ ...bloq, motivo: e.target.value })} className={inp} /></Campo>
               <div className="flex items-end"><Button type="submit" variant="outline" className="h-11 w-full rounded-xl"><Plus className="size-4" /> Agregar</Button></div>
             </form>
             <div className="mt-4 space-y-2">
@@ -3496,7 +3577,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{slots.length} turnos el próximo día</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} turnos el próximo día` : "Elegí la duración del turno"}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
                 </div>
