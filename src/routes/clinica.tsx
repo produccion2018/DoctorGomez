@@ -4,6 +4,7 @@ import {
   Accessibility,
   ArrowRight,
   CalendarPlus,
+  Check,
   ClipboardCheck,
   Clock,
   FileText,
@@ -47,6 +48,57 @@ const EQUIPAMIENTO = [
   { icon: FileText, t: "Historia clínica digital", d: "Cada consulta, estudio e indicación queda registrada y disponible.", img: imgDigital, slug: "chequeos-preventivos", tag: "Digital", c: "#0ea5e9" },
   { icon: MonitorSmartphone, t: "Teleconsulta", d: "Controles y lectura de estudios por videollamada.", img: imgTele, slug: "teleconsulta", tag: "A distancia", c: "#6366f1" },
 ];
+
+const COLOR_PASO = ["#0ea5e9", "#8b5cf6", "#f43f5e", "#10b981"];
+
+/* Recorrido en 4 pasos: la línea se llena con una luz que viaja y cada paso se enciende por turno */
+function Recorrido() {
+  const [paso, setPaso] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setPaso((v) => (v + 1) % PASOS.length), 2400);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div data-reveal className="relative mt-12 md:mt-16">
+      {/* Línea horizontal (escritorio) */}
+      <div className="absolute left-[12.5%] right-[12.5%] top-10 hidden h-[3px] overflow-hidden rounded-full bg-border md:block">
+        <span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-500 via-violet-500 via-60% to-emerald-500 transition-all duration-700" style={{ width: `${(paso / (PASOS.length - 1)) * 100}%` }} />
+        <span className="vz-carrera absolute inset-y-0 w-28 rounded-full bg-gradient-to-r from-transparent via-white to-transparent" />
+      </div>
+      {/* Línea vertical (celular) */}
+      <div className="absolute bottom-10 left-[3rem] top-10 w-[3px] overflow-hidden rounded-full bg-border md:hidden">
+        <span className="absolute inset-x-0 top-0 rounded-full bg-gradient-to-b from-sky-500 via-violet-500 to-emerald-500 transition-all duration-700" style={{ height: `${(paso / (PASOS.length - 1)) * 100}%` }} />
+      </div>
+      <div className="relative grid gap-3 md:grid-cols-4 md:gap-6">
+        {PASOS.map((p, i) => {
+          const c = COLOR_PASO[i % COLOR_PASO.length];
+          const on = i === paso;
+          const hecho = i < paso;
+          return (
+            <div key={p.n} onMouseEnter={() => setPaso(i)} className={`group relative flex items-center gap-5 rounded-3xl p-4 text-left transition-all duration-500 md:block md:p-0 md:text-center ${on ? "bg-card shadow-[0_25px_50px_-30px_var(--c)] md:bg-transparent md:shadow-none" : ""}`} style={{ ["--c" as string]: c } as CSSProperties}>
+              <span className="relative z-10 shrink-0 md:mx-auto md:block md:w-fit">
+                {on && <span className="absolute inset-0 animate-ping rounded-[1.75rem] opacity-30" style={{ background: c, animationDuration: "1.8s" }} />}
+                <span
+                  className={`relative flex size-16 items-center justify-center rounded-[1.75rem] text-white ring-8 ring-background transition-all duration-500 md:size-20 ${on ? "-translate-y-1 scale-110" : ""}`}
+                  style={{ background: on || hecho ? `linear-gradient(140deg, ${c}, ${c}b3)` : "linear-gradient(140deg, #1e3a8a, #0b1f4d)", boxShadow: on ? `0 22px 44px -14px ${c}` : "0 20px 40px -15px rgba(20,50,120,.8)" }}
+                >
+                  <p.icon className={`size-7 ${on ? "vz-flota" : ""}`} />
+                  <span className="absolute -right-2 -top-2 flex size-7 items-center justify-center rounded-full font-display text-[11px] font-semibold text-white ring-4 ring-background transition-colors" style={{ background: hecho ? "#10b981" : c }}>
+                    {hecho ? <Check className="size-3.5" /> : p.n}
+                  </span>
+                </span>
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold transition-colors md:mt-6" style={{ color: on ? c : undefined }}>{p.t}</h3>
+                <p className="mt-1 text-sm text-muted-foreground md:mx-auto md:mt-1.5 md:max-w-[15rem]">{p.d}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const PASOS = [
   { n: "01", icon: CalendarPlus, t: "Reservá tu turno", d: "Online, por WhatsApp o por teléfono." },
@@ -213,21 +265,7 @@ function Clinica() {
           <span className="section-kicker">Cómo te atendemos</span>
           <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Tu recorrido <span className="text-gradient-clinic italic">en la clínica</span></h2>
         </div>
-        <div className="relative mt-12 grid gap-3 md:mt-16 md:grid-cols-4 md:gap-6">
-          <div className="premium-divider absolute left-[12%] right-[12%] top-10 hidden md:block" />
-          {PASOS.map((p, i) => (
-            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 110}ms` }} className="group relative flex items-center gap-5 rounded-3xl border border-border/60 bg-card/60 p-4 text-left md:block md:border-0 md:bg-transparent md:p-0 md:text-center">
-              <span className="relative z-10 flex size-16 shrink-0 items-center justify-center rounded-[1.75rem] gradient-deep text-white md:mx-auto md:size-20 shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)] ring-8 ring-background transition-transform duration-500 group-hover:-translate-y-1 group-hover:rotate-3">
-                <p.icon className="size-7" />
-                <span className="absolute -right-2 -top-2 flex size-7 items-center justify-center rounded-full bg-rose-500 font-display text-[11px] font-semibold ring-4 ring-background">{p.n}</span>
-              </span>
-              <div>
-                <h3 className="text-lg font-semibold md:mt-6">{p.t}</h3>
-                <p className="mt-1 text-sm text-muted-foreground md:mx-auto md:mt-1.5 md:max-w-[15rem]">{p.d}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Recorrido />
       </section>
 
       {/* ───────── UBICACIÓN ───────── */}

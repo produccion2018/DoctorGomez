@@ -95,7 +95,14 @@ export const Route = createFileRoute("/portal")({
     meta: [
       { title: "Portal del paciente | HEGO · Centro de especialidades médicas" },
       { name: "robots", content: "noindex" },
+      { name: "theme-color", content: "#0b1f4d" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "HEGO Pacientes" },
     ],
+    links: [{ rel: "manifest", href: "/portal.webmanifest" }],
+    scripts: [{ children: "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')" }],
   }),
   component: Portal,
 });

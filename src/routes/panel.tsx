@@ -190,7 +190,14 @@ export const Route = createFileRoute("/panel")({
     meta: [
       { title: "Panel administrativo | HEGO · Centro de especialidades médicas" },
       { name: "robots", content: "noindex" },
+      { name: "theme-color", content: "#0b1f4d" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "HEGO Panel" },
     ],
+    links: [{ rel: "manifest", href: "/panel.webmanifest" }],
+    scripts: [{ children: "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')" }],
   }),
   component: Panel,
 });
