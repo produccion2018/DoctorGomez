@@ -4479,6 +4479,8 @@ function FichaHC({
   const [notasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const notasEnfP = notasTodas.filter((n) => n.pacienteId === p.id || n.pacienteId === p.portalId);
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
+  const [ventSignos, setVentSignos] = useState(false);
+  const puedeSignos = notasEnf || user.rol === "medico" || user.area === "Dirección general";
   const edad = edadDe(p.ficha?.nacimiento);
   const ordenadas = [...evols].sort((a, b) => b.fecha.localeCompare(a.fecha));
   const [triagesTodos] = useDato<Triage[]>(KEY_TRIAGE, []);
@@ -4559,6 +4561,15 @@ function FichaHC({
       </section>
 
       {/* Últimos signos vitales */}
+      <div className="pn-up flex flex-wrap items-center gap-3">
+        <div className="flex-1">
+          <p className="font-semibold">Signos vitales</p>
+          <p className="text-xs text-muted-foreground">Los registra enfermería o el médico. Quedan en el historial y los ve todo el equipo.</p>
+        </div>
+        {puedeSignos && (
+          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-4 py-2.5 text-xs font-semibold text-white shadow-[0_10px_24px_-12px_rgba(225,29,72,.9)] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { icon: Activity, l: "Presión arterial", v: ta ? `${ta.s}/${ta.d}` : "—", u: "mmHg", f: ta?.f, b: ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : null },
@@ -4566,19 +4577,20 @@ function FichaHC({
           { icon: Thermometer, l: "Temperatura", v: temp ? String(temp.signos.temp) : "—", u: "°C", f: temp?.fecha, b: temp ? (fueraDeRango("temp", temp.signos.temp) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null },
           { icon: Scale, l: "Índice de masa corporal", v: imc ? String(imc.valor) : "—", u: "kg/m²", f: conPeso?.fecha, b: imc ? { t: imc.texto, tono: imc.tono } : null },
         ].map((x) => (
-          <div key={x.l} className="pn-card pn-up p-4">
+          <button type="button" key={x.l} disabled={!puedeSignos} onClick={() => setVentSignos(true)} className="pn-card pn-up p-4 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:shadow-lg">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
               <x.icon className="size-4 text-[rgb(var(--acc))]" />
             </div>
             <p className="mt-2 font-display text-2xl font-semibold tabular-nums">{x.v} <span className="text-xs font-normal text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
+              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
               {x.f && <span className="text-[10px] text-muted-foreground">{fechaDe(x.f)}</span>}
             </div>
-          </div>
+          </button>
         ))}
       </div>
+      {ventSignos && <VentanaSignos user={user} log={log} turnos={turnosHC} soloLectura={false} inicial={p.id} onCerrar={() => setVentSignos(false)} />}
 
       {pendiente && !nueva && (
         <div className="pn-up flex flex-wrap items-center gap-4 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4 shadow-sm dark:border-emerald-500/25 dark:from-emerald-500/10 dark:to-transparent">
