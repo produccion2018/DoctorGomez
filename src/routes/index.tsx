@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { PublicLayout, FondoDoctor, Electro } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, imagenEspecialidad } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
-import imgInterna from "@/assets/medicina-interna.jpg";
+import imgInterna from "@/assets/esp-medicina-interna.jpg";
 import imgNefro from "@/assets/nefrologia.jpg";
 import imgCardio from "@/assets/cardiologia.jpg";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";

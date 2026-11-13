@@ -27,7 +27,7 @@ import imgHolter from "@/assets/esp-holter-mapa.jpg";
 import imgDigital from "@/assets/esp-chequeos-preventivos.jpg";
 import imgTele from "@/assets/esp-teleconsulta.jpg";
 import imgNefro from "@/assets/nefrologia.jpg";
-import imgInterna from "@/assets/medicina-interna.jpg";
+import imgInterna from "@/assets/esp-medicina-interna.jpg";
 
 export const Route = createFileRoute("/clinica")({
   head: () => ({
