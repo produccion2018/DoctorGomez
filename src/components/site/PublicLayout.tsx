@@ -381,7 +381,7 @@ function Motivo({ m, c }: { m: string; c: string }) {
  * Imagen animada de una especialidad: ilustración en movimiento, o foto real con una capa
  * animada (electro sobre Cardiología, flujo renal sobre Nefrología).
  */
-export function VisualEspecialidad({ slug, foto, className = "" }: { slug: string; foto?: string; className?: string }) {
+export function VisualEspecialidad({ slug, foto, className = "", sinIcono = false }: { slug: string; foto?: string; className?: string; sinIcono?: boolean }) {
   const v = VISUAL[slug] ?? { c: "#3b82f6", c2: "#1e3a8a", motivo: "monitor" };
   const esp = ESPECIALIDADES.find((e) => e.slug === slug);
   const Icono = iconoEspecialidad(esp?.icono ?? "");
@@ -418,9 +418,9 @@ export function VisualEspecialidad({ slug, foto, className = "" }: { slug: strin
         <div className="h-[85%]"><Motivo m={v.motivo} c={v.c} /></div>
       </div>
       {/* Ícono */}
-      <span className="vz-flota absolute left-[20%] top-[34%] flex size-[18%] min-h-16 min-w-16 items-center justify-center rounded-[28%] text-white shadow-2xl ring-1 ring-white/30" style={{ background: `linear-gradient(145deg, ${v.c}, ${v.c2})`, boxShadow: `0 30px 60px -20px ${v.c}` }}>
+      {!sinIcono && <span className="vz-flota absolute left-[20%] top-[34%] flex size-[18%] min-h-16 min-w-16 items-center justify-center rounded-[28%] text-white shadow-2xl ring-1 ring-white/30" style={{ background: `linear-gradient(145deg, ${v.c}, ${v.c2})`, boxShadow: `0 30px 60px -20px ${v.c}` }}>
         <Icono className="size-[45%]" />
-      </span>
+      </span>}
     </div>
   );
 }

@@ -627,8 +627,9 @@ function Home() {
               >
                 {/* Fondo de color que aparece al pasar el mouse */}
                 <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 80% at 100% 0%, ${col}1f, transparent 60%)` }} />
-                <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-[.25] transition-transform duration-700 group-hover:scale-x-100" style={{ background: `linear-gradient(90deg, ${col}, ${col}55)` }} />
-                <Electro latidos={2} grilla={false} color={col} className="pointer-events-none absolute inset-x-0 bottom-[4.6rem] h-10 w-full opacity-0 transition-opacity duration-500 group-hover:opacity-60" />
+                <span className="absolute inset-x-0 top-0 h-1 overflow-hidden" style={{ background: `${col}33` }}><span className="vz-carrera absolute inset-y-0 w-1/3" style={{ background: `linear-gradient(90deg, transparent, ${col}, transparent)`, animationDelay: `${idx * -0.7}s` }} /></span>
+                <span className="vz-brillo pointer-events-none absolute inset-0" style={{ animationDelay: `${idx * -1.3}s` }} />
+                <Electro latidos={2} grilla={false} color={col} className="pointer-events-none absolute inset-x-0 bottom-[4.6rem] h-10 w-full opacity-30 transition-opacity duration-500 group-hover:opacity-70" />
 
                 <div className="relative flex items-start justify-between">
                   <span className="vz-flota flex size-14 items-center justify-center rounded-2xl text-white ring-1 ring-white/30" style={{ background: `linear-gradient(140deg, ${col}, ${col}aa)`, boxShadow: `0 16px 30px -14px ${col}`, animationDelay: `${idx * -1.1}s` }}>

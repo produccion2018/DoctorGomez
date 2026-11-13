@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FondoEspecialidades, PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
+import { FondoEspecialidades, PageHero, PublicLayout, useReveal, waLink, Electro } from "@/components/site/PublicLayout";
 import { DOCTORS, SERVICIOS, fotoDoctor } from "@/data/clinic";
 
 export const Route = createFileRoute("/servicios")({
@@ -117,14 +117,16 @@ function Servicios() {
                 style={{ transitionDelay: `${Math.min(i, 6) * 60}ms`, ["--c" as string]: col.c } as CSSProperties}
                 className="group relative flex flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card p-7 shadow-[0_25px_60px_-45px_rgba(10,25,70,.7)] transition-all duration-500 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_40px_80px_-40px_var(--c)]"
               >
-                <span className="absolute inset-x-0 top-0 h-1 opacity-70 transition-opacity group-hover:opacity-100" style={{ background: `linear-gradient(90deg, ${col.c}, transparent)` }} />
+                <span className="absolute inset-x-0 top-0 h-1 overflow-hidden" style={{ background: `${col.c}33` }}><span className="vz-carrera absolute inset-y-0 w-1/3" style={{ background: `linear-gradient(90deg, transparent, ${col.c}, transparent)`, animationDelay: `${i * -0.7}s` }} /></span>
+                <span className="vz-brillo pointer-events-none absolute inset-0" style={{ animationDelay: `${i * -1.3}s` }} />
+                <Electro latidos={2} grilla={false} color={col.c} className="pointer-events-none absolute inset-x-0 bottom-[4.8rem] h-10 w-full opacity-30 transition-opacity duration-500 group-hover:opacity-70" />
                 <span className="pointer-events-none absolute -right-14 -top-14 size-44 rounded-full opacity-[0.08] blur-2xl transition-opacity duration-500 group-hover:opacity-25" style={{ background: col.c }} />
                 <Icon className="pointer-events-none absolute -bottom-6 -right-6 size-32 opacity-[0.04] transition-all duration-700 group-hover:-rotate-12 group-hover:opacity-[0.09]" style={{ color: col.c }} />
 
                 <div className="relative flex items-start justify-between gap-3">
                   <span
-                    className="flex size-14 items-center justify-center rounded-2xl text-white ring-1 ring-white/30 transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110"
-                    style={{ background: `linear-gradient(135deg, ${col.c}, ${col.c2})`, boxShadow: `0 16px 30px -14px ${col.c}` }}
+                    className="vz-flota relative flex size-14 items-center justify-center rounded-2xl text-white ring-1 ring-white/30"
+                    style={{ background: `linear-gradient(135deg, ${col.c}, ${col.c2})`, boxShadow: `0 16px 30px -14px ${col.c}`, animationDelay: `${i * -0.9}s` }}
                   >
                     <Icon className="size-6" />
                   </span>

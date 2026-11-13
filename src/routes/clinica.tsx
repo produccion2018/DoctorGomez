@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Accessibility,
@@ -17,7 +17,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FondoEspecialidades, PageHero, PublicLayout, useReveal, useSitio } from "@/components/site/PublicLayout";
+import { FondoEspecialidades, PageHero, PublicLayout, useReveal, useSitio, VisualEspecialidad } from "@/components/site/PublicLayout";
 import { resumenHorarioClinica } from "@/lib/auth-local";
 import imgPasillo from "@/assets/hero-doctors.jpg";
 import imgCardio from "@/assets/cardiologia.jpg";
@@ -40,12 +40,12 @@ export const Route = createFileRoute("/clinica")({
 });
 
 const EQUIPAMIENTO = [
-  { icon: HeartPulse, t: "Ecocardiógrafo doppler color", d: "Estudios cardíacos de alta resolución, informados por el especialista.", img: imgEco, tag: "Cardiología", c: "#8b5cf6" },
-  { icon: ScanLine, t: "Ecografía y doppler vascular", d: "Imágenes renales, abdominales y vasculares en la misma visita.", img: imgImagenes, tag: "Imágenes", c: "#06b6d4" },
-  { icon: ClipboardCheck, t: "Holter y MAPA 24 h", d: "Monitoreo ambulatorio del ritmo cardíaco y la presión arterial.", img: imgHolter, tag: "Monitoreo", c: "#ec4899" },
-  { icon: Stethoscope, t: "Consultorios equipados", d: "Electrocardiógrafo, balanza clínica y material de evaluación completo.", img: imgInterna, tag: "Consultorios", c: "#10b981" },
-  { icon: FileText, t: "Historia clínica digital", d: "Cada consulta, estudio e indicación queda registrada y disponible.", img: imgDigital, tag: "Digital", c: "#0ea5e9" },
-  { icon: MonitorSmartphone, t: "Teleconsulta", d: "Controles y lectura de estudios por videollamada.", img: imgTele, tag: "A distancia", c: "#6366f1" },
+  { icon: HeartPulse, t: "Ecocardiógrafo doppler color", d: "Estudios cardíacos de alta resolución, informados por el especialista.", img: imgEco, slug: "ecocardiografia", tag: "Cardiología", c: "#8b5cf6" },
+  { icon: ScanLine, t: "Ecografía y doppler vascular", d: "Imágenes renales, abdominales y vasculares en la misma visita.", img: imgImagenes, slug: "diagnostico-por-imagenes", tag: "Imágenes", c: "#06b6d4" },
+  { icon: ClipboardCheck, t: "Holter y MAPA 24 h", d: "Monitoreo ambulatorio del ritmo cardíaco y la presión arterial.", img: imgHolter, slug: "holter-mapa", tag: "Monitoreo", c: "#ec4899" },
+  { icon: Stethoscope, t: "Consultorios equipados", d: "Electrocardiógrafo, balanza clínica y material de evaluación completo.", img: imgInterna, slug: "medicina-interna", tag: "Consultorios", c: "#10b981" },
+  { icon: FileText, t: "Historia clínica digital", d: "Cada consulta, estudio e indicación queda registrada y disponible.", img: imgDigital, slug: "chequeos-preventivos", tag: "Digital", c: "#0ea5e9" },
+  { icon: MonitorSmartphone, t: "Teleconsulta", d: "Controles y lectura de estudios por videollamada.", img: imgTele, slug: "teleconsulta", tag: "A distancia", c: "#6366f1" },
 ];
 
 const PASOS = [
@@ -72,6 +72,12 @@ const COMODIDADES = [
 function Clinica() {
   useReveal();
   const [eq, setEq] = useState(0);
+  const [pausaEq, setPausaEq] = useState(false);
+  useEffect(() => {
+    if (pausaEq) return;
+    const t = setInterval(() => setEq((v) => (v + 1) % EQUIPAMIENTO.length), 5000);
+    return () => clearInterval(t);
+  }, [pausaEq]);
   const sel = EQUIPAMIENTO[eq]!;
   const sitio = useSitio();
   const horario = resumenHorarioClinica(sitio);
@@ -152,10 +158,10 @@ function Clinica() {
             <h2 className="mt-5 text-4xl leading-tight text-white sm:text-5xl">
               Equipamiento <span className="italic text-sky-300">y servicios</span>
             </h2>
-            <p className="mt-4 text-white/65">Pasá el cursor por cada equipo para conocerlo.</p>
+            <p className="mt-4 text-white/65">Van pasando solos; pasá el cursor por un equipo para verlo.</p>
           </div>
 
-          <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+          <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" onMouseEnter={() => setPausaEq(true)} onMouseLeave={() => setPausaEq(false)}>
             <ul className="border-t border-white/10" data-reveal>
               {EQUIPAMIENTO.map((e, i) => {
                 const on = i === eq;
@@ -168,8 +174,9 @@ function Clinica() {
                       onClick={() => setEq(i)}
                       className={`group flex w-full items-center gap-4 py-5 text-left transition-all duration-300 ${on ? "lg:pl-4" : ""}`}
                     >
-                      <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl transition-all duration-500 ${on ? "" : "bg-white/10 ring-1 ring-white/15"}`} style={on ? { background: `linear-gradient(135deg, ${e.c}, ${e.c}aa)`, boxShadow: `0 15px 35px -12px ${e.c}` } : undefined}>
-                        <e.icon className="size-5" />
+                      <span className={`relative flex size-11 shrink-0 items-center justify-center rounded-2xl transition-all duration-500 ${on ? "" : "bg-white/10 ring-1 ring-white/15"}`} style={on ? { background: `linear-gradient(135deg, ${e.c}, ${e.c}aa)`, boxShadow: `0 15px 35px -12px ${e.c}` } : { color: e.c }}>
+                        {on && <span className="absolute inset-0 animate-ping rounded-2xl opacity-25" style={{ background: e.c, animationDuration: "2.2s" }} />}
+                        <e.icon className="relative size-5" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className={`font-semibold transition-colors ${on ? "text-white" : "text-white/60 group-hover:text-white"}`}>{e.t}</p>
@@ -184,11 +191,11 @@ function Clinica() {
 
             <div className="relative hidden lg:block">
               <div key={sel.t} className="relative h-full min-h-[440px] overflow-hidden rounded-[2rem] ring-1 ring-white/10 animate-in fade-in zoom-in-[0.98] duration-500">
-                <img src={sel.img} alt="" className="hero-kenburns absolute inset-0 size-full object-cover object-[70%_15%]" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.13_0.05_262)] via-[oklch(0.15_0.05_262/0.35)] to-transparent" />
+                <div className="absolute inset-0 -translate-y-[12%]"><VisualEspecialidad slug={sel.slug} sinIcono /></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.13_0.05_262)] via-[oklch(0.15_0.05_262/0.35)] via-35% to-transparent to-60%" />
                 <div className="absolute inset-x-0 bottom-0 p-10">
                   <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">{sel.tag}</span>
-                  <span className="mt-6 flex size-16 items-center justify-center rounded-3xl shadow-2xl" style={{ background: `linear-gradient(135deg, ${sel.c}, ${sel.c}aa)` }}>
+                  <span className="vz-flota mt-6 flex size-16 items-center justify-center rounded-3xl shadow-2xl" style={{ background: `linear-gradient(135deg, ${sel.c}, ${sel.c}aa)` }}>
                     <sel.icon className="size-7" />
                   </span>
                   <h3 className="mt-5 font-display text-3xl font-semibold text-white">{sel.t}</h3>
