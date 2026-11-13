@@ -7662,6 +7662,12 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                     <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(n))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> Enviar por WhatsApp</a>
                   </>
                 )}
+                {n.activo && conClave && (
+                  <>
+                    <button onClick={() => { void navigator.clipboard?.writeText(`${origen}/login`).then(() => toast.success("Link del panel copiado")); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Copiar link del panel</button>
+                    <a href={`https://wa.me/?text=${encodeURIComponent(`Hola ${n.nombre.split(" ")[0]}, este es el link para entrar al panel de HEGO: ${origen}/login (en "Equipo" elija su nombre y ponga su contraseña).`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> WhatsApp</a>
+                  </>
+                )}
                 {n.activo && (conClave || !n.invitacion) && (
                   <button onClick={() => { nuevaInvitacion(n); refrescar((x) => x + 1); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">{conClave ? "Reiniciar contraseña" : "Generar link"}</button>
                 )}
