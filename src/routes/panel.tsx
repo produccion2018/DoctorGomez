@@ -4417,6 +4417,8 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf
             soloLectura={soloLectura}
             log={log}
             notasEnf={notasEnf}
+            turnosHC={turnos}
+            pacientesHC={pacientes}
             p={sel}
             evols={evols.filter((e) => esDe(sel, e.pacienteId))}
             estudios={estudios.filter((e) => esDe(sel, e.pacienteId))}
@@ -4468,10 +4470,10 @@ ${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} �
 }
 
 function FichaHC({
-  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user, soloLectura = false, log = () => undefined, notasEnf = false,
+  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user, soloLectura = false, log = () => undefined, notasEnf = false, turnosHC = [], pacientesHC = [],
 }: {
   p: PacienteHC; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; meds: Medicamento[];
-  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean;
+  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean; turnosHC?: Turno[]; pacientesHC?: PacienteHC[];
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios">("todo");
   const [notasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
@@ -4537,7 +4539,7 @@ function FichaHC({
             </div>
           </div>
           {soloLectura ? (
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold ring-1 ring-white/25"><Eye className="size-4" /> Solo lectura</span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold ring-1 ring-white/25">{notasEnf ? <><Syringe className="size-4" /> Enfermería · la evolución la escribe el médico</> : <><Eye className="size-4" /> Solo lectura</>}</span>
           ) : (
             <Button onClick={() => setNueva(!nueva)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
               {nueva ? <X className="size-4" /> : <Plus className="size-4" />} {nueva ? "Cancelar" : "Nueva evolución"}
@@ -4595,7 +4597,7 @@ function FichaHC({
 
       {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
 
-      <NotasEnfermeria ids={[p.id, p.portalId].filter(Boolean) as string[]} paciente={p.nombre} user={user} log={log} puede={notasEnf} />
+      <RegistrarEnHC p={p} user={user} log={log} turnos={turnosHC} pacientes={pacientesHC.length ? pacientesHC : [p]} puede={notasEnf || user.rol === "medico" || user.area === "Dirección general"} />
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Registro de consultas */}
@@ -8967,5 +8969,35 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria }: { pacientes: Pa
         </ul>
       )}
     </Seccion>
+  );
+}
+
+
+/** Dentro de la historia clínica: botones para registrar lo de enfermería de ESTE paciente. */
+function RegistrarEnHC({ p, user, log, turnos, pacientes, puede }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; puede: boolean }) {
+  const [accion, setAccion] = useState<AccionEnf | null>(null);
+  const [signos, setSignos] = useState(false);
+  if (!puede) return null;
+  return (
+    <section className="pn-card pn-up overflow-hidden p-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md"><Syringe className="size-5" /></span>
+        <div className="flex-1">
+          <p className="font-semibold">Registrar para {p.nombre.split(" ")[0]}</p>
+          <p className="text-xs text-muted-foreground">Toque lo que va a registrar. Se guarda en el historial de abajo y lo ven los médicos.</p>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {ACCIONES_ENF.map((a) => (
+          <button key={a.id} type="button" onClick={() => (a.id === "signos" ? setSignos(true) : setAccion(a))}
+            className="group flex items-center gap-2.5 rounded-xl border border-border/70 bg-card p-2.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white transition-transform group-hover:scale-110" style={{ background: `linear-gradient(140deg, ${a.c}, ${a.c}b3)` }}><a.icon className="size-4" /></span>
+            <span className="min-w-0 text-[13px] font-semibold leading-tight [overflow-wrap:anywhere]">{a.t}</span>
+          </button>
+        ))}
+      </div>
+      {signos && <VentanaSignos user={user} log={log} turnos={turnos} soloLectura={false} inicial={p.id} onCerrar={() => setSignos(false)} />}
+      {accion && <VentanaRegistroEnf accion={accion} user={user} log={log} turnos={turnos} pacientes={pacientes} inicial={p.id} onCerrar={() => setAccion(null)} />}
+    </section>
   );
 }
