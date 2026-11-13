@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 
 function NotFoundComponent() {
@@ -121,8 +122,38 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Avisa cuando se publicó una versión nueva de la página y ofrece actualizar con un toque. */
+function useVersionNueva() {
+  useEffect(() => {
+    const actual = () => [...document.querySelectorAll<HTMLScriptElement>('script[type="module"][src]')].map((x) => new URL(x.src).pathname).find((p) => /\/assets\/index-/.test(p));
+    const inicial = actual();
+    if (!inicial) return;
+    let avisado = false;
+    const revisar = async () => {
+      if (avisado || document.visibilityState !== "visible") return;
+      try {
+        const html = await (await fetch(window.location.pathname, { cache: "no-store" })).text();
+        const nueva = html.match(/\/assets\/index-[\w-]+\.js/)?.[0];
+        if (nueva && nueva !== inicial) {
+          avisado = true;
+          toast("Hay una versión nueva de la página", { description: "Toque Actualizar para ver los últimos cambios.", duration: Infinity, action: { label: "Actualizar", onClick: () => window.location.reload() } });
+        }
+      } catch {
+        /* sin conexión: se revisa después */
+      }
+    };
+    const t = window.setInterval(() => void revisar(), 60_000);
+    document.addEventListener("visibilitychange", revisar);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", revisar);
+    };
+  }, []);
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useVersionNueva();
 
   return (
     <QueryClientProvider client={queryClient}>
