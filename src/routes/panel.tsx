@@ -916,7 +916,7 @@ function Panel() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
-              <InstalarApp nombre="el panel" oscuro className="h-10" />
+              <InstalarApp nombre="el panel" oscuro className="h-11" />
               {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} />}
               {!esEnf && <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA

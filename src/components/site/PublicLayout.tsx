@@ -1052,9 +1052,21 @@ export function InstalarApp({ nombre = "la app", oscuro = false, className = "" 
       <button
         type="button"
         onClick={() => void instalar()}
-        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${oscuro ? "bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20" : "bg-primary/10 text-primary ring-1 ring-primary/20 hover:bg-primary/15"} ${className}`}
+        className={`group relative inline-flex items-center gap-2.5 overflow-hidden rounded-xl p-[1.5px] text-sm font-semibold transition-transform duration-300 hover:-translate-y-0.5 active:translate-y-0 ${className}`}
       >
-        <Download className="size-4" /> Instalar {nombre}
+        {/* Borde degradé que gira */}
+        <span className="absolute -inset-[150%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#38bdf8,#a78bfa,#f472b6,#34d399,#38bdf8)] opacity-90" />
+        <span className={`relative flex h-full w-full items-center gap-2.5 rounded-[calc(0.75rem-1.5px)] py-1.5 pl-1.5 pr-4 ${oscuro ? "bg-[#0b1f4d]/90 text-white backdrop-blur-md" : "bg-card text-foreground"}`}>
+          {/* Brillo que pasa */}
+          <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/25 to-transparent transition-all duration-700 group-hover:left-[120%]" />
+          <span className="relative flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400 to-violet-500 shadow-[0_6px_16px_-4px_rgba(56,189,248,.8)]">
+            <Download className="size-3.5 text-white motion-safe:animate-[bajar_1.6s_ease-in-out_infinite]" />
+          </span>
+          <span className="relative text-left leading-none">
+            <span className="block">Instalar {nombre}</span>
+            <span className={`mt-0.5 block text-[10px] font-medium ${oscuro ? "text-white/60" : "text-muted-foreground"}`}>App en su pantalla de inicio</span>
+          </span>
+        </span>
       </button>
       {guia && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" onClick={() => setGuia(false)}>
