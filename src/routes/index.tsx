@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
   ArrowRight,
+  Check,
+  CalendarDays,
   ArrowUpRight,
   CalendarPlus,
   ChevronLeft,
@@ -299,6 +301,66 @@ function ExploradorEspecialidades() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* Tres pasos del turno: se iluminan uno tras otro, con un pulso que viaja por la línea */
+function PasosTurno() {
+  const [paso, setPaso] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setPaso((v) => (v + 1) % 3), 2600);
+    return () => clearInterval(t);
+  }, []);
+  const PASOS = [
+    { n: "01", icon: Stethoscope, t: "Elegí la especialidad", d: "Cardiología, nefrología, medicina interna y más.", c: "#0ea5e9" },
+    { n: "02", icon: CalendarDays, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor.", c: "#8b5cf6" },
+    { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones.", c: "#10b981" },
+  ];
+  return (
+    <div className="relative" data-reveal>
+      {/* Línea con el pulso que viaja */}
+      <div className="absolute left-[16.6%] right-[16.6%] top-[4.25rem] hidden h-[3px] overflow-hidden rounded-full bg-border md:block">
+        <span className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-500 via-violet-500 to-emerald-500 transition-all duration-700" style={{ width: `${paso * 50}%` }} />
+        <span className="vz-carrera absolute inset-y-[-3px] w-24 rounded-full bg-white/80 blur-[2px]" />
+      </div>
+      <div className="relative grid gap-4 md:grid-cols-3 md:gap-6">
+        {PASOS.map((p, i) => {
+          const on = i === paso;
+          const hecho = i < paso;
+          return (
+            <button
+              key={p.n}
+              type="button"
+              onMouseEnter={() => setPaso(i)}
+              style={{ transitionDelay: `${i * 120}ms`, ["--c" as string]: p.c } as CSSProperties}
+              className={`group relative flex items-center gap-5 overflow-hidden rounded-[1.75rem] border p-5 text-left transition-all duration-500 md:flex-col md:p-8 md:text-center ${on ? "-translate-y-1.5 border-transparent bg-card shadow-[0_35px_70px_-35px_var(--c)]" : "border-border/60 bg-card/60"}`}
+            >
+              {on && <span className="vz-brillo pointer-events-none absolute inset-0" />}
+              <span className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full blur-2xl transition-opacity duration-700" style={{ background: p.c, opacity: on ? 0.25 : 0 }} />
+              <span className="relative shrink-0">
+                {on && <span className="absolute inset-0 animate-ping rounded-[1.6rem] opacity-30" style={{ background: p.c, animationDuration: "1.8s" }} />}
+                <span
+                  className={`relative flex size-16 items-center justify-center rounded-[1.6rem] text-white shadow-lg transition-all duration-500 md:size-[4.5rem] ${on ? "scale-110" : ""}`}
+                  style={{ background: on || hecho ? `linear-gradient(140deg, ${p.c}, ${p.c}aa)` : "linear-gradient(140deg, #1e3a8a, #0b1f4d)", boxShadow: on ? `0 20px 40px -14px ${p.c}` : undefined }}
+                >
+                  <p.icon className={`size-7 ${on ? "vz-flota" : ""}`} />
+                </span>
+                <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-full bg-white font-display text-xs font-bold shadow-md ring-2 transition-colors" style={{ color: p.c, ["--tw-ring-color" as string]: on ? p.c : "transparent" } as CSSProperties}>
+                  {hecho ? <Check className="size-4" /> : p.n}
+                </span>
+              </span>
+              <span className="relative block">
+                <span className="block text-lg font-semibold md:mt-6">{p.t}</span>
+                <span className="mt-1 block text-sm text-muted-foreground md:mt-2">{p.d}</span>
+                <span className="mt-3 hidden h-1 w-full overflow-hidden rounded-full bg-secondary md:block">
+                  <span key={`${paso}-${i}`} className="block h-full origin-left rounded-full" style={{ background: p.c, transform: on ? undefined : `scaleX(${hecho ? 1 : 0})`, animation: on ? "barra 2.6s linear forwards" : undefined }} />
+                </span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -667,23 +729,7 @@ function Home() {
           <span className="section-kicker"><CalendarPlus className="size-3.5" /> Turnos online</span>
           <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu turno en <span className="text-gradient-clinic italic">tres pasos</span></h2>
         </div>
-        <div className="relative grid gap-3 md:grid-cols-3 md:gap-6">
-          <div className="premium-divider absolute left-[16%] right-[16%] top-10 hidden md:block" />
-          {[
-            { n: "01", icon: Stethoscope, t: "Elegí la especialidad", d: "Cardiología, nefrología, medicina interna y más." },
-            { n: "02", icon: Clock, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor." },
-            { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones." },
-          ].map((p, i) => (
-            <div key={p.n} data-reveal style={{ transitionDelay: `${i * 120}ms` }} className="relative flex items-center gap-5 rounded-3xl border border-border/60 bg-card/60 p-4 text-left md:block md:border-0 md:bg-transparent md:p-8 md:text-center">
-              <span className="relative flex size-16 shrink-0 items-center justify-center rounded-3xl gradient-deep text-white shadow-[0_20px_40px_-15px_rgba(20,50,120,.8)] md:mx-auto md:size-20">
-                <p.icon className="size-8" />
-                <span className="absolute -right-2 -top-2 flex size-8 items-center justify-center rounded-full bg-white font-display text-sm font-bold text-[var(--deep)] shadow-md">{p.n}</span>
-              </span>
-              <div><h3 className="text-lg font-semibold md:mt-6">{p.t}</h3>
-              <p className="mt-1 text-sm text-muted-foreground md:mt-2">{p.d}</p></div>
-            </div>
-          ))}
-        </div>
+        <PasosTurno />
         <div className="mt-10 flex justify-center" data-reveal>
           <Button asChild size="lg" className="btn-glow rounded-full px-8"><Link to="/turnos"><CalendarPlus className="size-4" /> Reservar ahora</Link></Button>
         </div>

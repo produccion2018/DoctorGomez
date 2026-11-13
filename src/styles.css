@@ -675,3 +675,6 @@
 .dark .vz-brillo { background-image: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / .08) 50%, transparent 65%); }
 @keyframes vz-brillo { 0%, 60% { background-position: 150% 0; } 100% { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .vz-carrera, .vz-brillo, .vz-senal, .vz-reloj { animation: none; } }
+
+.vz-pulso { animation: vz-pulso 2.8s ease-in-out infinite; }
+@keyframes vz-pulso { 0%, 100% { box-shadow: 0 0 0 0 rgb(244 63 94 / 0); } 40% { box-shadow: 0 0 0 6px rgb(244 63 94 / .18); } }

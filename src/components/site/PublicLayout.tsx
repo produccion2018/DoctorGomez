@@ -929,126 +929,81 @@ function MiniReproductor() {
   );
 }
 
-/** Reproductor premium al final de cada página (se oculta si en el panel no hay música). */
+/** Reproductor compacto y premium al final de cada página (se oculta si en el panel no hay música). */
 export function Reproductor() {
   const e = useMusica();
+  const [lista, setLista] = useState(false);
   const t = e.lista[e.tema];
   if (!t) return null;
-  const barras = 56;
   return (
-    <section className="relative mx-auto max-w-7xl px-4 pt-20 lg:px-8">
-      {/* Borde degradé */}
-      <div className={`relative rounded-[2.4rem] bg-gradient-to-br ${t.color} p-px shadow-[0_50px_100px_-50px_rgba(10,20,60,.95)] transition-all duration-1000`}>
-        <div className="relative overflow-hidden rounded-[calc(2.4rem-1px)] bg-[oklch(0.15_0.04_262)] text-white">
-          {/* Ambiente */}
-          <div className={`pointer-events-none absolute -left-32 -top-32 size-[28rem] rounded-full bg-gradient-to-br ${t.color} opacity-30 blur-[100px] transition-all duration-1000`} />
-          <div className={`pointer-events-none absolute -bottom-40 right-10 size-[26rem] rounded-full bg-gradient-to-br ${t.color} opacity-20 blur-[110px] transition-all duration-1000`} />
-          <div className="pointer-events-none absolute inset-0 bg-grid opacity-20 [mask-image:radial-gradient(ellipse_at_30%_40%,#000_10%,transparent_70%)]" />
+    <section className="relative mx-auto max-w-3xl px-4 pt-20">
+      {/* Borde degradé que gira */}
+      <div className="relative overflow-hidden rounded-[1.6rem] p-[1.5px] shadow-[0_40px_80px_-40px_rgba(10,20,60,.9)]">
+        <div className={`absolute -inset-[60%] bg-[conic-gradient(from_0deg,transparent_0%,#38bdf8_15%,transparent_30%,#f472b6_55%,transparent_70%)] ${e.sonando ? "spin-slow" : "opacity-50"}`} />
+        <div className="relative overflow-hidden rounded-[calc(1.6rem-1.5px)] bg-[oklch(0.16_0.045_262)] text-white">
+          <div className={`pointer-events-none absolute -left-10 top-1/2 size-48 -translate-y-1/2 rounded-full bg-gradient-to-br ${t.color} opacity-35 blur-3xl transition-all duration-1000`} />
 
-          <div className="relative grid gap-10 p-6 sm:p-10 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:gap-14 lg:p-12">
-            {/* Reproduciendo */}
-            <div className="grid items-center gap-8 sm:grid-cols-[auto_1fr]">
-              {/* Arte de tapa */}
-              <div className="relative mx-auto size-56 sm:size-60">
-                <div className={`absolute -inset-4 rounded-[2.2rem] bg-gradient-to-br ${t.color} opacity-40 blur-2xl transition-all duration-1000 ${e.sonando ? "animate-pulse" : ""}`} />
-                <div className={`relative size-full overflow-hidden rounded-[2rem] bg-gradient-to-br ${t.color} shadow-2xl ring-1 ring-white/25 transition-all duration-1000`}>
-                  <div className={`absolute -inset-1/2 bg-[conic-gradient(from_0deg,transparent,rgba(255,255,255,.35),transparent_40%)] ${e.sonando ? "spin-slow" : "opacity-40"}`} />
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.45),transparent_45%)]" />
-                  {[0.9, 0.7, 0.5].map((k) => (
-                    <span key={k} className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" style={{ width: `${k * 100}%`, height: `${k * 100}%` }} />
+          <div className="relative flex items-center gap-4 p-3 pr-4 sm:gap-5 sm:p-3.5 sm:pr-5">
+            {/* Disco */}
+            <button onClick={() => (e.sonando ? motor.pausa() : void motor.play())} aria-label={e.sonando ? "Pausar" : "Reproducir"} className="relative size-16 shrink-0 sm:size-[4.5rem]">
+              <span className={`absolute inset-0 rounded-full bg-gradient-to-br ${t.color} shadow-lg ${e.sonando ? "spin-slow" : ""}`} style={{ animationDuration: "6s" }}>
+                <span className="absolute inset-[18%] rounded-full border border-white/25" />
+                <span className="absolute inset-[32%] rounded-full border border-white/20" />
+                <span className="absolute left-1/2 top-[6%] h-[18%] w-[3px] -translate-x-1/2 rounded-full bg-white/60" />
+              </span>
+              <span className="absolute inset-[38%] rounded-full bg-[oklch(0.16_0.045_262)] ring-2 ring-white/40" />
+              {e.sonando && <span className={`absolute -inset-1.5 animate-ping rounded-full bg-gradient-to-br ${t.color} opacity-20`} style={{ animationDuration: "2.4s" }} />}
+            </button>
+
+            {/* Tema */}
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">
+                <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/40"}`} /> {e.sonando ? "Sonando" : "Música de espera"}
+              </p>
+              <p key={t.id} className="truncate font-display text-lg font-semibold animate-in fade-in slide-in-from-bottom-1 duration-500 sm:text-xl">{t.nombre}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="truncate text-xs text-white/55">{t.sub}</span>
+                <span className="flex h-3 items-end gap-[2px]" aria-hidden="true">
+                  {[0, 1, 2, 3, 4].map((k) => (
+                    <span key={k} className={`w-[3px] rounded-full bg-gradient-to-t ${t.color} ${e.sonando ? "eq-bar" : ""}`} style={{ height: e.sonando ? "100%" : "30%", animationDelay: `${k * 0.13}s` }} />
                   ))}
-                  <span className="absolute left-1/2 top-[42%] flex size-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/40 backdrop-blur-md">
-                    <Music2 className="size-7" />
-                  </span>
-                  {/* Visualizador */}
-                  <div className="absolute inset-x-4 bottom-4 flex h-12 items-end justify-between gap-[3px]" aria-hidden="true">
-                    {Array.from({ length: 22 }, (_, i) => (
-                      <span
-                        key={i}
-                        className={`w-full rounded-full bg-white/85 ${e.sonando ? "eq-bar" : ""}`}
-                        style={{ height: e.sonando ? "100%" : `${18 + ((i * 37) % 50)}%`, animationDelay: `${(i % 7) * 0.11}s`, animationDuration: `${0.7 + (i % 5) * 0.18}s`, opacity: e.sonando ? 0.9 : 0.45 }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="min-w-0">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80 ring-1 ring-white/15">
-                  <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/50"}`} />
-                  {e.sonando ? "Sonando ahora" : "Música para tu espera"}
                 </span>
-                <h2 key={t.id} className="mt-4 truncate text-4xl text-white animate-in fade-in slide-in-from-bottom-2 duration-500 sm:text-5xl">{t.nombre}</h2>
-                <p className="mt-1.5 text-white/60">{t.sub}</p>
-
-                {/* Onda */}
-                <div className="mt-6 flex h-10 items-center gap-[3px]" aria-hidden="true">
-                  {Array.from({ length: barras }, (_, i) => {
-                    const h = 18 + Math.abs(Math.sin(i * 0.55) * 60) + ((i * 13) % 22);
-                    return (
-                      <span
-                        key={i}
-                        className={`w-full rounded-full transition-colors duration-700 ${e.sonando ? "bg-gradient-to-t " + t.color : "bg-white/20"}`}
-                        style={{ height: `${Math.min(100, h)}%`, animation: e.sonando ? `eq 1.${(i % 9) + 1}s ease-in-out ${(i % 6) * 0.08}s infinite` : undefined }}
-                      />
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="flex size-12 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/15 transition-all hover:bg-white/15 hover:ring-white/30"><SkipBack className="size-4" /></button>
-                  <button
-                    onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
-                    aria-label={e.sonando ? "Pausar" : "Reproducir"}
-                    className="relative flex size-[4.5rem] items-center justify-center rounded-full bg-white text-[oklch(0.2_0.06_262)] shadow-[0_20px_45px_-12px_rgba(255,255,255,.45)] transition-transform hover:scale-105 active:scale-95"
-                  >
-                    {e.sonando && <span className="absolute inset-0 animate-ping rounded-full bg-white/30" />}
-                    {e.sonando ? <Pause className="relative size-7" /> : <Play className="relative ml-1 size-7" />}
-                  </button>
-                  <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-12 items-center justify-center rounded-full bg-white/[0.08] ring-1 ring-white/15 transition-all hover:bg-white/15 hover:ring-white/30"><SkipForward className="size-4" /></button>
-                  <label className="ml-auto flex w-full items-center gap-3 rounded-full bg-white/[0.06] px-4 py-2.5 text-white/70 ring-1 ring-white/10 sm:w-48">
-                    <Volume2 className="size-4 shrink-0" />
-                    <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-full cursor-pointer accent-white" aria-label="Volumen" />
-                  </label>
-                </div>
               </div>
             </div>
 
-            {/* Lista */}
-            <div className="rounded-[1.75rem] bg-white/[0.04] p-3 ring-1 ring-white/10 backdrop-blur-xl">
-              <div className="flex items-center justify-between px-3 pb-2 pt-1">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/50"><Headphones className="size-3.5" /> Lista</p>
-                <span className="text-xs text-white/40">{e.lista.length} {e.lista.length === 1 ? "tema" : "temas"}</span>
-              </div>
-              <ol className="max-h-80 space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
-                {e.lista.map((x, i) => {
-                  const on = i === e.tema;
-                  return (
-                    <li key={x.id}>
-                      <button
-                        onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))}
-                        className={`group flex w-full items-center gap-3.5 rounded-2xl p-2.5 text-left transition-all duration-300 ${on ? "bg-white/[0.12] shadow-lg ring-1 ring-white/20" : "hover:bg-white/[0.06]"}`}
-                      >
-                        <span className={`relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br ${x.color} shadow-md`}>
-                          <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.4),transparent_55%)]" />
-                          {on && e.sonando ? (
-                            <span className="relative flex h-4 items-end gap-0.5">{[0, 1, 2].map((k) => <span key={k} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${k * 0.2}s` }} />)}</span>
-                          ) : (
-                            <Play className="relative ml-0.5 size-4 transition-transform group-hover:scale-110" />
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className={`block truncate font-semibold ${on ? "text-white" : "text-white/85"}`}>{x.nombre}</span>
-                          <span className="block truncate text-xs text-white/50">{x.sub}</span>
-                        </span>
-                        <span className="text-xs tabular-nums text-white/35">{String(i + 1).padStart(2, "0")}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
+            {/* Controles */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="hidden size-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white sm:flex"><SkipBack className="size-4" /></button>
+              <button
+                onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
+                aria-label={e.sonando ? "Pausar" : "Reproducir"}
+                className="flex size-12 items-center justify-center rounded-full bg-white text-[oklch(0.2_0.06_262)] shadow-[0_12px_30px_-10px_rgba(255,255,255,.6)] transition-transform hover:scale-105 active:scale-95"
+              >
+                {e.sonando ? <Pause className="size-5" /> : <Play className="ml-0.5 size-5" />}
+              </button>
+              <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"><SkipForward className="size-4" /></button>
+              <label className="ml-1 hidden items-center gap-2 text-white/60 md:flex">
+                <Volume2 className="size-4 shrink-0" />
+                <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-20 cursor-pointer accent-white" aria-label="Volumen" />
+              </label>
+              <button onClick={() => setLista((v) => !v)} aria-label="Lista de temas" aria-expanded={lista} className={`ml-1 flex size-9 items-center justify-center rounded-full transition ${lista ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Headphones className="size-4" /></button>
             </div>
           </div>
+
+          {/* Lista desplegable */}
+          {lista && (
+            <div className="relative flex gap-2 overflow-x-auto border-t border-white/10 px-3 py-3 [scrollbar-width:none] animate-in fade-in slide-in-from-top-1 duration-300">
+              {e.lista.map((x, i) => {
+                const on = i === e.tema;
+                return (
+                  <button key={x.id} onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))} className={`flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-xs font-semibold transition ${on ? "bg-white/15 ring-1 ring-white/25" : "bg-white/[0.05] text-white/70 hover:bg-white/10"}`}>
+                    <span className={`flex size-6 items-center justify-center rounded-full bg-gradient-to-br ${x.color}`}>{on && e.sonando ? <Pause className="size-3" /> : <Play className="ml-px size-3" />}</span>
+                    {x.nombre}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </section>

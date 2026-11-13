@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, CalendarPlus, Check, Compass, Eye, Gauge, HeartHandshake, HeartPulse, Lightbulb, Quote, Scale, ShieldCheck, Smile, Sparkles, Stethoscope, Target, TrendingUp, Waves, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, FondoDoctor, FondoEspecialidades } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoDoctor, FondoEspecialidades, Electro } from "@/components/site/PublicLayout";
 import { DOCTORS } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
@@ -28,16 +28,15 @@ const VALORES = [
 ];
 
 const SERVICIOS_OFRECIDOS = [
-  { icon: Stethoscope, t: "Consulta de cardiología general" },
-  { icon: Gauge, t: "Evaluación de riesgo cardiovascular" },
-  { icon: Activity, t: "Electrocardiograma (ECG)" },
-  { icon: Waves, t: "Ecocardiograma" },
-  { icon: HeartPulse, t: "Monitoreo Holter" },
-  { icon: Zap, t: "Prueba de esfuerzo" },
-  { icon: TrendingUp, t: "Control y seguimiento de hipertensión arterial" },
-  { icon: HeartHandshake, t: "Manejo de insuficiencia cardíaca" },
-  { icon: ShieldCheck, t: "Programa de prevención cardiovascular" },
-  { icon: Sparkles, t: "Todo lo relacionado con Medicina Interna" },
+  { icon: Stethoscope, t: "Consulta de cardiología general", area: "cardio" },
+  { icon: Gauge, t: "Evaluación de riesgo cardiovascular", area: "cardio" },
+  { icon: Activity, t: "Electrocardiograma (ECG)", area: "cardio" },
+  { icon: Waves, t: "Ecocardiograma", area: "cardio" },
+  { icon: HeartPulse, t: "Monitoreo Holter", area: "cardio" },
+  { icon: Zap, t: "Prueba de esfuerzo", area: "cardio" },
+  { icon: TrendingUp, t: "Control y seguimiento de hipertensión arterial", area: "cardio" },
+  { icon: HeartHandshake, t: "Manejo de insuficiencia cardíaca", area: "cardio" },
+  { icon: ShieldCheck, t: "Programa de prevención cardiovascular", area: "cardio" },
 ];
 
 const OBJETIVOS = [
@@ -203,21 +202,51 @@ function Nosotros() {
             <span className="section-kicker">Servicios ofrecidos</span>
             <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Cuidamos tu <span className="text-gradient-clinic italic">corazón</span> y tu salud</h2>
           </div>
-          <ul className="mt-10 grid gap-3 sm:grid-cols-2">
-            {SERVICIOS_OFRECIDOS.map((sv, i) => (
-              <li
-                key={sv.t}
-                data-reveal
-                style={{ transitionDelay: `${(i % 2) * 80}ms` }}
-                className="group flex items-center gap-4 rounded-2xl border border-border bg-card px-4 py-3.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-rose-300/60 hover:shadow-[0_18px_40px_-28px_rgba(239,68,68,.7)]"
-              >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 ring-1 ring-rose-500/15 transition-all duration-300 group-hover:bg-gradient-to-br group-hover:from-rose-500 group-hover:to-red-700 group-hover:text-white dark:text-rose-400">
-                  <sv.icon className="size-5" />
-                </span>
-                <span className="text-sm font-medium leading-snug">{sv.t}</span>
-              </li>
-            ))}
-          </ul>
+          {/* Cardiología: los servicios del cardiólogo */}
+          <div data-reveal className="relative mt-10 overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-6 text-white shadow-[0_40px_80px_-45px_rgba(10,25,70,.9)] sm:p-8">
+            <span className="vz-orbe pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-rose-500/30 blur-3xl" />
+            <Electro latidos={6} grilla={false} color="#fb7185" className="pointer-events-none absolute inset-x-0 top-6 h-16 w-full opacity-40" />
+            <div className="relative flex items-center gap-4">
+              <span className="relative flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-red-700 shadow-[0_16px_32px_-12px_rgba(244,63,94,.9)]">
+                <span className="absolute inset-0 animate-ping rounded-2xl bg-rose-500/40" style={{ animationDuration: "1.6s" }} />
+                <HeartPulse className="animate-heartbeat relative size-7" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-300">Cardiología</p>
+                <p className="text-xl font-semibold">Diagnóstico, tratamiento y prevención</p>
+              </div>
+            </div>
+            <ul className="relative mt-7 grid gap-2.5 sm:grid-cols-2">
+              {SERVICIOS_OFRECIDOS.filter((x) => x.area === "cardio").map((sv, i) => (
+                <li
+                  key={sv.t}
+                  className="group flex items-center gap-3 rounded-2xl bg-white/[0.06] px-3.5 py-3 ring-1 ring-white/10 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/[0.12] hover:ring-rose-400/50"
+                >
+                  <span className="vz-pulso flex size-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/20 text-rose-300 ring-1 ring-rose-400/30 transition-colors group-hover:bg-rose-500 group-hover:text-white" style={{ animationDelay: `${i * 0.35}s` }}>
+                    <sv.icon className="size-[18px]" />
+                  </span>
+                  <span className="text-sm font-medium leading-snug text-white/90">{sv.t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Medicina Interna */}
+          <div data-reveal className="group relative mt-5 flex flex-col gap-5 overflow-hidden rounded-[2rem] border border-emerald-500/20 bg-card p-6 shadow-[0_30px_60px_-45px_rgba(16,185,129,.8)] sm:flex-row sm:items-center sm:p-8">
+            <span className="vz-brillo pointer-events-none absolute inset-0" />
+            <span className="pointer-events-none absolute -bottom-16 -right-10 size-56 rounded-full bg-emerald-400/15 blur-3xl" />
+            <span className="vz-flota relative flex size-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 text-white shadow-[0_16px_32px_-12px_rgba(16,185,129,.9)]">
+              <Stethoscope className="size-7" />
+            </span>
+            <div className="relative flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Medicina Interna</p>
+              <p className="mt-1 text-xl font-semibold">Atención integral del adulto</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">Consulta clínica general, chequeos y control de enfermedades crónicas como diabetes, hipertensión y colesterol.</p>
+            </div>
+            <Link to="/especialidades/$slug" params={{ slug: "medicina-interna" }} className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:gap-2.5 hover:bg-emerald-700">
+              Conocer más <ArrowRight className="size-4" />
+            </Link>
+          </div>
         </div>
 
         <aside data-reveal className="relative self-start overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-8 text-white shadow-[0_40px_80px_-40px_rgba(10,25,70,.9)] sm:p-10 lg:sticky lg:top-28">
