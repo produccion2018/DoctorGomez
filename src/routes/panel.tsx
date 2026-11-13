@@ -4157,7 +4157,7 @@ function edadDe(nac?: string) {
   const h = new Date();
   let e = h.getFullYear() - d.getFullYear();
   if (h.getMonth() < d.getMonth() || (h.getMonth() === d.getMonth() && h.getDate() < d.getDate())) e--;
-  return e;
+  return e >= 0 && e < 130 ? e : null; // fecha mal cargada (a futuro o imposible)
 }
 /** Fecha legible: respeta las fechas sin hora (AAAA-MM-DD) para no correrlas un día. */
 const fechaDe = (f: string) => (f.length === 10 ? fechaCorta(f) : new Date(f).toLocaleDateString("es-CO"));
@@ -6955,17 +6955,22 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
   const conPesoP = evols.find((e) => e.signos.peso);
   const imcP = conPesoP ? calcularImc(conPesoP.signos.peso, conPesoP.signos.talla ?? evols.find((e) => e.signos.talla)?.signos.talla) : null;
 
+  const [notasEnfC] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const enfP = notasEnfC.filter((n) => n.pacienteId === p.id || n.pacienteId === p.portalId).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
   const Indicador = ({ icon: Ic, l, v, d, ir, tono }: { icon: LucideIcon; l: string; v: string; d: string; ir: SecCarpeta; tono: string }) => (
-    <button onClick={() => setSec(ir)} className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg">
-      <span className={`pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-gradient-to-br ${tono} opacity-15 blur-xl transition-transform group-hover:scale-125`} />
+    <button onClick={() => setSec(ir)} className="group relative overflow-hidden rounded-[1.4rem] border border-border/60 bg-card p-4 text-left shadow-[0_1px_0_rgba(255,255,255,.6)_inset] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-30px_rgba(15,23,42,.5)]">
+      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${tono}`} />
+      <span className={`pointer-events-none absolute -right-10 -top-10 size-28 rounded-full bg-gradient-to-br ${tono} opacity-20 blur-2xl transition-transform duration-500 group-hover:scale-150`} />
+      <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent transition-all duration-700 group-hover:left-[130%]" />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{l}</p>
-          <p className="mt-1.5 truncate font-display text-xl font-semibold">{v}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{l}</p>
+          <p className="mt-2 truncate font-display text-2xl font-semibold tracking-tight">{v}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d}</p>
         </div>
-        <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${tono} text-white shadow-md`}><Ic className="size-4" /></span>
+        <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${tono} text-white shadow-lg ring-4 ring-card transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}><Ic className="size-5" /></span>
       </div>
+      <span className="relative mt-3 flex items-center gap-1 text-[11px] font-semibold text-[rgb(var(--acc))] opacity-0 transition-opacity group-hover:opacity-100">Ver detalle <ArrowRight className="size-3" /></span>
     </button>
   );
 
@@ -7020,31 +7025,44 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
         <div key={sec} className="min-w-0 p-3 animate-in fade-in duration-300 sm:p-5">
           {sec === "resumen" && (
             <div className="space-y-4">
-              <section className="relative overflow-hidden rounded-[22px] border border-[rgba(var(--acc),.2)] bg-gradient-to-br from-[rgba(var(--acc),.1)] via-card to-rose-500/[0.06] p-5">
-                <span className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-[rgba(var(--acc),.1)] blur-2xl" />
-                <div className="relative flex flex-wrap items-center gap-4">
-                  <span className="grid size-16 shrink-0 place-items-center rounded-[20px] pn-acc-tile text-xl font-bold text-white ring-4 ring-card">{iniciales(p.nombre)}</span>
+              <section className="relative overflow-hidden rounded-[1.6rem] gradient-deep p-6 text-white shadow-[0_30px_60px_-35px_rgba(10,25,70,.9)]">
+                <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+                <span className="pn-orb pointer-events-none absolute -right-16 -top-24 size-64 rounded-full bg-[rgba(var(--acc),.45)] blur-3xl" />
+                <span className="pointer-events-none absolute -bottom-20 left-1/3 size-48 rounded-full bg-sky-400/20 blur-3xl" />
+                <Electro latidos={4} grilla={false} color="#ffffff" className="pointer-events-none absolute inset-x-0 bottom-2 h-12 w-full opacity-25" />
+                <div className="relative flex flex-wrap items-center gap-5">
+                  <span className="relative shrink-0">
+                    <span className="absolute -inset-1.5 rounded-[1.6rem] bg-gradient-to-br from-white/60 to-[rgba(var(--acc),.6)] opacity-70 blur-[2px]" />
+                    <span className="relative grid size-[4.5rem] place-items-center rounded-[1.4rem] pn-acc-tile text-2xl font-bold text-white ring-2 ring-white/40">{iniciales(p.nombre)}</span>
+                    <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 ring-4 ring-[#0b1f4d]" title="Paciente activo" />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="truncate text-[22px] font-semibold tracking-tight">{p.nombre}</h4>
-                      {p.portal && <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal activo</span>}
-                      {p.ficha?.alergias && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {p.ficha.alergias}</span>}
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Carpeta del paciente</p>
+                    <h4 className="mt-1 truncate font-display text-[28px] font-semibold leading-tight tracking-tight">{p.nombre}</h4>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                      {p.dni && <span className="rounded-full bg-white/12 px-2.5 py-1 ring-1 ring-white/20">C.C. {p.dni}</span>}
+                      {edad !== null && <span className="rounded-full bg-white/12 px-2.5 py-1 ring-1 ring-white/20">{edad} años</span>}
+                      <span className="rounded-full bg-white/12 px-2.5 py-1 ring-1 ring-white/20">{p.ficha?.obraSocial || "Particular"}{p.ficha?.afiliado ? ` · ${p.ficha.afiliado}` : ""}</span>
+                      {p.portal && <span className="rounded-full bg-violet-400/30 px-2.5 py-1 ring-1 ring-violet-200/40">Portal activo</span>}
+                      {p.ficha?.alergias ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-500 px-2.5 py-1 shadow-[0_6px_16px_-6px_rgba(239,68,68,.9)]"><AlertTriangle className="size-3" /> Alergia: {p.ficha.alergias}</span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-400/20 px-2.5 py-1 text-emerald-100 ring-1 ring-emerald-300/30">Sin alergias registradas</span>
+                      )}
                     </div>
-                    <p className="mt-1 text-[13px] text-muted-foreground">
-                      {[p.dni ? `C.C. ${p.dni}` : null, edad !== null ? `${edad} años` : null, p.ficha?.obraSocial || "Particular", p.ficha?.afiliado ? `Afiliado ${p.ficha.afiliado}` : null].filter(Boolean).join(" · ")}
-                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {p.telefono && (
-                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
+                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,.9)] transition hover:-translate-y-0.5 hover:bg-emerald-400"><Send className="size-3.5" /> WhatsApp</a>
                     )}
-                    <Button size="sm" variant="outline" className="rounded-xl" onClick={onEditar}><Pencil className="size-3.5" /> Editar paciente</Button>
+                    <button onClick={onEditar} className="inline-flex items-center gap-1.5 rounded-xl bg-white/12 px-4 py-2.5 text-xs font-semibold text-white ring-1 ring-white/25 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/20"><Pencil className="size-3.5" /> Editar paciente</button>
                   </div>
                 </div>
                 {(p.ficha?.antecedentes ?? []).length > 0 && (
-                  <div className="relative mt-4 flex flex-wrap gap-1.5">
+                  <div className="relative mt-5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-4">
+                    <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Antecedentes</span>
                     {(p.ficha?.antecedentes ?? []).map((a) => (
-                      <span key={a} className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${esCardio([a]) ? "bg-rose-50 text-rose-700 ring-rose-200" : esNefro([a]) ? "bg-sky-50 text-sky-800 ring-sky-200" : "bg-secondary text-foreground/80 ring-border"}`}>{a}</span>
+                      <span key={a} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${esCardio([a]) ? "bg-rose-400/25 text-rose-50 ring-rose-200/30" : esNefro([a]) ? "bg-sky-400/25 text-sky-50 ring-sky-200/30" : "bg-white/10 text-white/90 ring-white/20"}`}>{a}</span>
                     ))}
                   </div>
                 )}
@@ -7057,20 +7075,48 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                 <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
               </div>
 
+              {enfP.length > 0 && (
+                <div className="rounded-[1.4rem] border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-card to-card p-5 shadow-sm dark:border-emerald-500/20 dark:from-emerald-500/5">
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md"><Syringe className="size-[18px]" /></span>
+                    <div className="flex-1">
+                      <p className="font-semibold">Enfermería reciente</p>
+                      <p className="text-[11px] text-muted-foreground">Lo último que registró enfermería</p>
+                    </div>
+                    <button onClick={() => setSec("historia")} className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:gap-2">Ver todo <ArrowRight className="size-3" /></button>
+                  </div>
+                  <ul className="grid gap-2 md:grid-cols-2">
+                    {enfP.map((n) => (
+                      <li key={n.id} className="rounded-xl bg-card px-3 py-2.5 ring-1 ring-border/60">
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
+                          <span className="ml-auto text-muted-foreground">{fechaHora(n.fecha)}</span>
+                        </div>
+                        <p className="mt-1.5 line-clamp-2 text-sm">{n.texto}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-2xl border border-border/70 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold">Últimas consultas</p>
-                    <button onClick={() => setSec("historia")} className="text-xs font-semibold text-[rgb(var(--acc))]">Ver historia</button>
+                <div className="rounded-[1.4rem] border border-border/60 bg-card p-5 shadow-sm">
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-700 text-white shadow-md"><Stethoscope className="size-[18px]" /></span>
+                    <div className="flex-1">
+                      <p className="font-semibold">Últimas consultas</p>
+                      <p className="text-[11px] text-muted-foreground">{evols.length} {evols.length === 1 ? "consulta" : "consultas"} en la historia</p>
+                    </div>
+                    <button onClick={() => setSec("historia")} className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--acc),.1)] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] transition hover:gap-2">Ver historia <ArrowRight className="size-3" /></button>
                   </div>
                   {evols.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">Sin evoluciones cargadas.</p>
+                    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-6 text-center"><NotebookPen className="size-6 text-muted-foreground/60" /><p className="text-sm text-muted-foreground">Sin evoluciones cargadas.</p></div>
                   ) : (
                     <ul className="space-y-2">
                       {evols.slice(0, 3).map((e) => {
                         const dx0 = dxDe(e)[0];
                         return (
-                          <li key={e.id} className="flex items-center gap-3 rounded-xl bg-secondary/40 px-3 py-2.5">
+                          <li key={e.id} className="flex items-center gap-3 rounded-xl border-l-4 border-indigo-400 bg-secondary/40 px-3 py-2.5 transition hover:bg-secondary/70">
                             <span className="pn-acc-tile flex size-8 shrink-0 items-center justify-center rounded-lg text-white"><Stethoscope className="size-3.5" /></span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm font-medium">{e.motivo || "Consulta"}</p>
@@ -7082,20 +7128,24 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                     </ul>
                   )}
                 </div>
-                <div className="rounded-2xl border border-border/70 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold">Medicación activa</p>
-                    <button onClick={() => abrir("recetas", p.id)} className="text-xs font-semibold text-[rgb(var(--acc))]">Nueva receta</button>
+                <div className="rounded-[1.4rem] border border-border/60 bg-card p-5 shadow-sm">
+                  <div className="mb-4 flex items-center gap-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-md"><Pill className="size-[18px]" /></span>
+                    <div className="flex-1">
+                      <p className="font-semibold">Medicación activa</p>
+                      <p className="text-[11px] text-muted-foreground">Recetas vigentes y medicación del portal</p>
+                    </div>
+                    <button onClick={() => abrir("recetas", p.id)} className="inline-flex items-center gap-1 rounded-full bg-[rgba(var(--acc),.1)] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] transition hover:gap-2"><Plus className="size-3" /> Nueva receta</button>
                   </div>
                   {meds.filter((m) => m.activo).length === 0 && recetas.filter((r) => !r.anulada).length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">Sin medicación registrada.</p>
+                    <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-6 text-center"><Pill className="size-6 text-muted-foreground/60" /><p className="text-sm text-muted-foreground">Sin medicación registrada.</p></div>
                   ) : (
                     <ul className="space-y-2">
                       {meds.filter((m) => m.activo).map((m) => (
-                        <li key={m.id} className="rounded-xl bg-secondary/40 px-3 py-2 text-sm"><span className="font-medium">{m.nombre}</span> <span className="text-muted-foreground">{m.dosis} · {m.horarios.join(" · ")}</span></li>
+                        <li key={m.id} className="rounded-xl border-l-4 border-emerald-400 bg-secondary/40 px-3 py-2.5 text-sm"><span className="font-medium">{m.nombre}</span> <span className="text-muted-foreground">{m.dosis} · {m.horarios.join(" · ")}</span></li>
                       ))}
                       {recetas.filter((r) => !r.anulada).slice(0, 3).flatMap((r) => r.items.map((i, k) => (
-                        <li key={`${r.id}-${k}`} className="rounded-xl bg-secondary/40 px-3 py-2 text-sm"><span className="font-medium">{i.droga} {i.presentacion}</span> <span className="text-muted-foreground">{i.posologia} · Receta {fechaDe(r.fecha)}</span></li>
+                        <li key={`${r.id}-${k}`} className="flex items-center gap-2 rounded-xl border-l-4 border-emerald-400 bg-secondary/40 px-3 py-2.5 text-sm"><Pill className="size-3.5 shrink-0 text-emerald-600" /><span className="font-medium">{i.droga} {i.presentacion}</span> <span className="text-muted-foreground">{i.posologia} · Receta {fechaDe(r.fecha)}</span></li>
                       )))}
                     </ul>
                   )}
