@@ -397,7 +397,7 @@ function traerDelServidor(key: string): Promise<void> {
 /* ---------- Colecciones fila por fila (turnos, padrón, pacientes) ---------- */
 const COLECCIONES = [
   "gb_turnos", "gb_padron", "gb_pacientes",
-  "gb_evoluciones", "gb_triage", "gb_recetas", "gb_laboratorio", "gb_estudios",
+  "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
   "gb_audit", "gb_mensajes",
@@ -928,6 +928,9 @@ export type Triage = {
   evolucionId?: string;
 };
 export const KEY_TRIAGE = "gb_triage";
+/** Notas de enfermería (registro de enfermería en la historia clínica). */
+export const KEY_NOTAS_ENF = "gb_notas_enf";
+export type NotaEnfermeria = { id: string; pacienteId: string; paciente: string; fecha: string; enfermeraId: string; enfermera: string; tipo: string; texto: string; turnoId?: string };
 
 /* ---------- Historia clínica (evoluciones de cada consulta) ---------- */
 export const ESPECIALIDADES_HC = ["Cardiología", "Nefrología", "Medicina Interna"] as const;

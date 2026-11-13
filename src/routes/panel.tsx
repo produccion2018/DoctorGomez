@@ -157,6 +157,8 @@ import {
   KEY_MEDICACION,
   KEY_EVOLUCIONES,
   KEY_TRIAGE,
+  KEY_NOTAS_ENF,
+  type NotaEnfermeria,
   KEY_ENFERMERIA,
   tieneClave,
   borrarClave,
@@ -955,7 +957,7 @@ function Panel() {
         {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
         {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf || esAreaMedica(user.area)} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
         {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
-        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} />}
+        {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} notasEnf={esEnf && !esAreaMedica(user.area) && TABS_ENF.includes("triage") && !soloLectura("triage")} />}
         {tabVisible === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
@@ -4300,7 +4302,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
 /** Diagnósticos de una evolución (CIE-10 o los de texto de evoluciones anteriores). */
 const dxDe = (e: Evolucion): Cie[] => e.cie10 ?? e.diagnosticos.map((d) => ({ codigo: "", descripcion: d }));
 
-function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null; soloLectura?: boolean }) {
+function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null; soloLectura?: boolean; notasEnf?: boolean }) {
   const [evols, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
@@ -4399,6 +4401,8 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user
           <FichaHC
             key={sel.id}
             soloLectura={soloLectura}
+            log={log}
+            notasEnf={notasEnf}
             p={sel}
             evols={evols.filter((e) => esDe(sel, e.pacienteId))}
             estudios={estudios.filter((e) => esDe(sel, e.pacienteId))}
@@ -4450,10 +4454,10 @@ ${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} �
 }
 
 function FichaHC({
-  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user, soloLectura = false,
+  p, evols, estudios, controles, meds, nueva, setNueva, onGuardar, onBorrar, user, soloLectura = false, log = () => undefined, notasEnf = false,
 }: {
   p: PacienteHC; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; meds: Medicamento[];
-  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean;
+  nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean;
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "estudios">("todo");
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
@@ -4563,6 +4567,8 @@ function FichaHC({
       )}
 
       {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
+
+      <NotasEnfermeria ids={[p.id, p.portalId].filter(Boolean) as string[]} paciente={p.nombre} user={user} log={log} puede={notasEnf} />
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Registro de consultas */}
@@ -7044,6 +7050,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
             <div className="space-y-4">
               <FichaHC
                 soloLectura={soloLectura}
+                log={log}
                 p={p}
                 evols={evols}
                 estudios={estudios}
@@ -7519,7 +7526,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
           icon={CalendarDays}
           label="Citas de hoy"
           value={String(turnosHoy.length)}
-          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · toca para registrar` : "Toque para registrar signos vitales"}
+          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · toque para registrar` : "Toque para registrar signos vitales"}
           tono="verde"
           onClick={() => setVentana(true)}
           accion="Tomar signos vitales"
@@ -7527,6 +7534,8 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
       </div>
 
       {ventana && <VentanaSignos user={user} log={log} turnos={turnos} soloLectura={soloLectura} onCerrar={() => setVentana(false)} />}
+
+      <ProcedimientosHoy user={user} log={log} turnos={turnosHoy} pacientes={pacientes} soloLectura={soloLectura || esMedico} />
 
       <Seccion icon={ClipboardList} titulo="Signos vitales registrados hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · quedan en la Historia Clínica de cada paciente`}>
         {deHoy.length === 0 ? (
@@ -7538,7 +7547,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <Avatar nombre={t.paciente} size="size-10" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{t.paciente}</p>
+                    <p className="flex flex-wrap items-center gap-2 truncate font-semibold">{t.paciente}{(() => { const al = pacientes.find((x) => esDe(x, t.pacienteId))?.ficha?.alergias; return al ? <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span> : null; })()}</p>
                     <p className="text-[11px] text-muted-foreground">{new Date(t.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {t.enfermera}</p>
                   </div>
                   {t.evolucionId ? (
@@ -8451,5 +8460,121 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
         <Button type="submit" variant="outline" disabled={!id} className="h-10 shrink-0 rounded-xl">Restablecer 2FA</Button>
       </form>
     </section>
+  );
+}
+
+
+/* ---------- Enfermería: notas y procedimientos ---------- */
+const TIPOS_NOTA_ENF = ["Nota de enfermería", "Procedimiento realizado", "Toma de muestra", "Administración de medicamento", "Educación al paciente", "Novedad / incidente"] as const;
+const COLOR_NOTA: Record<string, string> = {
+  "Nota de enfermería": "bg-sky-100 text-sky-700 ring-sky-200",
+  "Procedimiento realizado": "bg-violet-100 text-violet-700 ring-violet-200",
+  "Toma de muestra": "bg-amber-100 text-amber-800 ring-amber-200",
+  "Administración de medicamento": "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  "Educación al paciente": "bg-teal-100 text-teal-700 ring-teal-200",
+  "Novedad / incidente": "bg-rose-100 text-rose-700 ring-rose-200",
+};
+
+/** Registro de enfermería del paciente (dentro de la Historia Clínica). Solo enfermería escribe; los médicos lo leen. */
+function NotasEnfermeria({ ids, paciente, user, log, puede }: { ids: string[]; paciente: string; user: SessionUser; log: LogFn; puede: boolean }) {
+  const [notas, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const [tipo, setTipo] = useState<string>(TIPOS_NOTA_ENF[0]);
+  const [texto, setTexto] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const mias = notas.filter((n) => ids.includes(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!texto.trim()) return;
+    const n: NotaEnfermeria = { id: uid(), pacienteId: ids[0]!, paciente, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo, texto: texto.trim() };
+    setNotas((p) => [...p, n]);
+    log("Nota de enfermería", `${paciente} · ${tipo}`);
+    toast.success("Nota guardada en la historia clínica.");
+    setTexto("");
+    setAbierto(false);
+  };
+  if (!puede && mias.length === 0) return null;
+  return (
+    <Seccion
+      icon={Syringe}
+      titulo="Notas de enfermería"
+      sub={`${mias.length} ${mias.length === 1 ? "registro" : "registros"} · procedimientos, muestras, medicación y novedades`}
+      acciones={puede && !abierto ? <Button size="sm" className="rounded-xl" onClick={() => setAbierto(true)}><Plus className="size-4" /> Nueva nota</Button> : undefined}
+    >
+      {puede && abierto && (
+        <form onSubmit={guardar} className="mb-5 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/5">
+          <div className="flex flex-wrap gap-1.5">
+            {TIPOS_NOTA_ENF.map((t) => (
+              <button key={t} type="button" onClick={() => setTipo(t)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${tipo === t ? COLOR_NOTA[t] : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{t}</button>
+            ))}
+          </div>
+          <textarea autoFocus rows={3} value={texto} onChange={(e) => setTexto(e.target.value)} className={inp + " h-auto py-2.5"}
+            placeholder={tipo === "Administración de medicamento" ? "Medicamento, dosis, vía y hora. Ej.: Furosemida 20 mg IV 10:30, indicada por el Dr. …" : tipo === "Toma de muestra" ? "Qué muestra se tomó y cómo quedó rotulada. Ej.: Sangre venosa para creatinina y potasio, 08:15." : tipo === "Procedimiento realizado" ? "Ej.: Electrocardiograma de 12 derivaciones tomado. Colocación de Holter 24 h a las 09:00." : "Estado del paciente, observaciones, indicaciones dadas…"} />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" className="rounded-xl" onClick={() => setAbierto(false)}>Cancelar</Button>
+            <Button type="submit" disabled={!texto.trim()} className="rounded-xl"><Check className="size-4" /> Guardar nota</Button>
+          </div>
+        </form>
+      )}
+      {mias.length === 0 ? (
+        <Vacio icon={Syringe} texto="Todavía no hay notas de enfermería para este paciente." />
+      ) : (
+        <ul className="space-y-2.5">
+          {mias.map((n) => (
+            <li key={n.id} className="rounded-2xl border border-border/70 bg-card p-3.5">
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <span className={`rounded-full px-2.5 py-0.5 font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
+                <span className="text-muted-foreground">{fechaHora(n.fecha)} · {n.enfermera}</span>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm">{n.texto}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Seccion>
+  );
+}
+
+/** Procedimientos del día que hace enfermería (electro, Holter, MAPA, muestras…), con marca de realizado. */
+function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; soloLectura: boolean }) {
+  const [notas, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const procs = turnos.filter((t) => esProcedimiento(t.motivo)).sort((a, b) => a.hora.localeCompare(b.hora));
+  const pacDe = (t: Turno) => pacientes.find((x) => (t.pacienteId && (x.id === t.pacienteId || x.portalId === t.pacienteId)) || norm(x.nombre) === norm(t.paciente));
+  const hecho = (t: Turno) => notas.find((n) => n.turnoId === t.id);
+  const marcar = (t: Turno) => {
+    const p = pacDe(t);
+    const n: NotaEnfermeria = { id: uid(), pacienteId: p?.id ?? t.pacienteId ?? t.id, paciente: t.paciente, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: "Procedimiento realizado", texto: `${t.motivo} realizado (cita de las ${t.hora} con ${nombreCorto(t.doctor)}).`, turnoId: t.id };
+    setNotas((x) => [...x, n]);
+    log("Procedimiento realizado", `${t.paciente} · ${t.motivo}`);
+    toast.success("Marcado como realizado. Quedó en la historia clínica.");
+  };
+  return (
+    <Seccion icon={Stethoscope} titulo="Procedimientos de hoy" sub={`${procs.length} ${procs.length === 1 ? "procedimiento" : "procedimientos"} · electrocardiograma, Holter, MAPA, ecografías y muestras`}>
+      {procs.length === 0 ? (
+        <Vacio icon={Stethoscope} texto="Hoy no hay procedimientos agendados." />
+      ) : (
+        <ul className="space-y-2.5">
+          {procs.map((t) => {
+            const h = hecho(t);
+            const al = pacDe(t)?.ficha?.alergias;
+            return (
+              <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3.5 ${h ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5" : "border-border/70 bg-card"}`}>
+                <span className="w-14 shrink-0 font-display text-lg tabular-nums">{t.hora}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold">{t.paciente}{al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span>}</p>
+                  <p className="text-xs text-muted-foreground">{t.motivo} · {nombreCorto(t.doctor)}</p>
+                </div>
+                {h ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white"><Check className="size-3.5" /> Realizado · {h.enfermera.split(" ")[0]}</span>
+                ) : !soloLectura ? (
+                  <Button size="sm" className="rounded-xl" onClick={() => marcar(t)}><Check className="size-3.5" /> Marcar realizado</Button>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Pendiente</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Seccion>
   );
 }
