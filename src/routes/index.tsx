@@ -810,7 +810,7 @@ function Home() {
       </section>
 
       {/* ───────── CTA FINAL ───────── */}
-      <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-24 pt-20 sm:pt-28 lg:px-8">
         <div data-reveal className="relative overflow-hidden rounded-[2rem] gradient-deep p-10 text-center shadow-elevated sm:p-16">
           <div className="absolute inset-0 bg-grid opacity-50" />
           <div className="blob -left-10 -top-10 size-64 bg-white/30" />
