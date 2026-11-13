@@ -101,6 +101,7 @@ import {
   leerDato,
   agendaDe,
   horariosDelDia,
+  rangoDia,
   atiendeEl,
   proximosDias,
   resumenAgenda,
@@ -1516,7 +1517,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
     const ag = agendaDe(agendas, a.id);
     const atiende = atiendeEl(ag, dia);
     const bloqueo = ag.bloqueos.find((b) => dia >= b.desde && dia <= b.hasta);
-    const slots = atiende ? horariosDelDia(ag) : [];
+    const slots = atiende ? horariosDelDia(ag, dia) : [];
     const suyos = delDia.filter((t) => t.doctor === a.nombre);
     const fuera = suyos.filter((t) => !slots.includes(t.hora)).sort((x, y) => x.hora.localeCompare(y.hora));
     // el horario "actual": el último que ya empezó
@@ -1750,7 +1751,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
     return isoDe(d);
   });
   const atiende = atiendeEl(agendaSel, f.fecha);
-  const slots = horariosDelDia(agendaSel).map((h) => ({
+  const slots = horariosDelDia(agendaSel, f.fecha).map((h) => ({
     h,
     ocupado: turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === h && t.estado !== "Cancelado"),
   }));
@@ -3269,6 +3270,12 @@ function Interruptor({ on, onChange, label }: { on: boolean; onChange: (v: boole
   );
 }
 
+/** Una fecha cualquiera que cae en ese día de la semana (para calcular turnos). */
+function isoDiaSemana(d: number) {
+  const x = new Date(2026, 0, 4 + d); // 4/1/2026 es domingo
+  return isoDe(x);
+}
+
 function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
   const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [sel, setSel] = useState<string>(ADMINS.some((a) => a.id === user.id) ? user.id : ADMINS[0]!.id);
@@ -3286,8 +3293,21 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
   const set = (patch: Partial<AgendaDoctor>) => setDraft((d) => ({ ...d, ...patch }));
   const admin = ADMINS.find((a) => a.id === sel)!;
   const doctor = DOCTORS.find((d) => d.id === ADMIN_A_DOCTOR[sel]);
-  const slots = horariosDelDia(draft);
   const proximos = proximosDias(draft, 6);
+  const slots = horariosDelDia(draft, proximos[0]);
+  /** Prende / apaga un día y le pone un horario inicial (el del último día cargado). */
+  const toggleDia = (d: number) => {
+    const on = draft.dias.includes(d);
+    const pd = { ...(draft.porDia ?? {}) };
+    if (on) delete pd[String(d)];
+    else {
+      const ultimo = draft.dias.length ? rangoDia(draft, draft.dias[draft.dias.length - 1]!) : { desde: "08:00", hasta: "12:00" };
+      pd[String(d)] = { ...ultimo };
+    }
+    set({ dias: on ? draft.dias.filter((x) => x !== d) : [...draft.dias, d], porDia: pd });
+  };
+  const setRango = (d: number, patch: Partial<{ desde: string; hasta: string }>) =>
+    set({ porDia: { ...(draft.porDia ?? {}), [String(d)]: { ...rangoDia(draft, d), ...patch } } });
 
   const propia = sel === user.id;
   const guardar = () => {
@@ -3299,15 +3319,19 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
       toast.error("Elegí al menos un día de atención.");
       return;
     }
-    if (draft.desde >= draft.hasta) {
-      toast.error("La hora de inicio tiene que ser anterior a la de fin.");
+    const malo = draft.dias.find((d) => { const r = rangoDia(draft, d); return r.desde >= r.hasta; });
+    if (malo !== undefined) {
+      toast.error(`${NOMBRES_DIA[malo]}: la hora de inicio tiene que ser anterior a la de fin.`);
       return;
     }
     if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
       toast.error("La duración de cada turno tiene que ser entre 5 y 240 minutos.");
       return;
     }
-    setAgendas((p) => ({ ...p, [sel]: draft }));
+    // desde / hasta generales = el rango más amplio (para resúmenes viejos)
+    const rs = draft.dias.map((d) => rangoDia(draft, d));
+    const final = { ...draft, porDia: Object.fromEntries(draft.dias.map((d) => [String(d), rangoDia(draft, d)])), desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
+    setAgendas((p) => ({ ...p, [sel]: final }));
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
     toast.success("Horarios publicados en la web.");
   };
@@ -3360,21 +3384,32 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
         <div className="space-y-6 xl:col-span-3">
           <Seccion icon={CalendarDays} titulo={propia ? "Tus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar turno»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Días</p>
-            <div className="flex flex-wrap gap-2">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Días y horario de cada día</p>
+            <div className="space-y-2">
               {ORDEN_DIAS.map((d) => {
                 const on = draft.dias.includes(d);
+                const r = rangoDia(draft, d);
                 return (
-                  <button key={d} type="button" onClick={() => set({ dias: on ? draft.dias.filter((x) => x !== d) : [...draft.dias, d] })}
-                    className={`h-11 w-14 rounded-xl text-sm font-semibold transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
-                    {NOMBRES_DIA[d]!.slice(0, 3)}
-                  </button>
+                  <div key={d} className={`flex flex-wrap items-center gap-3 rounded-2xl p-2 transition-colors ${on ? "bg-secondary/70" : ""}`}>
+                    <button type="button" onClick={() => toggleDia(d)} aria-pressed={on}
+                      className={`h-11 w-28 shrink-0 rounded-xl text-sm font-semibold transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                      {NOMBRES_DIA[d]}
+                    </button>
+                    {on ? (
+                      <div className="flex items-center gap-2">
+                        <input type="time" aria-label={`${NOMBRES_DIA[d]} desde`} value={r.desde} onChange={(e) => setRango(d, { desde: e.target.value })} className={inp + " h-11 w-32"} />
+                        <span className="text-sm text-muted-foreground">a</span>
+                        <input type="time" aria-label={`${NOMBRES_DIA[d]} hasta`} value={r.hasta} onChange={(e) => setRango(d, { hasta: e.target.value })} className={inp + " h-11 w-32"} />
+                        <span className="text-xs text-muted-foreground tabular-nums">{horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} turnos</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No atiende</span>
+                    )}
+                  </div>
                 );
               })}
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <Campo label="Desde"><input type="time" value={draft.desde} onChange={(e) => set({ desde: e.target.value })} className={inp} /></Campo>
-              <Campo label="Hasta"><input type="time" value={draft.hasta} onChange={(e) => set({ hasta: e.target.value })} className={inp} /></Campo>
               <Campo label="Duración del turno">
                 <div className="relative">
                   <input
@@ -3461,7 +3496,7 @@ function HorariosTab({ user, log }: { user: SessionUser; log: LogFn }) {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{slots.length} turnos por día</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{slots.length} turnos el próximo día</p>
                 <div className="flex flex-wrap gap-1.5">
                   {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
                 </div>

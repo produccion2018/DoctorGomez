@@ -518,6 +518,8 @@ export type AgendaDoctor = {
   consultorio: string;
   nota: string;
   bloqueos: Bloqueo[];
+  /** Horario propio de cada día (clave = número de día). Si un día no tiene, usa desde/hasta. */
+  porDia?: Record<string, { desde: string; hasta: string }>;
 };
 export type Agendas = Record<string, AgendaDoctor>;
 export const KEY_AGENDA = "gb_agenda";
@@ -554,13 +556,19 @@ const aHora = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${S
 export const isoDe = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-/** Horarios de inicio de turno de un día cualquiera según la configuración. */
-export function horariosDelDia(a: AgendaDoctor): string[] {
+/** Horario (desde / hasta) de un día de la semana: el propio del día o el general. */
+export function rangoDia(a: AgendaDoctor, dia: number): { desde: string; hasta: string } {
+  return a.porDia?.[String(dia)] ?? { desde: a.desde, hasta: a.hasta };
+}
+
+/** Horarios de inicio de turno. Con fecha usa el horario de ese día; sin fecha, el general. */
+export function horariosDelDia(a: AgendaDoctor, fecha?: string): string[] {
+  const r = fecha ? rangoDia(a, new Date(fecha + "T12:00:00").getDay()) : { desde: a.desde, hasta: a.hasta };
   const out: string[] = [];
-  const fin = aMin(a.hasta);
+  const fin = aMin(r.hasta);
   const pD = aMin(a.pausaDesde);
   const pH = aMin(a.pausaHasta);
-  let t = aMin(a.desde);
+  let t = aMin(r.desde);
   const dur = Math.max(5, Number(a.duracion) || 5);
   while (t + dur <= fin && out.length < 300) {
     if (a.pausa && t < pH && t + dur > pD) {
@@ -593,15 +601,35 @@ export function proximosDias(a: AgendaDoctor, cantidad = 15): string[] {
   return out;
 }
 
-/** Texto corto tipo "Lun a Vie · 08:00 a 18:40". */
+/** Texto corto: "Lun a Vie · 08:00 a 12:00" o, si cada día tiene su horario, "Mar 08:00–12:00 · Mié 14:00–18:00". */
 export function resumenAgenda(a: AgendaDoctor): string {
   if (!a.activo) return "Agenda pausada momentáneamente";
   if (a.dias.length === 0) return "Horarios a confirmar";
   const d = [...a.dias].sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7));
   const corto = (n: number) => NOMBRES_DIA[n]!.slice(0, 3);
-  const seguidos = d.length > 2 && d.every((v, i) => i === 0 || ((v + 6) % 7) - ((d[i - 1]! + 6) % 7) === 1);
-  const dias = d.length === 0 ? "Sin días" : seguidos ? `${corto(d[0]!)} a ${corto(d[d.length - 1]!)}` : d.map(corto).join(", ");
-  return `${dias} · ${a.desde} a ${a.hasta}${a.pausa ? ` (pausa ${a.pausaDesde}–${a.pausaHasta})` : ""}`;
+  const pausa = a.pausa ? ` (pausa ${a.pausaDesde}–${a.pausaHasta})` : "";
+  // Agrupa los días que comparten horario
+  const grupos = new Map<string, number[]>();
+  for (const n of d) {
+    const r = rangoDia(a, n);
+    const k = `${r.desde}–${r.hasta}`;
+    grupos.set(k, [...(grupos.get(k) ?? []), n]);
+  }
+  const nombreDias = (ds: number[]) => {
+    const seguidos = ds.length > 2 && ds.every((v, i) => i === 0 || ((v + 6) % 7) - ((ds[i - 1]! + 6) % 7) === 1);
+    return seguidos ? `${corto(ds[0]!)} a ${corto(ds[ds.length - 1]!)}` : ds.map(corto).join(", ");
+  };
+  if (grupos.size === 1) {
+    const [k] = [...grupos.keys()];
+    return `${nombreDias(d)} · ${k!.replace("–", " a ")}${pausa}`;
+  }
+  return [...grupos.entries()].map(([k, ds]) => `${nombreDias(ds)} ${k}`).join(" · ") + pausa;
+}
+
+/** Fecha del próximo día con atención, en texto ("mar 17 nov"), o null. */
+export function proximoDiaTexto(a: AgendaDoctor): string | null {
+  const f = proximosDias(a, 1)[0];
+  return f ? new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }) : null;
 }
 
 /* ---------- Portal del paciente ---------- */

@@ -892,7 +892,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
     const nom = nombrePanel(doctor.id);
     const ahora = new Date();
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
-    return horariosDelDia(agenda).map((h) => ({ h, libre: !todos.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(fecha === isoDe(ahora) && h <= hhmm) }));
+    return horariosDelDia(agenda, fecha).map((h) => ({ h, libre: !todos.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(fecha === isoDe(ahora) && h <= hhmm) }));
   }, [agenda, doctor, fecha, todos]);
 
   const reset = () => { setPidiendo(false); setEsp(""); setDoc(""); setFecha(""); setHora(""); setNota(""); };

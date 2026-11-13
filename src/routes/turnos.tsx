@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
+import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -117,7 +117,7 @@ function Turnos() {
     const ahora = new Date();
     const esHoy = fecha === iso(ahora);
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
-    return horariosDelDia(agenda).map((h) => ({
+    return horariosDelDia(agenda, fecha).map((h) => ({
       h,
       libre: !ocupados.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(esHoy && h <= hhmm),
     }));
@@ -297,7 +297,12 @@ function Turnos() {
                           {sinAgenda ? (
                             <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Sin turnos online por ahora · pedilo por WhatsApp</p>
                           ) : (
-                            <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
+                            <>
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{resumenAgenda(ag)}</p>
+                              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                <span className="size-1.5 rounded-full bg-emerald-500 pulse-dot" /> Próximo día: {proximoDiaTexto(ag)}
+                              </p>
+                            </>
                           )}
                         </div>
                         {on && <CheckCircle2 className="ml-auto size-6 shrink-0 text-primary" />}

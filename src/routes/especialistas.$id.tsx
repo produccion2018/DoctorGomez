@@ -77,7 +77,7 @@ function PerfilDoctor() {
               {agenda.dias.length === 0 ? (
                 <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, podés consultar por WhatsApp.</p>
               ) : (
-                <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · turnos de {agenda.duracion} minutos · {horariosDelDia(agenda).length} turnos por día</p>
+                <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · turnos de {agenda.duracion} minutos</p>
               )}
               {agenda.nota && <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
               {ausente && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100">No atiende del {ausente.desde.split("-").reverse().join("/")} al {ausente.hasta.split("-").reverse().join("/")} ({ausente.motivo}).</p>}
