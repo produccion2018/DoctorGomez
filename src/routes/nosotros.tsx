@@ -116,8 +116,8 @@ function Nosotros() {
         </blockquote>
         <div className="mt-8 flex items-center justify-center gap-3">
           <div className="flex -space-x-3">
-            <img src={fotoAlberto} alt="" className="size-11 rounded-full object-cover object-top ring-4 ring-background" />
             <img src={fotoAlonso} alt="" className="size-11 rounded-full object-cover object-top ring-4 ring-background" />
+            <img src={fotoAlberto} alt="" className="size-11 rounded-full object-cover object-top ring-4 ring-background" />
           </div>
           <p className="text-left text-sm">
             <span className="block font-semibold">Dres. Gómez Bolaño</span>
