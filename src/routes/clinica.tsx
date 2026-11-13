@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Accessibility,
@@ -63,10 +63,10 @@ const GALERIA = [
 ];
 
 const COMODIDADES = [
-  { icon: Accessibility, t: "Accesibilidad", d: "Ingreso y circulación para personas con movilidad reducida." },
-  { icon: Wifi, t: "Wi-Fi gratuito", d: "Conexión libre en la sala de espera." },
-  { icon: ShieldCheck, t: "Bioseguridad", d: "Protocolos de higiene en cada consultorio." },
-  { icon: Clock, t: "Puntualidad", d: "Agenda ordenada para que esperes lo menos posible." },
+  { icon: Accessibility, t: "Accesibilidad", d: "Ingreso y circulación para personas con movilidad reducida.", c: "#0ea5e9", fx: "vz-flota" },
+  { icon: Wifi, t: "Wi-Fi gratuito", d: "Conexión libre en la sala de espera.", c: "#8b5cf6", fx: "vz-senal" },
+  { icon: ShieldCheck, t: "Bioseguridad", d: "Protocolos de higiene en cada consultorio.", c: "#10b981", fx: "vz-latido" },
+  { icon: Clock, t: "Puntualidad", d: "Agenda ordenada para que esperes lo menos posible.", c: "#f59e0b", fx: "vz-reloj" },
 ];
 
 function Clinica() {
@@ -120,12 +120,23 @@ function Clinica() {
       <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {COMODIDADES.map((x, i) => (
-            <div key={x.t} data-reveal style={{ transitionDelay: `${i * 80}ms` }} className="group flex gap-4 rounded-3xl border border-border/70 bg-card p-6 shadow-[0_20px_50px_-40px_rgba(10,25,70,.6)] transition-all duration-500 hover:-translate-y-1 hover:border-primary/25">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-primary transition-all duration-500 group-hover:gradient-deep group-hover:text-white"><x.icon className="size-5" /></span>
-              <div>
-                <p className="font-semibold">{x.t}</p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{x.d}</p>
+            <div
+              key={x.t}
+              data-reveal
+              style={{ transitionDelay: `${i * 90}ms`, ["--c" as string]: x.c } as CSSProperties}
+              className="group relative overflow-hidden rounded-[1.75rem] border border-border/70 bg-card p-6 shadow-[0_24px_55px_-40px_rgba(10,25,70,.7)] transition-all duration-500 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_35px_70px_-35px_var(--c)]"
+            >
+              <span className="pointer-events-none absolute inset-0 opacity-60 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(110% 80% at 100% 0%, ${x.c}1c, transparent 60%)` }} />
+              <span className="absolute inset-x-0 bottom-0 h-1 origin-left scale-x-[.3] transition-transform duration-700 group-hover:scale-x-100" style={{ background: `linear-gradient(90deg, ${x.c}, ${x.c}55)` }} />
+              <x.icon className="pointer-events-none absolute -bottom-5 -right-5 size-28 opacity-[0.05] transition-all duration-700 group-hover:-rotate-12 group-hover:opacity-[0.12]" style={{ color: x.c }} />
+              <div className="relative flex items-center gap-4">
+                <span className="relative flex size-14 shrink-0 items-center justify-center rounded-2xl text-white ring-1 ring-white/30" style={{ background: `linear-gradient(140deg, ${x.c}, ${x.c}aa)`, boxShadow: `0 16px 30px -14px ${x.c}` }}>
+                  <span className="absolute inset-0 animate-ping rounded-2xl opacity-20" style={{ background: x.c, animationDuration: "2.8s", animationDelay: `${i * 0.5}s` }} />
+                  <x.icon className={`relative size-6 ${x.fx}`} />
+                </span>
+                <p className="text-lg font-semibold leading-tight">{x.t}</p>
               </div>
+              <p className="relative mt-4 text-sm leading-relaxed text-muted-foreground">{x.d}</p>
             </div>
           ))}
         </div>

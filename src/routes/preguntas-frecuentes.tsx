@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarPlus,
@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, useSitio, waLink } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, useSitio, waLink, Electro } from "@/components/site/PublicLayout";
 import { FAQS } from "@/data/clinic";
 
 export const Route = createFileRoute("/preguntas-frecuentes")({
@@ -136,7 +136,16 @@ function Faq() {
         </div>
       </PageHero>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 lg:px-8">
+      <section className="relative overflow-hidden">
+        {/* Fondo vivo: orbes de color, puntos y electro suave */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+          <div className="vz-orbe absolute -left-32 top-20 size-[28rem] rounded-full bg-sky-400/20 blur-3xl" />
+          <div className="vz-orbe absolute -right-24 top-[40%] size-[26rem] rounded-full bg-violet-400/20 blur-3xl" style={{ animationDelay: "-3s" }} />
+          <div className="vz-orbe absolute bottom-0 left-1/3 size-[22rem] rounded-full bg-rose-400/15 blur-3xl" style={{ animationDelay: "-5s" }} />
+          <div className="absolute inset-0 bg-dots opacity-50 [mask-image:radial-gradient(ellipse_at_center,#000_30%,transparent_75%)]" />
+          <Electro latidos={8} grilla={false} color="#38bdf8" className="absolute inset-x-0 top-[46%] h-24 w-full opacity-25" />
+        </div>
+      <div className="relative mx-auto max-w-7xl px-4 py-16 lg:px-8">
         {/* PASO 1 — TEMA */}
         <div className="flex items-center gap-3">
           <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">1</span>
@@ -151,10 +160,12 @@ function Faq() {
               <button
                 key={c.id}
                 onClick={() => elegirCat(c.id)}
-                className={`group relative overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 ${on ? "border-transparent text-white shadow-xl" : "border-border/70 bg-card hover:-translate-y-1 hover:shadow-[0_20px_45px_-30px_rgba(20,50,120,.55)]"}`}
-                style={on ? { background: `linear-gradient(140deg, ${col}, ${col}cc)`, boxShadow: `0 22px 45px -22px ${col}` } : undefined}
+                className={`group relative overflow-hidden rounded-3xl border p-5 text-left transition-all duration-300 ${on ? "border-transparent text-white shadow-xl -translate-y-1" : "border-border/70 bg-card/90 backdrop-blur hover:-translate-y-1.5 hover:shadow-[0_24px_50px_-28px_var(--c)]"}`}
+                style={{ ["--c" as string]: col, ...(on ? { background: `linear-gradient(140deg, ${col}, ${col}cc)`, boxShadow: `0 22px 45px -22px ${col}` } : {}) } as CSSProperties}
               >
-                <span className={`flex size-11 items-center justify-center rounded-2xl transition-transform duration-500 group-hover:-rotate-6 ${on ? "bg-white/20" : ""}`} style={on ? undefined : { background: `${col}14`, color: col }}>
+                {!on && <span className="absolute inset-x-0 bottom-0 h-1 origin-left scale-x-[.3] transition-transform duration-500 group-hover:scale-x-100" style={{ background: col }} />}
+                {on && <span className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-white/20 blur-2xl" />}
+                <span className={`flex size-11 items-center justify-center rounded-2xl text-white transition-transform duration-500 group-hover:-rotate-6 group-hover:scale-110 ${on ? "bg-white/20" : ""}`} style={on ? undefined : { background: `linear-gradient(140deg, ${col}, ${col}bb)`, boxShadow: `0 12px 24px -12px ${col}` }}>
                   <c.icon className="size-5" />
                 </span>
                 <p className="mt-4 font-semibold leading-tight">{c.id}</p>
@@ -222,21 +233,24 @@ function Faq() {
             </div>
             {actual && (
               <div className="sticky top-24 mt-5">
-                <article key={actual.q} className="relative overflow-hidden rounded-[2rem] border border-border/70 bg-card p-9 shadow-[0_40px_80px_-50px_rgba(20,50,120,.7)] animate-in fade-in slide-in-from-right-4 duration-500">
+                <article key={actual.q} className="faq-dark relative overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-9 text-white shadow-[0_50px_90px_-45px_rgba(10,25,70,.9)] ring-1 ring-white/10 animate-in fade-in slide-in-from-right-4 duration-500">
                   <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: `linear-gradient(90deg, ${color}, transparent)` }} />
-                  <span className="pointer-events-none absolute -right-20 -top-20 size-64 rounded-full opacity-10 blur-3xl" style={{ background: color }} />
+                  <span className="vz-orbe pointer-events-none absolute -right-20 -top-20 size-72 rounded-full opacity-40 blur-3xl" style={{ background: color }} />
+                  <span className="pointer-events-none absolute -bottom-24 -left-16 size-64 rounded-full bg-sky-500/20 blur-3xl" />
+                  <Electro latidos={4} grilla={false} color={color} className="pointer-events-none absolute inset-x-0 bottom-0 h-16 w-full opacity-50" />
+                  <span aria-hidden="true" className="pointer-events-none absolute -right-4 top-6 font-display text-[11rem] font-semibold leading-none text-white/[0.04]">?</span>
                   <div className="relative">
-                    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold" style={{ background: `${color}14`, color }}>
+                    <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ background: `${color}55`, boxShadow: `inset 0 0 0 1px ${color}` }}>
                       {(() => { const I = CATS.find((c) => c.id === actual.cat)!.icon; return <I className="size-3.5" />; })()} {actual.cat}
                     </span>
-                    <h3 className="mt-5 font-display text-3xl font-semibold leading-tight">
+                    <h3 className="mt-5 font-display text-3xl font-semibold leading-tight text-white">
                       <Resaltar texto={actual.q} q={q} />
                     </h3>
                     <div className="mt-5"><Respuesta f={actual} /></div>
                     <div className="mt-6 flex items-center justify-between gap-3">
-                      <button disabled={pos <= 0} onClick={() => setSel(lista[pos - 1]!.q)} className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:border-primary/40 hover:text-primary disabled:opacity-40"><ChevronLeft className="size-4" /> Anterior</button>
-                      <span className="text-xs text-muted-foreground">{pos + 1} de {lista.length}</span>
-                      <button disabled={pos >= lista.length - 1} onClick={() => setSel(lista[pos + 1]!.q)} className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium transition hover:border-primary/40 hover:text-primary disabled:opacity-40">Siguiente <ChevronRight className="size-4" /></button>
+                      <button disabled={pos <= 0} onClick={() => setSel(lista[pos - 1]!.q)} className="inline-flex items-center gap-1.5 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-40"><ChevronLeft className="size-4" /> Anterior</button>
+                      <span className="text-xs text-white/50">{pos + 1} de {lista.length}</span>
+                      <button disabled={pos >= lista.length - 1} onClick={() => setSel(lista[pos + 1]!.q)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition hover:bg-white/90 disabled:opacity-40">Siguiente <ChevronRight className="size-4" /></button>
                     </div>
                   </div>
                 </article>
@@ -264,6 +278,7 @@ function Faq() {
             </div>
           </div>
         </div>
+      </div>
       </section>
     </PublicLayout>
   );

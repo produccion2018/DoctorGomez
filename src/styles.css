@@ -659,3 +659,11 @@
     stroke-dasharray: none;
   }
 }
+/* Panel de respuesta oscuro (preguntas frecuentes) */
+.faq-dark .text-muted-foreground { color: rgb(255 255 255 / 0.72); }
+.faq-dark .border-border\/70 { border-color: rgb(255 255 255 / 0.12); }
+.faq-dark button.border-border { border-color: rgb(255 255 255 / 0.25); color: #fff; }
+
+.vz-senal { animation: vz-num 1.6s ease-in-out infinite; }
+.vz-reloj { animation: vz-reloj 4s linear infinite; }
+@keyframes vz-reloj { to { transform: rotate(360deg); } }
