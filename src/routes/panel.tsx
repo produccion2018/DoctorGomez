@@ -8327,8 +8327,14 @@ function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => vo
     ev.preventDefault();
     const r = await desactivar2fa(codigoOff);
     if (!r.ok) return toast.error(r.error);
-    toast.success("Verificación en dos pasos desactivada.");
     setCodigoOff("");
+    if (estado?.obligatorio) {
+      toast.success("Listo. Al volver a entrar se va a pedir escanear el QR de nuevo.");
+      cerrarSesion();
+      window.location.href = "/login";
+      return;
+    }
+    toast.success("Verificación en dos pasos desactivada.");
     void cargar();
   };
   const cambiar = async (ev: FormEvent) => {
@@ -8366,14 +8372,11 @@ function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => vo
               {estado.activo ? (
                 <div className="mt-3 space-y-3 text-sm text-muted-foreground">
                   <p>Al entrar te pedimos el código de tu app. Te quedan <b>{estado.respaldos}</b> códigos de respaldo.</p>
-                  {estado.obligatorio ? (
-                    <p className="text-xs">Para médicos y Dirección es obligatoria. Si cambiás de celular, pedile a otro médico que te la restablezca o usá un código de respaldo.</p>
-                  ) : (
-                    <form onSubmit={apagar} className="flex gap-2">
-                      <input inputMode="numeric" maxLength={6} value={codigoOff} onChange={(e) => setCodigoOff(e.target.value.replace(/\D/g, ""))} placeholder="Código actual" className={inp + " h-10"} />
-                      <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-xl text-rose-600">Desactivar</Button>
-                    </form>
-                  )}
+                  {estado.obligatorio && <p className="text-xs">Para médicos y Dirección es obligatoria. ¿Cambiás de celular o se la pasás a otra persona? Reiniciala: se cierra la sesión y al volver a entrar aparece el QR para escanear con el celular nuevo.</p>}
+                  <form onSubmit={apagar} className="flex gap-2">
+                    <input inputMode="numeric" maxLength={6} value={codigoOff} onChange={(e) => setCodigoOff(e.target.value.replace(/\D/g, ""))} placeholder="Código actual" className={inp + " h-10"} />
+                    <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-xl text-rose-600">{estado.obligatorio ? "Reiniciar" : "Desactivar"}</Button>
+                  </form>
                 </div>
               ) : activando ? (
                 <div className="mt-4"><Activar2FA onListo={() => { setActivando(false); void cargar(); }} /></div>

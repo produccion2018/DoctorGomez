@@ -269,12 +269,13 @@ export const desactivar2faServidor = createServerFn({ method: "POST" })
     const a = await acceso();
     const s = await a.sesionCompleta();
     if (!s || s.falta2fa) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
-    if (a.exige2fa(s.usuario)) return { ok: false, error: "Para médicos y Dirección la verificación en dos pasos es obligatoria." };
     const sql = await (await modulo()).db();
     const f = (await sql`SELECT totp FROM usuarios WHERE id = ${s.usuario.id}`) as { totp: string | null }[];
     if (!f[0]?.totp || !a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "Código incorrecto." };
     await sql`UPDATE usuarios SET totp = NULL, totp_ok = false, respaldo = NULL WHERE id = ${s.usuario.id}`;
-    await a.auditar(s.usuario.nombre, "Verificación en dos pasos desactivada", "");
+    // Si es obligatoria (médicos y Dirección), cierra sesión: al volver a entrar se escanea el QR otra vez
+    if (a.exige2fa(s.usuario)) await sql`DELETE FROM sesiones WHERE usuario_id = ${s.usuario.id}`;
+    await a.auditar(s.usuario.nombre, a.exige2fa(s.usuario) ? "Verificación en dos pasos reiniciada" : "Verificación en dos pasos desactivada", "");
     return { ok: true };
   });
 
