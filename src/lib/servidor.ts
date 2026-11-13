@@ -70,7 +70,7 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
     let u: UsuarioServidor;
     try {
       const a = await acceso();
-      if (deMedicos) u = await a.exigirMedico();
+      if (deMedicos) u = await a.exigirDireccion();
       else if (esAgenda) {
         // Agenda: los médicos, o el personal con permiso de editar Horarios (secretaría)
         const x = await a.usuarioActual();
@@ -197,7 +197,7 @@ export const cambiarClaveServidor = createServerFn({ method: "POST" })
 export const listarPersonalServidor = createServerFn({ method: "GET" }).handler(async (): Promise<Resultado<{ personal: PersonalServidor[]; conClave: string[] }>> => {
   const { db } = await modulo();
   try {
-    await (await acceso()).exigirMedico();
+    await (await acceso()).exigirDireccion();
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
@@ -228,7 +228,7 @@ export const guardarPersonalServidor = createServerFn({ method: "POST" })
     const { db } = await modulo();
     let u: UsuarioServidor;
     try {
-      u = await (await acceso()).exigirMedico();
+      u = await (await acceso()).exigirDireccion();
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }
@@ -288,7 +288,7 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
   .validator((d: { nombre: string; tipo: string; base64: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ url: string }>> => {
     try {
-      await (await acceso()).exigirMedico();
+      await (await acceso()).exigirDireccion();
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }

@@ -81,6 +81,7 @@ import {
   TrendingUp,
   UserCog,
   Users,
+  Crown,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -235,10 +236,12 @@ const MODULO_TAB: Partial<Record<string, Tab>> = {
   "Portal del paciente": "pacientes",
   Auditoría: "auditoria",
   Permisos: "permisos",
+  "Sitio web": "sitio",
 };
 
 type Area = { nombre: string; desc: string; icon: LucideIcon; medica?: boolean };
 const AREAS: Area[] = [
+  { nombre: "Dirección general", desc: "Gerencia de la clínica: acceso completo a todos los módulos, el personal y los permisos", icon: Crown },
   { nombre: "Recepción", desc: "Atención al público, agenda y admisión de pacientes", icon: ConciergeBell },
   { nombre: "Secretaría médica", desc: "Agenda de los doctores, recetas y documentación", icon: NotebookPen },
   { nombre: "Atención al paciente", desc: "WhatsApp, llamadas y consultas de pacientes", icon: Headphones },
@@ -489,7 +492,7 @@ function Panel() {
         return;
       }
       setUser(v);
-      if (v.rol === "medico") void sincronizarPersonal();
+      if (v.rol === "medico" || v.area === "Dirección general") void sincronizarPersonal();
       void refrescarTodo();
     });
   }, [navigate]);
@@ -512,7 +515,10 @@ function Panel() {
   const esEnf = user.rol !== "medico";
   const areaUsuario = user.area ?? "Enfermería";
   const nivelEnf = (m: string) => nivelDe(permisos, areaUsuario, m);
-  const TABS_ENF: Tab[] = Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!);
+  const TABS_ENF: Tab[] = [
+    ...(areaUsuario === "Dirección general" ? (["resumen"] as Tab[]) : []),
+    ...Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!),
+  ];
   const permitido = (t: Tab) => !esEnf || TABS_ENF.includes(t);
   const tabVisible: Tab = permitido(tab) ? tab : (TABS_ENF[0] ?? "triage");
   const moduloDe = (t: Tab) => Object.entries(MODULO_TAB).find(([, x]) => x === t)?.[0] ?? "";
@@ -3284,7 +3290,14 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
   const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [personal] = useDato<Personal[]>(KEY_ENFERMERIA, []);
   const esAdmin = ADMIN_IDS.includes(user.id);
-  const profesionales = profesionalesAgenda(agendas);
+  // Profesionales con agenda + médicos del equipo (Permisos y accesos) que todavía no tienen horarios
+  const conAgenda = profesionalesAgenda(agendas);
+  const profesionales = [
+    ...conAgenda,
+    ...personal
+      .filter((p) => p.activo && esAreaMedica(areaDe(p)) && !conAgenda.some((c) => c.id === p.id || c.nombre === p.nombre))
+      .map((p) => ({ id: p.id, nombre: p.nombre, especialidad: areaDe(p).replace(" (médicos)", ""), admin: false })),
+  ];
   const [sel, setSel] = useState<string>(esAdmin ? user.id : ADMINS[0]!.id);
   const [nuevo, setNuevo] = useState({ nombre: "", especialidad: "" });
   const [agregando, setAgregando] = useState(false);
@@ -3382,7 +3395,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
     }
     // desde / hasta generales = el rango más amplio (para resúmenes viejos)
     const rs = draft.dias.map((d) => rangoDia(draft, d));
-    const final = { ...draft, pausa: false, porDia: Object.fromEntries(draft.dias.map((d) => [String(d), rangoDia(draft, d)])), desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
+    const final = { ...draft, ...(prof.admin ? {} : { nombre: prof.nombre, especialidad: prof.especialidad }), pausa: false, porDia: Object.fromEntries(draft.dias.map((d) => [String(d), rangoDia(draft, d)])), desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
     setAgendas((p) => ({ ...p, [sel]: final }));
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
     toast.success("Horarios publicados en la web.");

@@ -19,7 +19,11 @@ export const MODULOS = [
   "Portal del paciente",
   "Auditoría",
   "Permisos",
+  "Sitio web",
 ];
+
+/** Dirección general (gerencia de la clínica): acceso a todo, como los médicos. */
+export const AREA_DIRECCION = "Dirección general";
 
 /** Especialidades médicas de invitados: comparten los permisos de médico invitado. */
 export const AREAS_MEDICAS = ["Medicina General", "Medicina Interna", "Cardiología (médicos)", "Nefrología (médicos)", "Endocrinología", "Neumología", "Neurología", "Gastroenterología", "Pediatría", "Ginecología y Obstetricia", "Dermatología", "Traumatología y Ortopedia", "Urología", "Oftalmología", "Otorrinolaringología", "Reumatología", "Oncología", "Geriatría", "Psiquiatría", "Psicología", "Nutrición", "Fisioterapia"];
@@ -44,6 +48,7 @@ export const SEED_PERMISOS: Permisos = {
 };
 // Médicos invitados: atienden pacientes, pero no ven finanzas ni administración
 export const PERMISOS_MEDICO_INVITADO = mk({ "Enfermería – Triage": "ver", Turnos: "ver", Pacientes: "ver", "Historias clínicas": "editar", Recetas: "editar", Laboratorio: "editar", Estudios: "editar", Horarios: "ver" });
+SEED_PERMISOS[AREA_DIRECCION] = mk(Object.fromEntries(MODULOS.map((m) => [m, "editar" as Nivel])));
 AREAS_MEDICAS.forEach((n) => {
   SEED_PERMISOS[n] = PERMISOS_MEDICO_INVITADO;
 });

@@ -68,6 +68,13 @@ export async function exigirMedico(): Promise<UsuarioServidor> {
   return u;
 }
 
+/** Médicos administradores o Dirección general (gerencia): manejan personal, permisos y sitio. */
+export async function exigirDireccion(): Promise<UsuarioServidor> {
+  const u = await usuarioActual();
+  if (!u || (u.rol !== "medico" && u.area !== "Dirección general")) throw new Error("Necesitás ingresar como médico administrador o Dirección general.");
+  return u;
+}
+
 export async function abrirSesion(id: string) {
   const { db, tokenAleatorio } = await modulo();
   const sql = await db();
