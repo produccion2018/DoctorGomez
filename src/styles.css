@@ -680,3 +680,13 @@
 @keyframes vz-pulso { 0%, 100% { box-shadow: 0 0 0 0 rgb(244 63 94 / 0); } 40% { box-shadow: 0 0 0 6px rgb(244 63 94 / .18); } }
 
 @keyframes bajar { 0%, 100% { transform: translateY(-1.5px); } 50% { transform: translateY(2px); } }
+
+/* Historial del paciente */
+.hc-linea::before { content: ""; position: absolute; left: 19px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, rgb(var(--acc, 14 165 233)) 0%, rgba(16,185,129,.6) 50%, rgba(245,158,11,.25) 100%); }
+.hc-linea::after { content: ""; position: absolute; left: 17px; top: 8px; width: 6px; height: 70px; border-radius: 6px; background: linear-gradient(180deg, transparent, rgba(255,255,255,.95), transparent); animation: hc-pulso 3.2s ease-in-out infinite; }
+@keyframes hc-pulso { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(520px); opacity: 0; } }
+.hc-item { animation: hc-entra .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes hc-entra { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.hc-card { transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s; }
+.hc-item:hover .hc-card { transform: translateY(-2px); box-shadow: 0 22px 44px -28px rgba(15,23,42,.45); }
+@media (prefers-reduced-motion: reduce) { .hc-linea::after, .hc-item { animation: none; } }
