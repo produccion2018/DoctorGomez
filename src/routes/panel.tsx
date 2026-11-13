@@ -82,6 +82,7 @@ import {
   UserCog,
   Users,
   Crown,
+  UserRound,
   ChevronLeft,
   Pin,
   Palette,
@@ -7926,6 +7927,13 @@ const EMOJIS = ["👍", "✅", "🙏", "⚠️", "❤️", "😊", "📌", "🩺
 function puedeVerCanal(c: (typeof CANALES)[number], user: SessionUser) {
   return !c.medicos || user.rol === "medico" || user.area === "Dirección general" || esAreaMedica(user.area);
 }
+/** Mensajes privados: el canal es "dm:" + los dos ids ordenados. */
+const canalDM = (a: string, b: string) => `dm:${[a, b].sort().join("|")}`;
+const participantesDM = (canal: string) => (canal.startsWith("dm:") ? canal.slice(3).split("|") : []);
+function veMensaje(canal: string, user: SessionUser) {
+  if (canal.startsWith("dm:")) return participantesDM(canal).includes(user.id);
+  return CANALES.some((c) => c.id === canal && puedeVerCanal(c, user));
+}
 function esJefe(user: SessionUser) {
   return user.rol === "medico" || user.area === "Dirección general";
 }
@@ -7947,13 +7955,24 @@ function useNoLeidos(user: SessionUser | null) {
   }, []);
   if (typeof window === "undefined" || !user) return 0;
   const vistos = leerVistos(user.id);
-  return msgs.filter((m) => m.deId !== user.id && m.fecha > (vistos[m.canal] ?? "") && CANALES.some((c) => c.id === m.canal && puedeVerCanal(c, user))).length;
+  return msgs.filter((m) => m.deId !== user.id && m.fecha > (vistos[m.canal] ?? "") && veMensaje(m.canal, user)).length;
 }
 
 function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
   const [msgs, setMsgs] = useDato<Mensaje[]>(KEY_MENSAJES, []);
   const canales = CANALES.filter((c) => puedeVerCanal(c, user));
   const [canal, setCanal] = useState(canales[0]!.id);
+  const [equipo] = useDato<Personal[]>(KEY_ENFERMERIA, []);
+  // Personas para mensajes privados: los médicos y todo el personal activo (menos yo)
+  const personas = [
+    ...ADMINS.map((a) => ({ id: a.id, nombre: a.nombre, area: a.id === "alonso" ? "Cardiología" : "Nefrología" })),
+    ...equipo.filter((p) => p.activo).map((p) => ({ id: p.id, nombre: p.nombre, area: areaDe(p) })),
+  ].filter((p) => p.id !== user.id);
+  const ultimoDe = (id: string) => msgs.filter((m) => m.canal === id).reduce((a, m) => (m.fecha > a ? m.fecha : a), "");
+  const directos = personas
+    .map((p) => ({ ...p, canal: canalDM(user.id, p.id) }))
+    .sort((a, b) => ultimoDe(b.canal).localeCompare(ultimoDe(a.canal)) || a.nombre.localeCompare(b.nombre));
+  const [buscar, setBuscar] = useState("");
   const [texto, setTexto] = useState("");
   const [importante, setImportante] = useState(false);
   const [emojis, setEmojis] = useState(false);
@@ -7963,7 +7982,10 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
   const [vistos, setVistos] = useState<Record<string, string>>(() => (typeof window === "undefined" ? {} : leerVistos(user.id)));
   const lista = useRef<HTMLDivElement>(null);
   const fondo = FONDOS_CHAT.find((f) => f.id === fondoId) ?? FONDOS_CHAT[0]!;
-  const c = canales.find((x) => x.id === canal) ?? canales[0]!;
+  const dm = directos.find((d) => d.canal === canal);
+  const c: (typeof CANALES)[number] = dm
+    ? { id: dm.canal, nombre: dm.nombre, desc: `Mensaje privado · ${dm.area}`, icon: UserRound, color: "#6366f1" }
+    : (canales.find((x) => x.id === canal) ?? canales[0]!);
   const jefe = esJefe(user);
   const puedeEscribir = !c.soloJefes || jefe;
 
@@ -7994,9 +8016,9 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
     e?.preventDefault();
     const t = texto.trim();
     if (!t || !puedeEscribir) return;
-    const m: Mensaje = { id: uid(), canal: c.id, deId: user.id, de: user.nombre, area: user.rol === "medico" ? "Médico" : (user.area ?? ""), texto: t.slice(0, 2000), fecha: new Date().toISOString(), ...(importante ? { importante: true } : {}) };
+    const m: Mensaje = { id: uid(), canal: c.id, deId: user.id, de: user.nombre, area: user.rol === "medico" ? "Médico" : (user.area ?? ""), texto: t.slice(0, 2000), fecha: new Date().toISOString(), ...(importante && !dm ? { importante: true } : {}) };
     setMsgs((p) => [...p, m]);
-    if (importante) log("Aviso importante en comunicación interna", `${c.nombre}: ${t.slice(0, 80)}`);
+    if (importante && !dm) log("Aviso importante en comunicación interna", `${c.nombre}: ${t.slice(0, 80)}`);
     setTexto("");
     setImportante(false);
     setEmojis(false);
@@ -8041,6 +8063,27 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
               </button>
             );
           })}
+          <p className="px-2 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Mensajes privados</p>
+          {personas.length > 6 && (
+            <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar persona…" className="mb-1 h-9 w-full rounded-xl border border-input bg-background px-3 text-xs outline-none focus:border-[rgb(var(--acc))]" />
+          )}
+          {directos.length === 0 && <p className="px-2 text-xs text-muted-foreground">Cuando haya personal con acceso, vas a poder escribirles en privado.</p>}
+          {directos.filter((d) => norm(d.nombre).includes(norm(buscar))).map((d) => {
+            const on = d.canal === canal;
+            const n = sinLeer(d.canal);
+            const foto = fotoDe(d.id);
+            return (
+              <button key={d.id} type="button" onClick={() => { setCanal(d.canal); setVerCanales(false); }}
+                className={`flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-all ${on ? "bg-card shadow-md ring-1 ring-border" : "hover:bg-card/70"}`}>
+                {foto ? <img src={foto} alt="" className="size-9 shrink-0 rounded-full object-cover object-top" /> : <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-semibold text-white">{iniciales(d.nombre)}</span>}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{d.nombre}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{d.area}</span>
+                </span>
+                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{n}</span>}
+              </button>
+            );
+          })}
         </div>
         <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No compartas acá datos clínicos de pacientes: eso va en su historia clínica.</p>
       </aside>
@@ -8049,7 +8092,11 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
       <section className={`${verCanales ? "hidden" : "flex"} min-h-0 flex-col lg:flex`}>
         <header className="relative flex items-center gap-3 border-b border-border/60 bg-card px-4 py-3">
           <button type="button" onClick={() => setVerCanales(true)} className="rounded-xl p-2 text-muted-foreground hover:bg-secondary lg:hidden" aria-label="Ver canales"><ChevronLeft className="size-5" /></button>
-          <span className="flex size-10 items-center justify-center rounded-xl text-white" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-[18px]" /></span>
+          {dm && fotoDe(dm.id) ? (
+            <img src={fotoDe(dm.id)!} alt="" className="size-10 rounded-full object-cover object-top" />
+          ) : (
+            <span className={`flex size-10 items-center justify-center text-white ${dm ? "rounded-full text-xs font-semibold" : "rounded-xl"}`} style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}>{dm ? iniciales(dm.nombre) : <c.icon className="size-[18px]" />}</span>
+          )}
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{c.nombre}</p>
             <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500 pulse-dot" /> {c.desc}</p>
@@ -8081,8 +8128,8 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
           {delCanal.length === 0 && (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <span className="flex size-16 items-center justify-center rounded-3xl text-white shadow-lg vz-flota" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-7" /></span>
-              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>Todavía no hay mensajes en {c.nombre}</p>
-              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{puedeEscribir ? "Escribí el primero." : "Acá vas a ver los avisos de los médicos y Dirección."}</p>
+              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>{dm ? `Escribile a ${dm.nombre}` : `Todavía no hay mensajes en ${c.nombre}`}</p>
+              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{dm ? "Solo ustedes dos ven esta conversación." : puedeEscribir ? "Escribí el primero." : "Acá vas a ver los avisos de los médicos y Dirección."}</p>
             </div>
           )}
           {delCanal.map((m, i) => {
@@ -8113,7 +8160,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
                       <span className={`ml-2 inline-block translate-y-0.5 text-[10px] ${mio ? "text-white/70" : "text-muted-foreground"}`}>{horaTxt(m.fecha)}</span>
                     </div>
                   </div>
-                  {(mio || jefe) && (
+                  {(mio || (jefe && !dm)) && (
                     <button type="button" onClick={() => borrar(m)} aria-label="Borrar mensaje" className="mb-1 rounded-lg p-1 text-muted-foreground opacity-0 transition hover:bg-rose-100 hover:text-rose-600 group-hover:opacity-100"><Trash2 className="size-3.5" /></button>
                   )}
                 </div>
@@ -8136,10 +8183,10 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
                 onChange={(e) => setTexto(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
                 rows={1}
-                placeholder={`Escribir en ${c.nombre}…`}
+                placeholder={dm ? `Mensaje privado a ${dm.nombre}…` : `Escribir en ${c.nombre}…`}
                 className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-[rgb(var(--acc))] focus:ring-4 focus:ring-[rgba(var(--acc),.15)]"
               />
-              {jefe && (
+              {jefe && !dm && (
                 <button type="button" onClick={() => setImportante((v) => !v)} aria-pressed={importante} title="Marcar como importante (queda fijado arriba)"
                   className={`rounded-xl p-2.5 transition ${importante ? "bg-amber-100 text-amber-700" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Pin className="size-5" /></button>
               )}

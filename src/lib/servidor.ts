@@ -347,7 +347,12 @@ export const leerColeccion = createServerFn({ method: "GET" })
       if (q.tipo !== "staff") return { ok: true, json: "[]" };
       const todos = await c.leer("gb_mensajes");
       const veMedicos = q.medico || q.area === AREA_DIRECCION || AREAS_MEDICAS.includes(q.area);
-      return { ok: true, json: JSON.stringify(todos.filter((m) => m["canal"] !== "medicos" || veMedicos)) };
+      const visible = (m: Record<string, unknown>) => {
+        const canal = String(m["canal"] ?? "");
+        if (canal.startsWith("dm:")) return canal.slice(3).split("|").includes(q.id); // privados: solo los dos
+        return canal !== "medicos" || veMedicos;
+      };
+      return { ok: true, json: JSON.stringify(todos.filter(visible)) };
     }
     if (q.tipo === "staff" && !(await areaPermite(q, data.coleccion, "ver"))) return { ok: true, json: "[]" };
     let filas = await c.leer(data.coleccion);
@@ -381,13 +386,17 @@ export const aplicarCambios = createServerFn({ method: "POST" })
       const jefe = q.medico || q.area === AREA_DIRECCION;
       for (const f of filas) {
         const previo = await c.uno("gb_mensajes", f.id);
-        if (previo && previo["deId"] !== q.id && !jefe) return { ok: false, error: "Solo podés editar tus mensajes." };
+        const canal = String(previo?.["canal"] ?? f["canal"] ?? "");
+        const privado = canal.startsWith("dm:");
+        if (privado && !canal.slice(3).split("|").includes(q.id)) return { ok: false, error: "No autorizado." };
+        if (previo && previo["deId"] !== q.id && (!jefe || privado)) return { ok: false, error: "Solo podés editar tus mensajes." };
         if (!previo && f["canal"] === "avisos" && !jefe) return { ok: false, error: "En Avisos publican los médicos y Dirección." };
         await c.guardar("gb_mensajes", { ...f, deId: previo?.["deId"] ?? q.id, de: previo?.["de"] ?? q.nombre });
       }
       for (const id of data.borrar) {
         const previo = await c.uno("gb_mensajes", id);
-        if (previo && (previo["deId"] === q.id || jefe)) await c.borrar("gb_mensajes", [id]);
+        const privado = String(previo?.["canal"] ?? "").startsWith("dm:");
+        if (previo && (previo["deId"] === q.id || (jefe && !privado))) await c.borrar("gb_mensajes", [id]);
       }
       return { ok: true };
     }
