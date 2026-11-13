@@ -18,7 +18,7 @@ const PRIVADOS_MEDICOS = ["gb_permisos"] as const;
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
 
-import { permiteColeccion, nivelDe, type Permisos } from "./permisos";
+import { permiteColeccion, nivelDe, AREA_DIRECCION, AREAS_MEDICAS, type Permisos } from "./permisos";
 const permiteModulo = (p: Permisos, area: string, modulo: string, accion: "ver" | "editar") => {
   const n = nivelDe(p, area, modulo);
   return accion === "ver" ? n !== "ninguno" : n === "editar";
@@ -308,11 +308,11 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
 
 const colecciones = () => import("./colecciones.server");
 
-type Quien = { tipo: "staff"; nombre: string; medico: boolean; area: string } | { tipo: "paciente"; id: string; nombre: string } | null;
+type Quien = { tipo: "staff"; id: string; nombre: string; medico: boolean; area: string } | { tipo: "paciente"; id: string; nombre: string } | null;
 
 async function quienSoy(): Promise<Quien> {
   const u = await (await acceso()).usuarioActual();
-  if (u) return { tipo: "staff", nombre: u.nombre, medico: u.rol === "medico", area: u.area ?? (u.rol === "enfermeria" ? "Enfermería" : "") };
+  if (u) return { tipo: "staff", id: u.id, nombre: u.nombre, medico: u.rol === "medico", area: u.area ?? (u.rol === "enfermeria" ? "Enfermería" : "") };
   const c = await colecciones();
   const p = await c.pacienteActual().catch(() => null);
   if (p) return { tipo: "paciente", id: p.id, nombre: String(p["nombre"] ?? "") };
@@ -342,6 +342,13 @@ export const leerColeccion = createServerFn({ method: "GET" })
     if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
     const q = await quienSoy();
     if (!q) return { ok: false, error: "Sin sesión." };
+    // Chat interno: todo el personal; el canal de médicos solo lo ven médicos y Dirección
+    if (data.coleccion === "gb_mensajes") {
+      if (q.tipo !== "staff") return { ok: true, json: "[]" };
+      const todos = await c.leer("gb_mensajes");
+      const veMedicos = q.medico || q.area === AREA_DIRECCION || AREAS_MEDICAS.includes(q.area);
+      return { ok: true, json: JSON.stringify(todos.filter((m) => m["canal"] !== "medicos" || veMedicos)) };
+    }
     if (q.tipo === "staff" && !(await areaPermite(q, data.coleccion, "ver"))) return { ok: true, json: "[]" };
     let filas = await c.leer(data.coleccion);
     if (q.tipo === "paciente") {
@@ -365,6 +372,23 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     // Auditoría: cualquiera agrega eventos, nadie los cambia ni los borra (salvo los médicos)
     if (data.coleccion === "gb_audit" && !(q.tipo === "staff" && q.medico)) {
       for (const f of filas) if (!(await c.uno("gb_audit", f.id))) await c.guardar("gb_audit", { ...f, usuario: q.nombre });
+      return { ok: true };
+    }
+
+    // Chat interno: cada uno escribe a su nombre; borra lo suyo (médicos y Dirección, cualquiera)
+    if (data.coleccion === "gb_mensajes") {
+      if (q.tipo !== "staff") return { ok: false, error: "No autorizado." };
+      const jefe = q.medico || q.area === AREA_DIRECCION;
+      for (const f of filas) {
+        const previo = await c.uno("gb_mensajes", f.id);
+        if (previo && previo["deId"] !== q.id && !jefe) return { ok: false, error: "Solo podés editar tus mensajes." };
+        if (!previo && f["canal"] === "avisos" && !jefe) return { ok: false, error: "En Avisos publican los médicos y Dirección." };
+        await c.guardar("gb_mensajes", { ...f, deId: previo?.["deId"] ?? q.id, de: previo?.["de"] ?? q.nombre });
+      }
+      for (const id of data.borrar) {
+        const previo = await c.uno("gb_mensajes", id);
+        if (previo && (previo["deId"] === q.id || jefe)) await c.borrar("gb_mensajes", [id]);
+      }
       return { ok: true };
     }
 

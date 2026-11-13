@@ -380,7 +380,7 @@ const COLECCIONES = [
   "gb_evoluciones", "gb_triage", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
-  "gb_audit",
+  "gb_audit", "gb_mensajes",
 ];
 type ConId = { id: string };
 const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");
@@ -435,6 +435,13 @@ function vigilar(key: string) {
     window.addEventListener("focus", tick);
   }
   return () => abiertas.set(key, (abiertas.get(key) ?? 1) - 1);
+}
+
+/** Mientras esté abierto el chat interno, refresca los mensajes cada pocos segundos. */
+export function refrescoRapido(key: string, ms = 4000) {
+  if (typeof window === "undefined") return () => undefined;
+  const t = window.setInterval(() => void traerColeccion(key), ms);
+  return () => window.clearInterval(t);
 }
 
 /** Horarios tomados (para la web pública y el portal). */

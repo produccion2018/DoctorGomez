@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { subirAudioServidor } from "@/lib/servidor";
@@ -82,6 +82,11 @@ import {
   UserCog,
   Users,
   Crown,
+  ChevronLeft,
+  Pin,
+  Palette,
+  Megaphone,
+  MessagesSquare,
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -90,6 +95,7 @@ import { ThemeToggle } from "@/components/theme-provider";
 import {
   ADMINS,
   ADMIN_IDS,
+  refrescoRapido,
   profesionalesAgenda,
   type RangoDia,
   auditar,
@@ -212,7 +218,7 @@ export const Route = createFileRoute("/panel")({
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
 type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
-type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio";
+type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -387,6 +393,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     ],
   },
   { grupo: "Agenda médica", items: [{ id: "horarios", label: "Mis horarios", icon: Clock, tono: "text-teal-300" }] },
+  { grupo: "Equipo", items: [{ id: "comunicacion", label: "Comunicación interna", icon: MessagesSquare, tono: "text-sky-300" }] },
   {
     grupo: "Pagos y facturación",
     items: [
@@ -443,6 +450,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   analitica: ["Analítica y reportes", "Indicadores de la clínica, clínicos y reportes para descargar."],
   automatizaciones: ["Automatizaciones", "Recordatorios, alertas clínicas y avisos que se preparan solos."],
   historia: ["Historia Clínica", "Historia clínica general: evoluciones, signos vitales, diagnósticos CIE-10 e indicaciones."],
+  comunicacion: ["Comunicación interna", "Chat del equipo: avisos, novedades y coordinación del día."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
@@ -508,6 +516,7 @@ function Panel() {
     return () => clearInterval(t);
   }, []);
 
+  const noLeidos = useNoLeidos(user);
   if (!user) return null;
 
   // Permisos: enfermería ve solo los módulos habilitados en Permisos → Enfermería
@@ -518,6 +527,7 @@ function Panel() {
   const TABS_ENF: Tab[] = [
     ...(areaUsuario === "Dirección general" ? (["resumen"] as Tab[]) : []),
     ...Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!),
+    "comunicacion" as Tab,
   ];
   const permitido = (t: Tab) => !esEnf || TABS_ENF.includes(t);
   const tabVisible: Tab = permitido(tab) ? tab : (TABS_ENF[0] ?? "triage");
@@ -540,7 +550,7 @@ function Panel() {
   const eventosHoy = audit.filter((e) => new Date(e.fecha).toDateString() === new Date().toDateString()).length;
   const pedidosPacientes = leerDato<Autorizacion[]>(KEY_AUT, []).filter((x) => x.estado === "Pendiente" && x.origen === "Paciente").length;
   const triagesEspera = leerDato<Triage[]>(KEY_TRIAGE, []).filter((t) => !t.evolucionId && diaLocal(t.fecha) === isoDe(new Date())).length;
-  const badges: Partial<Record<Tab, number>> = { turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy, ...(esEnf ? {} : { triage: triagesEspera }) };
+  const badges: Partial<Record<Tab, number>> = { comunicacion: noLeidos, turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy, ...(esEnf ? {} : { triage: triagesEspera }) };
   const fechaLarga = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
   const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 
@@ -925,6 +935,7 @@ function Panel() {
         {tabVisible === "asistente" && <AsistenteTab turnos={turnos} movs={movs} permisos={permisos} audit={audit} log={log} user={user} />}
         {tabVisible === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
         {tabVisible === "sitio" && <SitioTab log={log} />}
+        {tabVisible === "comunicacion" && <ComunicacionTab user={user} log={log} />}
       </main>
     </div>
   );
@@ -1060,6 +1071,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
   auditoria: { a: "79,70,229", b: "56,132,246", c: "100,116,139" },
   sitio: { a: "14,165,233", b: "56,132,246", c: "236,72,153" },
+  comunicacion: { a: "14,165,233", b: "139,92,246", c: "16,185,129" },
 };
 
 function FondoModulo({ tab }: { tab: Tab }) {
@@ -7889,4 +7901,256 @@ function FondoEspecialidadMedico({ id }: { id: string }) {
     );
   }
   return <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 -bottom-1 h-9 w-full" />;
+}
+
+/* ---------- Comunicación interna (chat del equipo) ---------- */
+type Mensaje = { id: string; canal: string; deId: string; de: string; area: string; texto: string; fecha: string; importante?: boolean };
+const KEY_MENSAJES = "gb_mensajes";
+const CANALES: { id: string; nombre: string; desc: string; icon: LucideIcon; color: string; soloJefes?: boolean; medicos?: boolean }[] = [
+  { id: "general", nombre: "General", desc: "Todo el equipo de la clínica", icon: MessagesSquare, color: "#0ea5e9" },
+  { id: "avisos", nombre: "Avisos de dirección", desc: "Publican los médicos y Dirección; todos leen", icon: Megaphone, color: "#f59e0b", soloJefes: true },
+  { id: "turnos", nombre: "Turnos y recepción", desc: "Agenda, pacientes que llegan, cambios de horario", icon: CalendarDays, color: "#8b5cf6" },
+  { id: "enfermeria", nombre: "Enfermería", desc: "Triage, insumos y novedades de guardia", icon: Syringe, color: "#10b981" },
+  { id: "medicos", nombre: "Médicos", desc: "Solo médicos y Dirección", icon: Stethoscope, color: "#f43f5e", medicos: true },
+];
+const FONDOS_CHAT: { id: string; nombre: string; css: CSSProperties; oscuro?: boolean }[] = [
+  { id: "clinico", nombre: "Clínico", css: { backgroundColor: "#f4f8fc", backgroundImage: "radial-gradient(circle at 1px 1px, rgba(14,99,180,.12) 1px, transparent 0)", backgroundSize: "22px 22px" } },
+  { id: "aurora", nombre: "Aurora", css: { backgroundImage: "radial-gradient(at 15% 10%, rgba(56,189,248,.25), transparent 45%), radial-gradient(at 85% 90%, rgba(244,114,182,.22), transparent 45%), linear-gradient(180deg,#f8fbff,#f3f0ff)" } },
+  { id: "corazon", nombre: "Corazón", css: { backgroundImage: `linear-gradient(rgba(255,255,255,.82),rgba(255,255,255,.88)), url(${fondoCorazonPanel})`, backgroundSize: "cover", backgroundPosition: "center" } },
+  { id: "rinones", nombre: "Riñones", css: { backgroundImage: `linear-gradient(rgba(255,255,255,.82),rgba(255,255,255,.88)), url(${fondoRinonesPanel})`, backgroundSize: "cover", backgroundPosition: "center" } },
+  { id: "noche", nombre: "Noche", oscuro: true, css: { backgroundImage: "radial-gradient(at 20% 0%, rgba(56,189,248,.18), transparent 50%), linear-gradient(180deg,#0b1430,#0a1024)" } },
+  { id: "liso", nombre: "Liso", css: { backgroundColor: "var(--card)" } },
+];
+const EMOJIS = ["👍", "✅", "🙏", "⚠️", "❤️", "😊", "📌", "🩺"];
+
+function puedeVerCanal(c: (typeof CANALES)[number], user: SessionUser) {
+  return !c.medicos || user.rol === "medico" || user.area === "Dirección general" || esAreaMedica(user.area);
+}
+function esJefe(user: SessionUser) {
+  return user.rol === "medico" || user.area === "Dirección general";
+}
+function leerVistos(id: string): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(`gb_chat_visto_${id}`) ?? "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+/** Mensajes sin leer (para el número del menú). */
+function useNoLeidos(user: SessionUser | null) {
+  const [msgs] = useDato<Mensaje[]>(KEY_MENSAJES, []);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const f = () => tick((x) => x + 1);
+    window.addEventListener("gb-chat-visto", f);
+    return () => window.removeEventListener("gb-chat-visto", f);
+  }, []);
+  if (typeof window === "undefined" || !user) return 0;
+  const vistos = leerVistos(user.id);
+  return msgs.filter((m) => m.deId !== user.id && m.fecha > (vistos[m.canal] ?? "") && CANALES.some((c) => c.id === m.canal && puedeVerCanal(c, user))).length;
+}
+
+function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
+  const [msgs, setMsgs] = useDato<Mensaje[]>(KEY_MENSAJES, []);
+  const canales = CANALES.filter((c) => puedeVerCanal(c, user));
+  const [canal, setCanal] = useState(canales[0]!.id);
+  const [texto, setTexto] = useState("");
+  const [importante, setImportante] = useState(false);
+  const [emojis, setEmojis] = useState(false);
+  const [fondoId, setFondoId] = useState(() => (typeof window === "undefined" ? "clinico" : localStorage.getItem(`gb_chat_fondo_${user.id}`) ?? "clinico"));
+  const [elegirFondo, setElegirFondo] = useState(false);
+  const [verCanales, setVerCanales] = useState(false);
+  const [vistos, setVistos] = useState<Record<string, string>>(() => (typeof window === "undefined" ? {} : leerVistos(user.id)));
+  const lista = useRef<HTMLDivElement>(null);
+  const fondo = FONDOS_CHAT.find((f) => f.id === fondoId) ?? FONDOS_CHAT[0]!;
+  const c = canales.find((x) => x.id === canal) ?? canales[0]!;
+  const jefe = esJefe(user);
+  const puedeEscribir = !c.soloJefes || jefe;
+
+  useEffect(() => refrescoRapido(KEY_MENSAJES), []);
+  const delCanal = useMemo(() => msgs.filter((m) => m.canal === c.id).sort((a, b) => a.fecha.localeCompare(b.fecha)), [msgs, c.id]);
+  const fijado = [...delCanal].reverse().find((m) => m.importante);
+
+  // Marca el canal como leído y baja hasta el último mensaje
+  useEffect(() => {
+    const ultimo = delCanal[delCanal.length - 1]?.fecha;
+    if (ultimo && ultimo > (vistos[c.id] ?? "")) {
+      const v = { ...leerVistos(user.id), [c.id]: ultimo };
+      localStorage.setItem(`gb_chat_visto_${user.id}`, JSON.stringify(v));
+      setVistos(v);
+      window.dispatchEvent(new Event("gb-chat-visto"));
+    }
+    requestAnimationFrame(() => lista.current?.scrollTo({ top: lista.current.scrollHeight, behavior: "smooth" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delCanal.length, c.id]);
+
+  const sinLeer = (id: string) => msgs.filter((m) => m.canal === id && m.deId !== user.id && m.fecha > (vistos[id] ?? "")).length;
+  const cambiarFondo = (id: string) => {
+    setFondoId(id);
+    localStorage.setItem(`gb_chat_fondo_${user.id}`, id);
+    setElegirFondo(false);
+  };
+  const enviar = (e?: FormEvent) => {
+    e?.preventDefault();
+    const t = texto.trim();
+    if (!t || !puedeEscribir) return;
+    const m: Mensaje = { id: uid(), canal: c.id, deId: user.id, de: user.nombre, area: user.rol === "medico" ? "Médico" : (user.area ?? ""), texto: t.slice(0, 2000), fecha: new Date().toISOString(), ...(importante ? { importante: true } : {}) };
+    setMsgs((p) => [...p, m]);
+    if (importante) log("Aviso importante en comunicación interna", `${c.nombre}: ${t.slice(0, 80)}`);
+    setTexto("");
+    setImportante(false);
+    setEmojis(false);
+  };
+  const borrar = (m: Mensaje) => {
+    if (!window.confirm("¿Borrar este mensaje?")) return;
+    setMsgs((p) => p.filter((x) => x.id !== m.id));
+  };
+  const diaTxt = (iso: string) => {
+    const d = new Date(iso);
+    const h = new Date();
+    const ay = new Date();
+    ay.setDate(h.getDate() - 1);
+    if (d.toDateString() === h.toDateString()) return "Hoy";
+    if (d.toDateString() === ay.toDateString()) return "Ayer";
+    return d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  };
+  const horaTxt = (iso: string) => new Date(iso).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div className="pn-card pn-up grid overflow-hidden lg:grid-cols-[17rem_1fr]" style={{ height: "min(78vh, 760px)" }}>
+      {/* Canales */}
+      <aside className={`${verCanales ? "flex" : "hidden"} flex-col border-r border-border/60 bg-secondary/30 lg:flex`}>
+        <div className="border-b border-border/60 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">Canales</p>
+        </div>
+        <div className="flex-1 space-y-1 overflow-y-auto p-2">
+          {canales.map((x) => {
+            const on = x.id === c.id;
+            const n = sinLeer(x.id);
+            return (
+              <button key={x.id} type="button" onClick={() => { setCanal(x.id); setVerCanales(false); }}
+                className={`group flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all ${on ? "bg-card shadow-md ring-1 ring-border" : "hover:bg-card/70"}`}>
+                <span className="relative flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm" style={{ background: `linear-gradient(140deg, ${x.color}, ${x.color}b3)` }}>
+                  <x.icon className="size-[18px]" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{x.nombre}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{x.desc}</span>
+                </span>
+                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{n}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No compartas acá datos clínicos de pacientes: eso va en su historia clínica.</p>
+      </aside>
+
+      {/* Conversación */}
+      <section className={`${verCanales ? "hidden" : "flex"} min-h-0 flex-col lg:flex`}>
+        <header className="relative flex items-center gap-3 border-b border-border/60 bg-card px-4 py-3">
+          <button type="button" onClick={() => setVerCanales(true)} className="rounded-xl p-2 text-muted-foreground hover:bg-secondary lg:hidden" aria-label="Ver canales"><ChevronLeft className="size-5" /></button>
+          <span className="flex size-10 items-center justify-center rounded-xl text-white" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-[18px]" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-semibold">{c.nombre}</p>
+            <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground"><span className="size-1.5 rounded-full bg-emerald-500 pulse-dot" /> {c.desc}</p>
+          </div>
+          <div className="relative">
+            <button type="button" onClick={() => setElegirFondo((v) => !v)} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+              <Palette className="size-4" /> <span className="hidden sm:inline">Fondo</span>
+            </button>
+            {elegirFondo && (
+              <div className="absolute right-0 top-11 z-20 grid w-64 grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-3 shadow-2xl animate-in fade-in slide-in-from-top-1 duration-200">
+                {FONDOS_CHAT.map((f) => (
+                  <button key={f.id} type="button" onClick={() => cambiarFondo(f.id)} className={`group flex flex-col items-center gap-1 rounded-xl p-1 text-[11px] font-medium ${f.id === fondo.id ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
+                    <span className={`h-12 w-full rounded-lg ring-2 transition ${f.id === fondo.id ? "ring-[rgb(var(--acc))]" : "ring-border group-hover:ring-foreground/30"}`} style={f.css} />
+                    {f.nombre}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </header>
+
+        {fijado && (
+          <div className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            <Pin className="mt-0.5 size-3.5 shrink-0" /> <span className="line-clamp-2"><b>{fijado.de}:</b> {fijado.texto}</span>
+          </div>
+        )}
+
+        <div ref={lista} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6" style={fondo.css}>
+          {delCanal.length === 0 && (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <span className="flex size-16 items-center justify-center rounded-3xl text-white shadow-lg vz-flota" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-7" /></span>
+              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>Todavía no hay mensajes en {c.nombre}</p>
+              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{puedeEscribir ? "Escribí el primero." : "Acá vas a ver los avisos de los médicos y Dirección."}</p>
+            </div>
+          )}
+          {delCanal.map((m, i) => {
+            const mio = m.deId === user.id;
+            const ant = delCanal[i - 1];
+            const nuevoDia = !ant || new Date(ant.fecha).toDateString() !== new Date(m.fecha).toDateString();
+            const seguido = !!ant && !nuevoDia && ant.deId === m.deId && new Date(m.fecha).getTime() - new Date(ant.fecha).getTime() < 5 * 60000;
+            const foto = fotoDe(m.deId);
+            return (
+              <div key={m.id}>
+                {nuevoDia && (
+                  <div className="my-4 flex justify-center">
+                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize shadow-sm ${fondo.oscuro ? "bg-white/10 text-white/80" : "bg-card/90 text-muted-foreground ring-1 ring-border"}`}>{diaTxt(m.fecha)}</span>
+                  </div>
+                )}
+                <div className={`group flex items-end gap-2 ${mio ? "flex-row-reverse" : ""} ${seguido ? "mt-1" : "mt-3"} animate-in fade-in slide-in-from-bottom-1 duration-300`}>
+                  {!mio && (
+                    <span className="size-8 shrink-0">
+                      {!seguido && (foto ? <img src={foto} alt="" className="size-8 rounded-full object-cover object-top ring-2 ring-card" /> : <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-[11px] font-semibold text-white">{iniciales(m.de)}</span>)}
+                    </span>
+                  )}
+                  <div className={`max-w-[80%] sm:max-w-[65%] ${mio ? "items-end" : "items-start"} flex flex-col`}>
+                    {!mio && !seguido && <span className={`mb-0.5 px-1 text-[11px] font-semibold ${fondo.oscuro ? "text-white/70" : "text-muted-foreground"}`}>{m.de} <span className="font-normal opacity-70">· {m.area}</span></span>}
+                    <div className={`relative whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm ${m.importante ? "ring-2 ring-amber-400" : ""} ${mio ? "rounded-br-md text-white" : "rounded-bl-md bg-card text-foreground ring-1 ring-border/60"}`}
+                      style={mio ? { background: `linear-gradient(140deg, rgb(var(--acc)), rgba(var(--acc),.8))` } : undefined}>
+                      {m.importante && <span className={`mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${mio ? "text-amber-200" : "text-amber-600"}`}><Pin className="size-3" /> Importante</span>}
+                      {m.texto}
+                      <span className={`ml-2 inline-block translate-y-0.5 text-[10px] ${mio ? "text-white/70" : "text-muted-foreground"}`}>{horaTxt(m.fecha)}</span>
+                    </div>
+                  </div>
+                  {(mio || jefe) && (
+                    <button type="button" onClick={() => borrar(m)} aria-label="Borrar mensaje" className="mb-1 rounded-lg p-1 text-muted-foreground opacity-0 transition hover:bg-rose-100 hover:text-rose-600 group-hover:opacity-100"><Trash2 className="size-3.5" /></button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {puedeEscribir ? (
+          <form onSubmit={enviar} className="relative border-t border-border/60 bg-card p-3">
+            {emojis && (
+              <div className="absolute bottom-full left-3 mb-2 flex gap-1 rounded-2xl border border-border bg-card p-2 shadow-xl animate-in fade-in slide-in-from-bottom-1 duration-200">
+                {EMOJIS.map((em) => <button key={em} type="button" onClick={() => setTexto((t) => t + em)} className="rounded-lg p-1.5 text-lg transition hover:scale-125 hover:bg-secondary">{em}</button>)}
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <button type="button" onClick={() => setEmojis((v) => !v)} aria-label="Emojis" className="rounded-xl p-2.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"><Smile className="size-5" /></button>
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                rows={1}
+                placeholder={`Escribir en ${c.nombre}…`}
+                className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition focus:border-[rgb(var(--acc))] focus:ring-4 focus:ring-[rgba(var(--acc),.15)]"
+              />
+              {jefe && (
+                <button type="button" onClick={() => setImportante((v) => !v)} aria-pressed={importante} title="Marcar como importante (queda fijado arriba)"
+                  className={`rounded-xl p-2.5 transition ${importante ? "bg-amber-100 text-amber-700" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}><Pin className="size-5" /></button>
+              )}
+              <Button type="submit" disabled={!texto.trim()} className="h-11 w-11 shrink-0 rounded-2xl p-0" aria-label="Enviar"><Send className="size-4" /></Button>
+            </div>
+            <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">Enter para enviar · Shift + Enter para un renglón nuevo{jefe ? " · 📌 marca el mensaje como importante" : ""}</p>
+          </form>
+        ) : (
+          <p className="border-t border-border/60 bg-card p-4 text-center text-sm text-muted-foreground"><Lock className="mr-1 inline size-4" /> En este canal publican los médicos y Dirección.</p>
+        )}
+      </section>
+    </div>
+  );
 }

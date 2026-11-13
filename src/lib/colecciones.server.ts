@@ -8,7 +8,7 @@ export const COLECCIONES = [
   "gb_turnos", "gb_padron", "gb_pacientes",
   "gb_evoluciones", "gb_triage", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
-  "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
+  "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs", "gb_mensajes",
   "gb_audit",
 ] as const;
 /** Colecciones donde el paciente ve solo sus registros. */
