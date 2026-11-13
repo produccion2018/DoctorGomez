@@ -8,6 +8,15 @@ import {
   guardarDatoServidor,
   guardarPersonalServidor,
   ingresarServidor,
+  verificar2faServidor,
+  seguridadServidor,
+  iniciar2faServidor,
+  confirmar2faServidor,
+  desactivar2faServidor,
+  guardarEmailServidor,
+  restablecer2faServidor,
+  pedirRecuperoServidor,
+  usarRecuperoServidor,
   leerDatos,
   listaIngreso,
   listarPersonalServidor,
@@ -27,6 +36,9 @@ const AUDIT_KEY = "gb_audit";
 const PW_KEY = "gb_admin_pw_";
 const BACKEND_KEY = "gb_backend";
 const CONCLAVE_KEY = "gb_conclave";
+const FALTA2FA_KEY = "gb_falta2fa";
+/** ¿La sesión todavía tiene que activar la verificación en dos pasos? */
+export const falta2fa = () => typeof window !== "undefined" && localStorage.getItem(FALTA2FA_KEY) === "1";
 
 /* =====================================================================
    Backend (Neon + Vercel). Si la base está conectada, el acceso y los datos
@@ -96,13 +108,16 @@ export function iniciarBackend(): Promise<boolean> {
 /** Con backend: confirma que la cookie de sesión siga vigente. */
 export async function validarSesion(): Promise<SessionUser | null> {
   if (!(await iniciarBackend())) return sesionActual();
-  const u = await sesionServidor().catch(() => null);
-  if (!u) {
+  const r = await sesionServidor().catch(() => null);
+  if (!r) {
     localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(FALTA2FA_KEY);
     return null;
   }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-  return u;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(r.usuario));
+  if (r.falta2fa) localStorage.setItem(FALTA2FA_KEY, "1");
+  else localStorage.removeItem(FALTA2FA_KEY);
+  return r.usuario;
 }
 
 /** Trae del servidor el personal completo (con links) — solo médicos. */
@@ -276,11 +291,15 @@ export async function crearClave(id: string, password: string): Promise<Result> 
   return { ok: true };
 }
 
-export async function ingresar(id: string, password: string): Promise<Result> {
+export type ResultadoIngreso = { ok: true; ticket?: string } | { ok: false; error: string };
+export async function ingresar(id: string, password: string): Promise<ResultadoIngreso> {
   if (await iniciarBackend()) {
     const r = await ingresarServidor({ data: { id, password } });
     if (!r.ok) return r;
+    if (r.ticket) return { ok: true, ticket: r.ticket }; // falta el código de la app
     localStorage.setItem(SESSION_KEY, JSON.stringify(r.usuario));
+    if (r.configurar2fa) localStorage.setItem(FALTA2FA_KEY, "1");
+    else localStorage.removeItem(FALTA2FA_KEY);
     return { ok: true };
   }
   const admin = usuarioPorId(id);
@@ -320,6 +339,7 @@ export function sesionActual(): SessionUser | null {
 
 export function cerrarSesion() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(FALTA2FA_KEY);
   if (modoServidor()) void salirServidor().catch(() => undefined);
 }
 
@@ -1050,3 +1070,51 @@ export const COLORES_PISTA = [
   "from-rose-400 to-red-600",
   "from-cyan-300 to-blue-600",
 ];
+
+
+/* ---------- Seguridad: 2FA y recuperar contraseña (solo con servidor) ---------- */
+const sinServidor = { ok: false as const, error: "Esto funciona con la base de datos conectada." };
+const err = (e: Error) => ({ ok: false as const, error: e.message || "No se pudo conectar." });
+export async function verificar2fa(ticket: string, codigo: string): Promise<Result> {
+  if (!(await iniciarBackend())) return sinServidor;
+  const r = await verificar2faServidor({ data: { ticket, codigo } }).catch(err);
+  if (!r.ok) return r;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(r.usuario));
+  localStorage.removeItem(FALTA2FA_KEY);
+  return { ok: true };
+}
+export async function estadoSeguridad() {
+  if (!(await iniciarBackend())) return null;
+  const r = await seguridadServidor().catch(() => null);
+  return r && r.ok ? r : null;
+}
+export async function iniciar2fa() {
+  if (!(await iniciarBackend())) return sinServidor;
+  return iniciar2faServidor().catch(err);
+}
+export async function confirmar2fa(codigo: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  const r = await confirmar2faServidor({ data: { codigo } }).catch(err);
+  if (r.ok) localStorage.removeItem(FALTA2FA_KEY);
+  return r;
+}
+export async function desactivar2fa(codigo: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  return desactivar2faServidor({ data: { codigo } }).catch(err);
+}
+export async function guardarEmail(email: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  return guardarEmailServidor({ data: { email } }).catch(err);
+}
+export async function pedirRecupero(email: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  return pedirRecuperoServidor({ data: { email, origen: window.location.origin } }).catch(err);
+}
+export async function usarRecupero(token: string, password: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  return usarRecuperoServidor({ data: { token, password } }).catch(err);
+}
+export async function restablecer2fa(id: string) {
+  if (!(await iniciarBackend())) return sinServidor;
+  return restablecer2faServidor({ data: { id } }).catch(err);
+}

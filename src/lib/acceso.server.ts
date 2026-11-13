@@ -1,3 +1,4 @@
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 /** Sesiones, cookies y auditoría. Solo servidor. */
 import { deleteCookie, getCookie, setCookie } from "@tanstack/react-start/server";
 import type { UsuarioServidor } from "./servidor";
@@ -48,18 +49,29 @@ export const aUsuario = (r: { id: string; nombre: string; rol: string; area: str
   ...(r.area ? { area: r.area } : {}),
 });
 
-/** Usuario de la sesión actual (por cookie) o null. */
-export async function usuarioActual(): Promise<UsuarioServidor | null> {
+/** Médicos y Dirección general están obligados a usar 2FA. */
+export const exige2fa = (u: { rol: string; area?: string | null }) => u.rol === "medico" || u.area === "Dirección general";
+
+/** Sesión por cookie, aunque le falte el segundo paso (2FA). Solo para las pantallas de 2FA. */
+export async function sesionCompleta(): Promise<{ usuario: UsuarioServidor; falta2fa: boolean; totpOk: boolean } | null> {
   const { hayBase, db } = await modulo();
   if (!hayBase()) return null;
   const token = getCookie(COOKIE);
   if (!token) return null;
   const sql = await db();
   const filas = (await sql`
-    SELECT u.id, u.nombre, u.rol, u.area FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
+    SELECT u.id, u.nombre, u.rol, u.area, u.totp_ok, s.limitada FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id
     WHERE s.token = ${token} AND s.expira > now() AND u.activo = true
-  `) as { id: string; nombre: string; rol: string; area: string | null }[];
-  return filas[0] ? aUsuario(filas[0]) : null;
+  `) as { id: string; nombre: string; rol: string; area: string | null; totp_ok: boolean; limitada: boolean }[];
+  const f = filas[0];
+  if (!f) return null;
+  return { usuario: aUsuario(f), falta2fa: f.limitada || (exige2fa(f) && !f.totp_ok), totpOk: f.totp_ok };
+}
+
+/** Usuario de la sesión actual (por cookie) o null. Sin 2FA completo (si es obligatorio) no hay acceso a nada. */
+export async function usuarioActual(): Promise<UsuarioServidor | null> {
+  const s = await sesionCompleta();
+  return s && !s.falta2fa ? s.usuario : null;
 }
 
 export async function exigirMedico(): Promise<UsuarioServidor> {
@@ -97,15 +109,75 @@ export async function limpiarFallos(clave: string) {
   await sql`DELETE FROM intentos WHERE clave = ${clave}`;
 }
 
-export async function abrirSesion(id: string) {
+export async function abrirSesion(id: string, limitada = false) {
   const { db, tokenAleatorio } = await modulo();
   const sql = await db();
   const token = tokenAleatorio();
   await sql`DELETE FROM sesiones WHERE expira < now()`;
-  await sql`INSERT INTO sesiones (token, usuario_id, expira) VALUES (${token}, ${id}, now() + make_interval(days => ${DIAS_SESION}))`;
+  await sql`INSERT INTO sesiones (token, usuario_id, expira, limitada) VALUES (${token}, ${id}, now() + make_interval(days => ${limitada ? 1 : DIAS_SESION}), ${limitada})`;
   setCookie(COOKIE, token, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: DIAS_SESION * 24 * 3600 });
 }
 
 
 export const tokenCookie = () => getCookie(COOKIE);
 export const borrarCookie = () => deleteCookie(COOKIE, { path: "/" });
+
+
+/* ---------- 2FA con app de códigos (Google Authenticator, Microsoft Authenticator…) ---------- */
+const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+export function base32(buf: Uint8Array) {
+  let bits = 0;
+  let val = 0;
+  let out = "";
+  for (const b of buf) {
+    val = ((val << 8) | b) & 0xffffff;
+    bits += 8;
+    while (bits >= 5) {
+      out += B32[(val >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+  return out;
+}
+function desdeBase32(s: string) {
+  let bits = 0;
+  let val = 0;
+  const out: number[] = [];
+  for (const ch of s.replace(/=+$/, "").toUpperCase()) {
+    const i = B32.indexOf(ch);
+    if (i < 0) continue;
+    val = ((val << 5) | i) & 0xffffff;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((val >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+function codigoEn(clave: Buffer, paso: number) {
+  const b = Buffer.alloc(8);
+  b.writeBigUInt64BE(BigInt(paso));
+  const h = createHmac("sha1", clave).update(b).digest();
+  const o = h[h.length - 1]! & 15;
+  const n = ((h[o]! & 127) << 24) | (h[o + 1]! << 16) | (h[o + 2]! << 8) | h[o + 3]!;
+  return String(n % 1_000_000).padStart(6, "0");
+}
+/** Valida el código de 6 dígitos (acepta 30 s antes y después por diferencias de reloj). */
+export function totpValido(secreto: string, codigo: string) {
+  const c = codigo.replace(/\s/g, "");
+  if (!/^\d{6}$/.test(c)) return false;
+  const clave = desdeBase32(secreto);
+  const paso = Math.floor(Date.now() / 30000);
+  return [-1, 0, 1].some((d) => timingSafeEqual(Buffer.from(codigoEn(clave, paso + d)), Buffer.from(c)));
+}
+export const nuevoSecreto = () => base32(randomBytes(20));
+export const sha = (x: string) => createHash("sha256").update(x).digest("hex");
+/** 8 códigos de respaldo (por si se pierde el celular). Se muestran una sola vez. */
+export function codigosRespaldo() {
+  return Array.from({ length: 8 }, () => {
+    const r = randomBytes(5).toString("hex").toUpperCase();
+    return `${r.slice(0, 5)}-${r.slice(5)}`;
+  });
+}

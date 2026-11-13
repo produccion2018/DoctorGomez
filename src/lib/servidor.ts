@@ -144,7 +144,7 @@ export const crearClaveServidor = createServerFn({ method: "POST" })
 
 export const ingresarServidor = createServerFn({ method: "POST" })
   .validator((d: { id: string; password: string }) => d)
-  .handler(async ({ data }): Promise<Resultado<{ usuario: UsuarioServidor }>> => {
+  .handler(async ({ data }): Promise<Resultado<{ usuario?: UsuarioServidor; ticket?: string; configurar2fa?: boolean }>> => {
     const { verificarClave } = await modulo();
     const sql = await (await acceso()).sembrarAdmins();
     const filas = (await sql`SELECT id, nombre, rol, area, hash FROM usuarios WHERE id = ${data.id} AND activo = true`) as {
@@ -162,13 +162,217 @@ export const ingresarServidor = createServerFn({ method: "POST" })
       return { ok: false, error: (await a.bloqueado(`staff:${f.id}`)) ?? "Contraseña incorrecta." };
     }
     await a.limpiarFallos(`staff:${f.id}`);
-    await (await acceso()).abrirSesion(f.id);
-    const usuario = (await acceso()).aUsuario(f);
-    await (await acceso()).auditar(f.nombre, "Inicio de sesión", usuario.rol === "medico" ? "Acceso al panel administrativo" : `Acceso al panel · ${usuario.area ?? ""}`);
+    const usuario = a.aUsuario(f);
+    const seg = (await sql`SELECT totp_ok FROM usuarios WHERE id = ${f.id}`) as { totp_ok: boolean }[];
+    // Con 2FA activo: todavía no hay sesión, falta el código de la app
+    if (seg[0]?.totp_ok) {
+      const ticket = (await modulo()).tokenAleatorio();
+      await sql`DELETE FROM desafios WHERE expira < now() OR usuario_id = ${f.id}`;
+      await sql`INSERT INTO desafios (token, usuario_id, expira) VALUES (${a.sha(ticket)}, ${f.id}, now() + interval '5 minutes')`;
+      return { ok: true, ticket };
+    }
+    // Obligatorio y sin configurar: sesión limitada, solo para activar el 2FA
+    const falta = a.exige2fa(usuario);
+    await a.abrirSesion(f.id, falta);
+    await a.auditar(f.nombre, "Inicio de sesión", usuario.rol === "medico" ? "Acceso al panel administrativo" : `Acceso al panel · ${usuario.area ?? ""}`);
+    return { ok: true, usuario, configurar2fa: falta };
+  });
+
+/** Segundo paso del ingreso: código de 6 dígitos de la app (o un código de respaldo). */
+export const verificar2faServidor = createServerFn({ method: "POST" })
+  .validator((d: { ticket: string; codigo: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ usuario: UsuarioServidor }>> => {
+    const { db } = await modulo();
+    const a = await acceso();
+    const sql = await db();
+    const filas = (await sql`SELECT u.id, u.nombre, u.rol, u.area, u.totp, u.respaldo FROM desafios d JOIN usuarios u ON u.id = d.usuario_id
+      WHERE d.token = ${a.sha(data.ticket)} AND d.expira > now() AND u.activo = true`) as { id: string; nombre: string; rol: string; area: string | null; totp: string | null; respaldo: string | null }[];
+    const f = filas[0];
+    if (!f || !f.totp) return { ok: false, error: "El ingreso venció. Volvé a poner tu contraseña." };
+    const llave = `2fa:${f.id}`;
+    const freno = await a.bloqueado(llave);
+    if (freno) return { ok: false, error: freno };
+    const cod = data.codigo.trim().toUpperCase();
+    let ok = a.totpValido(f.totp, cod);
+    if (!ok && cod.includes("-")) {
+      // Código de respaldo: sirve una sola vez
+      const lista = JSON.parse(f.respaldo ?? "[]") as string[];
+      const h = a.sha(cod);
+      if (lista.includes(h)) {
+        ok = true;
+        await sql`UPDATE usuarios SET respaldo = ${JSON.stringify(lista.filter((x) => x !== h))} WHERE id = ${f.id}`;
+        await a.auditar(f.nombre, "Ingreso con código de respaldo", `Quedan ${lista.length - 1}`);
+      }
+    }
+    if (!ok) {
+      await a.registrarFallo(llave);
+      await a.auditar(f.nombre, "Código 2FA incorrecto", "");
+      return { ok: false, error: (await a.bloqueado(llave)) ?? "Código incorrecto. Fijate en la app y probá de nuevo." };
+    }
+    await a.limpiarFallos(llave);
+    await sql`DELETE FROM desafios WHERE usuario_id = ${f.id}`;
+    await a.abrirSesion(f.id);
+    const usuario = a.aUsuario(f);
+    await a.auditar(f.nombre, "Inicio de sesión", "Con verificación en dos pasos");
     return { ok: true, usuario };
   });
 
-export const sesionServidor = createServerFn({ method: "GET" }).handler(async () => (await acceso()).usuarioActual());
+/** Estado de seguridad del usuario conectado (2FA y correo). */
+export const seguridadServidor = createServerFn({ method: "GET" }).handler(async (): Promise<Resultado<{ activo: boolean; obligatorio: boolean; email: string; respaldos: number; correoListo: boolean }>> => {
+  const a = await acceso();
+  const s = await a.sesionCompleta();
+  if (!s) return { ok: false, error: "Sin sesión." };
+  const sql = await (await modulo()).db();
+  const f = (await sql`SELECT email, respaldo FROM usuarios WHERE id = ${s.usuario.id}`) as { email: string | null; respaldo: string | null }[];
+  return { ok: true, activo: s.totpOk, obligatorio: a.exige2fa(s.usuario), email: f[0]?.email ?? "", respaldos: (JSON.parse(f[0]?.respaldo ?? "[]") as string[]).length, correoListo: !!process.env["RESEND_API_KEY"] };
+});
+
+/** Empieza a activar el 2FA: genera la clave y el QR para escanear. */
+export const iniciar2faServidor = createServerFn({ method: "POST" }).handler(async (): Promise<Resultado<{ qr: string; secreto: string }>> => {
+  const a = await acceso();
+  const s = await a.sesionCompleta();
+  if (!s) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
+  if (s.totpOk) return { ok: false, error: "Ya tenés la verificación en dos pasos activa." };
+  const secreto = a.nuevoSecreto();
+  const sql = await (await modulo()).db();
+  await sql`UPDATE usuarios SET totp = ${secreto}, totp_ok = false WHERE id = ${s.usuario.id}`;
+  const etiqueta = encodeURIComponent(`HEGO:${s.usuario.nombre}`);
+  const url = `otpauth://totp/${etiqueta}?secret=${secreto}&issuer=${encodeURIComponent("HEGO Centro Médico")}&algorithm=SHA1&digits=6&period=30`;
+  const QR = await import("qrcode");
+  const qr = await QR.toDataURL(url, { margin: 1, width: 240, color: { dark: "#0b1f4d", light: "#ffffff" } });
+  return { ok: true, qr, secreto: secreto.replace(/(.{4})/g, "$1 ").trim() };
+});
+
+/** Confirma el 2FA con el primer código. Devuelve los códigos de respaldo (se muestran una vez). */
+export const confirmar2faServidor = createServerFn({ method: "POST" })
+  .validator((d: { codigo: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ respaldo: string[] }>> => {
+    const a = await acceso();
+    const s = await a.sesionCompleta();
+    if (!s) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
+    const sql = await (await modulo()).db();
+    const f = (await sql`SELECT totp FROM usuarios WHERE id = ${s.usuario.id}`) as { totp: string | null }[];
+    if (!f[0]?.totp) return { ok: false, error: "Volvé a generar el código QR." };
+    if (!a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "El código no coincide. Usá el que muestra la app en este momento." };
+    const respaldo = a.codigosRespaldo();
+    await sql`UPDATE usuarios SET totp_ok = true, respaldo = ${JSON.stringify(respaldo.map(a.sha))} WHERE id = ${s.usuario.id}`;
+    const token = a.tokenCookie();
+    if (token) await sql`UPDATE sesiones SET limitada = false, expira = now() + interval '14 days' WHERE token = ${token}`;
+    await a.auditar(s.usuario.nombre, "Verificación en dos pasos activada", "");
+    return { ok: true, respaldo };
+  });
+
+/** Apaga el 2FA (solo quien no está obligado), pidiendo un código válido. */
+export const desactivar2faServidor = createServerFn({ method: "POST" })
+  .validator((d: { codigo: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const a = await acceso();
+    const s = await a.sesionCompleta();
+    if (!s || s.falta2fa) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
+    if (a.exige2fa(s.usuario)) return { ok: false, error: "Para médicos y Dirección la verificación en dos pasos es obligatoria." };
+    const sql = await (await modulo()).db();
+    const f = (await sql`SELECT totp FROM usuarios WHERE id = ${s.usuario.id}`) as { totp: string | null }[];
+    if (!f[0]?.totp || !a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "Código incorrecto." };
+    await sql`UPDATE usuarios SET totp = NULL, totp_ok = false, respaldo = NULL WHERE id = ${s.usuario.id}`;
+    await a.auditar(s.usuario.nombre, "Verificación en dos pasos desactivada", "");
+    return { ok: true };
+  });
+
+/** Un médico (o Dirección, para el personal) le restablece el 2FA a otra persona que perdió el celular. */
+export const restablecer2faServidor = createServerFn({ method: "POST" })
+  .validator((d: { id: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const a = await acceso();
+    let u: UsuarioServidor;
+    try {
+      u = await a.exigirDireccion();
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+    if (data.id === u.id) return { ok: false, error: "No podés restablecer tu propia verificación." };
+    const sql = await (await modulo()).db();
+    const f = (await sql`SELECT nombre, rol FROM usuarios WHERE id = ${data.id}`) as { nombre: string; rol: string }[];
+    if (!f[0]) return { ok: false, error: "Usuario no encontrado." };
+    if (f[0].rol === "medico" && u.rol !== "medico") return { ok: false, error: "La verificación de un médico solo la restablece el otro médico." };
+    await sql`UPDATE usuarios SET totp = NULL, totp_ok = false, respaldo = NULL WHERE id = ${data.id}`;
+    await sql`DELETE FROM sesiones WHERE usuario_id = ${data.id}`;
+    await a.auditar(u.nombre, "Restableció la verificación en dos pasos", f[0].nombre);
+    return { ok: true };
+  });
+
+/** Guarda el correo del usuario (para recuperar la contraseña). */
+export const guardarEmailServidor = createServerFn({ method: "POST" })
+  .validator((d: { email: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const a = await acceso();
+    const u = await a.usuarioActual();
+    if (!u) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
+    const email = data.email.trim().toLowerCase();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Ese correo no parece válido." };
+    const sql = await (await modulo()).db();
+    await sql`UPDATE usuarios SET email = ${email || null} WHERE id = ${u.id}`;
+    await a.auditar(u.nombre, "Correo de recuperación actualizado", "");
+    return { ok: true };
+  });
+
+/** "Olvidé mi contraseña": manda un link por correo (Resend). Siempre responde igual, para no revelar quién existe. */
+export const pedirRecuperoServidor = createServerFn({ method: "POST" })
+  .validator((d: { email: string; origen: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const clave = process.env["RESEND_API_KEY"];
+    if (!clave) return { ok: false, error: "El envío de correos todavía no está configurado. Pedile a un médico o a Dirección que te restablezca la contraseña." };
+    const a = await acceso();
+    const email = data.email.trim().toLowerCase();
+    const llave = `rec:${email}`;
+    const freno = await a.bloqueado(llave);
+    if (freno) return { ok: false, error: freno };
+    await a.registrarFallo(llave); // cuenta pedidos: máximo 5 cada 15 minutos
+    const sql = await (await modulo()).db();
+    const f = (await sql`SELECT id, nombre FROM usuarios WHERE lower(email) = ${email} AND activo = true`) as { id: string; nombre: string }[];
+    if (f[0]) {
+      const token = (await modulo()).tokenAleatorio();
+      await sql`DELETE FROM recuperos WHERE expira < now() OR usuario_id = ${f[0].id}`;
+      await sql`INSERT INTO recuperos (token, usuario_id, expira) VALUES (${a.sha(token)}, ${f[0].id}, now() + interval '1 hour')`;
+      const base = /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(data.origen) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(data.origen) ? data.origen : "https://doctor-gomez.vercel.app";
+      const link = `${base}/login?recuperar=${token}`;
+      const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0b1f4d">
+        <h2 style="margin:0 0 12px">HEGO · Centro de especialidades médicas</h2>
+        <p>Hola ${f[0].nombre.replace(/[<>]/g, "")}, pediste restablecer tu contraseña del panel.</p>
+        <p><a href="${link}" style="display:inline-block;background:#0b3d91;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Crear contraseña nueva</a></p>
+        <p style="font-size:13px;color:#555">El link vale por 1 hora y sirve una sola vez. Si no fuiste vos, ignorá este correo: tu contraseña no cambia.</p></div>`;
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: process.env["RESEND_FROM"] ?? "HEGO <onboarding@resend.dev>", to: [email], subject: "Restablecer tu contraseña · HEGO", html }),
+      }).catch(() => null);
+      await a.auditar(f[0].nombre, "Pidió restablecer contraseña", r?.ok ? "Correo enviado" : `No se pudo enviar (${r?.status ?? "sin respuesta"})`);
+    }
+    return { ok: true };
+  });
+
+/** Usa el link del correo para poner una contraseña nueva. */
+export const usarRecuperoServidor = createServerFn({ method: "POST" })
+  .validator((d: { token: string; password: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    if (data.password.length < 8) return { ok: false, error: "La contraseña debe tener al menos 8 caracteres." };
+    const a = await acceso();
+    const { db, hashClave } = await modulo();
+    const sql = await db();
+    const f = (await sql`SELECT r.usuario_id, u.nombre FROM recuperos r JOIN usuarios u ON u.id = r.usuario_id
+      WHERE r.token = ${a.sha(data.token)} AND r.expira > now() AND r.usado = false AND u.activo = true`) as { usuario_id: string; nombre: string }[];
+    if (!f[0]) return { ok: false, error: "El link venció o ya se usó. Pedí uno nuevo." };
+    await sql`UPDATE usuarios SET hash = ${hashClave(data.password)} WHERE id = ${f[0].usuario_id}`;
+    await sql`UPDATE recuperos SET usado = true WHERE usuario_id = ${f[0].usuario_id}`;
+    await sql`DELETE FROM sesiones WHERE usuario_id = ${f[0].usuario_id}`;
+    await a.limpiarFallos(`staff:${f[0].usuario_id}`);
+    await a.auditar(f[0].nombre, "Contraseña restablecida por correo", "");
+    return { ok: true };
+  });
+
+export const sesionServidor = createServerFn({ method: "GET" }).handler(async () => {
+  const s = await (await acceso()).sesionCompleta();
+  return s ? { usuario: s.usuario, falta2fa: s.falta2fa } : null;
+});
 
 export const salirServidor = createServerFn({ method: "POST" }).handler(async () => {
   const { hayBase, db } = await modulo();
@@ -250,7 +454,7 @@ export const guardarPersonalServidor = createServerFn({ method: "POST" })
     }
     for (const id of data.resetear ?? []) {
       if (ADMINS_IDS.includes(id)) continue;
-      await sql`UPDATE usuarios SET hash = NULL WHERE id = ${id}`;
+      await sql`UPDATE usuarios SET hash = NULL, totp = NULL, totp_ok = false, respaldo = NULL WHERE id = ${id}`;
       await sql`DELETE FROM sesiones WHERE usuario_id = ${id}`;
     }
     return { ok: true };

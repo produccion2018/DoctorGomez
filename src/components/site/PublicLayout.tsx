@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode, Fragment, isValidElement } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -1004,5 +1004,85 @@ export function Reproductor() {
         </div>
       </div>
     </section>
+  );
+}
+
+
+/* ===================================================================== */
+/* Instalar la app (panel y portal): botón visible + guía para iPhone       */
+/* ===================================================================== */
+type EventoInstalar = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+let pedidoInstalar: EventoInstalar | null = null;
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    pedidoInstalar = e as EventoInstalar;
+    window.dispatchEvent(new Event("gb-instalable"));
+  });
+  window.addEventListener("appinstalled", () => {
+    pedidoInstalar = null;
+    window.dispatchEvent(new Event("gb-instalable"));
+  });
+}
+
+export function InstalarApp({ nombre = "la app", oscuro = false, className = "" }: { nombre?: string; oscuro?: boolean; className?: string }) {
+  const [, tick] = useState(0);
+  const [guia, setGuia] = useState(false);
+  const [instalada, setInstalada] = useState(false);
+  useEffect(() => {
+    const f = () => tick((x) => x + 1);
+    window.addEventListener("gb-instalable", f);
+    setInstalada(window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+    return () => window.removeEventListener("gb-instalable", f);
+  }, []);
+  if (instalada) return null;
+  const ios = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalar = async () => {
+    if (pedidoInstalar) {
+      await pedidoInstalar.prompt();
+      const r = await pedidoInstalar.userChoice.catch(() => ({ outcome: "" }));
+      if (r.outcome === "accepted") setInstalada(true);
+      pedidoInstalar = null;
+      return;
+    }
+    setGuia(true);
+  };
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void instalar()}
+        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${oscuro ? "bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20" : "bg-primary/10 text-primary ring-1 ring-primary/20 hover:bg-primary/15"} ${className}`}
+      >
+        <Download className="size-4" /> Instalar {nombre}
+      </button>
+      {guia && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" onClick={() => setGuia(false)}>
+          <div className="w-full max-w-sm rounded-3xl bg-card p-6 text-foreground shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <img src={logoClinica} alt="" className="size-12 rounded-2xl" />
+              <div>
+                <p className="font-semibold">Instalar {nombre}</p>
+                <p className="text-xs text-muted-foreground">Queda como un ícono en tu pantalla de inicio</p>
+              </div>
+            </div>
+            {ios ? (
+              <ol className="mt-5 space-y-3 text-sm">
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Share className="size-4" /></span> Tocá <b>Compartir</b> abajo en Safari.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><SquarePlus className="size-4" /></span> Elegí <b>Agregar a pantalla de inicio</b>.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Download className="size-4" /></span> Tocá <b>Agregar</b>. ¡Listo!</li>
+              </ol>
+            ) : (
+              <ol className="mt-5 space-y-3 text-sm">
+                <li>1. Abrí el menú del navegador (<b>⋮</b> arriba a la derecha).</li>
+                <li>2. Elegí <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</li>
+                <li>3. Confirmá. En la compu también aparece un ícono de instalar en la barra de direcciones.</li>
+              </ol>
+            )}
+            <Button onClick={() => setGuia(false)} className="mt-6 w-full rounded-xl">Entendido</Button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

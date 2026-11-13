@@ -59,6 +59,23 @@ export async function db(): Promise<Sql> {
         paciente_id text NOT NULL,
         expira timestamptz NOT NULL
       )`;
+      // Seguridad: 2FA (app de códigos), correo para recuperar contraseña y sesiones a medio verificar
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS totp text`;
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS totp_ok boolean NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS respaldo text`;
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email text`;
+      await sql`ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS limitada boolean NOT NULL DEFAULT false`;
+      await sql`CREATE TABLE IF NOT EXISTS desafios (
+        token text PRIMARY KEY,
+        usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        expira timestamptz NOT NULL
+      )`;
+      await sql`CREATE TABLE IF NOT EXISTS recuperos (
+        token text PRIMARY KEY,
+        usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        expira timestamptz NOT NULL,
+        usado boolean NOT NULL DEFAULT false
+      )`;
       await sql`CREATE TABLE IF NOT EXISTS intentos (
         clave text PRIMARY KEY,
         fallos int NOT NULL DEFAULT 0,

@@ -42,7 +42,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
-import { waLink, Electro } from "@/components/site/PublicLayout";
+import { waLink, Electro, InstalarApp } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import {
   ADMINS,
@@ -315,6 +315,7 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <span className="flex size-14 items-center justify-center rounded-2xl gradient-deep text-white shadow-lg"><KeyRound className="size-6" /></span>
           <h2 className="mt-6 text-3xl">Ingresá a tu portal</h2>
+          <InstalarApp nombre="la app del paciente" className="mt-3" />
           <p className="mt-1 text-sm text-muted-foreground">Usá tu cédula y el código que te envió la clínica por WhatsApp.</p>
           <form onSubmit={ingresar} className="mt-8 space-y-4">
             <label className="block space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Cédula o correo</span>
@@ -432,6 +433,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             <a href={waLink(`Hola, soy ${paciente.nombre} (C.C. ${paciente.dni}). Tengo una consulta.`)} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-xl bg-[#25D366]/10 px-3 py-2.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-[#25D366]/20 dark:text-emerald-300">
               <MessageCircle className="size-4" /> Escribir a la clínica
             </a>
+            {!vista && <InstalarApp nombre="la app" className="w-full justify-center" />}
             <button onClick={onSalir} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"><LogOut className="size-4" /> Salir</button>
           </div>
             </>

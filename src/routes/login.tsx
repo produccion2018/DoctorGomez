@@ -11,7 +11,9 @@ import {
   EyeOff,
   KeyRound,
   Lock,
+  Mail,
   ShieldCheck,
+  Smartphone,
   Stethoscope,
   Syringe,
   Wallet,
@@ -19,10 +21,11 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import heroDoctors from "@/assets/hero-doctors.jpg";
+import { pedirRecupero, usarRecupero, verificar2fa } from "@/lib/auth-local";
 import { ADMINS, aceptarInvitacion, areaDe, crearClave, iniciarBackend, ingresar, leerInvitacion, listarEnfermeras, sesionActual, tieneClave, validarSesion, type Enfermera, type Personal, type Rol } from "@/lib/auth-local";
 
 import logoClinica from "@/assets/logo.png";
-import { Electro } from "@/components/site/PublicLayout";
+import { Electro, InstalarApp } from "@/components/site/PublicLayout";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
@@ -37,7 +40,10 @@ export const Route = createFileRoute("/login")({
     links: [{ rel: "manifest", href: "/panel.webmanifest" }],
     scripts: [{ children: "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js')" }],
   }),
-  validateSearch: (s: Record<string, unknown>): { invitacion?: string } => (typeof s["invitacion"] === "string" ? { invitacion: s["invitacion"] } : {}),
+  validateSearch: (s: Record<string, unknown>): { invitacion?: string; recuperar?: string } => ({
+    ...(typeof s["invitacion"] === "string" ? { invitacion: s["invitacion"] } : {}),
+    ...(typeof s["recuperar"] === "string" ? { recuperar: s["recuperar"] } : {}),
+  }),
   component: Login,
 });
 
@@ -45,8 +51,9 @@ const inputClass =
   "h-12 w-full rounded-xl border border-input bg-background pl-10 pr-11 text-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/15";
 
 function Login() {
-  const { invitacion } = Route.useSearch();
+  const { invitacion, recuperar } = Route.useSearch();
   if (invitacion) return <AceptarInvitacion codigo={invitacion} />;
+  if (recuperar) return <RestablecerClave token={recuperar} />;
   return <LoginNormal />;
 }
 
@@ -278,6 +285,8 @@ function LoginNormal() {
   const [password2, setPassword2] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [olvide, setOlvide] = useState(false);
 
   const [listo, setListo] = useState(0);
   useEffect(() => {
@@ -325,6 +334,10 @@ function LoginNormal() {
     const res = await ingresar(adminId, password);
     setLoading(false);
     if (!res.ok) return toast.error(res.error);
+    if (res.ticket) {
+      setTicket(res.ticket); // falta el código de la app
+      return;
+    }
     toast.success(primera ? "Contraseña creada. ¡Bienvenido!" : "Bienvenido al panel.");
     navigate({ to: "/panel" });
   };
@@ -381,6 +394,7 @@ function LoginNormal() {
         <Link to="/" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="size-4" /> Volver al sitio
         </Link>
+        <InstalarApp nombre="el panel" className="mt-4 w-fit" />
 
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-10">
           <div className="lg-up space-y-2" style={{ animationDelay: ".05s" }}>
@@ -395,6 +409,9 @@ function LoginNormal() {
             </p>
           </div>
 
+          {ticket ? (
+            <PasoCodigo ticket={ticket} onOk={() => navigate({ to: "/panel" })} onVolver={() => { setTicket(null); setPassword(""); }} />
+          ) : (
           <form onSubmit={onSubmit} className="mt-8 space-y-6">
             <div className="lg-up grid grid-cols-2 gap-1 rounded-2xl bg-secondary p-1" style={{ animationDelay: ".1s" }} role="tablist">
               {([["medico", "Médicos", Stethoscope], ["enfermeria", "Equipo", Syringe]] as const).map(([r, l, Ic]) => (
@@ -499,15 +516,142 @@ function LoginNormal() {
               <Button type="submit" size="lg" disabled={loading} className="lg-btn h-12 w-full rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0">
                 {loading ? "Verificando..." : primera ? "Crear contraseña e ingresar" : "Ingresar al panel"}
               </Button>
+              {!primera && (
+                <button type="button" onClick={() => setOlvide(true)} className="mt-3 w-full text-center text-sm font-medium text-primary hover:underline">
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
             </div>
             </>)}
           </form>
+          )}
+          {olvide && <OlvideClave onCerrar={() => setOlvide(false)} />}
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
             Acceso solo para médicos y personal de enfermería habilitado. Cada ingreso queda registrado en la auditoría.
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Segundo paso: código de la app (2FA) ---------- */
+function PasoCodigo({ ticket, onOk, onVolver }: { ticket: string; onOk: () => void; onVolver: () => void }) {
+  const [codigo, setCodigo] = useState("");
+  const [respaldo, setRespaldo] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    setCargando(true);
+    const r = await verificar2fa(ticket, codigo);
+    setCargando(false);
+    if (!r.ok) {
+      toast.error(r.error);
+      if (r.error.includes("venció")) onVolver();
+      return;
+    }
+    toast.success("Bienvenido al panel.");
+    onOk();
+  };
+  return (
+    <form onSubmit={enviar} className="lg-up mt-8 space-y-5">
+      <div className="flex items-center gap-4 rounded-2xl bg-secondary/70 p-4">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl gradient-deep text-white"><Smartphone className="size-5" /></span>
+        <p className="text-sm">{respaldo ? "Escribí uno de tus códigos de respaldo (formato XXXXX-XXXXX). Cada uno sirve una sola vez." : "Abrí tu app de códigos (Google Authenticator o Microsoft Authenticator) y escribí el número de 6 dígitos de HEGO."}</p>
+      </div>
+      <input
+        autoFocus
+        inputMode={respaldo ? "text" : "numeric"}
+        autoComplete="one-time-code"
+        maxLength={respaldo ? 11 : 6}
+        value={codigo}
+        onChange={(e) => setCodigo(respaldo ? e.target.value.toUpperCase() : e.target.value.replace(/\D/g, ""))}
+        placeholder={respaldo ? "XXXXX-XXXXX" : "000000"}
+        className="h-16 w-full rounded-2xl border border-input bg-background text-center font-mono text-3xl tracking-[0.5em] outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/15"
+      />
+      <Button type="submit" size="lg" disabled={cargando || (respaldo ? codigo.length < 11 : codigo.length !== 6)} className="lg-btn h-12 w-full rounded-xl">
+        {cargando ? "Verificando..." : "Verificar e ingresar"}
+      </Button>
+      <div className="flex items-center justify-between text-sm">
+        <button type="button" onClick={onVolver} className="text-muted-foreground hover:text-foreground">← Volver</button>
+        <button type="button" onClick={() => { setRespaldo((v) => !v); setCodigo(""); }} className="font-medium text-primary hover:underline">
+          {respaldo ? "Usar la app" : "Perdí el celular"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ---------- ¿Olvidaste tu contraseña? ---------- */
+function OlvideClave({ onCerrar }: { onCerrar: () => void }) {
+  const [email, setEmail] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    setCargando(true);
+    const r = await pedirRecupero(email);
+    setCargando(false);
+    if (!r.ok) return toast.error(r.error);
+    setEnviado(true);
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 backdrop-blur-sm sm:items-center" onClick={onCerrar}>
+      <div className="w-full max-w-md rounded-3xl bg-card p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+        <span className="flex size-12 items-center justify-center rounded-2xl gradient-deep text-white"><KeyRound className="size-5" /></span>
+        <h2 className="mt-4 text-2xl">Recuperar contraseña</h2>
+        {enviado ? (
+          <>
+            <p className="mt-2 text-sm text-muted-foreground">Si ese correo está registrado en el panel, te llegó un link para crear una contraseña nueva. Vale por 1 hora. Revisá también el correo no deseado.</p>
+            <Button onClick={onCerrar} className="mt-6 w-full rounded-xl">Entendido</Button>
+          </>
+        ) : (
+          <form onSubmit={enviar} className="mt-2 space-y-4">
+            <p className="text-sm text-muted-foreground">Escribí el correo que cargaste en <b>Mi seguridad</b> dentro del panel. Si no cargaste ninguno, pedile a un médico o a Dirección que te restablezca la contraseña.</p>
+            <div className="group relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" className={inputClass} />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={onCerrar} className="h-11 rounded-xl">Cancelar</Button>
+              <Button type="submit" disabled={cargando} className="h-11 flex-1 rounded-xl">{cargando ? "Enviando..." : "Enviarme el link"}</Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Link del correo: crear contraseña nueva ---------- */
+function RestablecerClave({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [cargando, setCargando] = useState(false);
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    if (p1.length < 8) return toast.error("La contraseña debe tener al menos 8 caracteres.");
+    if (p1 !== p2) return toast.error("Las contraseñas no coinciden.");
+    setCargando(true);
+    const r = await usarRecupero(token, p1);
+    setCargando(false);
+    if (!r.ok) return toast.error(r.error);
+    toast.success("Listo: ya podés ingresar con tu contraseña nueva.");
+    navigate({ to: "/login", search: {} });
+  };
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-secondary/40 p-4">
+      <form onSubmit={enviar} className="w-full max-w-md space-y-4 rounded-3xl bg-card p-8 shadow-2xl">
+        <img src={logoClinica} alt="HEGO" className="size-14 rounded-2xl" />
+        <h1 className="text-2xl font-semibold">Contraseña nueva</h1>
+        <p className="text-sm text-muted-foreground">Elegí una contraseña de al menos 8 caracteres. Si tenés verificación en dos pasos, al ingresar te va a pedir el código de la app como siempre.</p>
+        <div className="relative"><Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input type="password" required autoComplete="new-password" placeholder="Contraseña nueva" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} /></div>
+        <div className="relative"><Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input type="password" required autoComplete="new-password" placeholder="Repetila" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} /></div>
+        <Button type="submit" disabled={cargando} className="h-12 w-full rounded-xl">{cargando ? "Guardando..." : "Guardar contraseña"}</Button>
+        <Link to="/login" className="block text-center text-sm text-muted-foreground hover:text-foreground">Volver al ingreso</Link>
+      </form>
     </div>
   );
 }

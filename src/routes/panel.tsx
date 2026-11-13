@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispa
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { subirAudioServidor } from "@/lib/servidor";
-import { Electro } from "@/components/site/PublicLayout";
+import { Electro, InstalarApp } from "@/components/site/PublicLayout";
 import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
 import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
@@ -82,6 +82,9 @@ import {
   UserCog,
   Users,
   Crown,
+  Copy,
+  Mail,
+  Smartphone,
   UserRound,
   ChevronLeft,
   Pin,
@@ -96,6 +99,13 @@ import { ThemeToggle } from "@/components/theme-provider";
 import {
   ADMINS,
   ADMIN_IDS,
+  falta2fa,
+  estadoSeguridad,
+  iniciar2fa,
+  confirmar2fa,
+  desactivar2fa,
+  guardarEmail,
+  restablecer2fa,
   refrescoRapido,
   profesionalesAgenda,
   type RangoDia,
@@ -465,6 +475,8 @@ const TITULOS: Record<Tab, [string, string]> = {
 function Panel() {
   const navigate = useNavigate();
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [obliga2fa, setObliga2fa] = useState(() => falta2fa());
+  const [seguridad, setSeguridad] = useState(false);
   const [tab, setTab] = useState<Tab>("resumen");
   const [menu, setMenu] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
@@ -501,6 +513,8 @@ function Panel() {
         return;
       }
       setUser(v);
+      setObliga2fa(falta2fa());
+      if (falta2fa()) return; // primero tiene que activar la verificación en dos pasos
       if (v.rol === "medico" || v.area === "Dirección general") void sincronizarPersonal();
       void refrescarTodo();
     });
@@ -519,6 +533,20 @@ function Panel() {
 
   const noLeidos = useNoLeidos(user);
   if (!user) return null;
+  if (obliga2fa)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(at_20%_10%,rgba(56,189,248,.18),transparent_50%),linear-gradient(180deg,#0b1430,#0a1024)] p-4">
+        <div className="w-full max-w-lg rounded-3xl bg-card p-6 shadow-2xl sm:p-8">
+          <img src={logoClinica} alt="HEGO" className="size-12 rounded-2xl" />
+          <h1 className="mt-4 text-2xl font-semibold">Activá la verificación en dos pasos</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Por seguridad, los médicos y Dirección general tienen que usar una app de códigos para entrar al panel. Se hace una sola vez.</p>
+          <div className="mt-6">
+            <Activar2FA onListo={() => { setObliga2fa(false); void refrescarTodo(); if (user.rol === "medico" || user.area === "Dirección general") void sincronizarPersonal(); }} />
+          </div>
+          <button onClick={() => { cerrarSesion(); navigate({ to: "/login" }); }} className="mt-6 w-full text-center text-sm text-muted-foreground hover:text-foreground">Salir</button>
+        </div>
+      </div>
+    );
 
   // Permisos: enfermería ve solo los módulos habilitados en Permisos → Enfermería
   // Cualquier persona del equipo que no es médico usa los permisos de su área
@@ -711,6 +739,9 @@ function Panel() {
               <span className="size-1.5 rounded-full bg-emerald-400" /> En línea
             </span>
           </div>
+          <button onClick={() => setSeguridad(true)} className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] py-2 text-xs font-medium text-white/80 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white">
+            <ShieldCheck className="size-3.5" /> Mi seguridad
+          </button>
           <div className="flex gap-2">
             <Link to="/" className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/[0.06] py-2 text-xs font-medium text-white/80 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white">
               <ExternalLink className="size-3.5" /> Ver sitio
@@ -885,6 +916,7 @@ function Panel() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
+              <InstalarApp nombre="el panel" oscuro className="h-10" />
               {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} />}
               {!esEnf && <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
@@ -937,6 +969,7 @@ function Panel() {
         {tabVisible === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
         {tabVisible === "sitio" && <SitioTab log={log} />}
         {tabVisible === "comunicacion" && <ComunicacionTab user={user} log={log} />}
+        {seguridad && <MiSeguridad user={user} onCerrar={() => setSeguridad(false)} />}
       </main>
     </div>
   );
@@ -8199,5 +8232,221 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
         )}
       </section>
     </div>
+  );
+}
+
+
+/* ---------- Seguridad de la cuenta: 2FA, correo y contraseña ---------- */
+function Activar2FA({ onListo }: { onListo: () => void }) {
+  const [qr, setQr] = useState<{ qr: string; secreto: string } | null>(null);
+  const [codigo, setCodigo] = useState("");
+  const [respaldo, setRespaldo] = useState<string[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const generar = async () => {
+    setCargando(true);
+    const r = await iniciar2fa();
+    setCargando(false);
+    if (!r.ok) return toast.error(r.error);
+    setQr({ qr: r.qr, secreto: r.secreto });
+  };
+  const confirmar = async (e: FormEvent) => {
+    e.preventDefault();
+    setCargando(true);
+    const r = await confirmar2fa(codigo);
+    setCargando(false);
+    if (!r.ok) return toast.error(r.error);
+    setRespaldo(r.respaldo);
+    toast.success("Verificación en dos pasos activada.");
+  };
+  if (respaldo)
+    return (
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="font-semibold">Guardá estos códigos de respaldo</p>
+          <p className="mt-1">Sirven para entrar si perdés el celular. Cada uno se usa una sola vez y no se vuelven a mostrar: sacales captura o anotalos en un lugar seguro.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+          {respaldo.map((c) => <span key={c} className="rounded-xl bg-secondary px-3 py-2 text-center tracking-wider">{c}</span>)}
+        </div>
+        <Button onClick={() => { void navigator.clipboard?.writeText(respaldo.join("\n")); toast.success("Códigos copiados."); }} variant="outline" className="w-full rounded-xl"><Copy className="size-4" /> Copiar códigos</Button>
+        <Button onClick={onListo} className="w-full rounded-xl"><Check className="size-4" /> Ya los guardé, continuar</Button>
+      </div>
+    );
+  if (!qr)
+    return (
+      <div className="space-y-4">
+        <ol className="space-y-3 text-sm">
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">1</span> <span>Instalá en tu celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, en Play Store o App Store).</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">2</span> <span>Tocá el botón de abajo y escaneá el código QR con la app.</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">3</span> <span>Escribí el número de 6 dígitos que aparece en la app.</span></li>
+        </ol>
+        <Button onClick={() => void generar()} disabled={cargando} className="h-11 w-full rounded-xl"><Smartphone className="size-4" /> {cargando ? "Generando..." : "Mostrar código QR"}</Button>
+      </div>
+    );
+  return (
+    <form onSubmit={confirmar} className="space-y-4">
+      <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/60 p-4 sm:flex-row">
+        <img src={qr.qr} alt="Código QR para la app" className="size-44 rounded-xl bg-white p-1" />
+        <div className="text-sm">
+          <p className="font-semibold">Escaneá este QR con la app</p>
+          <p className="mt-1 text-muted-foreground">¿No podés escanear? En la app elegí “ingresar clave” y escribí:</p>
+          <p className="mt-2 select-all break-all rounded-lg bg-card px-2 py-1.5 font-mono text-xs">{qr.secreto}</p>
+        </div>
+      </div>
+      <input autoFocus inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))} placeholder="000000"
+        className="h-14 w-full rounded-2xl border border-input bg-background text-center font-mono text-2xl tracking-[0.5em] outline-none focus:border-primary focus:ring-4 focus:ring-primary/15" />
+      <Button type="submit" disabled={cargando || codigo.length !== 6} className="h-11 w-full rounded-xl"><ShieldCheck className="size-4" /> {cargando ? "Verificando..." : "Activar"}</Button>
+    </form>
+  );
+}
+
+function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => void }) {
+  const [estado, setEstado] = useState<Awaited<ReturnType<typeof estadoSeguridad>>>(null);
+  const [cargado, setCargado] = useState(false);
+  const [email, setEmail] = useState("");
+  const [activando, setActivando] = useState(false);
+  const [codigoOff, setCodigoOff] = useState("");
+  const [actual, setActual] = useState("");
+  const [nueva, setNueva] = useState("");
+  const cargar = async () => {
+    const e = await estadoSeguridad();
+    setEstado(e);
+    setEmail(e?.email ?? "");
+    setCargado(true);
+  };
+  useEffect(() => {
+    void cargar();
+  }, []);
+  const guardarCorreo = async (ev: FormEvent) => {
+    ev.preventDefault();
+    const r = await guardarEmail(email);
+    if (!r.ok) return toast.error(r.error);
+    toast.success("Correo guardado.");
+  };
+  const apagar = async (ev: FormEvent) => {
+    ev.preventDefault();
+    const r = await desactivar2fa(codigoOff);
+    if (!r.ok) return toast.error(r.error);
+    toast.success("Verificación en dos pasos desactivada.");
+    setCodigoOff("");
+    void cargar();
+  };
+  const cambiar = async (ev: FormEvent) => {
+    ev.preventDefault();
+    const r = await cambiarClave(user.id, actual, nueva);
+    if (!r.ok) return toast.error(r.error);
+    toast.success("Contraseña actualizada.");
+    setActual("");
+    setNueva("");
+  };
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-3 backdrop-blur-sm sm:items-center" onClick={onCerrar}>
+      <div className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-card p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><ShieldCheck className="size-5" /></span>
+          <div className="flex-1">
+            <p className="text-lg font-semibold">Mi seguridad</p>
+            <p className="text-xs text-muted-foreground">{user.nombre}</p>
+          </div>
+          <button onClick={onCerrar} aria-label="Cerrar" className="rounded-xl p-2 text-muted-foreground hover:bg-secondary"><X className="size-5" /></button>
+        </div>
+
+        {!cargado ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">Cargando…</p>
+        ) : !estado ? (
+          <p className="mt-6 rounded-2xl bg-secondary p-4 text-sm text-muted-foreground">La verificación en dos pasos y la recuperación por correo funcionan con la base de datos conectada.</p>
+        ) : (
+          <div className="mt-6 space-y-6">
+            <section className="rounded-2xl border border-border p-4">
+              <div className="flex items-center gap-3">
+                <Smartphone className="size-5 text-primary" />
+                <p className="flex-1 font-semibold">Verificación en dos pasos</p>
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${estado.activo ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{estado.activo ? "Activa" : "Apagada"}</span>
+              </div>
+              {estado.activo ? (
+                <div className="mt-3 space-y-3 text-sm text-muted-foreground">
+                  <p>Al entrar te pedimos el código de tu app. Te quedan <b>{estado.respaldos}</b> códigos de respaldo.</p>
+                  {estado.obligatorio ? (
+                    <p className="text-xs">Para médicos y Dirección es obligatoria. Si cambiás de celular, pedile a otro médico que te la restablezca o usá un código de respaldo.</p>
+                  ) : (
+                    <form onSubmit={apagar} className="flex gap-2">
+                      <input inputMode="numeric" maxLength={6} value={codigoOff} onChange={(e) => setCodigoOff(e.target.value.replace(/\D/g, ""))} placeholder="Código actual" className={inp + " h-10"} />
+                      <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-xl text-rose-600">Desactivar</Button>
+                    </form>
+                  )}
+                </div>
+              ) : activando ? (
+                <div className="mt-4"><Activar2FA onListo={() => { setActivando(false); void cargar(); }} /></div>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <p className="text-sm text-muted-foreground">Además de la contraseña, te pedimos un código de tu celular. Aunque alguien sepa tu contraseña, no puede entrar.</p>
+                  <Button onClick={() => setActivando(true)} className="rounded-xl"><ShieldCheck className="size-4" /> Activar</Button>
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-2xl border border-border p-4">
+              <div className="flex items-center gap-3">
+                <Mail className="size-5 text-primary" />
+                <p className="flex-1 font-semibold">Correo para recuperar la contraseña</p>
+              </div>
+              <form onSubmit={guardarCorreo} className="mt-3 flex gap-2">
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" className={inp + " h-10"} />
+                <Button type="submit" className="h-10 shrink-0 rounded-xl">Guardar</Button>
+              </form>
+              {!estado.correoListo && <p className="mt-2 text-xs text-amber-700">El envío de correos todavía no está configurado en el servidor (falta la clave de Resend).</p>}
+            </section>
+
+            {(user.rol === "medico" || user.area === "Dirección general") && <RestablecerOtro user={user} />}
+
+            <section className="rounded-2xl border border-border p-4">
+              <div className="flex items-center gap-3">
+                <KeyRound className="size-5 text-primary" />
+                <p className="flex-1 font-semibold">Cambiar contraseña</p>
+              </div>
+              <form onSubmit={cambiar} className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                <input type="password" required value={actual} onChange={(e) => setActual(e.target.value)} placeholder="Actual" className={inp + " h-10"} />
+                <input type="password" required value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Nueva (8+ caracteres)" className={inp + " h-10"} />
+                <Button type="submit" className="h-10 rounded-xl">Guardar</Button>
+              </form>
+            </section>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Para cuando alguien del equipo cambia o pierde el celular. */
+function RestablecerOtro({ user }: { user: SessionUser }) {
+  const [equipo] = useDato<Personal[]>(KEY_ENFERMERIA, []);
+  const opciones = [
+    ...(user.rol === "medico" ? ADMINS.filter((a) => a.id !== user.id).map((a) => ({ id: a.id, nombre: a.nombre })) : []),
+    ...equipo.filter((p) => p.activo).map((p) => ({ id: p.id, nombre: `${p.nombre} · ${areaDe(p)}` })),
+  ];
+  const [id, setId] = useState("");
+  const ir = async (ev: FormEvent) => {
+    ev.preventDefault();
+    const o = opciones.find((x) => x.id === id);
+    if (!o || !window.confirm(`¿Restablecer la verificación en dos pasos de ${o.nombre}? Va a tener que configurarla de nuevo al entrar.`)) return;
+    const r = await restablecer2fa(id);
+    if (!r.ok) return toast.error(r.error);
+    toast.success("Listo. La próxima vez que entre, la configura de nuevo.");
+    setId("");
+  };
+  return (
+    <section className="rounded-2xl border border-border p-4">
+      <div className="flex items-center gap-3">
+        <Users className="size-5 text-primary" />
+        <p className="flex-1 font-semibold">¿Alguien cambió o perdió el celular?</p>
+      </div>
+      <form onSubmit={ir} className="mt-3 flex gap-2">
+        <select value={id} onChange={(e) => setId(e.target.value)} className={inp + " h-10"}>
+          <option value="">Elegí a la persona…</option>
+          {opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+        </select>
+        <Button type="submit" variant="outline" disabled={!id} className="h-10 shrink-0 rounded-xl">Restablecer 2FA</Button>
+      </form>
+    </section>
   );
 }
