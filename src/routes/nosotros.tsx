@@ -112,7 +112,7 @@ function Nosotros() {
       <section className="mx-auto max-w-5xl px-4 pb-24 text-center lg:px-8" data-reveal>
         <Quote className="mx-auto size-10 text-clinic/40" />
         <blockquote className="mt-6 font-display text-2xl italic leading-snug sm:text-4xl">
-          “No atendemos estudios ni enfermedades sueltas: atendemos personas, y las acompañamos en el tiempo.”
+          “Más que tratar una enfermedad o revisar un estudio, cuidamos a cada persona y la acompañamos en el tiempo.”
         </blockquote>
         <div className="mt-8 flex items-center justify-center gap-3">
           <div className="flex -space-x-3">

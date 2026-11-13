@@ -276,11 +276,13 @@ function Turnos() {
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                   {doctoresDisp.map((d) => {
                     const on = doc === d.id;
+                    const ag = agendaDe(agendas, d.foto);
+                    const sinAgenda = !ag.activo || proximosDias(ag, 15).length === 0;
                     return (
                       <button
                         key={d.id}
                         type="button"
-                        disabled={!agendaDe(agendas, d.foto).activo}
+                        disabled={sinAgenda}
                         onClick={() => {
                           setDoc(d.id);
                           setFecha(null);
@@ -292,8 +294,11 @@ function Turnos() {
                         <div className="min-w-0">
                           <p className="font-semibold leading-tight">{d.nombre}</p>
                           <p className="mt-1 text-xs font-bold text-primary">{d.titulo}</p>
-                          
-                          <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(agendaDe(agendas, d.foto))}</p>
+                          {sinAgenda ? (
+                            <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Sin turnos online por ahora · pedilo por WhatsApp</p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
+                          )}
                         </div>
                         {on && <CheckCircle2 className="ml-auto size-6 shrink-0 text-primary" />}
                       </button>
