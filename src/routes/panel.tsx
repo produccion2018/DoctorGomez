@@ -7,6 +7,7 @@ import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
 import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
+  QrCode,
   Globe,
   Music2,
   Upload,
@@ -5521,41 +5522,107 @@ function FirmaPad({ onGuardar, onCancelar }: { onGuardar: (dataUrl: string) => v
   );
 }
 
-function htmlReceta(r: Receta, firma: string | undefined) {
-  const items = r.items
-    .map((it, i) => `<div class="it"><p class="n">${i + 1}. ${it.droga} ${it.presentacion}</p><p class="m">Cantidad: <b>${it.cantidad}</b></p><p class="m">${it.posologia}</p></div>`)
-    .join("");
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Receta N° ${r.numero}</title>
-<style>
-*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:#f1f5f9}
-.hoja{max-width:720px;margin:auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px -30px rgba(15,23,42,.5)}
-.top{background:linear-gradient(135deg,#0b2a6b,#1d4ed8);color:#fff;padding:26px 30px;display:flex;justify-content:space-between;gap:16px}
-.top h1{margin:0;font-size:20px}.top p{margin:4px 0 0;font-size:12px;opacity:.8}.rx{font-family:Georgia,serif;font-size:44px;font-style:italic;opacity:.9}
-.body{padding:26px 30px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px;font-size:13px;border-bottom:1px solid #e2e8f0;padding-bottom:16px}
-.grid b{color:#475569;font-weight:600}.it{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-top:12px}.n{margin:0;font-weight:700;font-size:15px}.m{margin:4px 0 0;font-size:13px;color:#334155}
-.dx{margin-top:16px;font-size:13px}.ind{margin-top:12px;font-size:13px;background:#f8fafc;border-radius:10px;padding:10px 12px}
-.pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:28px}
-.firme{text-align:center;min-width:220px}.firme img{height:70px}.firme .l{border-top:1px solid #334155;padding-top:6px;font-size:12px}
-.cod{font-size:11px;color:#64748b}.cod b{font-family:ui-monospace,monospace;font-size:14px;color:#0f172a;letter-spacing:.12em}
-.anulada{color:#dc2626;font-weight:800;border:2px solid #dc2626;padding:6px 10px;border-radius:8px;display:inline-block;margin-bottom:10px}
-@media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
-</style></head><body><div class="hoja">
-<div class="top"><div><h1>HEGO · Centro de especialidades médicas</h1><p>${r.doctor} · ${r.especialidad} · ${r.matricula}</p></div><div class="rx">Rp/</div></div>
-<div class="body">${r.anulada ? `<div class="anulada">RECETA ANULADA</div>` : ""}
-<div class="grid"><div><b>Paciente:</b> ${r.paciente}</div><div><b>Fecha:</b> ${fechaDe(r.fecha)}</div>
-<div><b>Cédula:</b> ${r.dni ?? "—"}</div><div><b>Receta N°:</b> ${String(r.numero).padStart(6, "0")}</div>
-<div><b>Cobertura:</b> ${r.obraSocial ?? "Particular"}</div><div><b>Afiliado:</b> ${r.afiliado ?? "—"}</div></div>
-${items}
-<p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
-<div class="pie"><div class="cod">Código de verificación<br><b>${r.codigo}</b><br>Firmada digitalmente el ${new Date(r.fecha).toLocaleString("es-CO")}</div>
-<div class="firme">${firma ? `<img src="${firma}" alt="Firma">` : ""}<div class="l">${r.doctor}<br>${r.matricula}</div></div></div>
-</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+/** Sello médico (SVG) con nombre, especialidad y registro. Se usa en pantalla y en la receta impresa. */
+function selloSvg(m: { nombre: string; especialidad: string; matricula: string }, id: string, color = "#1e3a8a") {
+  const pal = m.nombre.replace(/^Dra?\.\s*/, "").split(/\s+/).filter(Boolean);
+  const corte = Math.ceil(pal.length / 2);
+  const l1 = (/^Dra\./.test(m.nombre) ? "Dra. " : "Dr. ") + pal.slice(0, corte).join(" ");
+  const l2 = pal.slice(corte).join(" ");
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sello médico">
+<defs>
+<path id="${id}a" d="M 26,100 A 74,74 0 0 1 174,100"/>
+<path id="${id}b" d="M 17,100 A 83,83 0 0 0 183,100"/>
+<filter id="${id}t" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="2" seed="7" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.7 1.3" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter>
+</defs>
+<g filter="url(#${id}t)" fill="${color}" stroke="${color}">
+<circle cx="100" cy="100" r="95" fill="none" stroke-width="3.2"/>
+<circle cx="100" cy="100" r="89" fill="none" stroke-width="1"/>
+<circle cx="100" cy="100" r="64" fill="none" stroke-width="1" stroke-dasharray="2 3"/>
+<text font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="700" stroke="none"><textPath href="#${id}a" startOffset="50%" text-anchor="middle" textLength="208" lengthAdjust="spacingAndGlyphs">HEGO · ESPECIALIDADES MÉDICAS</textPath></text>
+<text font-family="Arial, Helvetica, sans-serif" font-size="10.5" font-weight="700" letter-spacing="2" stroke="none"><textPath href="#${id}b" startOffset="50%" text-anchor="middle">★ ${esc(m.especialidad.toUpperCase())} ★</textPath></text>
+<path d="M100 58 c-4-6-13-5-13 2 c0 6 9 10 13 15 c4-5 13-9 13-15 c0-7-9-8-13-2z" stroke="none"/>
+<text x="100" y="${l2 ? 96 : 104}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12.5" font-weight="700" stroke="none" textLength="${Math.min(112, l1.length * 7.2)}" lengthAdjust="spacingAndGlyphs">${esc(l1)}</text>
+${l2 ? `<text x="100" y="112" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="12.5" font-weight="700" stroke="none" textLength="${Math.min(112, l2.length * 7.2)}" lengthAdjust="spacingAndGlyphs">${esc(l2)}</text>` : ""}
+<line x1="64" y1="121" x2="136" y2="121" stroke-width="0.9"/>
+<text x="100" y="135" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="9" font-weight="700" stroke="none">${esc(m.matricula ? `Reg. médico ${m.matricula}` : "Médico especialista")}</text>
+<text x="100" y="147" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="7.5" stroke="none" letter-spacing="1">COLOMBIA</text>
+</g></svg>`;
 }
-function imprimirHtml(html: string) {
-  const w = window.open("", "_blank", "width=800,height=1000");
+
+function SelloMedico({ m, className = "" }: { m: { nombre: string; especialidad: string; matricula: string }; className?: string }) {
+  const id = useMemo(() => "s" + Math.random().toString(36).slice(2, 8), []);
+  return <div className={`pn-keep pointer-events-none select-none [&>svg]:size-full ${className}`} dangerouslySetInnerHTML={{ __html: selloSvg(m, id) }} />;
+}
+
+async function htmlReceta(r: Receta, firma: string | undefined) {
+  let qr = "";
+  try {
+    const QR = (await import("qrcode")).default;
+    qr = await QR.toDataURL(`HEGO · Receta N° ${String(r.numero).padStart(6, "0")} · Código ${r.codigo} · ${r.paciente} · ${r.doctor} · ${fechaDe(r.fecha)}`, { margin: 1, width: 220, color: { dark: "#0b2a6b", light: "#ffffff" } });
+  } catch { /* sin QR */ }
+  const logo = `${location.origin}${logoClinica}`;
+  const sello = selloSvg({ nombre: r.doctor, especialidad: r.especialidad, matricula: r.matricula }, "rs");
+  const items = r.items
+    .map((it, i) => `<div class="it"><span class="num">${i + 1}</span><div class="tx"><p class="n">${it.droga} <span>${it.presentacion}</span></p><p class="m"><b>Cantidad:</b> ${it.cantidad || "—"}</p>${it.posologia ? `<p class="pos">${it.posologia}</p>` : ""}</div></div>`)
+    .join("");
+  return `<!doctype html><html lang="es-CO"><head><meta charset="utf-8"><title>Receta N° ${String(r.numero).padStart(6, "0")}</title>
+<style>
+*{box-sizing:border-box}body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:radial-gradient(circle at 20% 0%,#e0e7ff,#f1f5f9 50%)}
+.hoja{position:relative;max-width:760px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px -35px rgba(15,23,42,.55)}
+.marca{position:absolute;inset:0;background:url('${logo}') center 58%/300px no-repeat;opacity:.05;pointer-events:none;-webkit-mask-image:radial-gradient(circle at 50% 58%,#000 0,#000 90px,transparent 150px);mask-image:radial-gradient(circle at 50% 58%,#000 0,#000 90px,transparent 150px);filter:grayscale(1)}
+.top{position:relative;background:linear-gradient(130deg,#071a46 0%,#0b2a6b 45%,#1d4ed8 100%);color:#fff;padding:26px 32px 30px;display:flex;justify-content:space-between;align-items:center;gap:16px;overflow:hidden}
+.top:after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%)}
+.marcas{display:flex;align-items:center;gap:14px}.marcas img{width:54px;height:54px;border-radius:14px;background:#fff;padding:5px;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
+.top h1{margin:0;font-family:Georgia,serif;font-size:21px;letter-spacing:.01em}.top .sub{margin:3px 0 0;font-size:10px;letter-spacing:.24em;text-transform:uppercase;opacity:.7}
+.top .doc{margin:8px 0 0;font-size:12.5px;opacity:.9}.rx{position:relative;z-index:1;font-family:Georgia,serif;font-size:58px;font-style:italic;line-height:1;opacity:.95;text-shadow:0 6px 20px rgba(0,0,0,.35)}
+.ecg{position:absolute;left:0;right:0;bottom:6px;height:26px;opacity:.28}
+.franja{height:5px;background:linear-gradient(90deg,#f43f5e,#8b5cf6,#0ea5e9)}
+.body{position:relative;padding:24px 32px 26px}
+.pac{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:14px 18px}
+.pac div{font-size:13px}.pac small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#64748b;margin-bottom:2px}
+.pac .full{grid-column:span 2}
+h2{margin:22px 0 6px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#1d4ed8}
+.it{display:flex;gap:14px;border:1px solid #e2e8f0;border-left:4px solid #1d4ed8;border-radius:14px;padding:12px 16px;margin-top:10px;background:#fff}
+.num{flex:none;width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.tx{min-width:0}.n{margin:0;font-weight:700;font-size:15.5px}.n span{font-weight:500;color:#475569}.m{margin:4px 0 0;font-size:12.5px;color:#334155}
+.pos{margin:6px 0 0;font-size:13px;color:#0f172a;background:#eff6ff;border-radius:8px;padding:6px 10px;display:inline-block}
+.dx{margin-top:18px;font-size:13px;padding:10px 14px;border-radius:12px;background:#fdf2f8;border:1px solid #fbcfe8}.dx b{color:#9d174d}
+.ind{margin-top:10px;font-size:13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px}.ind b{color:#166534}
+.pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:30px;padding-top:18px;border-top:1px dashed #cbd5e1}
+.ver{display:flex;align-items:center;gap:12px}.ver img{width:92px;height:92px;border-radius:10px;border:1px solid #e2e8f0;padding:4px;background:#fff}
+.cod{font-size:10.5px;color:#64748b;line-height:1.5}.cod b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:16px;color:#0f172a;letter-spacing:.16em}
+.firma{position:relative;width:270px;height:150px}.firma .f{position:absolute;left:0;right:0;bottom:34px;text-align:center;z-index:2}.firma .f img{height:76px;mix-blend-mode:multiply}
+.firma .l{position:absolute;left:0;right:0;bottom:0;border-top:1.5px solid #334155;padding-top:6px;font-size:11.5px;text-align:center;line-height:1.35}
+.firma .sello{position:absolute;right:-26px;bottom:34px;width:140px;height:140px;transform:rotate(-12deg);opacity:.82;mix-blend-mode:multiply;z-index:1}
+.legal{margin:18px 0 0;font-size:9.5px;color:#94a3b8;text-align:center}
+.anulada{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);color:#dc2626;font-weight:900;font-size:54px;letter-spacing:.1em;border:6px solid #dc2626;padding:6px 24px;border-radius:14px;opacity:.55;z-index:5}
+@media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body><div class="hoja"><div class="marca"></div>
+<div class="top"><div><div class="marcas"><img src="${logo}" alt=""><div><h1>HEGO</h1><p class="sub">Centro de especialidades médicas</p></div></div>
+<p class="doc"><b>${r.doctor}</b> · ${r.especialidad}${r.matricula ? ` · Reg. ${r.matricula}` : ""}</p></div><div class="rx">Rp/</div>
+<svg class="ecg" viewBox="0 0 600 30" preserveAspectRatio="none"><polyline fill="none" stroke="#fff" stroke-width="1.6" points="0,18 120,18 135,18 142,4 150,28 158,10 165,18 300,18 315,18 322,4 330,28 338,10 345,18 480,18 495,18 502,4 510,28 518,10 525,18 600,18"/></svg></div>
+<div class="franja"></div>
+<div class="body">${r.anulada ? `<div class="anulada">ANULADA</div>` : ""}
+<div class="pac"><div class="full"><small>Paciente</small><b>${r.paciente}</b></div><div><small>Receta N°</small><b>${String(r.numero).padStart(6, "0")}</b></div>
+<div><small>Cédula</small>${r.dni ?? "—"}</div><div><small>Cobertura</small>${r.obraSocial ?? "Particular"}</div><div><small>Fecha</small>${fechaDe(r.fecha)}</div>
+${r.afiliado ? `<div class="full"><small>Afiliado</small>${r.afiliado}</div>` : ""}</div>
+<h2>Prescripción</h2>${items}
+<p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
+<div class="pie"><div class="ver">${qr ? `<img src="${qr}" alt="QR">` : ""}<div class="cod">Código de verificación<b>${r.codigo}</b>Firmada digitalmente<br>${new Date(r.fecha).toLocaleString("es-CO")}</div></div>
+<div class="firma"><div class="sello">${sello}</div><div class="f">${firma ? `<img src="${firma}" alt="Firma">` : ""}</div><div class="l"><b>${r.doctor}</b><br>${r.especialidad}${r.matricula ? ` · Reg. ${r.matricula}` : ""}</div></div></div>
+<p class="legal">Documento generado por HEGO · Centro de especialidades médicas. Verifique la receta con el código o el QR.</p>
+</div></div><script>window.onload=()=>setTimeout(()=>window.print(),400)</script></body></html>`;
+}
+function imprimirHtml(html: string | Promise<string>) {
+  const w = window.open("", "_blank", "width=840,height=1060");
   if (!w) return;
-  w.document.write(html);
-  w.document.close();
+  w.document.write("<p style='font-family:system-ui;padding:40px;color:#64748b'>Preparando documento…</p>");
+  void Promise.resolve(html).then((h) => {
+    w.document.open();
+    w.document.write(h);
+    w.document.close();
+  });
 }
 
 function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null }) {
@@ -5624,16 +5691,26 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <form onSubmit={emitir} className="pn-card pn-up space-y-5 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
-            <div className="flex items-center gap-3">
-              <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl font-display text-lg italic text-white">Rp</span>
-              <div>
-                <h3 className="text-[15px] font-semibold">Nueva receta digital</h3>
-                <p className="text-xs text-muted-foreground">{med.nombre} · {med.especialidad} · {med.matricula}</p>
+        <form onSubmit={emitir} className="pn-card pn-up space-y-5 overflow-hidden p-0">
+          <div className="relative overflow-hidden gradient-deep px-6 py-5 text-white">
+            <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+            <span className="pn-orb pointer-events-none absolute -right-14 -top-20 size-56 rounded-full bg-violet-400/30 blur-3xl" />
+            <Electro latidos={4} grilla={false} color="#ffffff" className="pointer-events-none absolute inset-x-0 bottom-0 h-10 w-full opacity-20" />
+            <div className="relative flex flex-wrap items-center gap-4">
+              <span className="flex size-14 items-center justify-center rounded-2xl bg-white/12 font-display text-3xl italic ring-1 ring-white/25 backdrop-blur">Rp/</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Receta digital</p>
+                <h3 className="font-display text-2xl font-semibold tracking-tight">Nueva receta</h3>
+                <p className="mt-0.5 text-xs text-white/75">{med.nombre} · {med.especialidad}{med.matricula ? ` · Reg. ${med.matricula}` : ""}</p>
+              </div>
+              <div className="flex gap-1.5 text-[11px] font-semibold">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ring-1 ${firma ? "bg-emerald-400/20 text-emerald-100 ring-emerald-300/30" : "bg-amber-400/20 text-amber-100 ring-amber-300/30"}`}>{firma ? <Check className="size-3" /> : <AlertTriangle className="size-3" />} Firma</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 px-2.5 py-1 text-emerald-100 ring-1 ring-emerald-300/30"><Check className="size-3" /> Sello</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/12 px-2.5 py-1 ring-1 ring-white/20"><QrCode className="size-3" /> QR</span>
               </div>
             </div>
           </div>
+          <div className="space-y-5 px-6 pb-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo label="Paciente"><SelectorPaciente pacientes={pacientes} valor={pacId} onChange={setPacId} /></Campo>
             <Campo label="Diagnóstico"><input required value={dx} onChange={(e) => setDx(e.target.value)} placeholder="Hipertensión arterial, ERC estadio 3a…" className={inp} /></Campo>
@@ -5649,8 +5726,8 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
           <datalist id="meds-frecuentes">{MEDICAMENTOS_FRECUENTES.map((m) => <option key={m} value={m} />)}</datalist>
           <div className="space-y-3">
             {items.map((it, i) => (
-              <div key={i} className="relative rounded-2xl border border-border/70 bg-secondary/30 p-4">
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Medicamento {i + 1}</p>
+              <div key={i} className="relative rounded-2xl border border-border/70 border-l-4 border-l-[rgb(var(--acc))] bg-secondary/30 p-4 transition hover:shadow-md">
+                <p className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground"><span className="flex size-6 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-[11px] text-white">{i + 1}</span> Medicamento</p>
                 <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr_0.8fr]">
                   <input list="meds-frecuentes" value={it.droga} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, droga: e.target.value } : x)))} placeholder="Droga (nombre genérico)" className={inp} />
                   <input value={it.presentacion} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, presentacion: e.target.value } : x)))} placeholder="10 mg x 30 comp." className={inp} />
@@ -5669,14 +5746,43 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
           <Campo label="Indicaciones (opcional)"><textarea rows={2} value={indic} onChange={(e) => setIndic(e.target.value)} placeholder="Dieta hiposódica, control de presión en domicilio…" className={inp + " h-auto resize-none py-3"} /></Campo>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <p className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              La receta sale con su firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y EPS, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
+              La receta sale con su firma, su sello, un código de verificación y un QR. Para que tenga validez como prescripción electrónica ante farmacias y EPS debe emitirse por una plataforma habilitada; eso se conecta más adelante.
             </p>
-            <Button type="submit" className="rounded-xl px-6" disabled={!firma}><PenLine className="size-4" /> Firmar y emitir</Button>
+            <Button type="submit" className="rounded-xl px-6 shadow-[0_12px_28px_-14px_rgba(29,78,216,.9)]" disabled={!firma}><PenLine className="size-4" /> Firmar y emitir</Button>
+          </div>
           </div>
         </form>
 
         <div className="space-y-6">
-          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibújela una sola vez"} delay={0.05}>
+          <Seccion icon={FileText} titulo="Vista previa" sub="Así sale la receta" delay={0.02}>
+            <div className="pn-keep relative overflow-hidden rounded-2xl bg-white text-slate-900 shadow-[0_20px_50px_-30px_rgba(15,23,42,.6)] ring-1 ring-slate-200">
+              <div className="flex items-center justify-between bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#1d4ed8] px-4 py-3 text-white">
+                <div className="flex items-center gap-2"><img src={logoClinica} alt="" className="size-7 rounded-lg bg-white p-0.5" /><div><p className="font-display text-sm font-semibold leading-none">HEGO</p><p className="text-[8px] uppercase tracking-[0.2em] opacity-70">Especialidades médicas</p></div></div>
+                <span className="font-display text-2xl italic">Rp/</span>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-rose-500 via-violet-500 to-sky-500" />
+              <div className="space-y-2 p-4 text-[11px]">
+                <div className="rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"><p className="text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Paciente</p><p className="font-semibold">{pac?.nombre ?? "—"}</p></div>
+                {items.filter((x) => x.droga.trim()).length === 0 ? (
+                  <p className="py-2 text-center text-slate-400">Los medicamentos aparecen aquí</p>
+                ) : items.filter((x) => x.droga.trim()).map((x, i) => (
+                  <div key={i} className="flex gap-2 rounded-lg border-l-[3px] border-blue-600 bg-white px-2 py-1.5 ring-1 ring-slate-200">
+                    <span className="flex size-4 shrink-0 items-center justify-center rounded bg-blue-600 text-[9px] font-bold text-white">{i + 1}</span>
+                    <div className="min-w-0"><p className="truncate font-semibold">{x.droga} <span className="font-normal text-slate-500">{x.presentacion}</span></p>{x.posologia && <p className="truncate text-slate-600">{x.posologia}</p>}</div>
+                  </div>
+                ))}
+                <div className="flex items-end justify-between border-t border-dashed border-slate-300 pt-2">
+                  <span className="flex size-10 items-center justify-center rounded-md ring-1 ring-slate-200"><QrCode className="size-6 text-[#0b2a6b]" /></span>
+                  <div className="relative h-24 w-40">
+                    <SelloMedico m={med} className="absolute -right-1 bottom-1 size-24 -rotate-12 opacity-80 mix-blend-multiply" />
+                    {firma && <img src={firma} alt="" className="absolute inset-x-0 bottom-5 mx-auto h-12 mix-blend-multiply" />}
+                    <p className="absolute inset-x-0 bottom-0 border-t border-slate-500 pt-0.5 text-center text-[8.5px] leading-tight">{med.nombre}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Seccion>
+          <Seccion icon={PenLine} titulo="Firma y sello" sub={firma ? "Registrados · se usan en cada receta" : "Dibuje su firma una sola vez"} delay={0.05}>
             {firmando ? (
               <FirmaPad
                 onCancelar={() => setFirmando(false)}
@@ -5689,9 +5795,12 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
               />
             ) : firma ? (
               <div className="space-y-3">
-                <div className="pn-keep rounded-2xl bg-white p-4 text-center ring-1 ring-border">
-                  <img src={firma} alt="Firma" className="mx-auto h-20" />
-                  <p className="mt-1 border-t border-slate-300 pt-1.5 text-xs text-slate-600">{med.nombre} · {med.matricula}</p>
+                <div className="pn-keep grid grid-cols-[1fr_auto] items-center gap-2 rounded-2xl bg-white p-4 ring-1 ring-border">
+                  <div className="text-center">
+                    <img src={firma} alt="Firma" className="mx-auto h-16" />
+                    <p className="mt-1 border-t border-slate-300 pt-1.5 text-[11px] text-slate-600">{med.nombre}</p>
+                  </div>
+                  <SelloMedico m={med} className="size-24 -rotate-12 opacity-85" />
                 </div>
                 <Button variant="outline" className="w-full rounded-xl" onClick={() => setFirmando(true)}><Pencil className="size-4" /> Cambiar firma</Button>
               </div>
