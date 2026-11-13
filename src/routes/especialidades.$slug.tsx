@@ -3,7 +3,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight, CalendarPlus, CheckCircle2, Clock, FlaskConical, HeartPulse, MessageCircle, Stethoscope, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, waLink } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, waLink, VisualEspecialidad } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, fotoDoctor, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
 import fondoCorazon from "@/assets/fondo-corazon.jpg";
@@ -134,7 +134,7 @@ function Detalle() {
       <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 lg:grid-cols-[1.4fr_1fr] lg:px-8">
         <div className="space-y-8">
           <div data-reveal className="relative overflow-hidden rounded-[2rem] shadow-elevated">
-            <img src={imagenEspecialidad(esp.slug)} alt={esp.nombre} className="hero-kenburns aspect-[16/9] w-full object-cover" />
+            <div className="relative aspect-[16/9] w-full"><VisualEspecialidad slug={esp.slug} foto={imagenEspecialidad(esp.slug)} /></div>
             <div className="absolute inset-0 bg-gradient-to-t from-deep/80 via-deep/10 to-transparent" />
             <div className="absolute bottom-5 left-5 flex items-center gap-3">
               <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/30 backdrop-blur"><Icon className="size-6" /></span>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, CalendarPlus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, useReveal, FondoEspecialidades } from "@/components/site/PublicLayout";
+import { PageHero, PublicLayout, useReveal, FondoEspecialidades, VisualEspecialidad } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad, imagenEspecialidad } from "@/data/clinic";
 
 export const Route = createFileRoute("/especialidades/")({
@@ -75,8 +75,8 @@ function Especialidades() {
                 style={{ transitionDelay: `${(idx % 3) * 80}ms` }}
                 className={`group relative overflow-hidden rounded-[1.75rem] shadow-[0_35px_70px_-45px_rgba(10,25,70,.9)] ring-1 ring-black/5 ${grande ? "lg:col-span-2" : ""}`}
               >
-                <img src={imagenEspecialidad(e.slug)} alt="" loading="lazy" className="absolute inset-0 size-full object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-110" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.14_0.05_262)] via-[oklch(0.16_0.05_262/0.72)] to-[oklch(0.16_0.05_262/0.15)] transition-opacity duration-500" />
+                <div className="absolute inset-0 transition-transform duration-[1400ms] ease-out group-hover:scale-105"><VisualEspecialidad slug={e.slug} foto={imagenEspecialidad(e.slug)} /></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.14_0.05_262)] via-[oklch(0.16_0.05_262/0.45)] via-40% to-transparent to-75% transition-opacity duration-500" />
                 <div className="absolute -bottom-20 -left-16 size-64 rounded-full bg-sky-500/25 opacity-0 blur-3xl transition-opacity duration-700 group-hover:opacity-100" />
                 <div className="relative flex h-full flex-col p-7 text-white">
                   <div className="flex items-start justify-between">

@@ -25,7 +25,7 @@ import {
   Waves,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PublicLayout, FondoDoctor, Electro } from "@/components/site/PublicLayout";
+import { PublicLayout, FondoDoctor, Electro, VisualEspecialidad } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, SERVICIOS, imagenEspecialidad } from "@/data/clinic";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 import imgInterna from "@/assets/esp-medicina-interna.jpg";
@@ -47,9 +47,9 @@ export const Route = createFileRoute("/")({
 });
 
 const SLIDES = [
-  { img: imgInterna, titulo: "Medicina Interna", desc: "Diagnóstico integral del paciente adulto, con seguimiento clínico continuo y coordinación entre especialidades.", to: "/especialidades/medicina-interna" },
-  { img: imgNefro, titulo: "Nefrología", desc: "Prevención, diagnóstico y tratamiento de la enfermedad renal, con planes de nefroprotección personalizados.", to: "/especialidades/nefrologia" },
-  { img: imgCardio, titulo: "Cardiología", desc: "Evaluación cardiovascular completa, ecocardiografía y programas de prevención del riesgo cardíaco.", to: "/especialidades/cardiologia" },
+  { slug: "medicina-interna", img: imgInterna, titulo: "Medicina Interna", desc: "Diagnóstico integral del paciente adulto, con seguimiento clínico continuo y coordinación entre especialidades.", to: "/especialidades/medicina-interna" },
+  { slug: "cardiologia", img: imgCardio, titulo: "Cardiología", desc: "Evaluación cardiovascular completa, ecocardiografía y programas de prevención del riesgo cardíaco.", to: "/especialidades/cardiologia" },
+  { slug: "nefrologia", img: imgNefro, titulo: "Nefrología", desc: "Prevención, diagnóstico y tratamiento de la enfermedad renal, con planes de nefroprotección personalizados.", to: "/especialidades/nefrologia" },
 ];
 
 const ICONS = {
@@ -252,7 +252,7 @@ function ExploradorEspecialidades() {
         <div className="sticky top-28">
           <div className="relative rounded-[2.2rem] p-px transition-all duration-700" style={{ background: `linear-gradient(140deg, ${c}, transparent 45%, ${c}55)` }}>
             <div key={e.slug} className="relative h-[660px] overflow-hidden rounded-[calc(2.2rem-1px)] bg-[oklch(0.14_0.05_262)] animate-in fade-in duration-500">
-              <img src={imagenEspecialidad(e.slug)} alt={e.nombre} className="hero-kenburns absolute inset-0 size-full object-cover" />
+              <VisualEspecialidad slug={e.slug} foto={imagenEspecialidad(e.slug)} />
               <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.13_0.05_262)] via-[oklch(0.15_0.05_262/0.55)] to-transparent" />
               <div className="pointer-events-none absolute -bottom-32 -left-20 size-96 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: c }} />
 
@@ -314,17 +314,9 @@ function HeroCarousel() {
     <section className="mx-auto max-w-7xl px-4 lg:px-8" data-reveal>
       <div className="relative h-[380px] overflow-hidden rounded-[2rem] border border-border shadow-elevated sm:h-[460px]">
         {SLIDES.map((s, idx) => (
-          <img
-            key={s.titulo}
-            src={s.img}
-            alt={s.titulo}
-            width={1600}
-            height={1000}
-            loading="lazy"
-            className={`absolute inset-0 size-full object-cover object-[center_22%] transition-all duration-[1400ms] ease-out ${
-              idx === i ? "scale-100 opacity-100" : "scale-110 opacity-0"
-            }`}
-          />
+          <div key={s.titulo} className={`absolute inset-0 transition-all duration-[1400ms] ease-out ${idx === i ? "scale-100 opacity-100" : "scale-110 opacity-0"}`}>
+            <VisualEspecialidad slug={s.slug} foto={s.img} />
+          </div>
         ))}
         <div className="absolute inset-0 bg-gradient-to-r from-deep via-deep/75 to-deep/10" />
         <div className="absolute inset-0 bg-grid opacity-40" />
@@ -621,23 +613,50 @@ function Home() {
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal><Link to="/servicios">Ver todos los servicios</Link></Button>
         </div>
-        <div data-reveal className="overflow-hidden rounded-[2rem] border border-border/70 bg-card/70 shadow-[0_30px_70px_-45px_rgba(10,25,70,.5)] backdrop-blur-xl">
-          {SERVICIOS.slice(0, 6).map((s, idx) => (
-            <div key={s.id} className="group relative flex flex-col gap-3 border-b border-border/60 px-6 py-5 transition-colors last:border-0 hover:bg-secondary/40 sm:flex-row sm:items-center sm:gap-6 sm:px-8">
-              <span className="absolute inset-y-4 left-0 w-[3px] rounded-full bg-gradient-to-b from-[var(--clinic)] to-rose-500 opacity-0 transition-opacity group-hover:opacity-100" />
-              <span className="hidden w-6 font-display text-sm tabular-nums text-muted-foreground/60 sm:block">{String(idx + 1).padStart(2, "0")}</span>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold">{s.nombre}</h3>
-                <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{s.descripcion}</p>
-              </div>
-              <div className="flex items-center gap-4 sm:gap-6">
-                <span className="hidden rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground md:inline">{s.especialidad}</span>
-                <Button asChild size="sm" variant="outline" className="ml-auto rounded-full transition-all group-hover:border-transparent group-hover:bg-primary group-hover:text-primary-foreground">
-                  <Link to="/turnos" search={{ doctor: s.doctorId }}>Reservar</Link>
-                </Button>
-              </div>
-            </div>
-          ))}
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {SERVICIOS.slice(0, 6).map((s, idx) => {
+            const col = { "Medicina Interna": "#10b981", Nefrología: "#0ea5e9", Cardiología: "#ef4444", Ecocardiografía: "#8b5cf6" }[s.especialidad] ?? "#3b82f6";
+            const Ic = iconFor(s.icono);
+            const doc = DOCTORS.find((d) => d.id === s.doctorId);
+            return (
+              <article
+                key={s.id}
+                data-reveal
+                style={{ transitionDelay: `${(idx % 3) * 90}ms`, ["--c" as string]: col } as CSSProperties}
+                className="group relative flex flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card p-7 shadow-[0_25px_60px_-45px_rgba(10,25,70,.7)] transition-all duration-500 hover:-translate-y-1.5 hover:border-transparent hover:shadow-[0_40px_80px_-40px_var(--c)]"
+              >
+                {/* Fondo de color que aparece al pasar el mouse */}
+                <span className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100" style={{ background: `radial-gradient(120% 80% at 100% 0%, ${col}1f, transparent 60%)` }} />
+                <span className="absolute inset-x-0 top-0 h-1 origin-left scale-x-[.25] transition-transform duration-700 group-hover:scale-x-100" style={{ background: `linear-gradient(90deg, ${col}, ${col}55)` }} />
+                <Electro latidos={2} grilla={false} color={col} className="pointer-events-none absolute inset-x-0 bottom-[4.6rem] h-10 w-full opacity-0 transition-opacity duration-500 group-hover:opacity-60" />
+
+                <div className="relative flex items-start justify-between">
+                  <span className="vz-flota flex size-14 items-center justify-center rounded-2xl text-white ring-1 ring-white/30" style={{ background: `linear-gradient(140deg, ${col}, ${col}aa)`, boxShadow: `0 16px 30px -14px ${col}`, animationDelay: `${idx * -1.1}s` }}>
+                    <Ic className="size-6" />
+                  </span>
+                  <span className="font-display text-4xl font-semibold leading-none text-foreground/[0.06] transition-colors duration-500 group-hover:text-[var(--c)]/20">{String(idx + 1).padStart(2, "0")}</span>
+                </div>
+                <p className="relative mt-6 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: col }}>{s.especialidad}</p>
+                <h3 className="relative mt-1.5 font-display text-2xl font-semibold leading-tight">{s.nombre}</h3>
+                <p className="relative mt-2.5 flex-1 text-sm leading-relaxed text-muted-foreground">{s.descripcion}</p>
+
+                <div className="relative mt-6 flex items-center justify-between gap-3 border-t border-border/70 pt-5">
+                  {doc ? (
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <img src={doc.foto === "alberto" ? fotoAlberto : fotoAlonso} alt="" className="size-9 shrink-0 rounded-full object-cover object-top ring-2 ring-background" />
+                      <span className="min-w-0 text-xs leading-tight">
+                        <span className="block text-muted-foreground">Atiende</span>
+                        <span className="block font-semibold leading-snug">{doc.nombre}</span>
+                      </span>
+                    </span>
+                  ) : <span />}
+                  <Link to="/turnos" search={{ doctor: s.doctorId }} className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all hover:gap-2.5" style={{ background: `linear-gradient(135deg, ${col}, ${col}cc)` }}>
+                    Reservar <ArrowRight className="size-4" />
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 

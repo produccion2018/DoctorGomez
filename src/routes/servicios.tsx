@@ -141,7 +141,7 @@ function Servicios() {
                       <img src={fotoDoctor(doc.foto)} alt="" className="size-9 shrink-0 rounded-full object-cover object-top ring-2 ring-background" />
                       <span className="min-w-0 text-xs leading-tight">
                         <span className="block text-muted-foreground">Atiende</span>
-                        <span className="block truncate font-semibold">{doc.nombre}</span>
+                        <span className="block font-semibold leading-snug">{doc.nombre}</span>
                       </span>
                     </Link>
                   ) : <span />}

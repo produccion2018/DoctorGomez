@@ -243,6 +243,188 @@ export function Electro({ latidos = 4, className = "", grilla = true, color = "#
   );
 }
 
+/* ===================================================================== */
+/* Visual animado de cada especialidad (reemplaza las imágenes fijas)      */
+/* ===================================================================== */
+
+const VISUAL: Record<string, { c: string; c2: string; motivo: string; foto?: string }> = {
+  "medicina-interna": { c: "#10b981", c2: "#065f46", motivo: "interna" },
+  cardiologia: { c: "#ef4444", c2: "#7f1d1d", motivo: "corazon", foto: "foto" },
+  nefrologia: { c: "#0ea5e9", c2: "#0c4a6e", motivo: "flujo", foto: "foto" },
+  "cardiologia-critica": { c: "#f43f5e", c2: "#7f1d1d", motivo: "monitor" },
+  ecocardiografia: { c: "#a78bfa", c2: "#4c1d95", motivo: "eco" },
+  "hipertension-arterial": { c: "#fb923c", c2: "#7c2d12", motivo: "presion" },
+  "diabetes-metabolismo": { c: "#2dd4bf", c2: "#134e4a", motivo: "glucosa" },
+  "holter-mapa": { c: "#f472b6", c2: "#831843", motivo: "holter" },
+  "diagnostico-por-imagenes": { c: "#22d3ee", c2: "#164e63", motivo: "scan" },
+  laboratorio: { c: "#34d399", c2: "#064e3b", motivo: "lab" },
+  "chequeos-preventivos": { c: "#38bdf8", c2: "#0c4a6e", motivo: "check" },
+  "medicina-deporte": { c: "#a3e635", c2: "#365314", motivo: "deporte" },
+  teleconsulta: { c: "#818cf8", c2: "#312e81", motivo: "video" },
+};
+
+function Motivo({ m, c }: { m: string; c: string }) {
+
+  switch (m) {
+    case "monitor":
+    case "deporte":
+      return <Electro latidos={m === "deporte" ? 5 : 3} color={c} className="size-full" />;
+    case "holter":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <rect x="190" y="30" width="220" height="240" rx="56" fill="#ffffff10" stroke="#ffffff40" strokeWidth="2" />
+          <rect x="215" y="70" width="170" height="120" rx="20" fill={`${c}22`} />
+          <foreignObject x="220" y="85" width="160" height="90"><Electro latidos={2} grilla={false} color={c} className="size-full" /></foreignObject>
+          <text className="vz-num" x="300" y="232" textAnchor="middle" fill="#fff" fontSize="30" fontWeight="800" fontFamily="Inter,Arial">24 h</text>
+        </svg>
+      );
+    case "eco":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <path d="M300 20 L120 280 Q300 330 480 280 Z" fill={`${c}18`} stroke={`${c}55`} strokeWidth="2" />
+          {[0, 1, 2, 3].map((i) => (
+            <path key={i} className="vz-onda" style={{ animationDelay: `${i * 0.6}s` }} d="M170 240 Q300 300 430 240" fill="none" stroke={c} strokeWidth="4" strokeLinecap="round" />
+          ))}
+          <ellipse className="vz-latido" cx="300" cy="170" rx="46" ry="38" fill={`${c}55`} stroke="#fff" strokeOpacity=".6" strokeWidth="2" />
+        </svg>
+      );
+    case "presion":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <path d="M150 250 A150 150 0 0 1 450 250" fill="none" stroke="#ffffff22" strokeWidth="26" strokeLinecap="round" />
+          <path className="vz-arco" d="M150 250 A150 150 0 0 1 450 250" fill="none" stroke={c} strokeWidth="26" strokeLinecap="round" pathLength={100} />
+          <g className="vz-aguja" style={{ transformOrigin: "300px 250px" }}>
+            <line x1="300" y1="250" x2="300" y2="135" stroke="#fff" strokeWidth="8" strokeLinecap="round" />
+          </g>
+          <circle cx="300" cy="250" r="14" fill="#fff" />
+          <text x="300" y="60" textAnchor="middle" fill="#fff" fontSize="40" fontWeight="800" fontFamily="Inter,Arial">120/80</text>
+        </svg>
+      );
+    case "glucosa":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <rect x="210" y="20" width="180" height="260" rx="36" fill="#ffffff12" stroke="#ffffff55" strokeWidth="2" />
+          <rect x="232" y="48" width="136" height="90" rx="14" fill={`${c}40`} />
+          <text className="vz-num" x="300" y="112" textAnchor="middle" fill="#fff" fontSize="46" fontWeight="800" fontFamily="Inter,Arial">98</text>
+          <text x="300" y="166" textAnchor="middle" fill="#ffffffaa" fontSize="18" fontWeight="600" fontFamily="Inter,Arial">mg/dL</text>
+          <path className="vz-gota" d="M300 190 C 286 210 282 220 282 230 a18 18 0 0 0 36 0 C 318 220 314 210 300 190 Z" fill={c} />
+        </svg>
+      );
+    case "scan":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <rect x="160" y="20" width="280" height="260" rx="26" fill="none" stroke="#ffffff33" strokeWidth="2" />
+          <ellipse cx="300" cy="150" rx="95" ry="90" fill={`${c}20`} stroke={c} strokeWidth="3" />
+          <ellipse cx="300" cy="150" rx="55" ry="50" fill="none" stroke={c} strokeOpacity=".6" strokeWidth="2" />
+          <g className="vz-barrido">
+            <rect x="170" y="0" width="260" height="34" fill={`${c}33`} />
+            <line x1="170" y1="34" x2="430" y2="34" stroke="#fff" strokeWidth="3" />
+          </g>
+          <path d="M160 60 v-40 h40 M440 60 v-40 h-40 M160 240 v40 h40 M440 240 v40 h-40" fill="none" stroke="#fff" strokeWidth="5" />
+        </svg>
+      );
+    case "lab":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          {[0, 1, 2, 3, 4].map((i) => {
+            const x = 145 + i * 68;
+            const col = i % 2 ? "#38bdf8" : c;
+            return (
+              <g key={i}>
+                <rect x={x} y="30" width="42" height="240" rx="21" fill="#ffffff12" stroke="#ffffff55" strokeWidth="2" />
+                <clipPath id={`tubo-${i}`}><rect x={x + 4} y="34" width="34" height="232" rx="17" /></clipPath>
+                <g clipPath={`url(#tubo-${i})`}>
+                  <rect className="vz-liquido" style={{ animationDelay: `${i * 0.5}s` }} x={x + 4} y="34" width="34" height="232" fill={col} fillOpacity=".8" />
+                  {[0, 1, 2].map((k) => (
+                    <circle key={k} className="vz-burbuja" style={{ animationDelay: `${i * 0.4 + k * 0.9}s` }} cx={x + 12 + k * 9} cy="262" r="4" fill="#fff" fillOpacity=".7" />
+                  ))}
+                </g>
+              </g>
+            );
+          })}
+        </svg>
+      );
+    case "check":
+    case "interna":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          {[0, 1, 2, 3].map((i) => (
+            <g key={i}>
+              <rect x="160" y={40 + i * 58} width="40" height="40" rx="11" fill={`${c}30`} stroke={c} strokeWidth="2" />
+              <path className="vz-tilde" style={{ animationDelay: `${i * 0.7}s` }} d={`M170 ${60 + i * 58} l9 9 l15 -18`} fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" pathLength={1} />
+              <rect className="vz-renglon" style={{ animationDelay: `${i * 0.7}s` }} x="220" y={52 + i * 58} width={240 - i * 30} height="16" rx="8" fill="#ffffff55" />
+            </g>
+          ))}
+        </svg>
+      );
+    case "video":
+      return (
+        <svg viewBox="0 0 600 300" className="size-full">
+          <rect x="120" y="20" width="360" height="260" rx="24" fill="#ffffff12" stroke="#ffffff45" strokeWidth="2" />
+          <circle cx="300" cy="120" r="46" fill={`${c}aa`} />
+          <path d="M220 260 q80 -96 160 0" fill={`${c}aa`} />
+          <rect x="390" y="180" width="72" height="80" rx="12" fill="#ffffff30" stroke="#fff" strokeOpacity=".5" />
+          <circle className="vz-rec" cx="148" cy="46" r="8" fill="#ef4444" />
+          <g transform="translate(150 230)">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <rect key={i} className="vz-voz" style={{ animationDelay: `${i * 0.12}s` }} x={i * 12} y="-30" width="7" height="30" rx="3" fill="#fff" />
+            ))}
+          </g>
+        </svg>
+      );
+    default:
+      return <Electro latidos={3} color={c} className="size-full" />;
+  }
+}
+
+/**
+ * Imagen animada de una especialidad: ilustración en movimiento, o foto real con una capa
+ * animada (electro sobre Cardiología, flujo renal sobre Nefrología).
+ */
+export function VisualEspecialidad({ slug, foto, className = "" }: { slug: string; foto?: string; className?: string }) {
+  const v = VISUAL[slug] ?? { c: "#3b82f6", c2: "#1e3a8a", motivo: "monitor" };
+  const esp = ESPECIALIDADES.find((e) => e.slug === slug);
+  const Icono = iconoEspecialidad(esp?.icono ?? "");
+  if (v.foto && foto) {
+    return (
+      <div className={`absolute inset-0 overflow-hidden ${className}`}>
+        <img src={foto} alt={esp?.nombre ?? ""} className="hero-kenburns absolute inset-0 size-full object-cover" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: `linear-gradient(to top, ${v.c2}cc, transparent)` }} />
+        {v.motivo === "corazon" ? (
+          <Electro latidos={4} grilla={false} color="#fb7185" className="absolute inset-x-0 bottom-[18%] h-24 w-full" />
+        ) : (
+          <svg viewBox="0 0 800 100" preserveAspectRatio="none" className="absolute inset-x-0 bottom-[18%] h-24 w-full">
+            {[0, 1, 2].map((k) => {
+              const d = `M0 ${50 + k * 8} ` + Array.from({ length: 8 }, (_, i) => `C ${i * 100 + 25} ${30 + k * 8}, ${i * 100 + 75} ${70 + k * 8}, ${(i + 1) * 100} ${50 + k * 8}`).join(" ");
+              return (
+                <g key={k}>
+                  <path d={d} fill="none" stroke="#7dd3fc" strokeOpacity={0.3} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                  <path className="electro-barrido" pathLength={1000} style={{ animationDelay: `${-k * 1.4}s`, animationDuration: `${5 + k}s` }} d={d} fill="none" stroke="#bae6fd" strokeWidth={3 - k * 0.6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+                </g>
+              );
+            })}
+          </svg>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className={`absolute inset-0 overflow-hidden ${className}`} style={{ background: `radial-gradient(70% 70% at 70% 45%, ${v.c2}, transparent 70%), linear-gradient(135deg, #06122b, #0a1f4a 60%, #06122b)` }}>
+      <div className="absolute inset-0 [background-image:linear-gradient(#ffffff0a_1px,transparent_1px),linear-gradient(90deg,#ffffff0a_1px,transparent_1px)] [background-size:40px_40px] [mask-image:radial-gradient(ellipse_at_65%_50%,#000_30%,transparent_75%)]" />
+      <div className="vz-orbe absolute right-[18%] top-[22%] size-64 rounded-full opacity-40 blur-3xl" style={{ background: v.c }} />
+      {/* Tarjeta de vidrio con el motivo animado */}
+      <div className="absolute right-[6%] top-1/2 aspect-[2/1] w-[62%] -translate-y-[58%] rotate-[-3deg] rounded-[1.6rem] border border-white/20 bg-white/[0.06] p-[3%] shadow-2xl backdrop-blur-md">
+        <div className="mb-[2%] flex gap-1.5"><i className="size-2 rounded-full bg-white/30" /><i className="size-2 rounded-full bg-white/30" /><i className="size-2 rounded-full bg-white/30" /></div>
+        <div className="h-[85%]"><Motivo m={v.motivo} c={v.c} /></div>
+      </div>
+      {/* Ícono */}
+      <span className="vz-flota absolute left-[20%] top-[34%] flex size-[18%] min-h-16 min-w-16 items-center justify-center rounded-[28%] text-white shadow-2xl ring-1 ring-white/30" style={{ background: `linear-gradient(145deg, ${v.c}, ${v.c2})`, boxShadow: `0 30px 60px -20px ${v.c}` }}>
+        <Icono className="size-[45%]" />
+      </span>
+    </div>
+  );
+}
+
 export function PageHero({
   kicker,
   title,
