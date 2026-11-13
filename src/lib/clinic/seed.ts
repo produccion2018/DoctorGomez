@@ -107,24 +107,24 @@ export function buildSeed(): DB {
   ];
 
   const audit: DB["audit"] = [
-    { id: "l1", usuario: "Valeria Ponce", rol: "secretaria", accion: "Creó turno", modulo: "Turnos", registro: "TRN-1003", anterior: "—", nuevo: "pendiente", fecha: new Date(Date.now() - 3600e3 * 5).toISOString() },
-    { id: "l2", usuario: "Dr. Carlos Alberto Gómez Bolaño", rol: "director", accion: "Confirmó turno", modulo: "Turnos", registro: "TRN-1001", anterior: "pendiente", nuevo: "confirmado", fecha: new Date(Date.now() - 3600e3 * 4).toISOString() },
-    { id: "l3", usuario: "Valeria Ponce", rol: "secretaria", accion: "Canceló turno", modulo: "Turnos", registro: "TRN-1008", anterior: "confirmado", nuevo: "cancelado", fecha: new Date(Date.now() - 3600e3 * 26).toISOString() },
+    { id: "l1", usuario: "Valeria Ponce", rol: "secretaria", accion: "Creó cita", modulo: "Turnos", registro: "TRN-1003", anterior: "—", nuevo: "pendiente", fecha: new Date(Date.now() - 3600e3 * 5).toISOString() },
+    { id: "l2", usuario: "Dr. Carlos Alberto Gómez Bolaño", rol: "director", accion: "Confirmó cita", modulo: "Turnos", registro: "TRN-1001", anterior: "pendiente", nuevo: "confirmado", fecha: new Date(Date.now() - 3600e3 * 4).toISOString() },
+    { id: "l3", usuario: "Valeria Ponce", rol: "secretaria", accion: "Canceló cita", modulo: "Turnos", registro: "TRN-1008", anterior: "confirmado", nuevo: "cancelado", fecha: new Date(Date.now() - 3600e3 * 26).toISOString() },
     { id: "l4", usuario: "Dr. Carlos Alonso Gómez Bolaño", rol: "director", accion: "Modificó disponibilidad", modulo: "Agenda", registro: "Agenda d2", anterior: "40 min", nuevo: "40 min", fecha: new Date(Date.now() - 3600e3 * 50).toISOString() },
     { id: "l5", usuario: "Sistema", rol: "sistema", accion: "Datos de demostración inicializados", modulo: "Sistema", registro: "seed", anterior: "—", nuevo: "ok", fecha: nowISO },
   ];
 
   const notifications: DB["notifications"] = [
-    { id: "n1", rol: "paciente", userId: "p1", titulo: "Turno confirmado", mensaje: "Tu turno TRN-1001 fue confirmado.", fecha: nowISO, leida: false },
+    { id: "n1", rol: "paciente", userId: "p1", titulo: "Cita confirmada", mensaje: "Tu cita TRN-1001 fue confirmada.", fecha: nowISO, leida: false },
     { id: "n2", rol: "paciente", userId: "p1", titulo: "Estudio disponible", mensaje: "El informe de tu ecocardiograma ya está disponible.", fecha: nowISO, leida: false },
-    { id: "n3", rol: "secretaria", titulo: "Nuevo turno solicitado", mensaje: "Rosa Medina solicitó un turno de Nefrología.", fecha: nowISO, leida: false },
-    { id: "n4", rol: "director", titulo: "Modificación administrativa", mensaje: "Se detectó una modificación sobre un turno confirmado.", fecha: nowISO, leida: false },
+    { id: "n3", rol: "secretaria", titulo: "Nueva cita solicitada", mensaje: "Rosa Medina solicitó una cita de Nefrología.", fecha: nowISO, leida: false },
+    { id: "n4", rol: "director", titulo: "Modificación administrativa", mensaje: "Se detectó una modificación sobre una cita confirmada.", fecha: nowISO, leida: false },
     { id: "n5", rol: "medico", titulo: "Agenda del día", mensaje: "Tiene 5 pacientes próximos en su agenda.", fecha: nowISO, leida: false },
   ];
 
   const alerts: DB["alerts"] = [
     { id: "al1", nivel: "alta", tipo: "Actividad inusual", mensaje: "Se detectaron múltiples cancelaciones realizadas por un mismo usuario.", fecha: new Date(Date.now() - 3600e3 * 6).toISOString(), revisada: false },
-    { id: "al2", nivel: "media", tipo: "Modificación", mensaje: "Se modificaron turnos previamente confirmados.", fecha: new Date(Date.now() - 3600e3 * 20).toISOString(), revisada: false },
+    { id: "al2", nivel: "media", tipo: "Modificación", mensaje: "Se modificaron citas previamente confirmadas.", fecha: new Date(Date.now() - 3600e3 * 20).toISOString(), revisada: false },
     { id: "al3", nivel: "media", tipo: "Pago", mensaje: "Se modificó el estado de un pago registrado.", fecha: new Date(Date.now() - 3600e3 * 30).toISOString(), revisada: true },
     { id: "al4", nivel: "baja", tipo: "Acceso", mensaje: "Nuevo inicio de sesión administrativo desde un dispositivo conocido.", fecha: new Date(Date.now() - 3600e3 * 40).toISOString(), revisada: true },
   ];

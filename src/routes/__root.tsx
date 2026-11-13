@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Clínica privada especializada en Medicina Interna, Cardiología y Nefrología. Turnos online y atención personalizada.",
+          "Clínica privada especializada en Medicina Interna, Cardiología y Nefrología. Citas en línea y atención personalizada.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -109,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="es-CO">
       <head>
         <HeadContent />
       </head>

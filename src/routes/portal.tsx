@@ -116,7 +116,7 @@ type Tono = "verde" | "ambar" | "naranja" | "rojo" | "critico" | "azul" | "viole
 
 const SECCIONES: { id: Seccion; label: string; icon: LucideIcon; grupo: string }[] = [
   { id: "inicio", label: "Inicio", icon: Home, grupo: "Mi salud" },
-  { id: "turnos", label: "Mis turnos", icon: CalendarDays, grupo: "Mi salud" },
+  { id: "turnos", label: "Mis citas", icon: CalendarDays, grupo: "Mi salud" },
   { id: "controles", label: "Presión y peso", icon: Gauge, grupo: "Mi salud" },
   { id: "medicacion", label: "Medicación", icon: Pill, grupo: "Mi salud" },
   { id: "estudios", label: "Estudios y resultados", icon: FileText, grupo: "Mi salud" },
@@ -138,10 +138,10 @@ const TONO: Record<Tono, string> = {
 const inp =
   "h-12 w-full rounded-xl border border-input bg-background/70 px-4 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/15 dark:bg-white/5";
 
-const ars = (n: number) => "$ " + n.toLocaleString("es-AR");
-const fechaTxt = (f: string) => new Date(f + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+const ars = (n: number) => "$ " + n.toLocaleString("es-CO");
+const fechaTxt = (f: string) => new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
 const fechaCorta = (f: string) => f.split("-").reverse().join("/");
-const fechaHoraTxt = (iso: string) => new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+const fechaHoraTxt = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 const hoyIso = () => isoDe(new Date());
 const nombrePanel = (doctorId: string) => {
   const d = DOCTORS.find((x) => x.id === doctorId);
@@ -176,12 +176,12 @@ function descargarICS(t: TurnoClinica) {
     `DTSTAMP:${f(new Date())}`,
     `DTSTART:${f(ini)}`,
     `DTEND:${f(fin)}`,
-    `SUMMARY:Turno ${t.motivo.split(" · ")[0]} - ${d?.nombre ?? t.doctor}`,
+    `SUMMARY:Cita ${t.motivo.split(" · ")[0]} - ${d?.nombre ?? t.doctor}`,
     `LOCATION:${sitioDe(leerDato(KEY_SITIO, {})).direccion}`,
     "BEGIN:VALARM",
     "TRIGGER:-PT2H",
     "ACTION:DISPLAY",
-    "DESCRIPTION:Recordatorio de turno",
+    "DESCRIPTION:Recordatorio de cita",
     "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
@@ -196,12 +196,12 @@ function descargarICS(t: TurnoClinica) {
 
 /* Indicaciones generales de preparación (siempre prima la indicación médica) */
 const PREPARACION: { clave: string[]; titulo: string; icon: LucideIcon; pasos: string[] }[] = [
-  { clave: ["laboratorio", "analisis", "renal", "nefro"], titulo: "Análisis de sangre", icon: FlaskConical, pasos: ["Ayuno de 8 a 12 horas (podés tomar agua).", "Tomá tu medicación habitual salvo que te indiquen lo contrario.", "Traé la orden médica y tu documento."] },
-  { clave: ["orina"], titulo: "Orina de 24 horas", icon: Droplets, pasos: ["Al levantarte, descartá la primera orina del día y anotá la hora.", "Juntá toda la orina de las 24 horas siguientes en el frasco, guardado en la heladera.", "Incluí la primera orina del día siguiente a la misma hora y traé el frasco a la clínica."] },
-  { clave: ["holter"], titulo: "Holter 24 horas", icon: HeartPulse, pasos: ["Vení bañado y con ropa cómoda, abotonada adelante.", "No uses cremas en el pecho.", "Durante el estudio no podés mojar el equipo. Anotá síntomas y actividades con la hora."] },
-  { clave: ["mapa", "presion"], titulo: "MAPA (presión 24 horas)", icon: Gauge, pasos: ["Usá ropa con mangas amplias.", "Mientras mide, quedate quieto con el brazo relajado.", "Seguí tu rutina y tu medicación habitual, salvo otra indicación."] },
-  { clave: ["ergometria", "esfuerzo"], titulo: "Ergometría", icon: Activity, pasos: ["Traé ropa y calzado deportivo.", "Comé algo liviano 2 horas antes. No fumes ese día.", "Consultá con tu médico si debés suspender algún medicamento."] },
-  { clave: ["eco", "ecocardio", "doppler", "cardio"], titulo: "Ecocardiograma / Doppler", icon: HeartPulse, pasos: ["No requiere ayuno ni preparación especial.", "Traé estudios cardiológicos anteriores si tenés."] },
+  { clave: ["laboratorio", "analisis", "renal", "nefro"], titulo: "Análisis de sangre", icon: FlaskConical, pasos: ["Ayuno de 8 a 12 horas (puedes tomar agua).", "Toma tu medicación habitual salvo que te indiquen lo contrario.", "Trae la orden médica y tu documento."] },
+  { clave: ["orina"], titulo: "Orina de 24 horas", icon: Droplets, pasos: ["Al levantarte, descarta la primera orina del día y anota la hora.", "Junta toda la orina de las 24 horas siguientes en el frasco, guardado en la nevera.", "Incluye la primera orina del día siguiente a la misma hora y trae el frasco a la clínica."] },
+  { clave: ["holter"], titulo: "Holter 24 horas", icon: HeartPulse, pasos: ["Ven bañado y con ropa cómoda, abotonada adelante.", "No uses cremas en el pecho.", "Durante el estudio no puedes mojar el equipo. Anota síntomas y actividades con la hora."] },
+  { clave: ["mapa", "presion"], titulo: "MAPA (presión 24 horas)", icon: Gauge, pasos: ["Usa ropa con mangas amplias.", "Mientras mide, quédate quieto con el brazo relajado.", "Sigue tu rutina y tu medicación habitual, salvo otra indicación."] },
+  { clave: ["ergometria", "esfuerzo"], titulo: "Ergometría", icon: Activity, pasos: ["Trae ropa y calzado deportivo.", "Come algo liviano 2 horas antes. No fumes ese día.", "Consulta con tu médico si debes suspender algún medicamento."] },
+  { clave: ["eco", "ecocardio", "doppler", "cardio"], titulo: "Ecocardiograma / Doppler", icon: HeartPulse, pasos: ["No requiere ayuno ni preparación especial.", "Trae estudios cardiológicos anteriores si tienes."] },
 ];
 
 function preparacionPara(texto: string) {
@@ -294,9 +294,9 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
             <h1 className="text-5xl leading-[1.05] text-white">Tu salud del corazón y los riñones, <span className="text-shine italic">en un solo lugar</span>.</h1>
             <ul className="space-y-3 text-sm text-white/85">
               {[
-                "Sacá y cancelá turnos con los horarios reales de cada doctor",
-                "Registrá tu presión, pulso y peso, y seguí tu evolución",
-                "Mirá tus estudios: función renal, ecocardiograma y más",
+                "Agenda y cancela citas con los horarios reales de cada doctor",
+                "Registra tu presión, pulso y peso, y sigue tu evolución",
+                "Mira tus estudios: función renal, ecocardiograma y más",
                 "Recordatorios de medicación, pagos y autorizaciones",
               ].map((t) => (
                 <li key={t} className="flex gap-3"><CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" /> {t}</li>
@@ -314,9 +314,9 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
         </div>
         <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <span className="flex size-14 items-center justify-center rounded-2xl gradient-deep text-white shadow-lg"><KeyRound className="size-6" /></span>
-          <h2 className="mt-6 text-3xl">Ingresá a tu portal</h2>
+          <h2 className="mt-6 text-3xl">Ingresa a tu portal</h2>
           <InstalarApp nombre="la app del paciente" className="mt-3" />
-          <p className="mt-1 text-sm text-muted-foreground">Usá tu cédula y el código que te envió la clínica por WhatsApp.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Usa tu cédula y el código que te envió la clínica por WhatsApp.</p>
           <form onSubmit={ingresar} className="mt-8 space-y-4">
             <label className="block space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Cédula o correo</span>
               <input autoFocus required value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="Ej: 30123456" className={inp} /></label>
@@ -332,8 +332,8 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
             <Button type="submit" disabled={cargando} className="btn-glow h-12 w-full rounded-xl">{cargando ? "Verificando…" : "Ingresar"}</Button>
           </form>
           <div className="mt-8 rounded-2xl border border-dashed border-border p-4 text-xs leading-relaxed text-muted-foreground">
-            ¿Todavía no tenés código? La clínica te lo envía cuando habilita tu acceso.{" "}
-            <a href={waLink("Hola, quiero acceso al Portal del paciente.")} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">Pedilo por WhatsApp</a>.
+            ¿Todavía no tienes código? La clínica te lo envía cuando habilita tu acceso.{" "}
+            <a href={waLink("Hola, quiero acceso al Portal del paciente.")} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline dark:text-emerald-400">Pídelo por WhatsApp</a>.
           </div>
         </div>
       </div>
@@ -451,7 +451,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
       {vista && (
         <div className="sticky top-0 z-50 bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2.5 text-center text-sm font-semibold text-amber-950 shadow">
           <Eye className="mr-1.5 inline size-4 -translate-y-px" />
-          Vista previa del portal {paciente.id === "__ejemplo" ? "con un paciente de ejemplo" : `de ${paciente.nombre}`}. Podés recorrerlo, pero no se guarda nada.
+          Vista previa del portal {paciente.id === "__ejemplo" ? "con un paciente de ejemplo" : `de ${paciente.nombre}`}. Puedes recorrerlo, pero no se guarda nada.
           <button onClick={onSalir} className="ml-3 rounded-lg bg-amber-950/10 px-2.5 py-0.5 text-xs hover:bg-amber-950/20">Cerrar vista</button>
         </div>
       )}
@@ -481,7 +481,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                 <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-bold">{SECCIONES.find((x) => x.id === sec)?.label}</span><span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mi portal</span></span>
               </div>
               <p className="hidden text-sm text-muted-foreground lg:block">
-                <span className="capitalize">{new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</span>
+                <span className="capitalize">{new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span>
               </p>
               <div className="relative flex items-center gap-1">
                 <ThemeToggle />
@@ -493,7 +493,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                 {campana && (
                   <div className="absolute right-0 top-12 z-40 w-80 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl animate-in fade-in zoom-in-95 duration-200">
                     <p className="border-b border-border px-4 py-3 text-sm font-semibold">Avisos</p>
-                    {avisos.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">No tenés avisos nuevos.</p>}
+                    {avisos.length === 0 && <p className="px-4 py-6 text-center text-sm text-muted-foreground">No tienes avisos nuevos.</p>}
                     {avisos.map((a, i) => (
                       <button key={i} onClick={() => ctx.ir(a.ir)} className="flex w-full gap-3 border-b border-border/50 px-4 py-3 text-left transition-colors last:border-0 hover:bg-secondary/60">
                         <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ring-1 ${TONO[a.tono]}`}><a.icon className="size-4" /></span>
@@ -536,7 +536,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             {sec === "autorizaciones" && <Autorizaciones ctx={ctx} />}
             {sec === "ficha" && <Ficha ctx={ctx} />}
             <p className="mt-12 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-muted-foreground">
-              <span>{CLINICA.nombre}</span>{sitioDe(leerDato(KEY_SITIO, {})).telefono && <span>{sitioDe(leerDato(KEY_SITIO, {})).telefono}</span>}<span>Ante una emergencia llamá al 107</span>
+              <span>{CLINICA.nombre}</span>{sitioDe(leerDato(KEY_SITIO, {})).telefono && <span>{sitioDe(leerDato(KEY_SITIO, {})).telefono}</span>}<span>Ante una emergencia llama a la línea 123</span>
             </p>
           </main>
         </div>
@@ -550,13 +550,13 @@ function useAvisos(ctx: Ctx) {
   const out: { titulo: string; texto: string; icon: LucideIcon; tono: Tono; ir: Seccion }[] = [];
   const hoy = hoyIso();
   const prox = proximos(ctx.turnos)[0];
-  if (prox) out.push({ titulo: `Turno ${cuandoFalta(prox.fecha, prox.hora)}`, texto: `${fechaCorta(prox.fecha)} ${prox.hora} · ${doctorDePanel(prox.doctor)?.nombre ?? prox.doctor}`, icon: CalendarCheck, tono: "azul", ir: "turnos" });
+  if (prox) out.push({ titulo: `Cita ${cuandoFalta(prox.fecha, prox.hora)}`, texto: `${fechaCorta(prox.fecha)} ${prox.hora} · ${doctorDePanel(prox.doctor)?.nombre ?? prox.doctor}`, icon: CalendarCheck, tono: "azul", ir: "turnos" });
   ctx.auts.filter((a) => a.estado === "Pendiente" && a.origen === "Clínica").forEach((a) => out.push({ titulo: "Autorización pendiente", texto: a.titulo, icon: ShieldCheck, tono: "ambar", ir: "autorizaciones" }));
   ctx.auts
     .filter((a) => a.origen === "Paciente" && a.estado !== "Pendiente" && a.fechaRespuesta && Date.now() - new Date(a.fechaRespuesta).getTime() < 7 * 86400000)
     .forEach((a) => out.push({ titulo: a.estado === "Autorizada" ? "¡Te autorizaron!" : "Tu pedido fue rechazado", texto: a.titulo + (a.respuesta ? ` · ${a.respuesta}` : ""), icon: a.estado === "Autorizada" ? CheckCircle2 : Ban, tono: a.estado === "Autorizada" ? "verde" : "rojo", ir: "autorizaciones" }));
   const saldo = ctx.cobros.reduce((a, c) => a + saldoDe(c), 0);
-  if (saldo > 0) out.push({ titulo: "Tenés un saldo pendiente", texto: ars(saldo), icon: Wallet, tono: "naranja", ir: "pagos" });
+  if (saldo > 0) out.push({ titulo: "Tienes un saldo pendiente", texto: ars(saldo), icon: Wallet, tono: "naranja", ir: "pagos" });
   const ahora = `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`;
   const faltan = ctx.meds.filter((m) => m.activo).flatMap((m) => m.horarios.filter((h) => h <= ahora && !m.tomas[`${hoy}|${h}`]).map((h) => `${m.nombre} ${h}`));
   if (faltan.length) out.push({ titulo: "Medicación sin marcar", texto: faltan.slice(0, 2).join(" · ") + (faltan.length > 2 ? "…" : ""), icon: Pill, tono: "violeta", ir: "medicacion" });
@@ -642,7 +642,7 @@ function FilaTurno({ t, onCancelar }: { t: TurnoClinica; onCancelar?: () => void
     <div className="rounded-2xl border border-border/70 bg-background/50 p-4 transition-colors hover:bg-secondary/40 dark:border-white/10 dark:bg-white/[0.02]">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex w-16 shrink-0 flex-col items-center rounded-2xl gradient-deep py-2 text-white shadow-md">
-          <span className="text-[10px] font-semibold uppercase text-white/70">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-AR", { month: "short" }).replace(".", "")}</span>
+          <span className="text-[10px] font-semibold uppercase text-white/70">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
           <span className="font-display text-2xl font-semibold leading-none">{Number(t.fecha.slice(8))}</span>
           <span className="text-[11px] tabular-nums">{t.hora}</span>
         </div>
@@ -706,14 +706,14 @@ function Inicio({ ctx }: { ctx: Ctx }) {
         <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
           <div>
             <p className="text-sm text-white/70">{hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches"}</p>
-            <h1 className="text-3xl text-white sm:text-4xl">{ctx.paciente.nombre.split(" ")[0]}, ¿cómo te sentís hoy?</h1>
+            <h1 className="text-3xl text-white sm:text-4xl">{ctx.paciente.nombre.split(" ")[0]}, ¿cómo te sientes hoy?</h1>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Button onClick={() => ctx.ir("turnos")} className="rounded-full !bg-white px-5 text-[var(--deep)] hover:!bg-white/90"><CalendarPlus className="size-4" /> Sacar turno</Button>
+              <Button onClick={() => ctx.ir("turnos")} className="rounded-full !bg-white px-5 text-[var(--deep)] hover:!bg-white/90"><CalendarPlus className="size-4" /> Sacar cita</Button>
               <Button onClick={() => ctx.ir("controles")} variant="outline" className="rounded-full !border-white/30 !bg-white/10 px-5 text-white hover:!bg-white/20 hover:text-white"><Gauge className="size-4" /> Registrar presión</Button>
             </div>
           </div>
           <div className="rounded-3xl bg-white/10 p-5 ring-1 ring-white/20 backdrop-blur">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Próximo turno</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Próxima cita</p>
             {p0 ? (
               <div className="mt-3 flex items-center gap-4">
                 {d0 && <img src={fotoDoctor(d0.foto)} alt="" className="size-14 rounded-2xl object-cover object-top ring-2 ring-white/30" />}
@@ -724,7 +724,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                 </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-white/80">No tenés turnos agendados.</p>
+              <p className="mt-3 text-sm text-white/80">No tienes citas agendadas.</p>
             )}
           </div>
         </div>
@@ -745,7 +745,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                 <div className="mt-3"><Sparkline valores={ultimos.map((c) => c.sistolica)} color="#f43f5e" /></div>
               </>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">Registrá tu primera medición.</p>
+              <p className="mt-3 text-sm text-muted-foreground">Registra tu primera medición.</p>
             )}
           </Tarjeta>
         </button>
@@ -781,7 +781,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                   <p className="mt-2 text-xs text-muted-foreground">{fechaCorta(renal.fecha)} · filtrado glomerular</p>
                 </>
               );
-            })() : <p className="mt-3 text-sm text-muted-foreground">Cuando la clínica cargue tu análisis renal lo vas a ver acá.</p>}
+            })() : <p className="mt-3 text-sm text-muted-foreground">Cuando la clínica cargue tu análisis renal lo vas a ver aquí.</p>}
           </Tarjeta>
         </button>
         <button onClick={() => ctx.ir("estudios")} className="text-left">
@@ -799,7 +799,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                   <p className="mt-2 text-xs text-muted-foreground">{fechaCorta(corazon.fecha)} · {corazon.tipo}</p>
                 </>
               );
-            })() : <p className="mt-3 text-sm text-muted-foreground">Tus resultados de ecocardiograma aparecen acá.</p>}
+            })() : <p className="mt-3 text-sm text-muted-foreground">Tus resultados de ecocardiograma aparecen aquí.</p>}
           </Tarjeta>
         </button>
       </div>
@@ -811,7 +811,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
             {tomasHoy.length > 0 && <span className="text-sm font-semibold tabular-nums text-muted-foreground">{hechas}/{tomasHoy.length}</span>}
           </div>
           {tomasHoy.length === 0 ? (
-            <Vacio icon={Pill} texto="Cargá tus medicamentos y te recordamos cada toma." accion={<Button onClick={() => ctx.ir("medicacion")} className="rounded-xl"><Plus className="size-4" /> Agregar medicación</Button>} />
+            <Vacio icon={Pill} texto="Carga tus medicamentos y te recordamos cada toma." accion={<Button onClick={() => ctx.ir("medicacion")} className="rounded-xl"><Plus className="size-4" /> Agregar medicación</Button>} />
           ) : (
             <>
               <div className="mb-4 h-2 overflow-hidden rounded-full bg-secondary dark:bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-500 transition-all duration-700" style={{ width: `${(hechas / tomasHoy.length) * 100}%` }} /></div>
@@ -850,9 +850,9 @@ function Inicio({ ctx }: { ctx: Ctx }) {
             <Subtitulo icon={Stethoscope}>Consejos de tus médicos</Subtitulo>
             <ul className="space-y-3 text-sm">
               {[
-                { i: HeartPulse, c: "text-rose-500", t: "Medí tu presión siempre a la misma hora, sentado y después de 5 minutos de reposo." },
-                { i: Droplets, c: "text-sky-500", t: "Cuidá tus riñones: evitá los antiinflamatorios sin indicación médica y moderá la sal." },
-                { i: Scale, c: "text-amber-500", t: "Si subís más de 2 kg en pocos días o se te hinchan los pies, avisale a tu médico." },
+                { i: HeartPulse, c: "text-rose-500", t: "Mide tu presión siempre a la misma hora, sentado y después de 5 minutos de reposo." },
+                { i: Droplets, c: "text-sky-500", t: "Cuida tus riñones: evita los antiinflamatorios sin indicación médica y modera la sal." },
+                { i: Scale, c: "text-amber-500", t: "Si subes más de 2 kg en pocos días o se te hinchan los pies, avísale a tu médico." },
               ].map((x) => (
                 <li key={x.t} className="flex gap-3"><x.i className={`mt-0.5 size-4 shrink-0 ${x.c}`} /><span className="text-muted-foreground">{x.t}</span></li>
               ))}
@@ -903,7 +903,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
     if (!doctor || !especialidad || !fecha || !hora) return;
     const nom = nombrePanel(doctor.id);
     if (todos.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === hora && t.estado !== "Cancelado")) {
-      toast.error("Ese horario se acaba de ocupar. Elegí otro.");
+      toast.error("Ese horario se acaba de ocupar. Elige otro.");
       setHora("");
       return;
     }
@@ -913,15 +913,15 @@ function Turnos({ ctx }: { ctx: Ctx }) {
       telefono: ctx.paciente.telefono, email: ctx.paciente.email, origen: "portal", pacienteId: ctx.paciente.id,
     };
     ctx.setTurnos((p) => [...p, nuevo]);
-    auditar(ctx.paciente.nombre, "Turno pedido desde el portal", `${fechaCorta(fecha)} ${hora} · ${nom}`);
-    toast.success("¡Turno pedido! La clínica te lo confirma.");
+    auditar(ctx.paciente.nombre, "Cita pedida desde el portal", `${fechaCorta(fecha)} ${hora} · ${nom}`);
+    toast.success("¡Cita pedida! La clínica te lo confirma.");
     reset();
   };
 
   const cancelar = (t: TurnoClinica) => {
     ctx.setTurnos((p) => p.map((x) => (x.id === t.id ? { ...x, estado: "Cancelado" } : x)));
-    auditar(ctx.paciente.nombre, "Turno cancelado desde el portal", `${fechaCorta(t.fecha)} ${t.hora} · ${t.doctor}`);
-    toast.success("Turno cancelado. El horario quedó libre.");
+    auditar(ctx.paciente.nombre, "Cita cancelada desde el portal", `${fechaCorta(t.fecha)} ${t.hora} · ${t.doctor}`);
+    toast.success("Cita cancelada. El horario quedó libre.");
   };
 
   const prox = proximos(ctx.turnos);
@@ -930,13 +930,13 @@ function Turnos({ ctx }: { ctx: Ctx }) {
 
   return (
     <div className="space-y-6">
-      <Titulo icon={CalendarDays} titulo="Mis turnos" sub="Pedí, agendá y cancelá tus turnos. Te mostramos cómo prepararte para cada estudio."
-        accion={!pidiendo && <Button onClick={() => setPidiendo(true)} className="btn-glow rounded-full px-6"><CalendarPlus className="size-4" /> Pedir turno</Button>} />
+      <Titulo icon={CalendarDays} titulo="Mis citas" sub="Pide, agenda y cancela tus citas. Te mostramos cómo prepararte para cada estudio."
+        accion={!pidiendo && <Button onClick={() => setPidiendo(true)} className="btn-glow rounded-full px-6"><CalendarPlus className="size-4" /> Pedir cita</Button>} />
 
       {pidiendo && (
         <Tarjeta className="animate-in fade-in zoom-in-95 duration-300">
           <div className="flex items-center justify-between">
-            <h2 className="font-sans text-lg font-semibold">Nuevo turno</h2>
+            <h2 className="font-sans text-lg font-semibold">Nueva cita</h2>
             <Button variant="ghost" size="icon" onClick={reset} aria-label="Cerrar"><X className="size-4" /></Button>
           </div>
           {paso(1, "Especialidad")}
@@ -977,7 +977,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
                   const d = new Date(f + "T12:00:00");
                   return (
                     <button key={f} onClick={() => { setFecha(f); setHora(""); }} className={`flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 transition-all ${fecha === f ? "border-transparent gradient-deep text-white shadow-lg" : "border-border hover:border-primary/40 dark:border-white/10"}`}>
-                      <span className="text-[10px] font-semibold uppercase opacity-70">{d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                      <span className="text-[10px] font-semibold uppercase opacity-70">{d.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
                       <span className="font-display text-xl font-semibold">{d.getDate()}</span>
                     </button>
                   );
@@ -1007,7 +1007,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
       <Tarjeta>
         <Subtitulo icon={CalendarCheck}>Próximos</Subtitulo>
         <div className="space-y-3">
-          {prox.length === 0 && <Vacio icon={CalendarDays} texto="No tenés turnos próximos." />}
+          {prox.length === 0 && <Vacio icon={CalendarDays} texto="No tienes citas próximas." />}
           {prox.map((t) => <FilaTurno key={t.id} t={t} onCancelar={() => cancelar(t)} />)}
         </div>
       </Tarjeta>
@@ -1087,7 +1087,7 @@ function Controles({ ctx }: { ctx: Ctx }) {
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (s < 60 || s > 260 || d < 30 || d > 160 || d >= s) {
-      toast.error("Revisá los valores: la máxima tiene que ser mayor que la mínima.");
+      toast.error("Revisa los valores: la máxima tiene que ser mayor que la mínima.");
       return;
     }
     const nuevo: Control = {
@@ -1180,15 +1180,15 @@ function Controles({ ctx }: { ctx: Ctx }) {
           <ol className="space-y-3 text-sm text-muted-foreground">
             {[
               "No fumes, no tomes café ni hagas ejercicio 30 minutos antes.",
-              "Sentate 5 minutos con la espalda apoyada y los pies en el piso.",
+              "Siéntate 5 minutos con la espalda apoyada y los pies en el piso.",
               "Brazo apoyado a la altura del corazón, sin ropa ajustada.",
-              "Tomá 2 mediciones con 1 minuto de diferencia y registrá ambas.",
+              "Toma 2 mediciones con 1 minuto de diferencia y registra ambas.",
               "Medite a la mañana antes de la medicación y a la noche.",
             ].map((t, i) => (
               <li key={t} className="flex gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full gradient-deep text-[11px] font-bold text-white">{i + 1}</span>{t}</li>
             ))}
           </ol>
-          <p className={`mt-5 rounded-2xl p-3 text-xs ring-1 ${TONO.rojo}`}><AlertTriangle className="mr-1 inline size-3.5" /> Si tenés dolor de pecho, falta de aire o la presión supera 180/120, llamá al 107.</p>
+          <p className={`mt-5 rounded-2xl p-3 text-xs ring-1 ${TONO.rojo}`}><AlertTriangle className="mr-1 inline size-3.5" /> Si tienes dolor de pecho, falta de aire o la presión supera 180/120, llama a la línea 123.</p>
         </Tarjeta>
       </div>
     </div>
@@ -1215,7 +1215,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
   const agregar = (e: FormEvent) => {
     e.preventDefault();
     if (f.horarios.length === 0) {
-      toast.error("Agregá al menos un horario.");
+      toast.error("Agrega al menos un horario.");
       return;
     }
     const m: Medicamento = { id: nuevoId(), pacienteId: ctx.paciente.id, nombre: f.nombre.trim(), dosis: f.dosis.trim(), indicacion: f.indicacion.trim(), horarios: [...f.horarios].sort(), activo: true, tomas: {} };
@@ -1245,7 +1245,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
                 <p className="text-xs text-muted-foreground">Cumplimiento<br />últimos 7 días</p>
               </div>
             </div>
-            {activos.length === 0 && <Vacio icon={Pill} texto="Agregá tus medicamentos para recibir recordatorios." />}
+            {activos.length === 0 && <Vacio icon={Pill} texto="Agrega tus medicamentos para recibir recordatorios." />}
             <div className="space-y-3">
               {activos.map((m) => (
                 <div key={m.id} className="rounded-2xl border border-border/60 p-4 dark:border-white/10">
@@ -1305,7 +1305,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
               </div>
             </div>
             <Button type="submit" className="h-12 w-full rounded-xl"><Check className="size-4" /> Guardar</Button>
-            <p className={`rounded-2xl p-3 text-xs ring-1 ${TONO.azul}`}>Nunca suspendas ni cambies la dosis sin hablar con tu médico. Llevá esta lista a cada consulta.</p>
+            <p className={`rounded-2xl p-3 text-xs ring-1 ${TONO.azul}`}>Nunca suspendas ni cambies la dosis sin hablar con tu médico. Lleva esta lista a cada consulta.</p>
           </form>
         </Tarjeta>
       </div>
@@ -1378,7 +1378,7 @@ function Estudios({ ctx }: { ctx: Ctx }) {
         ))}
       </div>
 
-      {lista.length === 0 && <Tarjeta><Vacio icon={FileText} texto="Cuando la clínica cargue tus resultados, los vas a ver acá con una explicación de cada valor." /></Tarjeta>}
+      {lista.length === 0 && <Tarjeta><Vacio icon={FileText} texto="Cuando la clínica cargue tus resultados, los vas a ver aquí con una explicación de cada valor." /></Tarjeta>}
       <div className="grid gap-5 lg:grid-cols-2">
         {lista.map((e) => {
           const v = e.valores;
@@ -1424,7 +1424,7 @@ function Estudios({ ctx }: { ctx: Ctx }) {
             </details>
           ))}
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">Son indicaciones generales. Si tu médico te dio otras, seguí las de tu médico.</p>
+        <p className="mt-4 text-xs text-muted-foreground">Son indicaciones generales. Si tu médico te dio otras, sigue las de tu médico.</p>
       </Tarjeta>
     </div>
   );
@@ -1457,13 +1457,13 @@ function Pagos({ ctx }: { ctx: Ctx }) {
           {mios.map((c) => (
             <div key={c.id} className="rounded-2xl border border-border/70 p-4 dark:border-white/10">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="font-semibold">{c.concepto}</p><p className="text-xs text-muted-foreground">{new Date(c.fecha).toLocaleDateString("es-AR")} · {c.profesional}</p></div>
+                <div><p className="font-semibold">{c.concepto}</p><p className="text-xs text-muted-foreground">{new Date(c.fecha).toLocaleDateString("es-CO")} · {c.profesional}</p></div>
                 <div className="text-right">
                   <Pastilla tono={TONO_EST[estadoCobro(c)] ?? "azul"}>{estadoCobro(c)}</Pastilla>
-                  <p className="mt-1 font-semibold tabular-nums">{ars(pagadoDe(c))} <span className="text-xs font-normal text-muted-foreground">de {ars(c.arancel)}</span></p>
+                  <p className="mt-1 font-semibold tabular-nums">{ars(pagadoDe(c))} <span className="text-xs font-normal text-muted-foreground">de {ars(c.valor)}</span></p>
                 </div>
               </div>
-              {c.pagos.length > 0 && <ul className="mt-3 space-y-1 border-t border-border/60 pt-3 text-xs text-muted-foreground dark:border-white/10">{c.pagos.map((p, i) => <li key={i}>{new Date(p.fecha).toLocaleDateString("es-AR")} · {p.metodo} · {ars(p.monto)}</li>)}</ul>}
+              {c.pagos.length > 0 && <ul className="mt-3 space-y-1 border-t border-border/60 pt-3 text-xs text-muted-foreground dark:border-white/10">{c.pagos.map((p, i) => <li key={i}>{new Date(p.fecha).toLocaleDateString("es-CO")} · {p.metodo} · {ars(p.monto)}</li>)}</ul>}
             </div>
           ))}
         </div>
@@ -1501,13 +1501,13 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
 
   return (
     <div className="space-y-6">
-      <Titulo icon={ShieldCheck} titulo="Autorizaciones" sub="Respondé lo que te pide la clínica o pedí órdenes, recetas y autorizaciones."
+      <Titulo icon={ShieldCheck} titulo="Autorizaciones" sub="Responde lo que te pide la clínica o pide órdenes, recetas y autorizaciones."
         accion={<Button onClick={() => setAbierto((v) => !v)} variant={abierto ? "outline" : "default"} className="rounded-full px-6"><Plus className="size-4" /> Pedir autorización</Button>} />
       {abierto && (
         <Tarjeta className="animate-in fade-in zoom-in-95 duration-300">
           <form onSubmit={pedir} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Tipo</span><select value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value })} className={inp}>{TIPOS_AUT.map((t) => <option key={t}>{t}</option>)}</select></label>
-            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">¿Qué necesitás?</span><input required placeholder="Ej: receta de enalapril" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} className={inp} /></label>
+            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">¿Qué necesitas?</span><input required placeholder="Ej: receta de enalapril" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} className={inp} /></label>
             <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Detalle (EPS, número de afiliación, etc.)</span><textarea rows={3} value={f.detalle} onChange={(e) => setF({ ...f, detalle: e.target.value })} className={inp + " h-auto py-3"} /></label>
             <div className="sm:col-span-2"><Button type="submit" className="rounded-xl"><Check className="size-4" /> Enviar pedido</Button></div>
           </form>
@@ -1540,7 +1540,7 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground">{a.titulo}</p>
-                    <p className="text-xs text-muted-foreground">{a.tipo} · pedido el {new Date(a.fecha).toLocaleDateString("es-AR")}</p>
+                    <p className="text-xs text-muted-foreground">{a.tipo} · pedido el {new Date(a.fecha).toLocaleDateString("es-CO")}</p>
                   </div>
                   <Pastilla tono={a.estado === "Autorizada" ? "verde" : a.estado === "Rechazada" ? "rojo" : "ambar"}>
                     {a.estado === "Autorizada" ? <><CheckCircle2 className="size-3.5" /> Autorizada</> : a.estado === "Rechazada" ? <><Ban className="size-3.5" /> Rechazada</> : <><Clock className="size-3.5" /> En revisión</>}
@@ -1556,7 +1556,7 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
                 </div>
                 {a.estado !== "Pendiente" && (
                   <p className="mt-3 rounded-xl bg-background/70 px-3 py-2 text-sm text-foreground dark:bg-white/5">
-                    <b>{a.respondidoPor ?? "La clínica"}</b>{a.fechaRespuesta ? ` · ${new Date(a.fechaRespuesta).toLocaleDateString("es-AR")}` : ""}{a.respuesta ? `: ${a.respuesta}` : a.estado === "Autorizada" ? ": autorizado." : ": no autorizado."}
+                    <b>{a.respondidoPor ?? "La clínica"}</b>{a.fechaRespuesta ? ` · ${new Date(a.fechaRespuesta).toLocaleDateString("es-CO")}` : ""}{a.respuesta ? `: ${a.respuesta}` : a.estado === "Autorizada" ? ": autorizado." : ": no autorizado."}
                   </p>
                 )}
               </div>
@@ -1571,7 +1571,7 @@ function Autorizaciones({ ctx }: { ctx: Ctx }) {
           <div className="space-y-3">
             {resto.filter((a) => a.origen !== "Paciente").map((a) => (
               <div key={a.id} className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/70 p-4 dark:border-white/10">
-                <div className="min-w-0"><p className="font-medium">{a.titulo}</p><p className="text-xs text-muted-foreground">{a.tipo} · {a.origen === "Paciente" ? "Pedida por vos" : `Pedida por ${a.solicitadoPor}`}</p>{a.respuesta && <p className="mt-1 text-xs"><b>Respuesta de la clínica:</b> {a.respuesta}</p>}</div>
+                <div className="min-w-0"><p className="font-medium">{a.titulo}</p><p className="text-xs text-muted-foreground">{a.tipo} · {a.origen === "Paciente" ? "Pedida por tú" : `Pedida por ${a.solicitadoPor}`}</p>{a.respuesta && <p className="mt-1 text-xs"><b>Respuesta de la clínica:</b> {a.respuesta}</p>}</div>
                 <Pastilla tono={TONO_A[a.estado]}>{a.estado === "Pendiente" ? "En revisión" : a.estado}</Pastilla>
               </div>
             ))}
@@ -1626,7 +1626,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
     if (c.nueva !== c.repetir) { toast.error("Las contraseñas no coinciden."); return; }
     const h = await hashTexto(c.nueva);
     setPacientes((l) => l.map((x) => (x.id === ctx.paciente.id ? { ...x, clave: h } : x)));
-    toast.success("Contraseña guardada. Ya podés entrar con ella.");
+    toast.success("Contraseña guardada. Ya puedes entrar con ella.");
     setC({ nueva: "", repetir: "" });
   };
 
@@ -1672,7 +1672,7 @@ function Ficha({ ctx }: { ctx: Ctx }) {
       </form>
       <Tarjeta className="max-w-xl">
         <Subtitulo icon={KeyRound}>{ctx.paciente.clave ? "Cambiar contraseña" : "Crear contraseña"}</Subtitulo>
-        <p className="-mt-2 mb-4 text-sm text-muted-foreground">Así no dependés del código: entrás con tu cédula y tu contraseña.</p>
+        <p className="-mt-2 mb-4 text-sm text-muted-foreground">Así no dependes del código: entras con tu cédula y tu contraseña.</p>
         <form onSubmit={clave} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
           <input type="password" required placeholder="Nueva contraseña" value={c.nueva} onChange={(e) => setC({ ...c, nueva: e.target.value })} className={inp} />
           <input type="password" required placeholder="Repetir" value={c.repetir} onChange={(e) => setC({ ...c, repetir: e.target.value })} className={inp} />

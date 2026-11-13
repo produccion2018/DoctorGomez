@@ -538,7 +538,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               <Link to="/portal"><UserRound className="size-4" /> <span className="xl:hidden 2xl:inline">Portal del paciente</span></Link>
             </Button>
             <Button asChild size="sm" className="btn-glow hidden rounded-full px-5 sm:inline-flex">
-              <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link>
+              <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link>
             </Button>
             <Button variant="ghost" size="icon" className="xl:hidden" onClick={() => setOpen((v) => !v)} aria-label="Menú">
               {open ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -555,7 +555,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               ))}
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <Button asChild variant="outline" className="rounded-xl"><Link to="/portal"><UserRound className="size-4" /> Mi portal</Link></Button>
-                <Button asChild className="rounded-xl"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir turno</Link></Button>
+                <Button asChild className="rounded-xl"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir cita</Link></Button>
               </div>
             </nav>
           </div>
@@ -573,11 +573,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <div className="relative mx-auto max-w-7xl px-4 pt-14 lg:px-8">
           <div className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-white/[0.06] p-8 ring-1 ring-white/10 backdrop-blur md:flex-row md:items-center">
             <div>
-              <h3 className="text-2xl text-deep-foreground sm:text-3xl">¿Necesitás una consulta?</h3>
-              <p className="mt-1 text-deep-foreground/70">Reservá online en minutos o escribinos por WhatsApp.</p>
+              <h3 className="text-2xl text-deep-foreground sm:text-3xl">¿Necesitas una consulta?</h3>
+              <p className="mt-1 text-deep-foreground/70">Reserva en línea en minutos o escríbenos por WhatsApp.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[var(--deep)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+              <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[var(--deep)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
               <Button asChild size="lg" variant="outline" className="rounded-full !border-white/30 !bg-white/10 px-6 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <a href={waLink("Hola, quisiera hacer una consulta.")} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a>
               </Button>
@@ -601,7 +601,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground/60">Pacientes</h3>
             <ul className="mt-4 space-y-2.5 text-sm text-deep-foreground/80">
-              <li><Link to="/turnos" className="hover:text-white">Solicitar turno</Link></li>
+              <li><Link to="/turnos" className="hover:text-white">Solicitar cita</Link></li>
               <li><Link to="/portal" className="hover:text-white">Portal del paciente</Link></li>
               <li><Link to="/servicios" className="hover:text-white">Servicios y estudios</Link></li>
               <li><Link to="/preguntas-frecuentes" className="hover:text-white">Preguntas frecuentes</Link></li>
@@ -1068,15 +1068,15 @@ export function InstalarApp({ nombre = "la app", oscuro = false, className = "" 
             </div>
             {ios ? (
               <ol className="mt-5 space-y-3 text-sm">
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Share className="size-4" /></span> Tocá <b>Compartir</b> abajo en Safari.</li>
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><SquarePlus className="size-4" /></span> Elegí <b>Agregar a pantalla de inicio</b>.</li>
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Download className="size-4" /></span> Tocá <b>Agregar</b>. ¡Listo!</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Share className="size-4" /></span> Toca <b>Compartir</b> abajo en Safari.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><SquarePlus className="size-4" /></span> Elige <b>Agregar a pantalla de inicio</b>.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Download className="size-4" /></span> Toca <b>Agregar</b>. ¡Listo!</li>
               </ol>
             ) : (
               <ol className="mt-5 space-y-3 text-sm">
-                <li>1. Abrí el menú del navegador (<b>⋮</b> arriba a la derecha).</li>
-                <li>2. Elegí <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</li>
-                <li>3. Confirmá. En la compu también aparece un ícono de instalar en la barra de direcciones.</li>
+                <li>1. Abre el menú del navegador (<b>⋮</b> arriba a la derecha).</li>
+                <li>2. Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</li>
+                <li>3. Confirma. En la compu también aparece un ícono de instalar en la barra de direcciones.</li>
               </ol>
             )}
             <Button onClick={() => setGuia(false)} className="mt-6 w-full rounded-xl">Entendido</Button>

@@ -40,7 +40,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "HEGO · Centro de especialidades médicas | Medicina Interna, Cardiología y Nefrología" },
-      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Turnos online y atención especializada en Medicina Interna, Cardiología y Nefrología." },
+      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Citas en línea y atención especializada en Medicina Interna, Cardiología y Nefrología." },
       { property: "og:title", content: "HEGO · Centro de especialidades médicas | Atención médica especializada" },
       { property: "og:description", content: "Medicina Interna, Cardiología, Nefrología, Cardiología Crítica y Ecocardiografía." },
     ],
@@ -123,7 +123,7 @@ function Contador({ valor }: { valor: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ref]);
   if (!m) return <>{valor}</>;
-  return <span ref={setRef}>{m[1]}{n.toLocaleString("es-AR")}{m[3]}</span>;
+  return <span ref={setRef}>{m[1]}{n.toLocaleString("es-CO")}{m[3]}</span>;
 }
 
 function SectionTitle({ kicker, title, text }: { kicker: string; title: string; text: string }) {
@@ -291,7 +291,7 @@ function ExploradorEspecialidades() {
                     <p className="max-w-[14rem] text-xs leading-snug text-white/75">{docs.map((d) => d.nombre).join(" · ")}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Link to="/turnos" className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10">Solicitar turno</Link>
+                    <Link to="/turnos" className="rounded-full border border-white/30 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:bg-white/10">Solicitar cita</Link>
                     <Link to="/especialidades/$slug" params={{ slug: e.slug }} className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition-all hover:gap-2.5">
                       Conocer más <ArrowRight className="size-4" />
                     </Link>
@@ -314,9 +314,9 @@ function PasosTurno() {
     return () => clearInterval(t);
   }, []);
   const PASOS = [
-    { n: "01", icon: Stethoscope, t: "Elegí la especialidad", d: "Cardiología, nefrología, medicina interna y más.", c: "#0ea5e9" },
-    { n: "02", icon: CalendarDays, t: "Elegí día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor.", c: "#8b5cf6" },
-    { n: "03", icon: ShieldCheck, t: "Confirmamos tu turno", d: "Te escribimos por WhatsApp con las indicaciones.", c: "#10b981" },
+    { n: "01", icon: Stethoscope, t: "Elige la especialidad", d: "Cardiología, nefrología, medicina interna y más.", c: "#0ea5e9" },
+    { n: "02", icon: CalendarDays, t: "Elige día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor.", c: "#8b5cf6" },
+    { n: "03", icon: ShieldCheck, t: "Confirmamos tu cita", d: "Te escribimos por WhatsApp con las indicaciones.", c: "#10b981" },
   ];
   return (
     <div className="relative" data-reveal>
@@ -391,7 +391,7 @@ function HeroCarousel() {
           <div className="flex flex-wrap gap-3 pt-1">
             <Button asChild className="btn-glow rounded-full"><Link to={SLIDES[i]!.to}>Conocer más <ArrowRight className="size-4" /></Link></Button>
             <Button asChild variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
-              <Link to="/turnos">Solicitar turno</Link>
+              <Link to="/turnos">Solicitar cita</Link>
             </Button>
           </div>
         </div>
@@ -455,7 +455,7 @@ function Home() {
                 Atención médica especializada en Medicina Interna, Cardiología y Nefrología.
               </p>
               <div className="hero-word flex flex-wrap gap-3" style={{ animationDelay: "1.2s" }}>
-                <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white hover:!bg-[var(--clinic)]/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+                <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white hover:!bg-[var(--clinic)]/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
                 <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-6 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
                   <Link to="/especialistas">Conocer a nuestros especialistas</Link>
                 </Button>
@@ -469,7 +469,7 @@ function Home() {
                 </div>
                 <p className="text-sm leading-snug text-deep-foreground/85">
                   <span className="block font-semibold text-deep-foreground">Directores médicos</span>
-                  Atención personalizada con turno previo
+                  Atención personalizada con cita previa
                 </p>
               </div>
 
@@ -477,15 +477,6 @@ function Home() {
             </div>
           </div>
 
-          {/* Insignias flotantes sobre la foto */}
-          <div className="animate-hero-float absolute right-6 top-8 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--clinic)]"><CalendarPlus className="size-4 text-white" /></span>
-            <span className="text-xs leading-tight text-white"><b className="block text-sm">Turnos online</b>Pedilo en minutos</span>
-          </div>
-          <div className="animate-hero-float absolute bottom-32 right-6 hidden items-center gap-2.5 rounded-2xl border border-white/15 bg-deep/80 px-3.5 py-2.5 shadow-lg backdrop-blur-md lg:right-10 lg:flex" style={{ animationDelay: "1.2s" }}>
-            <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--accent)]"><HeartPulse className="size-4 text-white" /></span>
-            <span className="text-xs leading-tight text-white"><b className="block text-sm">Informes claros</b>Explicados por tu médico</span>
-          </div>
           <div className="glass absolute bottom-6 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
             <p className="text-xs font-semibold leading-snug text-white">Dr. Carlos Alonso Gómez Bolaño<br />Dr. Carlos Alberto Gómez Bolaño</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
@@ -654,7 +645,7 @@ function Home() {
                 </div>
                 <p className="mt-6 text-[15px] leading-relaxed text-muted-foreground">{d.bio}</p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <Button asChild className="rounded-full"><Link to="/turnos" search={{ doctor: d.id }}>Solicitar turno</Link></Button>
+                  <Button asChild className="rounded-full"><Link to="/turnos" search={{ doctor: d.id }}>Solicitar cita</Link></Button>
                   <Link to="/especialistas/$id" params={{ id: d.id }} className="inline-flex items-center gap-1.5 px-2 text-sm font-semibold text-primary transition-all hover:gap-2.5">
                     Ver perfil completo <ArrowRight className="size-4" />
                   </Link>
@@ -671,7 +662,7 @@ function Home() {
           <SectionTitle
             kicker="Servicios"
             title="Servicios destacados"
-            text="Consultas y estudios con turno online. La clínica te confirma el horario."
+            text="Consultas y estudios con cita en línea. La clínica te confirma el horario."
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal><Link to="/servicios">Ver todos los servicios</Link></Button>
         </div>
@@ -726,8 +717,8 @@ function Home() {
       {/* ───────── CÓMO SACAR TURNO ───────── */}
       <section className="relative mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div className="mx-auto mb-14 max-w-2xl text-center" data-reveal>
-          <span className="section-kicker"><CalendarPlus className="size-3.5" /> Turnos online</span>
-          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu turno en <span className="text-gradient-clinic italic">tres pasos</span></h2>
+          <span className="section-kicker"><CalendarPlus className="size-3.5" /> Citas en línea</span>
+          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu cita en <span className="text-gradient-clinic italic">tres pasos</span></h2>
         </div>
         <PasosTurno />
         <div className="mt-10 flex justify-center" data-reveal>
@@ -748,7 +739,7 @@ function Home() {
             <p className="mt-4 max-w-lg text-lg text-white/70">Los pacientes de la clínica tienen su propio portal para seguir su tratamiento entre consulta y consulta.</p>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {[
-                { i: CalendarPlus, t: "Turnos y recordatorios" },
+                { i: CalendarPlus, t: "Citas y recordatorios" },
                 { i: Gauge, t: "Registro de presión y peso" },
                 { i: FlaskConical, t: "Resultados explicados" },
                 { i: ClipboardCheck, t: "Autorizaciones y recetas" },
@@ -774,9 +765,9 @@ function Home() {
                 <div className="space-y-3 p-4">
                   <div className="rounded-2xl gradient-deep p-4 text-white">
                     <p className="text-[10px] text-white/70">Buenos días</p>
-                    <p className="font-display text-lg leading-tight">Laura, ¿cómo te sentís?</p>
+                    <p className="font-display text-lg leading-tight">Laura, ¿cómo te sientes?</p>
                     <div className="mt-3 rounded-xl bg-white/15 p-2.5 text-[10px]">
-                      <p className="text-white/70">Próximo turno · mañana</p>
+                      <p className="text-white/70">Próxima cita · mañana</p>
                       <p className="font-semibold">Ecocardiograma · 10:00</p>
                     </div>
                   </div>
@@ -821,12 +812,12 @@ function Home() {
             </span>
             <h2 className="mt-5 text-3xl text-deep-foreground sm:text-5xl">Tu salud, con seguimiento real</h2>
             <p className="mx-auto mt-4 max-w-2xl text-deep-foreground/80">
-              Reservá tu turno online en minutos o escribinos por WhatsApp. Te acompañamos en cada control y estudio.
+              Reserva tu cita en línea en minutos o escríbenos por WhatsApp. Te acompañamos en cada control y estudio.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild size="lg" variant="secondary" className="rounded-full px-7 transition-transform hover:-translate-y-0.5"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+              <Button asChild size="lg" variant="secondary" className="rounded-full px-7 transition-transform hover:-translate-y-0.5"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
               <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-7 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
-                <Link to="/contacto">Contactanos</Link>
+                <Link to="/contacto">Contáctanos</Link>
               </Button>
             </div>
           </div>

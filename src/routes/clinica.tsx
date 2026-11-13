@@ -101,7 +101,7 @@ function Recorrido() {
 }
 
 const PASOS = [
-  { n: "01", icon: CalendarPlus, t: "Reservá tu turno", d: "Online, por WhatsApp o por teléfono." },
+  { n: "01", icon: CalendarPlus, t: "Reserva tu cita", d: "En línea, por WhatsApp o por teléfono." },
   { n: "02", icon: ShieldCheck, t: "Confirmación", d: "Te contactamos para confirmar día, hora e indicaciones." },
   { n: "03", icon: Stethoscope, t: "Consulta", d: "Atención personalizada con revisión de estudios previos." },
   { n: "04", icon: FileText, t: "Seguimiento", d: "Plan escrito, estudios y controles programados." },
@@ -150,7 +150,7 @@ function Clinica() {
         <div data-reveal className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <span className="section-kicker">Instalaciones</span>
-            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Conocé <span className="text-gradient-clinic italic">la clínica</span></h2>
+            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Conoce <span className="text-gradient-clinic italic">la clínica</span></h2>
           </div>
           <p className="max-w-sm text-muted-foreground">Consultorios, sala de estudios y unidad cardiológica en un mismo lugar.</p>
         </div>
@@ -210,7 +210,7 @@ function Clinica() {
             <h2 className="mt-5 text-4xl leading-tight text-white sm:text-5xl">
               Equipamiento <span className="italic text-sky-300">y servicios</span>
             </h2>
-            <p className="mt-4 text-white/65">Van pasando solos; pasá el cursor por un equipo para verlo.</p>
+            <p className="mt-4 text-white/65">Van pasando solos; pasa el cursor por un equipo para verlo.</p>
           </div>
 
           <div className="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]" onMouseEnter={() => setPausaEq(true)} onMouseLeave={() => setPausaEq(false)}>
@@ -280,7 +280,7 @@ function Clinica() {
             </div>
           )}
           <div className="relative m-4 rounded-[1.75rem] bg-[oklch(0.17_0.05_262/0.94)] p-8 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-xl lg:absolute lg:left-6 lg:top-6 lg:m-0 lg:w-[400px]">
-            <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">Visitanos</span>
+            <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">Visítanos</span>
             <h2 className="mt-4 text-3xl text-white">Te esperamos</h2>
             <ul className="mt-6 space-y-4">
               {[
@@ -298,7 +298,7 @@ function Clinica() {
             </ul>
             <div className="mt-7 flex flex-wrap gap-2">
               <Button asChild className="rounded-full !bg-white px-5 text-[oklch(0.25_0.08_260)] hover:!bg-white/90">
-                <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link>
+                <Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link>
               </Button>
               {sitio.direccion && <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(sitio.direccion)}`}

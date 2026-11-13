@@ -23,7 +23,7 @@ export const Route = createFileRoute("/preguntas-frecuentes")({
   head: () => ({
     meta: [
       { title: "Preguntas frecuentes | HEGO · Centro de especialidades médicas" },
-      { name: "description", content: "Turnos, estudios, coberturas, pagos y preparación para la consulta." },
+      { name: "description", content: "Citas, estudios, coberturas, pagos y preparación para la consulta." },
     ],
   }),
   component: Faq,
@@ -111,7 +111,7 @@ function Faq() {
           </>
         )}
         {voto[f.q] === "no" && (
-          <a href={waLink(`Hola, tengo una duda sobre: ${f.q}`)} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 font-semibold text-primary"><MessageCircle className="size-4" /> Consultanos por WhatsApp</a>
+          <a href={waLink(`Hola, tengo una duda sobre: ${f.q}`)} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 font-semibold text-primary"><MessageCircle className="size-4" /> Consúltanos por WhatsApp</a>
         )}
       </div>
     </>
@@ -122,7 +122,7 @@ function Faq() {
       <PageHero
         kicker="Ayuda"
         title={<>Preguntas <span className="text-shine italic">frecuentes</span></>}
-        text="Elegí un tema, tocá una pregunta y leé la respuesta. Así de simple."
+        text="Elige un tema, toca una pregunta y lee la respuesta. Así de simple."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Preguntas frecuentes" }]}
       >
         <div className="relative max-w-xl">
@@ -130,7 +130,7 @@ function Faq() {
           <input
             value={q}
             onChange={(e) => { setQ(e.target.value); setCat("Todas"); }}
-            placeholder="Buscá tu pregunta: turnos, ayuno, Holter..."
+            placeholder="Busca tu pregunta: citas, ayuno, Holter..."
             className="h-14 w-full rounded-2xl border border-white/20 bg-white/10 pl-14 pr-4 text-base text-white shadow-2xl outline-none backdrop-blur-xl transition placeholder:text-white/50 focus:border-white/50 focus:bg-white/15 focus:ring-4 focus:ring-white/10"
           />
         </div>
@@ -149,7 +149,7 @@ function Faq() {
         {/* PASO 1 — TEMA */}
         <div className="flex items-center gap-3">
           <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">1</span>
-          <h2 className="font-sans text-lg font-semibold">Elegí un tema</h2>
+          <h2 className="font-sans text-lg font-semibold">Elige un tema</h2>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
           {CATS.map((c) => {
@@ -181,13 +181,13 @@ function Faq() {
           <div>
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">2</span>
-              <h2 className="font-sans text-lg font-semibold">Tocá una pregunta</h2>
+              <h2 className="font-sans text-lg font-semibold">Toca una pregunta</h2>
               <span className="ml-auto text-sm text-muted-foreground">{lista.length} {lista.length === 1 ? "pregunta" : "preguntas"}</span>
             </div>
 
             {lista.length === 0 && (
               <div className="mt-5 rounded-3xl border border-dashed border-border p-10 text-center">
-                <p className="text-muted-foreground">No encontramos esa pregunta. Escribinos y te respondemos.</p>
+                <p className="text-muted-foreground">No encontramos esa pregunta. Escríbenos y te respondemos.</p>
                 <Button asChild className="mt-4 rounded-full !bg-[#25D366] text-white hover:!bg-[#1ebe5b]">
                   <a href={waLink(`Hola, tengo una consulta: ${q}`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> Preguntar por WhatsApp</a>
                 </Button>
@@ -229,7 +229,7 @@ function Faq() {
           <div className="hidden lg:block">
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">3</span>
-              <h2 className="font-sans text-lg font-semibold">Leé la respuesta</h2>
+              <h2 className="font-sans text-lg font-semibold">Lee la respuesta</h2>
             </div>
             {actual && (
               <div className="sticky top-24 mt-5">
@@ -274,7 +274,7 @@ function Faq() {
             <div className="flex flex-wrap gap-3">
               <Button asChild className="h-11 rounded-full !bg-[#25D366] px-6 text-white hover:!bg-[#1ebe5b]"><a href={waLink("Hola, tengo una consulta.")} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a></Button>
               {sitio.telefono && <a href={`tel:${sitio.telefono.replace(/\s/g, "")}`} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/25 px-5 text-sm font-medium transition hover:bg-white/10"><Phone className="size-4" /> {sitio.telefono}</a>}
-              <Link to="/turnos" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition hover:bg-white/90"><CalendarPlus className="size-4" /> Solicitar turno</Link>
+              <Link to="/turnos" className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[oklch(0.25_0.08_260)] transition hover:bg-white/90"><CalendarPlus className="size-4" /> Solicitar cita</Link>
             </div>
           </div>
         </div>

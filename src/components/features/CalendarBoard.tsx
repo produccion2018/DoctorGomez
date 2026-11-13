@@ -46,8 +46,8 @@ export function CalendarBoard({ soloDoctorId }: { soloDoctorId?: string }) {
             const delDia = appointments.filter((a) => a.doctorId === doctorId && a.fecha === iso && !["cancelado", "ausente"].includes(a.estado));
             return (
               <div key={iso} className="rounded-xl border border-border p-3">
-                <p className="text-sm font-semibold capitalize">{d.toLocaleDateString("es-AR", { weekday: "long" })}</p>
-                <p className="mb-3 text-xs text-muted-foreground">{d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}</p>
+                <p className="text-sm font-semibold capitalize">{d.toLocaleDateString("es-CO", { weekday: "long" })}</p>
+                <p className="mb-3 text-xs text-muted-foreground">{d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" })}</p>
                 {bloqueado && <p className="mb-2 rounded-md bg-[var(--warning)]/15 px-2 py-1 text-xs text-[var(--warning)]">Agenda bloqueada</p>}
                 <div className="space-y-1.5">
                   {HORARIOS_BASE.map((h) => {

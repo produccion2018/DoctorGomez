@@ -108,8 +108,8 @@ function Detalle() {
 
   const bloques = [
     { icon: Target, titulo: "Qué abordamos", sub: "Enfermedades y situaciones que tratamos", items: esp.aborda, color: "from-sky-500 to-blue-700", glow: "rgba(56,189,248,.55)", dot: "text-sky-400" },
-    { icon: HeartPulse, titulo: "Cuándo consultar", sub: "Señales para pedir un turno", items: esp.cuando, color: "from-rose-500 to-red-600", glow: "rgba(244,63,94,.55)", dot: "text-rose-400" },
-    { icon: FlaskConical, titulo: "Estudios", sub: "Estudios que podés hacer en la clínica", items: esp.estudios, color: "from-emerald-400 to-teal-600", glow: "rgba(16,185,129,.55)", dot: "text-emerald-400" },
+    { icon: HeartPulse, titulo: "Cuándo consultar", sub: "Señales para pedir una cita", items: esp.cuando, color: "from-rose-500 to-red-600", glow: "rgba(244,63,94,.55)", dot: "text-rose-400" },
+    { icon: FlaskConical, titulo: "Estudios", sub: "Estudios que puedes hacer en la clínica", items: esp.estudios, color: "from-emerald-400 to-teal-600", glow: "rgba(16,185,129,.55)", dot: "text-emerald-400" },
   ];
 
   return (
@@ -123,7 +123,7 @@ function Detalle() {
       >
         <div className="flex flex-wrap gap-3">
           <Button asChild size="lg" className="btn-glow rounded-full !bg-[var(--clinic)] px-6 text-white">
-            <Link to="/turnos" search={{ especialidad: esp.slug }}><CalendarPlus className="size-4" /> Solicitar turno</Link>
+            <Link to="/turnos" search={{ especialidad: esp.slug }}><CalendarPlus className="size-4" /> Solicitar cita</Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="glass rounded-full !border-white/30 !bg-white/10 px-6 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
             <a href={waLink(`Hola, quiero consultar por ${esp.nombre}.`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> Consultar por WhatsApp</a>
@@ -183,7 +183,7 @@ function Detalle() {
               ))}
             </div>
             <Button asChild className="btn-glow mt-6 h-12 w-full rounded-xl">
-              <Link to="/turnos" search={{ especialidad: esp.slug }}><CalendarPlus className="size-4" /> Reservar turno</Link>
+              <Link to="/turnos" search={{ especialidad: esp.slug }}><CalendarPlus className="size-4" /> Reservar cita</Link>
             </Button>
           </div>
 

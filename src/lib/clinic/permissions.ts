@@ -1,10 +1,10 @@
 import type { Role, User } from "./types";
 
 export const PERMISOS_DISPONIBLES = [
-  { key: "turnos.crear", label: "Crear turnos" },
-  { key: "turnos.confirmar", label: "Confirmar turnos" },
-  { key: "turnos.reprogramar", label: "Reprogramar turnos" },
-  { key: "turnos.cancelar", label: "Cancelar turnos" },
+  { key: "turnos.crear", label: "Crear citas" },
+  { key: "turnos.confirmar", label: "Confirmar citas" },
+  { key: "turnos.reprogramar", label: "Reprogramar citas" },
+  { key: "turnos.cancelar", label: "Cancelar citas" },
   { key: "pacientes.buscar", label: "Buscar pacientes" },
   { key: "agenda.ver", label: "Consultar agenda" },
   { key: "agenda.editar", label: "Modificar disponibilidad médica" },

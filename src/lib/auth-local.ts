@@ -742,11 +742,11 @@ export async function ingresarPaciente(dniOEmail: string, codigoOClave: string):
   const u = dniOEmail.trim().toLowerCase();
   const dni = u.replace(/\D/g, "");
   const p = lista.find((x) => (dni.length >= 5 && x.dni === dni) || (u.includes("@") && x.email.toLowerCase() === u));
-  if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pedile a la clínica que te envíe la invitación." };
-  if (p.estado === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunicate con la clínica." };
+  if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pídele a la clínica que te envíe la invitación." };
+  if (p.estado === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunícate con la clínica." };
   const c = codigoOClave.trim();
   const valida = c === p.codigo || (!!p.clave && (await hash(c)) === p.clave);
-  if (!valida) return { ok: false, error: p.clave ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisá el mensaje de la clínica." };
+  if (!valida) return { ok: false, error: p.clave ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisa el mensaje de la clínica." };
   const actualizado: PacientePortal = { ...p, estado: "Activo", ultimoIngreso: new Date().toISOString() };
   guardarDato(KEY_PACIENTES, lista.map((x) => (x.id === p.id ? actualizado : x)));
   localStorage.setItem(KEY_SESION_PACIENTE, p.id);
@@ -756,7 +756,7 @@ export async function ingresarPaciente(dniOEmail: string, codigoOClave: string):
 
 /* ---------- Autorizaciones ---------- */
 export type EstadoAut = "Pendiente" | "Autorizada" | "Rechazada";
-export const TIPOS_AUT = ["Estudio", "Receta", "Tratamiento", "Consentimiento informado", "Compartir datos", "Orden de obra social", "Otro"] as const;
+export const TIPOS_AUT = ["Estudio", "Receta", "Tratamiento", "Consentimiento informado", "Compartir datos", "Orden de EPS", "Otro"] as const;
 export type Autorizacion = {
   id: string;
   pacienteId: string;
@@ -775,7 +775,7 @@ export type Autorizacion = {
 export const KEY_AUT = "gb_autorizaciones";
 
 /* ---------- Cobros a pacientes, equipo y control de caja ---------- */
-export const METODOS_PAGO = ["Efectivo", "Débito", "Crédito", "Transferencia", "Mercado Pago", "Obra social"] as const;
+export const METODOS_PAGO = ["Efectivo", "Débito", "Crédito", "Transferencia", "Mercado Pago", "EPS"] as const;
 export type MetodoPago = (typeof METODOS_PAGO)[number];
 export type EstadoCobro = "Pagado" | "Parcial" | "Pendiente" | "Anulado";
 export type PagoParcial = { fecha: string; monto: number; metodo: MetodoPago; cobradoPor: string };
@@ -788,7 +788,7 @@ export type Cobro = {
   turnoId?: string;
   concepto: string;
   profesional: string;
-  arancel: number;
+  valor: number;
   pagos: PagoParcial[];
   obraSocial?: string;
   nota?: string;
@@ -811,12 +811,12 @@ export const KEY_CIERRES = "gb_cierres";
 export const EQUIPO_INICIAL: Persona[] = [{ id: "secretaria", nombre: "Secretaría", rol: "Secretaria", activo: true }];
 
 export const pagadoDe = (c: Cobro) => c.pagos.reduce((a, p) => a + p.monto, 0);
-export const saldoDe = (c: Cobro) => (c.anulado ? 0 : Math.max(0, c.arancel - pagadoDe(c)));
+export const saldoDe = (c: Cobro) => (c.anulado ? 0 : Math.max(0, c.valor - pagadoDe(c)));
 export function estadoCobro(c: Cobro): EstadoCobro {
   if (c.anulado) return "Anulado";
   const p = pagadoDe(c);
   if (p <= 0) return "Pendiente";
-  return p >= c.arancel ? "Pagado" : "Parcial";
+  return p >= c.valor ? "Pagado" : "Parcial";
 }
 
 
@@ -978,11 +978,11 @@ export const TIPOS_ESTUDIO = [
 export type NivelPresion = { nivel: string; tono: "verde" | "ambar" | "naranja" | "rojo" | "critico"; consejo: string };
 /** Clasificación según guías AHA/ACC 2017 (valores en mmHg). */
 export function clasificarPresion(s: number, d: number): NivelPresion {
-  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tenés dolor de pecho, falta de aire, visión borrosa o confusión, llamá al 107 o andá a la guardia." };
-  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Volvé a medirla en 5 minutos. Si sigue alta, avisale a tu médico." };
-  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Registrala y comentalo en tu próximo control." };
-  if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantené los hábitos saludables y seguí registrando." };
-  return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Seguí así." };
+  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tienes dolor de pecho, falta de aire, visión borrosa o confusión, llama al 123 o ve a urgencias." };
+  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Vuelve a medirla en 5 minutos. Si sigue alta, avísale a tu médico." };
+  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Regístrala y coméntalo en tu próximo control." };
+  if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantén los hábitos saludables y sigue registrando." };
+  return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Sigue así." };
 }
 
 /** Estadio de enfermedad renal crónica según filtrado glomerular (KDIGO). */

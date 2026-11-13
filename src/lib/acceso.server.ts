@@ -76,14 +76,14 @@ export async function usuarioActual(): Promise<UsuarioServidor | null> {
 
 export async function exigirMedico(): Promise<UsuarioServidor> {
   const u = await usuarioActual();
-  if (!u || u.rol !== "medico") throw new Error("Necesitás ingresar como médico administrador.");
+  if (!u || u.rol !== "medico") throw new Error("Necesitas ingresar como médico administrador.");
   return u;
 }
 
 /** Médicos administradores o Dirección general (gerencia): manejan personal, permisos y sitio. */
 export async function exigirDireccion(): Promise<UsuarioServidor> {
   const u = await usuarioActual();
-  if (!u || (u.rol !== "medico" && u.area !== "Dirección general")) throw new Error("Necesitás ingresar como médico administrador o Dirección general.");
+  if (!u || (u.rol !== "medico" && u.area !== "Dirección general")) throw new Error("Necesitas ingresar como médico administrador o Dirección general.");
   return u;
 }
 
@@ -95,7 +95,7 @@ export async function bloqueado(clave: string): Promise<string | null> {
   const f = (await sql`SELECT hasta FROM intentos WHERE clave = ${clave} AND hasta > now()`) as { hasta: string }[];
   if (!f[0]) return null;
   const min = Math.max(1, Math.ceil((new Date(f[0].hasta).getTime() - Date.now()) / 60000));
-  return `Demasiados intentos fallidos. Probá de nuevo en ${min} minuto${min === 1 ? "" : "s"}.`;
+  return `Demasiados intentos fallidos. Prueba de nuevo en ${min} minuto${min === 1 ? "" : "s"}.`;
 }
 export async function registrarFallo(clave: string) {
   const sql = await (await modulo()).db();

@@ -44,17 +44,17 @@ export function AppointmentsManager({ user, soloDoctorId, detalleAvanzado = fals
     const sensible = nuevo === "cancelado" && a.estado === "confirmado" && user.role !== "director";
     const run = (autorizadoPor?: string) => {
       changeAppointmentStatus(a.id, nuevo, actor, autorizadoPor);
-      toast.success(`Turno ${a.codigo} → ${nuevo}${autorizadoPor ? ` (autorizó ${autorizadoPor})` : ""}`);
+      toast.success(`Cita ${a.codigo} → ${nuevo}${autorizadoPor ? ` (autorizó ${autorizadoPor})` : ""}`);
     };
-    if (sensible) setPending({ op: `Cancelar el turno confirmado ${a.codigo}`, run: (dir) => { run(dir); setPending(null); } });
+    if (sensible) setPending({ op: `Cancelar la cita confirmada ${a.codigo}`, run: (dir) => { run(dir); setPending(null); } });
     else run();
   }
 
   return (
     <div className="space-y-5">
       <Panel
-        title="Gestión de turnos"
-        description="Filtrá, confirmá, reprogramá o cancelá turnos. Cada operación queda registrada en auditoría."
+        title="Gestión de citas"
+        description="Filtra, confirma, reprograma o cancela citas. Cada operación queda registrada en auditoría."
         action={<NuevoTurnoDialog user={user} pacientes={pacientes} />}
       >
         <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -99,13 +99,13 @@ export function AppointmentsManager({ user, soloDoctorId, detalleAvanzado = fals
         </div>
 
         {lista.length === 0 ? (
-          <EmptyState mensaje="No hay turnos que coincidan con el filtro." />
+          <EmptyState mensaje="No hay citas que coincidan con el filtro." />
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Turno</TableHead>
+                  <TableHead>Cita</TableHead>
                   <TableHead>Paciente</TableHead>
                   <TableHead>Profesional</TableHead>
                   <TableHead>Fecha y hora</TableHead>
@@ -176,7 +176,7 @@ function ReprogramarDialog({ turno, onClose, actor }: { turno: Appointment | nul
     <Dialog open={abierto} onOpenChange={(v) => { if (!v) { onClose(); setFecha(""); setHora(""); } }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reprogramar turno {turno?.codigo}</DialogTitle>
+          <DialogTitle>Reprogramar cita {turno?.codigo}</DialogTitle>
           <DialogDescription>El horario anterior se libera automáticamente y el nuevo queda ocupado.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -204,7 +204,7 @@ function ReprogramarDialog({ turno, onClose, actor }: { turno: Appointment | nul
             onClick={() => {
               if (!turno) return;
               const r = rescheduleAppointment(turno.id, fecha, hora, actor);
-              if (r.ok) { toast.success("Turno reprogramado."); onClose(); setFecha(""); setHora(""); }
+              if (r.ok) { toast.success("Cita reprogramada."); onClose(); setFecha(""); setHora(""); }
               else toast.error(r.error ?? "No se pudo reprogramar.");
             }}
           >
@@ -230,7 +230,7 @@ export function NuevoTurnoDialog({ user, pacientes }: { user: User; pacientes: U
   function guardar() {
     const paciente = pacientes.find((p) => p.id === pacienteId);
     if (!paciente || !doctorId || !fecha || !hora || !especialidad) {
-      toast.error("Completá todos los campos.");
+      toast.error("Completa todos los campos.");
       return;
     }
     if (isSlotTaken(getDB(), doctorId, fecha, hora)) {
@@ -240,22 +240,22 @@ export function NuevoTurnoDialog({ user, pacientes }: { user: User; pacientes: U
     const r = createAppointment(
       {
         pacienteId: paciente.id, pacienteNombre: paciente.nombre, doctorId, especialidad, fecha, hora,
-        modalidad: "Presencial", estado: "confirmado", motivo: "Turno cargado por " + user.nombre,
+        modalidad: "Presencial", estado: "confirmado", motivo: "Cita cargada por " + user.nombre,
         importe: 36000, metodoPago: "Pendiente en recepción", estadoPago: "pendiente",
         creadoPor: user.nombre, creadoPorRol: user.role,
       },
       { nombre: user.nombre, role: user.role },
     );
-    if (r.ok) { toast.success(`Turno ${r.appointment?.codigo} creado.`); setOpen(false); setPacienteId(""); setFecha(""); setHora(""); }
-    else toast.error(r.error ?? "No se pudo crear el turno.");
+    if (r.ok) { toast.success(`Cita ${r.appointment?.codigo} creado.`); setOpen(false); setPacienteId(""); setFecha(""); setHora(""); }
+    else toast.error(r.error ?? "No se pudo crear la cita.");
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button size="sm">Nuevo turno</Button></DialogTrigger>
+      <DialogTrigger asChild><Button size="sm">Nueva cita</Button></DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Crear turno</DialogTitle>
+          <DialogTitle>Crear cita</DialogTitle>
           <DialogDescription>El horario elegido dejará de estar disponible para el público.</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -296,7 +296,7 @@ export function NuevoTurnoDialog({ user, pacientes }: { user: User; pacientes: U
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button onClick={guardar}>Crear turno</Button>
+          <Button onClick={guardar}>Crear cita</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

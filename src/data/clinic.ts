@@ -148,7 +148,7 @@ export const ESPECIALIDADES = [
       "Evaluación clínica integral del paciente adulto, con una mirada global que conecta todos los sistemas del organismo.",
     aborda: [
       "Diagnóstico de enfermedades complejas",
-      "Hipertensión, diabetes y dislipemias",
+      "Hipertensión, diabetes y dislipidemias",
       "Chequeos y prevención",
       "Evaluación prequirúrgica",
       "Coordinación entre especialidades",
@@ -288,7 +288,7 @@ export const ESPECIALIDADES = [
     aborda: [
       "Diabetes tipo 2 y prediabetes",
       "Síndrome metabólico",
-      "Dislipemias",
+      "Dislipidemias",
       "Protección renal en el paciente diabético",
     ],
     cuando: [
@@ -350,7 +350,7 @@ export const ESPECIALIDADES = [
     icono: "test-tube",
     doctorIds: ["d1"],
     descripcion:
-      "Extracciones en la clínica y resultados online para agilizar el diagnóstico y el seguimiento.",
+      "Extracciones en la clínica y resultados en línea para agilizar el diagnóstico y el seguimiento.",
     aborda: [
       "Análisis de rutina",
       "Función renal y hepática",
@@ -424,9 +424,9 @@ export const ESPECIALIDADES = [
       "Segunda opinión",
     ],
     cuando: [
-      "Vivís lejos de la clínica",
-      "Necesitás un control rápido",
-      "Querés mostrar resultados de estudios",
+      "Vives lejos de la clínica",
+      "Necesitas un control rápido",
+      "Quieres mostrar resultados de estudios",
     ],
     estudios: ["Revisión de estudios previos", "Receta electrónica"],
     seguimiento:
@@ -440,7 +440,7 @@ export const SERVICIOS = [
   { id: "s3", nombre: "Consulta de Cardiología", icono: "heart", especialidad: "Cardiología", doctorId: "d2", duracion: 40, precio: 36000, descripcion: "Evaluación cardiológica completa con electrocardiograma incluido." },
   { id: "s4", nombre: "Evaluación cardiovascular", icono: "activity", especialidad: "Cardiología", doctorId: "d2", duracion: 60, precio: 52000, descripcion: "Estratificación de riesgo cardiovascular y plan preventivo." },
   { id: "s5", nombre: "Evaluación renal", icono: "flask-conical", especialidad: "Nefrología", doctorId: "d1", duracion: 60, precio: 48000, descripcion: "Análisis funcional del riñón con interpretación de laboratorio e imágenes." },
-  { id: "s6", nombre: "Seguimiento de enfermedades crónicas", icono: "clipboard-list", especialidad: "Medicina Interna", doctorId: "d1", duracion: 30, precio: 28000, descripcion: "Control programado de diabetes, hipertensión y dislipemia." },
+  { id: "s6", nombre: "Seguimiento de enfermedades crónicas", icono: "clipboard-list", especialidad: "Medicina Interna", doctorId: "d1", duracion: 30, precio: 28000, descripcion: "Control programado de diabetes, hipertensión y dislipidemia." },
   { id: "s7", nombre: "Prevención cardiovascular", icono: "shield-check", especialidad: "Cardiología", doctorId: "d2", duracion: 45, precio: 42000, descripcion: "Programa personalizado de prevención primaria y secundaria." },
   { id: "s8", nombre: "Estudios cardiológicos", icono: "line-chart", especialidad: "Cardiología", doctorId: "d2", duracion: 45, precio: 45000, descripcion: "Electrocardiograma, ergometría y Holter con informe profesional." },
   { id: "s9", nombre: "Ecocardiografía", icono: "waves", especialidad: "Ecocardiografía", doctorId: "d2", duracion: 45, precio: 58000, descripcion: "Ecocardiograma doppler color con informe del especialista." },
@@ -449,18 +449,18 @@ export const SERVICIOS = [
 ];
 
 export const FAQS = [
-  { q: "¿Cómo solicito un turno?", a: "Podés reservar desde la sección Turnos eligiendo especialidad, profesional, fecha y horario. La clínica te contacta para confirmarlo." },
-  { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Podés consultar directamente con Medicina Interna, Nefrología o Cardiología." },
+  { q: "¿Cómo solicito una cita?", a: "Puedes reservar desde la sección Citas eligiendo especialidad, profesional, fecha y horario. La clínica te contacta para confirmarlo." },
+  { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Puedes consultar directamente con Medicina Interna, Nefrología o Cardiología." },
   { q: "¿Cuánto demora la entrega de estudios?", a: "Los informes se entregan en la clínica o por correo electrónico. Al hacer el estudio te indicamos cuándo vas a tenerlo." },
-  { q: "¿Puedo reprogramar o cancelar mi turno?", a: "Sí. Escribinos por WhatsApp o llamanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
+  { q: "¿Puedo reprogramar o cancelar mi cita?", a: "Sí. Escríbenos por WhatsApp o llámanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
   { q: "¿Atienden teleconsulta?", a: "Sí, la modalidad de teleconsulta está disponible para controles y seguimiento de enfermedades crónicas." },
   { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que estés tomando." },
-  { q: "¿Trabajan con EPS y medicina prepagada?", a: "Sí. Consultá por WhatsApp o teléfono si tu EPS o plan de medicina prepagada está incluido y si el estudio requiere autorización previa." },
-  { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Vení con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
+  { q: "¿Trabajan con EPS y medicina prepagada?", a: "Sí. Consulta por WhatsApp o teléfono si tu EPS o plan de medicina prepagada está incluido y si el estudio requiere autorización previa." },
+  { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Ven con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
   { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Te confirmamos las indicaciones al reservar." },
   { q: "¿Qué medios de pago aceptan?", a: "Efectivo, tarjetas de débito y crédito, y transferencia bancaria." },
-  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico. También los podés ver en el portal del paciente." },
-  { q: "¿Atienden urgencias?", a: "No somos un servicio de guardia. Ante una emergencia llamá al 107 o acudí a la guardia más cercana." },
+  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico. También los puedes ver en el portal del paciente." },
+  { q: "¿Atienden urgencias?", a: "No somos un servicio de urgencias. Ante una emergencia llama a la línea 123 o acude al servicio de urgencias más cercano." },
 ];
 
 export const HORARIOS_BASE = [

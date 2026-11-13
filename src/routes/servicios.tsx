@@ -25,7 +25,7 @@ export const Route = createFileRoute("/servicios")({
   head: () => ({
     meta: [
       { title: "Servicios | HEGO · Centro de especialidades médicas" },
-      { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reservá tu turno online." },
+      { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reserva tu cita en línea." },
     ],
   }),
   component: Servicios,
@@ -68,8 +68,8 @@ function Servicios() {
       <PageHero
         kicker="Servicios"
         decoracion={<FondoEspecialidades />}
-        title={<>Consultas y estudios con <span className="text-shine italic">turno online</span></>}
-        text="Consultas y estudios de cada especialidad. El arancel y la cobertura de tu EPS o prepagada te los confirmamos al reservar."
+        title={<>Consultas y estudios con <span className="text-shine italic">cita en línea</span></>}
+        text="Consultas y estudios de cada especialidad. El valor de la consulta y la cobertura de tu EPS o prepagada te los confirmamos al reservar."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Servicios" }]}
       />
 
@@ -160,11 +160,11 @@ function Servicios() {
           <div className="pointer-events-none absolute -bottom-24 left-10 size-64 rounded-full bg-rose-500/20 blur-3xl" />
           <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <h2 className="text-3xl text-white">¿No sabés qué servicio necesitás?</h2>
-              <p className="mt-2 max-w-xl text-white/70">Empezá por una consulta de Medicina Interna: evaluamos tu caso y te derivamos dentro de la clínica.</p>
+              <h2 className="text-3xl text-white">¿No sabes qué servicio necesitas?</h2>
+              <p className="mt-2 max-w-xl text-white/70">Empieza por una consulta de Medicina Interna: evaluamos tu caso y te derivamos dentro de la clínica.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[oklch(0.25_0.08_260)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir turno</Link></Button>
+              <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[oklch(0.25_0.08_260)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir cita</Link></Button>
               <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-6 text-white hover:!bg-white/20 hover:text-white"><a href={waLink("Hola, quiero saber qué servicio necesito.")} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a></Button>
             </div>
           </div>

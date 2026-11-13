@@ -50,9 +50,9 @@ function PerfilDoctor() {
           <div className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-card">
             <p className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><Stethoscope className="size-4" /></span>{doctor.titulo}</p>
             <p className="flex items-center gap-3 text-sm"><span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary"><CalendarDays className="size-4" /></span>{resumenAgenda(agenda)}</p>
-            <Button asChild className="btn-glow mt-2 h-12 w-full rounded-xl"><Link to="/turnos" search={{ doctor: doctor.id }}><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+            <Button asChild className="btn-glow mt-2 h-12 w-full rounded-xl"><Link to="/turnos" search={{ doctor: doctor.id }}><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
             <Button asChild variant="outline" className="h-11 w-full rounded-xl">
-              <a href={waLink(`Hola, quiero un turno con ${doctor.nombre}.`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a>
+              <a href={waLink(`Hola, quiero una cita con ${doctor.nombre}.`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> WhatsApp</a>
             </Button>
           </div>
         </aside>
@@ -75,19 +75,19 @@ function PerfilDoctor() {
                 ))}
               </div>
               {agenda.dias.length === 0 ? (
-                <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, podés consultar por WhatsApp.</p>
+                <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, puedes consultar por WhatsApp.</p>
               ) : (
-                <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · turnos de {agenda.duracion} minutos</p>
+                <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · citas de {agenda.duracion} minutos</p>
               )}
               {agenda.nota && <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
               {ausente && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700 ring-1 ring-rose-100">No atiende del {ausente.desde.split("-").reverse().join("/")} al {ausente.hasta.split("-").reverse().join("/")} ({ausente.motivo}).</p>}
               {proximos.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Próximos días con turnos</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Próximos días con citas</p>
                   <div className="flex flex-wrap gap-2">
                     {proximos.map((f) => (
                       <Link key={f} to="/turnos" search={{ doctor: doctor.id }} className="rounded-xl border border-border px-3 py-1.5 text-sm font-medium capitalize transition-colors hover:border-primary/40 hover:text-primary">
-                        {new Date(f + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "short" })}
+                        {new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
                       </Link>
                     ))}
                   </div>

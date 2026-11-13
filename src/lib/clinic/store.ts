@@ -212,7 +212,7 @@ export function createAppointment(
 ): { ok: boolean; error?: string; appointment?: Appointment } {
   const db = load();
   if (isSlotTaken(db, data.doctorId, data.fecha, data.hora)) {
-    return { ok: false, error: "Ese horario ya fue ocupado. Elegí otro." };
+    return { ok: false, error: "Ese horario ya fue ocupado. Elige otro." };
   }
   const codigo = `TRN-${1000 + db.appointments.length + 1}`;
   const appointment: Appointment = {
@@ -226,9 +226,9 @@ export function createAppointment(
     d.appointments.push(appointment);
     return d;
   });
-  logAudit({ usuario: actor.nombre, rol: actor.role, accion: "Creó turno", modulo: "Turnos", registro: codigo, anterior: "—", nuevo: appointment.estado });
-  pushNotification({ rol: "secretaria", titulo: "Nuevo turno solicitado", mensaje: `${appointment.pacienteNombre} — ${appointment.especialidad} ${appointment.fecha} ${appointment.hora}.` });
-  pushNotification({ rol: "paciente", userId: appointment.pacienteId, titulo: "Turno registrado", mensaje: `Tu turno ${codigo} fue registrado.` });
+  logAudit({ usuario: actor.nombre, rol: actor.role, accion: "Creó cita", modulo: "Turnos", registro: codigo, anterior: "—", nuevo: appointment.estado });
+  pushNotification({ rol: "secretaria", titulo: "Nueva cita solicitada", mensaje: `${appointment.pacienteNombre} — ${appointment.especialidad} ${appointment.fecha} ${appointment.hora}.` });
+  pushNotification({ rol: "paciente", userId: appointment.pacienteId, titulo: "Cita registrada", mensaje: `Tu cita ${codigo} fue registrada.` });
   return { ok: true, appointment };
 }
 
@@ -253,9 +253,9 @@ export function changeAppointmentStatus(
     usuario: actor.nombre, rol: actor.role, accion: `Cambió estado a ${estado}`, modulo: "Turnos",
     registro: prev.codigo, anterior: prev.estado, nuevo: estado,
   });
-  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Turno actualizado", mensaje: `Tu turno ${prev.codigo} ahora está ${estado}.` });
+  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita actualizada", mensaje: `Tu cita ${prev.codigo} ahora está ${estado}.` });
   if (prev.estado === "confirmado" && estado === "cancelado") {
-    pushAlert({ nivel: "media", tipo: "Modificación", mensaje: `${actor.nombre} canceló el turno confirmado ${prev.codigo}.` });
+    pushAlert({ nivel: "media", tipo: "Modificación", mensaje: `${actor.nombre} canceló la cita confirmada ${prev.codigo}.` });
   }
 }
 
@@ -267,7 +267,7 @@ export function rescheduleAppointment(
 ): { ok: boolean; error?: string } {
   const db = load();
   const prev = db.appointments.find((a) => a.id === id);
-  if (!prev) return { ok: false, error: "Turno inexistente." };
+  if (!prev) return { ok: false, error: "Cita inexistente." };
   if (isSlotTaken(db, prev.doctorId, fecha, hora, id)) return { ok: false, error: "El nuevo horario ya está ocupado." };
   setDB((d) => {
     const a = d.appointments.find((x) => x.id === id)!;
@@ -278,11 +278,11 @@ export function rescheduleAppointment(
     return d;
   });
   logAudit({
-    usuario: actor.nombre, rol: actor.role, accion: "Reprogramó turno", modulo: "Turnos", registro: prev.codigo,
+    usuario: actor.nombre, rol: actor.role, accion: "Reprogramó cita", modulo: "Turnos", registro: prev.codigo,
     anterior: `${prev.fecha} ${prev.hora}`, nuevo: `${fecha} ${hora}`,
   });
-  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Turno reprogramado", mensaje: `Tu turno ${prev.codigo} pasó al ${fecha} a las ${hora}.` });
-  pushAlert({ nivel: "baja", tipo: "Modificación", mensaje: `${actor.nombre} reprogramó el turno ${prev.codigo}.` });
+  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita reprogramada", mensaje: `Tu cita ${prev.codigo} pasó al ${fecha} a las ${hora}.` });
+  pushAlert({ nivel: "baja", tipo: "Modificación", mensaje: `${actor.nombre} reprogramó la cita ${prev.codigo}.` });
   return { ok: true };
 }
 
@@ -308,7 +308,7 @@ export function updatePayment(
     usuario: actor.nombre, rol: actor.role, accion: "Modificó pago", modulo: "Pagos", registro: prev.codigo,
     anterior: `${prev.estadoPago} / ${prev.metodoPago}`, nuevo: `${estadoPago} / ${metodoPago}`,
   });
-  pushAlert({ nivel: "media", tipo: "Pago", mensaje: `Se modificó el estado de pago del turno ${prev.codigo}.` });
+  pushAlert({ nivel: "media", tipo: "Pago", mensaje: `Se modificó el estado de pago de la cita ${prev.codigo}.` });
 }
 
 /* ---------------- Usuarios / personal ---------------- */

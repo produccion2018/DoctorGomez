@@ -51,7 +51,7 @@ const HITOS = [
   { t: "Los primeros consultorios", d: "Nace la idea de atender con tiempo, escucha y un seguimiento que no se corta." },
   { t: "Unidad cardiológica", d: "Se suman la ecocardiografía doppler, el Holter y el MAPA." },
   { t: "Cuidado del riñón", d: "Programas de nefroprotección coordinados con cardiología y medicina interna." },
-  { t: "Clínica digital", d: "Turnos online, historia clínica digital y portal del paciente en el celular." },
+  { t: "Clínica digital", d: "Citas en línea, historia clínica digital y portal del paciente en el celular." },
 ];
 
 function Nosotros() {
@@ -83,7 +83,7 @@ function Nosotros() {
           </p>
 
           <div className="mt-9 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="btn-glow rounded-full px-7"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+            <Button asChild size="lg" className="btn-glow rounded-full px-7"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
             <Link to="/especialistas" className="inline-flex items-center gap-2 px-3 text-sm font-semibold text-primary transition-all hover:gap-3">
               Conocer a los especialistas <ArrowRight className="size-4" />
             </Link>
@@ -266,7 +266,7 @@ function Nosotros() {
                 </li>
               ))}
             </ol>
-            <Button asChild size="lg" className="btn-glow mt-9 w-full rounded-full"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+            <Button asChild size="lg" className="btn-glow mt-9 w-full rounded-full"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
           </div>
         </aside>
       </section>

@@ -120,7 +120,7 @@ export function AuthorizeDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Esta operación requiere autorización de un director médico</AlertDialogTitle>
           <AlertDialogDescription>
-            Operación solicitada: <strong>{operacion}</strong>. Seleccioná el director que autoriza. La autorización queda registrada en auditoría.
+            Operación solicitada: <strong>{operacion}</strong>. Selecciona el director que autoriza. La autorización queda registrada en auditoría.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid gap-2">
@@ -139,6 +139,6 @@ export function AuthorizeDialog({
   );
 }
 
-export const money = (n: number) => `$${n.toLocaleString("es-AR")}`;
-export const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" });
-export const fechaHora = (iso: string) => new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+export const money = (n: number) => `$${n.toLocaleString("es-CO")}`;
+export const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+export const fechaHora = (iso: string) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });

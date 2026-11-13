@@ -83,7 +83,7 @@ function Especialistas() {
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button asChild className="btn-glow rounded-full px-6"><Link to="/turnos" search={{ doctor: d.id }}><CalendarPlus className="size-4" /> Solicitar turno</Link></Button>
+                  <Button asChild className="btn-glow rounded-full px-6"><Link to="/turnos" search={{ doctor: d.id }}><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
                   <Button asChild variant="outline" className="rounded-full bg-card/80 px-6"><Link to="/especialistas/$id" params={{ id: d.id }}>Perfil completo <ArrowUpRight className="size-4" /></Link></Button>
                 </div>
               </div>

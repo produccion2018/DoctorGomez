@@ -269,7 +269,7 @@ const AREAS: Area[] = [
   { nombre: "Diagnóstico por imágenes", desc: "Ecografías, doppler y ecocardiogramas", icon: ScanLine },
   { nombre: "Farmacia e insumos", desc: "Stock de medicamentos e insumos médicos", icon: Pill },
   { nombre: "Administración", desc: "Gestión general de la clínica", icon: Building2 },
-  { nombre: "Facturación", desc: "Cobros, obras sociales y comprobantes", icon: Receipt },
+  { nombre: "Facturación", desc: "Cobros, EPS y comprobantes", icon: Receipt },
   { nombre: "Recursos Humanos", desc: "Personal, horarios y legajos", icon: UserCog },
   { nombre: "Sistemas", desc: "Soporte técnico y equipos", icon: Server },
 ];
@@ -335,9 +335,9 @@ const maniana = () => {
   return fechaISO(d);
 };
 const uid = () => Math.random().toString(36).slice(2, 10);
-const dinero = (n: number) => "$ " + n.toLocaleString("es-AR");
+const dinero = (n: number) => "$ " + n.toLocaleString("es-CO");
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("/");
-const fechaHora = (iso: string) => new Date(iso).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" });
+const fechaHora = (iso: string) => new Date(iso).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const SEED_TURNOS: Turno[] = [];
@@ -394,7 +394,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     grupo: "Consultorio",
     items: [
       { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
-      { id: "turnos", label: "Agenda y turnos", icon: CalendarDays, tono: "text-sky-300" },
+      { id: "turnos", label: "Agenda y citas", icon: CalendarDays, tono: "text-sky-300" },
       { id: "triage", label: "Enfermería – Triage", icon: Syringe, tono: "text-emerald-300" },
       { id: "padron", label: "Pacientes", icon: Users, tono: "text-sky-300" },
       { id: "historia", label: "Historia Clínica", icon: FileText, tono: "text-rose-300" },
@@ -427,7 +427,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
         sub: [
           { id: "comprobantes", label: "Comprobantes" },
           { id: "porfacturar", label: "Por facturar" },
-          { id: "obras", label: "Obras sociales" },
+          { id: "obras", label: "EPS" },
         ],
       },
     ],
@@ -457,7 +457,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   padron: ["Pacientes", "Padrón de pacientes: datos, cobertura, antecedentes y accesos rápidos."],
   recetas: ["Receta digital", "Recetas con tu firma digitalizada, código de verificación y envío por WhatsApp."],
   laboratorio: ["Laboratorio", "Pedidos, órdenes firmadas y resultados con valores fuera de rango marcados."],
-  facturacion: ["Facturación", "Comprobantes, cobros por facturar y liquidación de obras sociales."],
+  facturacion: ["Facturación", "Comprobantes, cobros por facturar y liquidación de EPS."],
   analitica: ["Analítica y reportes", "Indicadores de la clínica, clínicos y reportes para descargar."],
   automatizaciones: ["Automatizaciones", "Recordatorios, alertas clínicas y avisos que se preparan solos."],
   historia: ["Historia Clínica", "Historia clínica general: evoluciones, signos vitales, diagnósticos CIE-10 e indicaciones."],
@@ -465,8 +465,8 @@ const TITULOS: Record<Tab, [string, string]> = {
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
-  permisos: ["Permisos", "Definí qué puede ver y hacer cada departamento."],
-  asistente: ["Asistente IA", "Consultas rápidas sobre turnos, finanzas, permisos y actividad."],
+  permisos: ["Permisos", "Define qué puede ver y hacer cada departamento."],
+  asistente: ["Asistente IA", "Consultas rápidas sobre citas, finanzas, permisos y actividad."],
   auditoria: ["Auditoría", "Registro de todas las acciones realizadas en el panel."],
   sitio: ["Sitio web", "Datos de contacto, horario de la clínica y música de espera que se ven en la web."],
 };
@@ -508,7 +508,7 @@ function Panel() {
     // Con backend: la sesión tiene que seguir vigente en el servidor
     void validarSesion().then((v) => {
       if (!v) {
-        toast.error("Tu sesión venció. Volvé a ingresar.");
+        toast.error("Tu sesión venció. Vuelve a ingresar.");
         navigate({ to: "/login" });
         return;
       }
@@ -538,7 +538,7 @@ function Panel() {
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(at_20%_10%,rgba(56,189,248,.18),transparent_50%),linear-gradient(180deg,#0b1430,#0a1024)] p-4">
         <div className="w-full max-w-lg rounded-3xl bg-card p-6 shadow-2xl sm:p-8">
           <img src={logoClinica} alt="HEGO" className="size-12 rounded-2xl" />
-          <h1 className="mt-4 text-2xl font-semibold">Activá la verificación en dos pasos</h1>
+          <h1 className="mt-4 text-2xl font-semibold">Activa la verificación en dos pasos</h1>
           <p className="mt-1 text-sm text-muted-foreground">Por seguridad, los médicos y Dirección general tienen que usar una app de códigos para entrar al panel. Se hace una sola vez.</p>
           <div className="mt-6">
             <Activar2FA onListo={() => { setObliga2fa(false); void refrescarTodo(); if (user.rol === "medico" || user.area === "Dirección general") void sincronizarPersonal(); }} />
@@ -580,8 +580,8 @@ function Panel() {
   const pedidosPacientes = leerDato<Autorizacion[]>(KEY_AUT, []).filter((x) => x.estado === "Pendiente" && x.origen === "Paciente").length;
   const triagesEspera = leerDato<Triage[]>(KEY_TRIAGE, []).filter((t) => !t.evolucionId && diaLocal(t.fecha) === isoDe(new Date())).length;
   const badges: Partial<Record<Tab, number>> = { comunicacion: noLeidos, turnos: pendientes, pacientes: pedidosPacientes, auditoria: eventosHoy, ...(esEnf ? {} : { triage: triagesEspera }) };
-  const fechaLarga = ahora.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
-  const hora = ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const fechaLarga = ahora.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  const hora = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 
   const irTab = (t: Tab) => {
     if (!permitido(t)) return;
@@ -903,14 +903,14 @@ function Panel() {
                 </h1>
                 <p className="mt-1 text-sm text-deep-foreground/75">
                   {esEnf && esAreaMedica(areaUsuario)
-                    ? `Panel médico · ${areaUsuario}. Atendé a tus pacientes desde la Historia Clínica.`
+                    ? `Panel médico · ${areaUsuario}. Atiende a tus pacientes desde la Historia Clínica.`
                     : esEnf && areaUsuario !== "Enfermería"
                     ? `Panel de ${areaUsuario}: ves los módulos que tu área tiene habilitados.`
                     : esEnf
-                    ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con turno hoy. Registrá sus signos vitales antes de la consulta.`
+                    ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con cita hoy. Registra sus signos vitales antes de la consulta.`
                     : pendientes > 0
-                    ? `Tenés ${pendientes} turno${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
-                    : "Todo al día: no hay turnos pendientes."}
+                    ? `Tienes ${pendientes} cita${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
+                    : "Todo al día: no hay citas pendientes."}
                 </p>
               </div>
             </div>
@@ -922,7 +922,7 @@ function Panel() {
                 <Bot className="size-4" /> Preguntar a la IA
               </Button>}
               {!esEnf && <Button onClick={() => setTab("turnos")} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
-                <Plus className="size-4" /> Nuevo turno
+                <Plus className="size-4" /> Nueva cita
               </Button>}
             </div>
           </div>
@@ -948,7 +948,7 @@ function Panel() {
         </div>
 
         {esEnf && TABS_ENF.length === 0 && (
-          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto={`Pedile a un médico que te habilite módulos en Permisos → ${areaUsuario}.`} /></section>
+          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto={`Pídele a un médico que te habilite módulos en Permisos → ${areaUsuario}.`} /></section>
         )}
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
@@ -993,7 +993,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
   const items: Notif[] = [
     ...turnos
       .filter((t) => t.estado === "Pendiente" && (t.origen === "web" || t.origen === "portal") && t.fecha >= hoy())
-      .map((t) => ({ id: `turno-${t.id}`, titulo: `Nuevo turno ${t.origen === "portal" ? "desde el portal" : "desde la web"}`, texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora} · ${nombreCorto(t.doctor)}`, icon: CalendarCheck, tono: "azul" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${t.hora}` })),
+      .map((t) => ({ id: `turno-${t.id}`, titulo: `Nueva cita ${t.origen === "portal" ? "desde el portal" : "desde la web"}`, texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora} · ${nombreCorto(t.doctor)}`, icon: CalendarCheck, tono: "azul" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${t.hora}` })),
     ...auts
       .filter((a) => a.estado === "Pendiente" && a.origen === "Paciente")
       .map((a) => ({ id: `aut-${a.id}`, titulo: "Pedido de autorización", texto: `${a.paciente} · ${a.titulo}`, icon: ShieldCheck, tono: "violeta" as Tono, tab: "pacientes" as Tab, fecha: a.fecha })),
@@ -1441,9 +1441,9 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={CalendarCheck} titulo="Próximos turnos" sub="Pendientes y confirmados" delay={0.25} className="xl:col-span-3"
+        <Seccion icon={CalendarCheck} titulo="Próximas citas" sub="Pendientes y confirmados" delay={0.25} className="xl:col-span-3"
           acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("turnos")}>Ver agenda <ArrowUpRight className="size-4" /></Button>}>
-          {proximos.length === 0 && <Vacio icon={CalendarDays} titulo="Agenda libre" texto="Todavía no hay turnos. Los que se reserven desde la web o se creen acá van a aparecer en esta lista." accion={<Button onClick={() => irA("turnos")} className="rounded-xl"><Plus className="size-4" /> Crear turno</Button>} />}
+          {proximos.length === 0 && <Vacio icon={CalendarDays} titulo="Agenda libre" texto="Todavía no hay citas. Las que se reserven desde la web o se creen aquí van a aparecer en esta lista." accion={<Button onClick={() => irA("turnos")} className="rounded-xl"><Plus className="size-4" /> Crear cita</Button>} />}
           <div className="space-y-2">
             {proximos.map((t) => (
               <div key={t.id} className="flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-colors hover:border-border hover:bg-secondary/40">
@@ -1463,7 +1463,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
         </Seccion>
 
         <div className="space-y-6 xl:col-span-2">
-          <Seccion icon={Activity} titulo="Estado de la agenda" sub={`${turnos.length} turnos en total`} delay={0.3}>
+          <Seccion icon={Activity} titulo="Estado de la agenda" sub={`${turnos.length} citas en total`} delay={0.3}>
             <div className="mb-5 flex items-center gap-5">
               <div
                 className="relative size-24 shrink-0 rounded-full"
@@ -1485,13 +1485,13 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
               >
                 <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full bg-card shadow-inner">
                   <span className="font-display text-2xl font-semibold leading-none">{turnos.length}</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">turnos</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">citas</span>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
                 {turnos.length
                   ? `${Math.round((conteo.find((c) => c.e === "Confirmado")!.n / totalT) * 100)}% de la agenda está confirmada.`
-                  : "Cuando haya turnos vas a ver acá cómo se reparten por estado."}
+                  : "Cuando haya citas vas a ver aquí cómo se reparten por estado."}
               </p>
             </div>
             <div className="space-y-3">
@@ -1511,7 +1511,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
 
           <Seccion icon={ClipboardList} titulo="Actividad reciente" delay={0.35}
             acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("auditoria")}>Ver todo</Button>}>
-            {audit.length === 0 && <Vacio icon={ClipboardList} titulo="Sin actividad" texto="Acá vas a ver cada acción del panel." />}
+            {audit.length === 0 && <Vacio icon={ClipboardList} titulo="Sin actividad" texto="Aquí vas a ver cada acción del panel." />}
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border">
               {audit.slice(0, 5).map((e) => {
                 const { icon: I, clase } = iconoEvento(e.accion);
@@ -1588,13 +1588,13 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
 
   const cambiar = (t: Turno, estado: Estado) => {
     setTurnos((p) => p.map((x) => (x.id === t.id ? { ...x, estado } : x)));
-    log("Turno actualizado", `${t.paciente}: ${t.estado} → ${estado}`);
+    log("Cita actualizada", `${t.paciente}: ${t.estado} → ${estado}`);
     toast.success(`${t.paciente}: ${estado.toLowerCase()}.`);
   };
 
   const asignar = (doctor: string, hora: string) => {
     if (!rapido.paciente.trim()) {
-      toast.error("Escribí el nombre del paciente.");
+      toast.error("Escribe el nombre del paciente.");
       return;
     }
     const nuevo: Turno = {
@@ -1609,8 +1609,8 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
       ...(rapido.telefono.trim() ? { telefono: rapido.telefono.trim() } : {}),
     };
     setTurnos((p) => [...p, nuevo]);
-    log("Turno creado", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora} · ${doctor}`);
-    toast.success("Turno asignado.");
+    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora} · ${doctor}`);
+    toast.success("Cita asignada.");
     setAsignando(null);
     setRapido({ paciente: "", telefono: "", motivo: "Consulta" });
   };
@@ -1636,12 +1636,12 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
         )}
         {t.estado === "Atendido" && <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700"><Check className="size-3" /> Atendido</span>}
         {t.telefono && (
-          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos del Centro HEGO por tu turno del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
+          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos del Centro HEGO por tu cita del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
             <Send className="size-3.5" />
           </a>
         )}
         {t.estado !== "Atendido" && (
-          <button onClick={() => cambiar(t, "Cancelado")} aria-label="Cancelar turno" className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100">
+          <button onClick={() => cambiar(t, "Cancelado")} aria-label="Cancelar cita" className="rounded-lg p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100">
             <Ban className="size-3.5" />
           </button>
         )}
@@ -1658,7 +1658,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
             <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarDays className="size-5" /></span>
             <div>
               <h3 className="text-lg font-semibold tracking-tight">Agenda del día</h3>
-              <p className="text-sm capitalize text-muted-foreground">{new Date(dia + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}{esHoy ? " · hoy" : ""}</p>
+              <p className="text-sm capitalize text-muted-foreground">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}{esHoy ? " · hoy" : ""}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1666,7 +1666,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
             {!esHoy && <Button variant="outline" className="rounded-xl" onClick={() => setDia(hoy())}>Hoy</Button>}
             <input type="date" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} className="h-9 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" />
             <Button variant="outline" size="icon" className="rounded-xl" onClick={() => mover(1)} aria-label="Día siguiente"><ChevronDown className="size-4 -rotate-90" /></Button>
-            <Button onClick={onCargaManual} className="rounded-xl"><Plus className="size-4" /> Cargar turno</Button>
+            <Button onClick={onCargaManual} className="rounded-xl"><Plus className="size-4" /> Cargar cita</Button>
           </div>
         </div>
 
@@ -1677,7 +1677,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
             const on = d === dia;
             return (
               <button key={d} onClick={() => { setDia(d); setAsignando(null); }} className={`flex flex-col items-center rounded-xl py-2 transition-all ${on ? "pn-acc-tile text-white" : "hover:bg-secondary"}`}>
-                <span className={`text-[10px] font-semibold uppercase ${on ? "text-white/80" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                <span className={`text-[10px] font-semibold uppercase ${on ? "text-white/80" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
                 <span className="font-display text-lg font-semibold leading-tight">{f.getDate()}</span>
                 <span className={`mt-0.5 h-4 min-w-4 rounded-full px-1 text-[10px] font-bold leading-4 ${n ? (on ? "bg-white/25" : "bg-[rgba(var(--acc),.15)] text-[rgb(var(--acc))]") : "opacity-0"}`}>{n}</span>
               </button>
@@ -1828,7 +1828,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
   const agregar = (e: FormEvent) => {
     e.preventDefault();
     if (!f.hora) {
-      toast.error("Elegí un horario.");
+      toast.error("Elige un horario.");
       return;
     }
     if (turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === f.hora && t.estado !== "Cancelado")) {
@@ -1847,19 +1847,19 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
       ...(f.telefono.trim() ? { telefono: f.telefono.trim() } : {}),
     };
     setTurnos((p) => [...p, nuevo]);
-    log("Turno creado", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${nuevo.hora} · ${nuevo.doctor}`);
-    toast.success("Turno creado.");
+    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${nuevo.hora} · ${nuevo.doctor}`);
+    toast.success("Cita creada.");
     setF({ ...f, hora: "", paciente: "", telefono: "", motivo: "" });
   };
 
   const cambiarEstado = (t: Turno, estado: Estado) => {
     setTurnos((p) => p.map((x) => (x.id === t.id ? { ...x, estado } : x)));
-    log("Turno actualizado", `${t.paciente}: ${t.estado} → ${estado}`);
+    log("Cita actualizada", `${t.paciente}: ${t.estado} → ${estado}`);
   };
 
   const borrar = (t: Turno) => {
     setTurnos((p) => p.filter((x) => x.id !== t.id));
-    log("Turno eliminado", `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora}`);
+    log("Cita eliminada", `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora}`);
   };
 
   const filtros: ("Todos" | Estado)[] = ["Todos", ...ESTADOS];
@@ -1873,7 +1873,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
         <button onClick={() => setManual(true)} className="pn-card flex w-full items-center gap-4 p-5 text-left transition-transform hover:-translate-y-0.5">
           <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><Plus className="size-5" /></span>
           <span className="flex-1">
-            <span className="block font-semibold">Cargar un turno manualmente</span>
+            <span className="block font-semibold">Cargar una cita manualmente</span>
             <span className="text-sm text-muted-foreground">Para pacientes que llaman por teléfono o se acercan a la clínica.</span>
           </span>
           <ChevronDown className="size-5 text-muted-foreground" />
@@ -1887,8 +1887,8 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
             <div className="flex items-center gap-3">
               <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarCheck className="size-5" /></span>
               <div>
-                <h3 className="text-lg font-semibold tracking-tight">Nuevo turno</h3>
-                <p className="text-xs text-muted-foreground">Elegí profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
+                <h3 className="text-lg font-semibold tracking-tight">Nueva cita</h3>
+                <p className="text-xs text-muted-foreground">Elige profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
               </div>
               <button type="button" onClick={() => setManual(false)} className="ml-auto rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary">Cerrar</button>
             </div>
@@ -1930,7 +1930,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
                   return (
                     <button key={d} type="button" onClick={() => setF({ ...f, fecha: d, hora: "" })}
                       className={`relative flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 transition-all duration-300 ${on ? "pn-acc-tile border-transparent text-white" : abre ? "border-border bg-card hover:border-[rgba(var(--acc),.45)]" : "border-dashed border-border bg-secondary/40 text-muted-foreground/60"}`}>
-                      <span className="text-[10px] font-semibold uppercase opacity-80">{d === hoy() ? "Hoy" : fecha.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", "")}</span>
+                      <span className="text-[10px] font-semibold uppercase opacity-80">{d === hoy() ? "Hoy" : fecha.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
                       <span className="font-display text-xl font-semibold leading-tight">{fecha.getDate()}</span>
                       <span className={`mt-0.5 size-1.5 rounded-full ${abre ? (on ? "bg-white" : "bg-emerald-500") : "bg-slate-300"}`} />
                     </button>
@@ -1948,7 +1948,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               {otraHora ? (
                 <input type="time" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp + " sm:w-48"} />
               ) : !atiende ? (
-                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elegí otro día o usá "Otro horario".</p>
+                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elige otro día o usa "Otro horario".</p>
               ) : (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
                   {slots.map(({ h, ocupado }) => (
@@ -1991,7 +1991,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
             <div className="pn-orb pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-white/10 blur-3xl" />
             <Electro latidos={4} grilla={false} color="#7dd3fc" className="pointer-events-none absolute inset-x-0 bottom-24 h-10 w-full" />
             <div className="relative space-y-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Resumen del turno</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">Resumen de la cita</p>
               <div className="flex items-center gap-3">
                 {fotoDe(adminSel.id) && <img src={fotoDe(adminSel.id)!} alt="" className="size-12 rounded-xl object-cover object-top ring-2 ring-white/25" />}
                 <div className="min-w-0">
@@ -2000,15 +2000,15 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
                 </div>
               </div>
               <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
-                <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</span></p>
-                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elegí un horario</span>}</p>
+                <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span></p>
+                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elige un horario</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
               </div>
               {atiende && !otraHora && <p className="text-xs text-white/60">{slots.filter((x) => !x.ocupado).length} horarios libres este día</p>}
             </div>
             <Button type="submit" className="relative h-12 w-full rounded-xl !bg-white text-[var(--deep)] shadow-lg hover:!bg-white/90">
-              <Plus className="size-4" /> Crear turno
+              <Plus className="size-4" /> Crear cita
             </Button>
           </aside>
         </form>
@@ -2016,7 +2016,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
       )}
 
       <div id="lista-turnos" className="scroll-mt-24" />
-      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : "Todos los turnos"} sub={`${lista.length} turno${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
+      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : "Todas las citas"} sub={`${lista.length} cita${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2054,9 +2054,9 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               {lista.length === 0 && (
                 <tr><td colSpan={5}>
                   {turnos.length === 0 ? (
-                    <Vacio icon={CalendarDays} titulo="Sin turnos todavía" texto="Creá el primero arriba o esperá las reservas que lleguen desde la web." accion={<Button variant="outline" className="rounded-xl" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); window.setTimeout(() => document.getElementById("nt-paciente")?.focus(), 400); }}><Plus className="size-4" /> Crear el primer turno</Button>} />
+                    <Vacio icon={CalendarDays} titulo="Sin citas todavía" texto="Crea el primero arriba o espera las reservas que lleguen desde la web." accion={<Button variant="outline" className="rounded-xl" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); window.setTimeout(() => document.getElementById("nt-paciente")?.focus(), 400); }}><Plus className="size-4" /> Crear el primera cita</Button>} />
                   ) : (
-                    <Vacio icon={Search} titulo="Sin resultados" texto="No hay turnos con ese filtro o búsqueda." />
+                    <Vacio icon={Search} titulo="Sin resultados" texto="No hay citas con ese filtro o búsqueda." />
                   )}
                 </td></tr>
               )}
@@ -2088,7 +2088,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
                     </select>
                   </td>
                   <td className="py-3 text-right">
-                    <button onClick={() => borrar(t)} aria-label="Eliminar turno" className="rounded-lg p-2 text-muted-foreground opacity-60 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100">
+                    <button onClick={() => borrar(t)} aria-label="Eliminar cita" className="rounded-lg p-2 text-muted-foreground opacity-60 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100">
                       <Trash2 className="size-4" />
                     </button>
                   </td>
@@ -2145,7 +2145,7 @@ function MonitorFinanciero({ movs }: { movs: Mov[] }) {
     const iso = fechaISO(d);
     const delDia = movs.filter((m) => m.fecha === iso);
     return {
-      label: d.toLocaleDateString("es-AR", { weekday: "short" }).replace(".", ""),
+      label: d.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", ""),
       ing: delDia.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0),
       egr: delDia.filter((m) => m.tipo === "Egreso").reduce((a, m) => a + m.monto, 0),
     };
@@ -2282,7 +2282,7 @@ function FinanzasResumen({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatc
     e.preventDefault();
     const monto = Number(f.monto);
     if (!monto || monto <= 0) {
-      toast.error("Ingresá un monto válido.");
+      toast.error("Ingresa un monto válido.");
       return;
     }
     const nuevo: Mov = { id: uid(), fecha: f.fecha, concepto: f.concepto.trim(), tipo: f.tipo, monto };
@@ -2382,7 +2382,7 @@ function FinanzasResumen({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatc
                 );
               })}
             </div>
-            <Campo label="Concepto"><input required placeholder="O escribí uno nuevo" value={f.concepto} onChange={(e) => setF({ ...f, concepto: e.target.value })} className={inp} /></Campo>
+            <Campo label="Concepto"><input required placeholder="O escribe uno nuevo" value={f.concepto} onChange={(e) => setF({ ...f, concepto: e.target.value })} className={inp} /></Campo>
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Fecha"><input type="date" required value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} className={inp} /></Campo>
               <Campo label="Monto"><input required type="number" min="1" placeholder="$ 0" value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
@@ -2504,9 +2504,9 @@ function imprimirRecibo(c: Cobro) {
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
   <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700}.m{color:#64748b;font-size:13px}</style></head><body>
   <h1>HEGO · Centro de especialidades médicas</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
-  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>Obra social:</b> ${c.obraSocial}` : ""}</p>
+  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>EPS:</b> ${c.obraSocial}` : ""}</p>
   <table><thead><tr><th>Fecha</th><th>Medio</th><th>Cobró</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
-  <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Arancel ${dinero(c.arancel)} · Saldo ${dinero(saldoDe(c))}</p>
+  <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Valor ${dinero(c.valor)} · Saldo ${dinero(saldoDe(c))}</p>
   <script>window.print()</script></body></html>`);
   w.document.close();
 }
@@ -2514,7 +2514,7 @@ function imprimirRecibo(c: Cobro) {
 function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser; log: LogFn }) {
   const [cobros, setCobros] = useDato<Cobro[]>(KEY_COBROS, []);
   const quienes = useQuienCobra();
-  const vacio = { paciente: "", dni: "", concepto: SERVICIOS[0]!.nombre, profesional: ADMINS[0]!.nombre, arancel: String(SERVICIOS[0]!.precio), pagado: String(SERVICIOS[0]!.precio), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "" };
+  const vacio = { paciente: "", dni: "", concepto: SERVICIOS[0]!.nombre, profesional: ADMINS[0]!.nombre, valor: String(SERVICIOS[0]!.precio), pagado: String(SERVICIOS[0]!.precio), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "" };
   const [f, setF] = useState(vacio);
   const [filtro, setFiltro] = useState<"Todos" | EstadoCobro>("Todos");
   const [q, setQ] = useState("");
@@ -2544,25 +2544,25 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
 
   const elegirServicio = (nombre: string) => {
     const s = SERVICIOS.find((x) => x.nombre === nombre);
-    setF((p) => ({ ...p, concepto: nombre, ...(s ? { arancel: String(s.precio), pagado: String(s.precio), profesional: nombrePanelDe(s.doctorId) } : {}) }));
+    setF((p) => ({ ...p, concepto: nombre, ...(s ? { valor: String(s.precio), pagado: String(s.precio), profesional: nombrePanelDe(s.doctorId) } : {}) }));
   };
 
   const cobrarTurno = (t: Turno) => {
     const s = SERVICIOS.find((x) => t.motivo.startsWith(x.especialidad)) ?? SERVICIOS[0]!;
-    setF({ ...vacio, paciente: t.paciente, concepto: s.nombre, profesional: t.doctor, arancel: String(s.precio), pagado: String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? "" });
+    setF({ ...vacio, paciente: t.paciente, concepto: s.nombre, profesional: t.doctor, valor: String(s.precio), pagado: String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? "" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const registrar = (e: FormEvent) => {
     e.preventDefault();
-    const arancel = Number(f.arancel);
+    const valor = Number(f.valor);
     const pagado = Number(f.pagado || 0);
-    if (!arancel || arancel <= 0) {
-      toast.error("Ingresá el arancel.");
+    if (!valor || valor <= 0) {
+      toast.error("Ingresa el valor.");
       return;
     }
-    if (pagado < 0 || pagado > arancel) {
-      toast.error("El monto pagado no puede superar el arancel.");
+    if (pagado < 0 || pagado > valor) {
+      toast.error("El monto pagado no puede superar el valor.");
       return;
     }
     const ahora = new Date().toISOString();
@@ -2572,24 +2572,24 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
       paciente: f.paciente.trim(),
       concepto: f.concepto,
       profesional: f.profesional,
-      arancel,
+      valor,
       pagos: pagado > 0 ? [{ fecha: ahora, monto: pagado, metodo: f.metodo, cobradoPor: f.cobradoPor }] : [],
       ...(f.dni.trim() ? { dni: f.dni.replace(/\D/g, "") } : {}),
       ...(f.turnoId ? { turnoId: f.turnoId } : {}),
       ...(f.pacienteId ? { pacienteId: f.pacienteId } : {}),
-      ...(f.metodo === "Obra social" && f.obraSocial.trim() ? { obraSocial: f.obraSocial.trim() } : {}),
+      ...(f.metodo === "EPS" && f.obraSocial.trim() ? { obraSocial: f.obraSocial.trim() } : {}),
       ...(f.nota.trim() ? { nota: f.nota.trim() } : {}),
     };
     setCobros((l) => [nuevo, ...l]);
-    log("Cobro registrado", `${nuevo.paciente} · ${dinero(pagado)} de ${dinero(arancel)} · ${f.metodo} · cobró ${f.cobradoPor}`);
-    toast.success(pagado >= arancel ? "Cobro registrado." : "Cobro registrado con saldo pendiente.");
+    log("Cobro registrado", `${nuevo.paciente} · ${dinero(pagado)} de ${dinero(valor)} · ${f.metodo} · cobró ${f.cobradoPor}`);
+    toast.success(pagado >= valor ? "Cobro registrado." : "Cobro registrado con saldo pendiente.");
     setF({ ...vacio, cobradoPor: f.cobradoPor });
   };
 
   const agregarPago = (c: Cobro) => {
     const monto = Number(abono.monto);
     if (!monto || monto <= 0 || monto > saldoDe(c)) {
-      toast.error(`Ingresá un monto entre $1 y ${dinero(saldoDe(c))}.`);
+      toast.error(`Ingresa un monto entre $1 y ${dinero(saldoDe(c))}.`);
       return;
     }
     setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, pagos: [...x.pagos, { fecha: new Date().toISOString(), monto, metodo: abono.metodo, cobradoPor: abono.cobradoPor }] } : x)));
@@ -2601,7 +2601,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
 
   const anular = (c: Cobro) => {
     if (motivo.trim().length < 4) {
-      toast.error("Escribí el motivo de la anulación.");
+      toast.error("Escribe el motivo de la anulación.");
       return;
     }
     setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, anulado: { por: user.nombre, motivo: motivo.trim(), fecha: new Date().toISOString() } } : x)));
@@ -2623,7 +2623,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
       <div className="grid gap-6 xl:grid-cols-5">
         <Seccion icon={Plus} titulo="Registrar cobro" sub="Queda a nombre de quien cobró" className="xl:col-span-2" delay={0.1}>
           <form onSubmit={registrar} className="space-y-4">
-            {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro del turno atendido de {f.paciente}</p>}
+            {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro de la cita atendida de {f.paciente}</p>}
             <div className="grid grid-cols-[1.5fr_1fr] gap-3">
               <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
               <Campo label="Cédula"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
@@ -2639,7 +2639,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
               <select value={f.profesional} onChange={(e) => setF({ ...f, profesional: e.target.value })} className={inp}>{ADMINS.map((a) => <option key={a.id}>{a.nombre}</option>)}</select>
             </Campo>
             <div className="grid grid-cols-2 gap-3">
-              <Campo label="Arancel"><input required type="number" min="1" value={f.arancel} onChange={(e) => setF({ ...f, arancel: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+              <Campo label="Valor"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
               <Campo label="Paga ahora"><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
             </div>
             <div>
@@ -2650,20 +2650,20 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                 ))}
               </div>
             </div>
-            {f.metodo === "Obra social" && <Campo label="Obra social / prepaga"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></Campo>}
+            {f.metodo === "EPS" && <Campo label="EPS / medicina prepagada"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></Campo>}
             <Campo label="Cobró">
               <select value={f.cobradoPor} onChange={(e) => setF({ ...f, cobradoPor: e.target.value })} className={inp}>{quienes.map((n) => <option key={n}>{n}</option>)}</select>
             </Campo>
             <Campo label="Nota (opcional)"><input value={f.nota} onChange={(e) => setF({ ...f, nota: e.target.value })} className={inp} /></Campo>
-            {Number(f.pagado) < Number(f.arancel) && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">Queda un saldo de {dinero(Number(f.arancel) - Number(f.pagado || 0))} a cobrar.</p>}
+            {Number(f.pagado) < Number(f.valor) && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">Queda un saldo de {dinero(Number(f.valor) - Number(f.pagado || 0))} a cobrar.</p>}
             <Button type="submit" className="h-12 w-full rounded-xl !bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"><Check className="size-4" /> Registrar cobro</Button>
           </form>
         </Seccion>
 
         <div className="space-y-6 xl:col-span-3">
-          <Seccion icon={CalendarCheck} titulo="Turnos atendidos sin cobrar" sub="Marcá el turno como Atendido en Turnos y aparece acá" delay={0.15}>
+          <Seccion icon={CalendarCheck} titulo="Citas atendidas sin cobrar" sub="Marca la cita como Atendido en Citas y aparece aquí" delay={0.15}>
             {sinCobrar.length === 0 ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> No hay turnos atendidos pendientes de cobro.</p>
+              <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> No hay citas atendidas pendientes de cobro.</p>
             ) : (
               <div className="space-y-2">
                 {sinCobrar.map((t) => (
@@ -2704,7 +2704,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             );
           })}
         </div>
-        {lista.length === 0 && <Vacio icon={Receipt} titulo="Sin cobros" texto="Los cobros que registres acá quedan con el nombre de quien cobró, para que los doctores puedan controlarlos." />}
+        {lista.length === 0 && <Vacio icon={Receipt} titulo="Sin cobros" texto="Los cobros que registres aquí quedan con el nombre de quien cobró, para que los doctores puedan controlarlos." />}
         <div className="space-y-2">
           {lista.map((c) => {
             const est = estadoCobro(c);
@@ -2721,7 +2721,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                   </div>
                   <div className="text-right">
                     <p className="font-display text-xl font-semibold tabular-nums">{dinero(pagadoDe(c))}</p>
-                    <p className="text-xs text-muted-foreground">de {dinero(c.arancel)}{saldoDe(c) > 0 ? <> · <span className="font-semibold text-amber-700">debe {dinero(saldoDe(c))}</span></> : null}</p>
+                    <p className="text-xs text-muted-foreground">de {dinero(c.valor)}{saldoDe(c) > 0 ? <> · <span className="font-semibold text-amber-700">debe {dinero(saldoDe(c))}</span></> : null}</p>
                   </div>
                 </div>
                 {!c.anulado && (
@@ -2804,7 +2804,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
     e.preventDefault();
     const declarado = Number(ci.declarado);
     if (Number.isNaN(declarado) || ci.declarado === "") {
-      toast.error("Ingresá el efectivo contado.");
+      toast.error("Ingresa el efectivo contado.");
       return;
     }
     const c: CierreCaja = { id: nuevoId(), fecha: dia, persona: ci.persona, esperado, declarado, nota: ci.nota.trim(), registradoPor: user.nombre, creado: new Date().toISOString() };
@@ -2827,7 +2827,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
           <div key={r.n} className="pn-card pn-up pn-lift p-5" style={{ animationDelay: `${i * 0.05}s` }}>
             <div className="flex items-center gap-3">
               <Avatar nombre={r.n} />
-              <div className="min-w-0 flex-1"><p className="truncate font-semibold">{r.n}</p><p className="text-xs text-muted-foreground">{r.ultimo ? `Último cobro ${new Date(r.ultimo).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}` : "Sin cobros este día"}</p></div>
+              <div className="min-w-0 flex-1"><p className="truncate font-semibold">{r.n}</p><p className="text-xs text-muted-foreground">{r.ultimo ? `Último cobro ${new Date(r.ultimo).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}` : "Sin cobros este día"}</p></div>
               {r.cierre ? (
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.cierre.declarado === r.cierre.esperado ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{r.cierre.declarado === r.cierre.esperado ? "Caja OK" : "Diferencia"}</span>
               ) : r.cant > 0 ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">Sin cerrar</span> : null}
@@ -2842,7 +2842,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={Wallet} titulo="Cierre de caja" sub="Compará el efectivo contado con lo registrado" className="xl:col-span-2" delay={0.1}>
+        <Seccion icon={Wallet} titulo="Cierre de caja" sub="Compara el efectivo contado con lo registrado" className="xl:col-span-2" delay={0.1}>
           <form onSubmit={cerrar} className="space-y-4">
             <Campo label="Persona"><select value={ci.persona} onChange={(e) => setCi({ ...ci, persona: e.target.value })} className={inp}>{personas.map((n) => <option key={n}>{n}</option>)}</select></Campo>
             <div className="grid grid-cols-2 gap-3">
@@ -2872,7 +2872,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
             <ol className="space-y-2">
               {[...pagosDia].sort((a, b) => b.fecha.localeCompare(a.fecha)).map((p, i) => (
                 <li key={i} className="flex items-center gap-3 text-sm">
-                  <span className="w-20 shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">{new Date(p.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="w-20 shrink-0 whitespace-nowrap tabular-nums text-muted-foreground">{new Date(p.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
                   <span className="min-w-0 flex-1 truncate">{p.paciente} · <span className="text-muted-foreground">{p.metodo}</span></span>
                   <span className="text-xs text-muted-foreground">{nombreCorto(p.cobradoPor)}</span>
                   <span className="font-semibold tabular-nums">{dinero(p.monto)}</span>
@@ -3040,7 +3040,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
         </div>
       </Seccion>
 
-      <Seccion icon={Lock} titulo="Seguridad" sub={`Cambiá tu contraseña de administrador (${user.nombre}).`} delay={0.25}>
+      <Seccion icon={Lock} titulo="Seguridad" sub={`Cambia tu contraseña de administrador (${user.nombre}).`} delay={0.25}>
         <form onSubmit={guardarClave} className="grid gap-4 sm:grid-cols-3">
           <Campo label="Contraseña actual"><input type="password" required value={actual} onChange={(e) => setActual(e.target.value)} className={inp} /></Campo>
           <Campo label="Nueva contraseña"><input type="password" required placeholder="Mínimo 8 caracteres" value={nueva} onChange={(e) => setNueva(e.target.value)} className={inp} /></Campo>
@@ -3064,8 +3064,8 @@ function generarInsights(turnos: Turno[], movs: Mov[]): string[] {
   const ing = movs.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0);
   const egr = movs.filter((m) => m.tipo === "Egreso").reduce((a, m) => a + m.monto, 0);
   const out: string[] = [];
-  out.push(deHoy.length ? `Hoy hay ${deHoy.length} turno${deHoy.length === 1 ? "" : "s"}; el próximo es a las ${[...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora}.` : "Hoy no hay turnos agendados.");
-  if (pend.length) out.push(`${pend.length} turno${pend.length === 1 ? "" : "s"} sigue${pend.length === 1 ? "" : "n"} pendiente${pend.length === 1 ? "" : "s"}: conviene confirmarlos para evitar ausencias.`);
+  out.push(deHoy.length ? `Hoy hay ${deHoy.length} cita${deHoy.length === 1 ? "" : "s"}; la próxima es a las ${[...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora}.` : "Hoy no hay citas agendadas.");
+  if (pend.length) out.push(`${pend.length} cita${pend.length === 1 ? "" : "s"} sigue${pend.length === 1 ? "" : "n"} pendiente${pend.length === 1 ? "" : "s"}: conviene confirmarlos para evitar ausencias.`);
   if (ing + egr > 0) out.push(`Los egresos representan el ${Math.round((egr / Math.max(1, ing)) * 100)}% de los ingresos; balance de ${dinero(ing - egr)}.`);
   return out;
 }
@@ -3084,14 +3084,14 @@ function listaTurnos(ts: Turno[]) {
 function responder(pregunta: string, ctx: Ctx): string {
   const p = norm(pregunta);
   const tiene = (...ws: string[]) => ws.some((w) => p.includes(w));
-  const sinPermiso = (m: string) => `🔒 El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pedile a un administrador que lo habilite en Permisos.`;
+  const sinPermiso = (m: string) => `🔒 El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pídele a un administrador que lo habilite en Permisos.`;
 
   if (ctx.rol !== ROL_ADMIN && nivelDe(ctx.permisos, ctx.rol, "Asistente IA") === "ninguno") {
     return `🔒 ${ctx.rol} no tiene habilitado el Asistente IA. Un administrador puede activarlo desde Permisos.`;
   }
 
   if (tiene("hola", "ayuda", "que podes", "que sabes", "buen dia", "buenas")) {
-    return "¡Hola! Puedo responderte sobre:\n• Turnos de hoy, de mañana, pendientes o cancelados\n• Turnos de un paciente o de un doctor\n• Ingresos, egresos y balance\n• Permisos de cada departamento\n• Actividad reciente y quién hizo cada cambio\nProbá con: \"¿cuántos turnos hay hoy?\"";
+    return "¡Hola! Puedo responderte sobre:\n• Citas de hoy, de mañana, pendientes o canceladas\n• Citas de un paciente o de un doctor\n• Ingresos, egresos y balance\n• Permisos de cada departamento\n• Actividad reciente y quién hizo cada cambio\nPrueba con: \"¿cuántos citas hay hoy?\"";
   }
 
   // Permisos de un departamento
@@ -3134,43 +3134,43 @@ function responder(pregunta: string, ctx: Ctx): string {
   const paciente = ctx.turnos.find((t) => norm(t.paciente).split(" ").some((w) => w.length > 2 && p.includes(w)));
   if (paciente && !tiene("alberto", "alonso")) {
     const ts = ctx.turnos.filter((t) => t.paciente === paciente.paciente);
-    return `Turnos de ${paciente.paciente}:\n${listaTurnos(ts)}`;
+    return `Citas de ${paciente.paciente}:\n${listaTurnos(ts)}`;
   }
 
   const doctor = ADMINS.find((a) => p.includes(norm(a.id)));
   if (doctor) {
     const ts = ctx.turnos.filter((t) => t.doctor === doctor.nombre && t.estado !== "Cancelado");
-    return ts.length ? `Agenda de ${nombreCorto(doctor.nombre)} (${ts.length}):\n${listaTurnos(ts)}` : `${nombreCorto(doctor.nombre)} no tiene turnos activos.`;
+    return ts.length ? `Agenda de ${nombreCorto(doctor.nombre)} (${ts.length}):\n${listaTurnos(ts)}` : `${nombreCorto(doctor.nombre)} no tiene citas activos.`;
   }
 
   if (tiene("cancel")) {
     const ts = ctx.turnos.filter((t) => t.estado === "Cancelado");
-    return ts.length ? `Turnos cancelados (${ts.length}):\n${listaTurnos(ts)}` : "No hay turnos cancelados. 👍";
+    return ts.length ? `Citas canceladas (${ts.length}):\n${listaTurnos(ts)}` : "No hay citas canceladas. 👍";
   }
   if (tiene("pendiente", "confirmar", "sin confirmar")) {
     const ts = ctx.turnos.filter((t) => t.estado === "Pendiente");
-    return ts.length ? `Hay ${ts.length} turno${ts.length === 1 ? "" : "s"} pendiente${ts.length === 1 ? "" : "s"}:\n${listaTurnos(ts)}` : "No hay turnos pendientes. Todo confirmado ✅";
+    return ts.length ? `Hay ${ts.length} cita${ts.length === 1 ? "" : "s"} pendiente${ts.length === 1 ? "" : "s"}:\n${listaTurnos(ts)}` : "No hay citas pendientes. Todo confirmado ✅";
   }
   if (tiene("manana")) {
     const ts = ctx.turnos.filter((t) => t.fecha === maniana() && t.estado !== "Cancelado");
-    return ts.length ? `Mañana hay ${ts.length} turno${ts.length === 1 ? "" : "s"}:\n${listaTurnos(ts)}` : "Mañana no hay turnos agendados.";
+    return ts.length ? `Mañana hay ${ts.length} cita${ts.length === 1 ? "" : "s"}:\n${listaTurnos(ts)}` : "Mañana no hay citas agendadas.";
   }
   if (tiene("hoy", "turno", "agenda", "proximo", "cuantos")) {
     const ts = ctx.turnos.filter((t) => t.fecha === hoy() && t.estado !== "Cancelado");
-    if (!ts.length) return "Hoy no hay turnos agendados.";
+    if (!ts.length) return "Hoy no hay citas agendadas.";
     const prox = ts.filter((t) => t.hora >= new Date().toTimeString().slice(0, 5)).sort((a, b) => a.hora.localeCompare(b.hora))[0];
-    return `Hoy hay ${ts.length} turno${ts.length === 1 ? "" : "s"}${prox ? ` (el próximo es ${prox.paciente} a las ${prox.hora})` : ""}:\n${listaTurnos(ts)}`;
+    return `Hoy hay ${ts.length} cita${ts.length === 1 ? "" : "s"}${prox ? ` (el próximo es ${prox.paciente} a las ${prox.hora})` : ""}:\n${listaTurnos(ts)}`;
   }
   if (tiene("resumen", "como viene", "como va", "estado", "dia")) {
     return generarInsights(ctx.turnos, puede(ctx, "Finanzas") ? ctx.movs : []).join("\n");
   }
 
-  return "No estoy seguro de haber entendido 🤔. Probá preguntando por turnos de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
+  return "No estoy seguro de haber entendido 🤔. Prueba preguntando por citas de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
 }
 
 const SUGERENCIAS = [
-  "¿Cuántos turnos hay hoy?",
-  "¿Qué turnos están pendientes?",
+  "¿Cuántos citas hay hoy?",
+  "¿Qué citas están pendientes?",
   "¿Cómo está el balance?",
   "Agenda del Dr. Carlos Alonso Gómez Bolaño",
   "Permisos de Recepción",
@@ -3182,7 +3182,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { id: "hola", de: "ia", texto: `¡Hola, ${nombreCorto(user.nombre)}! Soy el asistente de la clínica. Preguntame por turnos, finanzas, permisos o actividad. Si elegís un departamento arriba, respondo solo con lo que ese departamento tiene permitido ver.` },
+    { id: "hola", de: "ia", texto: `¡Hola, ${nombreCorto(user.nombre)}! Soy el asistente de la clínica. Pregúntame por citas, finanzas, permisos o actividad. Si eliges un departamento arriba, respondo solo con lo que ese departamento tiene permitido ver.` },
   ]);
   const fin = useRef<HTMLDivElement>(null);
 
@@ -3246,8 +3246,8 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
           {msgs.length === 1 && !pensando && (
             <div className="grid gap-3 pt-2 sm:grid-cols-2 animate-in fade-in slide-in-from-bottom-3 duration-500">
               {[
-                { icon: CalendarDays, t: "Agenda de hoy", q: "¿Cuántos turnos hay hoy?" },
-                { icon: Clock, t: "Pendientes", q: "¿Qué turnos están pendientes?" },
+                { icon: CalendarDays, t: "Agenda de hoy", q: "¿Cuántos citas hay hoy?" },
+                { icon: Clock, t: "Pendientes", q: "¿Qué citas están pendientes?" },
                 { icon: Wallet, t: "Finanzas", q: "¿Cómo está el balance?" },
                 { icon: KeyRound, t: "Permisos", q: "Permisos de Recepción" },
               ].map((c) => (
@@ -3281,7 +3281,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
             ))}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); enviar(texto); }} className="flex gap-2">
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribí tu consulta..." className={inp} />
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe tu consulta..." className={inp} />
             <Button type="submit" disabled={!texto.trim() || pensando} className="h-11 rounded-xl px-5"><Send className="size-4" /></Button>
           </form>
         </div>
@@ -3393,7 +3393,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
   const agregarProfesional = () => {
     const nombre = nuevo.nombre.trim();
     if (!nombre || !nuevo.especialidad.trim()) {
-      toast.error("Completá el nombre y la especialidad.");
+      toast.error("Completa el nombre y la especialidad.");
       return;
     }
     const id = "p-" + uid();
@@ -3402,11 +3402,11 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
     setNuevo({ nombre: "", especialidad: "" });
     setAgregando(false);
     setSel(id);
-    toast.success("Profesional agregado. Ahora cargá sus días y horarios.");
+    toast.success("Profesional agregado. Ahora carga sus días y horarios.");
   };
   const quitarProfesional = () => {
     if (ADMIN_IDS.includes(sel) || !propia) return;
-    if (!window.confirm(`¿Quitar a ${prof.nombre} de la agenda? Deja de aparecer para pedir turnos.`)) return;
+    if (!window.confirm(`¿Quitar a ${prof.nombre} de la agenda? Deja de aparecer para pedir citas.`)) return;
     setAgendas((p) => {
       const c = { ...p };
       delete c[sel];
@@ -3418,15 +3418,15 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
 
   const guardar = () => {
     if (!propia) {
-      toast.error("No podés modificar estos horarios.");
+      toast.error("No puedes modificar estos horarios.");
       return;
     }
     if (draft.dias.length === 0) {
-      toast.error("Elegí al menos un día de atención.");
+      toast.error("Elige al menos un día de atención.");
       return;
     }
     if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
-      toast.error("Elegí cuánto dura cada turno (entre 5 y 240 minutos).");
+      toast.error("Elige cuánto dura cada cita (entre 5 y 240 minutos).");
       return;
     }
     const malo = draft.dias.find((d) => { const r = rangoDia(draft, d); return r.desde >= r.hasta; });
@@ -3464,7 +3464,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
           const ag = agendaDe(agendas, a.id);
           const on = sel === a.id;
           const f = fotoDe(a.id);
-          const etiqueta = a.id === user.id ? "Tus horarios" : editable(a.id) ? "Podés editar" : "Solo ver";
+          const etiqueta = a.id === user.id ? "Tus horarios" : editable(a.id) ? "Puedes editar" : "Solo ver";
           return (
             <button
               key={a.id}
@@ -3520,7 +3520,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
       <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-6 xl:col-span-3">
-          <Seccion icon={CalendarDays} titulo={propia ? "Tus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar turno»`}
+          <Seccion icon={CalendarDays} titulo={propia ? "Tus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar cita»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
             <p className="mb-2 text-xs font-medium text-muted-foreground">Días y horario de cada día</p>
             <div className="space-y-2">
@@ -3548,7 +3548,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                             <input type="time" aria-label={`${NOMBRES_DIA[d]} pausa hasta`} value={r.pausaHasta} onChange={(e) => setRango(d, { pausaHasta: e.target.value })} className={inp.replace("w-full", "") + " h-9 w-[7.5rem] text-xs sm:w-32"} />
                           </span>
                         )}
-                        <span className="text-xs text-muted-foreground tabular-nums">{draft.duracion >= 5 ? `${horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} turnos` : ""}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">{draft.duracion >= 5 ? `${horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} citas` : ""}</span>
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">No atiende</span>
@@ -3558,7 +3558,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
               })}
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <Campo label="Duración del turno">
+              <Campo label="Duración de la cita">
                 <div className="relative">
                   <input
                     type="number"
@@ -3568,7 +3568,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                     inputMode="numeric"
                     value={draft.duracion || ""}
                     onChange={(e) => set({ duracion: Math.min(240, Math.max(0, Math.round(Number(e.target.value) || 0))) })}
-                    placeholder="Elegí"
+                    placeholder="Elige"
                     className={inp + " pr-14 tabular-nums"}
                   />
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">min</span>
@@ -3583,7 +3583,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                   {m} min
                 </button>
               ))}
-              <span className="text-xs text-muted-foreground">o escribí el tiempo que quieras (5 a 240 min)</span>
+              <span className="text-xs text-muted-foreground">o escribe el tiempo que quieras (5 a 240 min)</span>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">La duración, los días, los horarios y las pausas los define cada profesional. Si un día no hay pausa, no se toca nada.</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -3591,7 +3591,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
             </div>
           </Seccion>
 
-          <Seccion icon={Ban} titulo="Vacaciones, ausencias y días sin atención" sub="Vacaciones, un trámite, un congreso: esos días no se pueden reservar turnos" delay={0.05}>
+          <Seccion icon={Ban} titulo="Vacaciones, ausencias y días sin atención" sub="Vacaciones, un trámite, un congreso: esos días no se pueden reservar citas" delay={0.05}>
             <form onSubmit={agregarBloqueo} className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
               <Campo label="Desde"><input type="date" required value={bloq.desde} onChange={(e) => setBloq({ ...bloq, desde: e.target.value })} className={inp} /></Campo>
               <Campo label="Hasta"><input type="date" required value={bloq.hasta} onChange={(e) => setBloq({ ...bloq, hasta: e.target.value })} className={inp} /></Campo>
@@ -3631,12 +3631,12 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                 <div className="flex flex-wrap gap-1.5">
                   {proximos.length === 0 && <span className="text-sm text-muted-foreground">Sin días disponibles.</span>}
                   {proximos.map((f) => (
-                    <span key={f} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium capitalize">{new Date(f + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short", day: "numeric" })}</span>
+                    <span key={f} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium capitalize">{new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric" })}</span>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} turnos el próximo día` : "Elegí la duración del turno"}</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} citas el próximo día` : "Elige la duración de la cita"}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
                 </div>
@@ -3672,7 +3672,7 @@ function waPaciente(tel: string, texto: string) {
 
 function mensajeInvitacion(p: PacientePortal) {
   const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
-  return `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO. Te habilitamos el Portal del paciente para que saques tus turnos y gestiones tus autorizaciones.\n\nIngresá en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+  return `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO. Te habilitamos el Portal del paciente para que saques tus citas y gestiones tus autorizaciones.\n\nIngresa en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
 }
 
 const ESTADO_ACCESO: Record<EstadoAcceso, string> = {
@@ -3698,7 +3698,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
     e.preventDefault();
     const p = pacientes.find((x) => x.id === f.pacienteId);
     if (!p) {
-      toast.error("Elegí un paciente.");
+      toast.error("Elige un paciente.");
       return;
     }
     const valores: ValoresEstudio = {};
@@ -3732,7 +3732,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
           <div className="grid gap-3 sm:grid-cols-3">
             <Campo label="Paciente">
               <select required value={f.pacienteId} onChange={(e) => setF({ ...f, pacienteId: e.target.value })} className={inp}>
-                <option value="">Elegí un paciente</option>
+                <option value="">Elige un paciente</option>
                 {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </Campo>
@@ -3782,7 +3782,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
                 <Avatar nombre={p!.nombre} size="size-9" />
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{p!.nombre}</p><p className="text-xs text-muted-foreground">{fechaHora(c.fecha)} · {k.nivel}</p></div>
                 <span className="font-display text-lg font-semibold tabular-nums text-rose-700">{c.sistolica}/{c.diastolica}</span>
-                <a href={waPaciente(p!.telefono, `Hola ${p!.nombre.split(" ")[0]}, vimos en tu portal una presión de ${c.sistolica}/${c.diastolica}. ¿Cómo te sentís?`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"><Send className="size-4" /></a>
+                <a href={waPaciente(p!.telefono, `Hola ${p!.nombre.split(" ")[0]}, vimos en tu portal una presión de ${c.sistolica}/${c.diastolica}. ¿Cómo te sientes?`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"><Send className="size-4" /></a>
               </div>
             ))}
           </div>
@@ -3819,7 +3819,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     e.preventDefault();
     const dni = f.dni.replace(/\D/g, "");
     if (dni.length < 5) {
-      toast.error("Ingresá una cédula válida.");
+      toast.error("Ingresa una cédula válida.");
       return;
     }
     if (pacientes.some((p) => p.dni === dni)) {
@@ -3862,7 +3862,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     e.preventDefault();
     const p = pacientes.find((x) => x.id === fa.pacienteId);
     if (!p) {
-      toast.error("Elegí un paciente.");
+      toast.error("Elige un paciente.");
       return;
     }
     const nueva: Autorizacion = {
@@ -3907,7 +3907,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
         <div className="relative flex flex-wrap items-center justify-between gap-5">
           <div className="max-w-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Cómo funciona</p>
-            <p className="mt-1 text-lg font-semibold">1. Creás el acceso · 2. Le enviás la invitación por WhatsApp o email · 3. El paciente entra con su cédula y el código y saca sus turnos.</p>
+            <p className="mt-1 text-lg font-semibold">1. Creas el acceso · 2. Le envías la invitación por WhatsApp o email · 3. El paciente entra con su cédula y el código y saca sus citas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-[#a21caf] hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
@@ -3917,7 +3917,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={Send} titulo="Enviar acceso al portal" sub="El paciente recibe un código para entrar y sacar sus turnos" className="xl:col-span-2" delay={0.1}>
+        <Seccion icon={Send} titulo="Enviar acceso al portal" sub="El paciente recibe un código para entrar y sacar sus citas" className="xl:col-span-2" delay={0.1}>
           {recien ? (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
               <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
@@ -3952,7 +3952,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
 
         <Seccion icon={Users} titulo="Pacientes del portal" sub={`${pacientes.length} con acceso`} className="xl:col-span-3" delay={0.15}
           acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-52"} /></div>}>
-          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitaste pacientes" texto="Creá un acceso y mandale el código por WhatsApp. Con eso entra al portal y saca sus turnos." />}
+          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitaste pacientes" texto="Crea un acceso y mándale el código por WhatsApp. Con eso entra al portal y saca sus citas." />}
           <div className="space-y-2">
             {lista.map((p) => {
               const n = turnos.filter((t) => t.pacienteId === p.id).length;
@@ -3962,7 +3962,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                     <Avatar nombre={p.nombre} />
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-medium">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado}</span></p>
-                      <p className="text-xs text-muted-foreground">C.C. {p.dni} · {p.telefono}{n ? ` · ${n} turno${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
+                      <p className="text-xs text-muted-foreground">C.C. {p.dni} · {p.telefono}{n ? ` · ${n} cita${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
                       {(p.ficha?.antecedentes?.length || p.ficha?.alergias || p.ficha?.obraSocial) ? (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">{p.ficha.obraSocial}</span>}
@@ -3997,7 +3997,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
           <form onSubmit={pedirAut} className="space-y-4">
             <Campo label="Paciente">
               <select required value={fa.pacienteId} onChange={(e) => setFa({ ...fa, pacienteId: e.target.value })} className={inp}>
-                <option value="">Elegí un paciente</option>
+                <option value="">Elige un paciente</option>
                 {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre} · C.C. {p.dni}</option>)}
               </select>
             </Campo>
@@ -4020,7 +4020,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
               ))}
             </div>
           }>
-          {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pidas o que pidan los pacientes aparecen acá." />}
+          {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pidas o que pidan los pacientes aparecen aquí." />}
           <div className="space-y-3">
             {autsLista.map((a) => (
               <div key={a.id} className="rounded-2xl border border-border/70 p-4">
@@ -4034,7 +4034,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                 {a.detalle && <p className="mt-2 text-sm text-muted-foreground">{a.detalle}</p>}
                 {a.respuesta && <p className="mt-2 rounded-xl bg-secondary/60 px-3 py-2 text-xs"><b>Respuesta:</b> {a.respuesta}</p>}
                 {a.estado === "Pendiente" && a.origen === "Paciente" && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-semibold text-pink-700 ring-1 ring-pink-100"><Bell className="size-3" /> Pedido del paciente desde su portal: respondé acá</p>
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-semibold text-pink-700 ring-1 ring-pink-100"><Bell className="size-3" /> Pedido del paciente desde su portal: responde aquí</p>
                 )}
                 {a.estado === "Pendiente" && a.origen === "Paciente" && (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -4144,7 +4144,7 @@ function edadDe(nac?: string) {
   return e;
 }
 /** Fecha legible: respeta las fechas sin hora (AAAA-MM-DD) para no correrlas un día. */
-const fechaDe = (f: string) => (f.length === 10 ? fechaCorta(f) : new Date(f).toLocaleDateString("es-AR"));
+const fechaDe = (f: string) => (f.length === 10 ? fechaCorta(f) : new Date(f).toLocaleDateString("es-CO"));
 const num = (v: string) => (v.trim() === "" ? undefined : Number(v.replace(",", ".")));
 
 /** IMC = peso (kg) / talla (m)². Clasificación de la OMS. */
@@ -4241,7 +4241,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
             if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
             if (e.key === "Enter" && resultados[idx]) { e.preventDefault(); agregar(resultados[idx]!); }
           }}
-          placeholder="Buscá por código (I10, E11.9) o por descripción (hipertensión, diabetes…)"
+          placeholder="Busca por código (I10, E11.9) o por descripción (hipertensión, diabetes…)"
           className={inp + " pl-10"}
           role="combobox"
           aria-expanded={abierto}
@@ -4329,7 +4329,7 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user
       </div>
 
       {(vista === "todas" || vista === "hoy") && (
-        <Seccion icon={FileText} titulo={vista === "hoy" ? "Consultas de hoy" : "Todas las evoluciones"} sub={`${listaKpi.length} ${listaKpi.length === 1 ? "evolución" : "evoluciones"} · tocá una para abrir la historia`}>
+        <Seccion icon={FileText} titulo={vista === "hoy" ? "Consultas de hoy" : "Todas las evoluciones"} sub={`${listaKpi.length} ${listaKpi.length === 1 ? "evolución" : "evoluciones"} · toca una para abrir la historia`}>
           {listaKpi.length === 0 ? (
             <Vacio icon={FileText} texto={vista === "hoy" ? "Hoy todavía no se registraron consultas." : "Todavía no hay evoluciones registradas."} />
           ) : (
@@ -4387,13 +4387,13 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user
                 </li>
               );
             })}
-            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Sin pacientes. Cargalos en Pacientes.</li>}
+            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Sin pacientes. Cárgalos en Pacientes.</li>}
           </ul>
         </section>
 
         {!sel ? (
           <section className="pn-card pn-up p-6">
-            <Vacio icon={FileText} titulo="Elegí un paciente" texto="Abrí su historia clínica para ver las consultas anteriores, signos vitales, diagnósticos e indicaciones, y registrar una nueva evolución." />
+            <Vacio icon={FileText} titulo="Elige un paciente" texto="Abre su historia clínica para ver las consultas anteriores, signos vitales, diagnósticos e indicaciones, y registrar una nueva evolución." />
           </section>
         ) : (
           <FichaHC
@@ -4441,9 +4441,9 @@ function htmlEvolucion(p: PacienteHC, e: Evolucion) {
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Evolución · ${p.nombre}</title>
 <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:780px;margin:auto;font-size:14px;line-height:1.55}h1{font-size:20px;margin:0}.m{color:#64748b;font-size:12px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#475569;margin:22px 0 6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}.dx b{font-family:ui-monospace,monospace}</style></head><body>
-<h1>HEGO · Centro de especialidades médicas · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-AR")} · ${e.doctor}</p>
+<h1>HEGO · Centro de especialidades médicas · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-CO")} · ${e.doctor}</p>
 <h2>Motivo de consulta</h2><p>${esc(e.motivo || "—")}</p>${vit ? `<h2>Signos vitales</h2><p>${vit}</p>` : ""}
-${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} · ${new Date(e.signosPor.fecha).toLocaleString("es-AR")}</p>` : ""}
+${e.signosPor ? `<p class="m">Signos vitales tomados por ${e.signosPor.nombre} · ${new Date(e.signosPor.fecha).toLocaleString("es-CO")}</p>` : ""}
 <h2>Evolución del cuadro clínico</h2><p>${esc(e.nota || "—")}</p>${e.sintomas ? `<h2>Signos y síntomas</h2><p>${esc(e.sintomas)}</p>` : ""}${e.semiologia ? `<h2>Semiología médica</h2><p>${esc(e.semiologia)}</p>` : ""}
 <h2>Diagnósticos</h2>${dxDe(e).map((d, i) => `<p class="dx">${d.codigo ? `<b>${d.codigo}</b> ` : ""}${d.descripcion}${i === 0 ? " (principal)" : ""}</p>`).join("") || "<p>—</p>"}
 <h2>Conducta médica</h2><p>${esc(e.plan || "—")}</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
@@ -4579,7 +4579,7 @@ function FichaHC({
           }
         >
           {linea.length === 0 ? (
-            <Vacio icon={NotebookPen} titulo="Sin registros" texto="Registrá la primera consulta con Nueva evolución." />
+            <Vacio icon={NotebookPen} titulo="Sin registros" texto="Registra la primera consulta con Nueva evolución." />
           ) : (
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[19px] before:top-2 before:w-px before:bg-border">
               {linea.map((it, i) => {
@@ -4629,8 +4629,8 @@ function FichaHC({
                     <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl pn-acc-tile text-white shadow-md"><Stethoscope className="size-4" /></span>
                     <article className="min-w-0 flex-1 overflow-hidden rounded-2xl border border-border/70 bg-card transition-shadow group-hover:shadow-md">
                       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 bg-secondary/40 px-4 py-2.5">
-                        <p className="text-sm font-semibold">{new Date(e.fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "long", year: "numeric" })}</p>
-                        <span className="text-xs text-muted-foreground">{new Date(e.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {e.doctor}</span>
+                        <p className="text-sm font-semibold">{new Date(e.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}</p>
+                        <span className="text-xs text-muted-foreground">{new Date(e.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {e.doctor}</span>
                         <div className="ml-auto flex items-center gap-1">
                           <button onClick={() => imprimirHtml(htmlEvolucion(p, e))} className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground">Imprimir</button>
                           {e.doctor === user.nombre && (
@@ -4793,9 +4793,9 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
-    if (!f.motivo.trim()) { toast.error("Completá el motivo de consulta"); return; }
-    if (!f.nota.trim()) { toast.error("Escribí la evolución del cuadro clínico"); return; }
-    if (dx.length === 0) { toast.error("Agregá al menos un diagnóstico"); return; }
+    if (!f.motivo.trim()) { toast.error("Completa el motivo de consulta"); return; }
+    if (!f.nota.trim()) { toast.error("Escribe la evolución del cuadro clínico"); return; }
+    if (dx.length === 0) { toast.error("Agrega al menos un diagnóstico"); return; }
     const id = nuevoId();
     const ahora = new Date().toISOString();
     const ev = JSON.parse(
@@ -4830,7 +4830,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
           <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white"><NotebookPen className="size-5" /></span>
           <div>
             <h3 className="text-[15px] font-semibold">Nueva evolución</h3>
-            <p className="text-xs text-muted-foreground">{p.nombre} · {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {user.nombre}</p>
+            <p className="text-xs text-muted-foreground">{p.nombre} · {new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {user.nombre}</p>
           </div>
         </div>
         {p.ficha?.alergias && <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {p.ficha.alergias}</span>}
@@ -4854,7 +4854,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
               <Syringe className="mt-0.5 size-5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold">Enfermería todavía no registró los signos vitales</p>
-                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen acá automáticamente. Podés guardar la evolución igual.</p>
+                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen aquí automáticamente. Puedes guardar la evolución igual.</p>
               </div>
             </div>
           )}
@@ -4976,7 +4976,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
   return (
     <div className="relative">
       <button type="button" onClick={() => setAbierto(!abierto)} className={inp + " flex items-center justify-between text-left"}>
-        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · C.C. ${sel.dni}` : ""}` : "Elegí un paciente"}</span>
+        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · C.C. ${sel.dni}` : ""}` : "Elige un paciente"}</span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </button>
       {abierto && (
@@ -4992,7 +4992,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
                 </button>
               </li>
             ))}
-            {lista.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados. Cargalo en Pacientes.</li>}
+            {lista.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados. Cárgalo en Pacientes.</li>}
           </ul>
         </div>
       )}
@@ -5122,7 +5122,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
               {porDia.map(([dia, lista]) => (
                 <div key={dia}>
                   <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                    <CalendarDays className="size-3.5" /> {dia === "sin-fecha" ? "Sin fecha de registro" : new Date(`${dia}T12:00`).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                    <CalendarDays className="size-3.5" /> {dia === "sin-fecha" ? "Sin fecha de registro" : new Date(`${dia}T12:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                     <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] tabular-nums">{lista.length}</span>
                   </p>
                   <ul className="divide-y divide-border/60 rounded-2xl border border-border/60">
@@ -5134,7 +5134,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                           <p className="truncate text-xs text-muted-foreground">{[p.dni ? `C.C. ${p.dni}` : null, p.telefono, p.ficha?.obraSocial].filter(Boolean).join(" · ") || "Sin datos"}</p>
                         </div>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${p.origen === "padron" ? "bg-sky-100 text-sky-800 ring-sky-200" : p.origen === "portal" ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>
-                          {p.origen === "padron" ? "Cargado en clínica" : p.origen === "portal" ? "Portal" : "Desde turno"}
+                          {p.origen === "padron" ? "Cargado en clínica" : p.origen === "portal" ? "Portal" : "Desde cita"}
                         </span>
                         <button onClick={() => { setAbiertoId(p.id); setDetalle(null); window.setTimeout(() => document.getElementById(`pac-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">Abrir carpeta</button>
                       </li>
@@ -5230,7 +5230,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <Campo label="WhatsApp / teléfono"><input type="tel" value={editando.telefono ?? ""} onChange={set("telefono")} className={inp} /></Campo>
             <Campo label="Email"><input type="email" value={editando.email ?? ""} onChange={set("email")} className={inp} /></Campo>
             <Campo label="Domicilio"><input value={editando.domicilio ?? ""} onChange={set("domicilio")} className={inp} /></Campo>
-            <Campo label="Obra social / prepaga"><input value={editando.obraSocial ?? ""} onChange={set("obraSocial")} placeholder="Particular, OSDE, PAMI…" className={inp} /></Campo>
+            <Campo label="EPS / medicina prepagada"><input value={editando.obraSocial ?? ""} onChange={set("obraSocial")} placeholder="Particular, OSDE, PAMI…" className={inp} /></Campo>
             <Campo label="N° de afiliado"><input value={editando.afiliado ?? ""} onChange={set("afiliado")} className={inp} /></Campo>
             <Campo label="Médico de cabecera">
               <select value={editando.medicoCabecera ?? ""} onChange={set("medicoCabecera")} className={inp}>
@@ -5267,7 +5267,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
         sub={`${visibles.length} de ${total}`}
         acciones={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Email", "Obra social", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
+            <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Email", "EPS", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
               <Download className="size-4" /> Exportar
             </Button>
             {!soloLectura && <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>}
@@ -5287,7 +5287,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
         </div>
 
         {visibles.length === 0 ? (
-          <Vacio icon={Users} titulo="No hay pacientes" texto="Cargá el primero con Nuevo paciente. También aparecen los del portal y los que sacan turno." />
+          <Vacio icon={Users} titulo="No hay pacientes" texto="Carga el primero con Nuevo paciente. También aparecen los del portal y los que piden cita." />
         ) : (
           <ul className="divide-y divide-border/60">
             {visibles.map((p) => {
@@ -5309,7 +5309,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className="text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}{edad !== null ? ` · ${edad} años` : ""}</span>
                           {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
-                          {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo turno</span>}
+                          {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo cita</span>}
                           {esCardio(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
                           {esNefro(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
                           {p.ficha?.alergias && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia</span>}
@@ -5333,7 +5333,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                           <p className="mt-1 truncate text-muted-foreground">{nombreCorto(proximo.doctor)}</p>
                         </>
                       ) : (
-                        <p className="text-muted-foreground">Sin turno agendado</p>
+                        <p className="text-muted-foreground">Sin cita agendada</p>
                       )}
                     </div>
                     {/* Acciones */}
@@ -5430,7 +5430,7 @@ function FirmaPad({ onGuardar, onCancelar }: { onGuardar: (dataUrl: string) => v
           onPointerUp={() => (dibujando.current = false)}
           onPointerLeave={() => (dibujando.current = false)}
         />
-        {vacio && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firmá acá con el mouse o el dedo</p>}
+        {vacio && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firma aquí con el mouse o el dedo</p>}
         <span className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-slate-300" />
       </div>
       <div className="flex flex-wrap justify-end gap-2">
@@ -5468,7 +5468,7 @@ function htmlReceta(r: Receta, firma: string | undefined) {
 <div><b>Cobertura:</b> ${r.obraSocial ?? "Particular"}</div><div><b>Afiliado:</b> ${r.afiliado ?? "—"}</div></div>
 ${items}
 <p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
-<div class="pie"><div class="cod">Código de verificación<br><b>${r.codigo}</b><br>Firmada digitalmente el ${new Date(r.fecha).toLocaleString("es-AR")}</div>
+<div class="pie"><div class="cod">Código de verificación<br><b>${r.codigo}</b><br>Firmada digitalmente el ${new Date(r.fecha).toLocaleString("es-CO")}</div>
 <div class="firma">${firma ? `<img src="${firma}" alt="Firma">` : ""}<div class="l">${r.doctor}<br>${r.matricula}</div></div></div>
 </div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
@@ -5496,10 +5496,10 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
 
   const emitir = (e: FormEvent) => {
     e.preventDefault();
-    if (!pac) { toast.error("Elegí un paciente"); return; }
-    if (!firma) { toast.error("Primero registrá tu firma"); return; }
+    if (!pac) { toast.error("Elige un paciente"); return; }
+    if (!firma) { toast.error("Primero registra tu firma"); return; }
     const validos = items.filter((i) => i.droga.trim());
-    if (validos.length === 0) { toast.error("Agregá al menos un medicamento"); return; }
+    if (validos.length === 0) { toast.error("Agrega al menos un medicamento"); return; }
     const numero = (recetas.reduce((m, r) => Math.max(m, r.numero), 0) || 0) + 1;
     const r = JSON.parse(
       JSON.stringify({
@@ -5541,7 +5541,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
         <Kpi icon={Pill} label="Recetas emitidas" value={String(recetas.filter((r) => !r.anulada).length)} hint="En total" tono="violeta" />
         <Kpi icon={CalendarCheck} label="Hoy" value={String(hoy)} hint="Recetas de hoy" delay={0.05} />
         <Kpi icon={Users} label="Pacientes" value={String(new Set(recetas.map((r) => r.pacienteId)).size)} hint="Con receta" tono="verde" delay={0.1} />
-        <Kpi icon={PenLine} label="Tu firma" value={firma ? "Registrada" : "Falta"} hint={firma ? "Se usa en cada receta" : "Registrala para emitir"} tono={firma ? "verde" : "ambar"} delay={0.15} />
+        <Kpi icon={PenLine} label="Tu firma" value={firma ? "Registrada" : "Falta"} hint={firma ? "Se usa en cada receta" : "Regístrala para emitir"} tono={firma ? "verde" : "ambar"} delay={0.15} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -5590,14 +5590,14 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
           <Campo label="Indicaciones (opcional)"><textarea rows={2} value={indic} onChange={(e) => setIndic(e.target.value)} placeholder="Dieta hiposódica, control de presión en domicilio…" className={inp + " h-auto resize-none py-3"} /></Campo>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <p className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              La receta sale con tu firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y obras sociales, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
+              La receta sale con tu firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y EPS, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
             </p>
             <Button type="submit" className="rounded-xl px-6" disabled={!firma}><PenLine className="size-4" /> Firmar y emitir</Button>
           </div>
         </form>
 
         <div className="space-y-6">
-          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibujala una sola vez"} delay={0.05}>
+          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibújala una sola vez"} delay={0.05}>
             {firmando ? (
               <FirmaPad
                 onCancelar={() => setFirmando(false)}
@@ -5617,7 +5617,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
                 <Button variant="outline" className="w-full rounded-xl" onClick={() => setFirmando(true)}><Pencil className="size-4" /> Cambiar firma</Button>
               </div>
             ) : (
-              <Vacio icon={PenLine} titulo="Sin firma" texto="Registrá tu firma para poder emitir recetas y órdenes." accion={<Button className="rounded-xl" onClick={() => setFirmando(true)}><PenLine className="size-4" /> Registrar firma</Button>} />
+              <Vacio icon={PenLine} titulo="Sin firma" texto="Registra tu firma para poder emitir recetas y órdenes." accion={<Button className="rounded-xl" onClick={() => setFirmando(true)}><PenLine className="size-4" /> Registrar firma</Button>} />
             )}
           </Seccion>
         </div>
@@ -5635,7 +5635,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
         }
       >
         {lista.length === 0 ? (
-          <Vacio icon={Pill} texto="Las recetas que emitas aparecen acá para reimprimir, enviar o anular." />
+          <Vacio icon={Pill} texto="Las recetas que emitas aparecen aquí para reimprimir, enviar o anular." />
         ) : (
           <ul className="divide-y divide-border/60">
             {lista.map((r) => {
@@ -5825,8 +5825,8 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
   const crear = (e: FormEvent) => {
     e.preventDefault();
     const pac = pacientes.find((p) => p.id === pacId);
-    if (!pac) { toast.error("Elegí un paciente"); return; }
-    if (paneles.length === 0) { toast.error("Elegí al menos un panel"); return; }
+    if (!pac) { toast.error("Elige un paciente"); return; }
+    if (paneles.length === 0) { toast.error("Elige al menos un panel"); return; }
     const p = JSON.parse(JSON.stringify({ id: nuevoId(), fecha: new Date().toISOString(), pacienteId: pac.id, paciente: pac.nombre, doctor: user.nombre, paneles, urgente, ayuno, estado: "Pedido", resultados: {}, nota: nota.trim() || undefined })) as PedidoLab;
     setPedidos((prev) => [p, ...prev]);
     log("Pedido de laboratorio", `${pac.nombre} · ${paneles.length} paneles`);
@@ -5981,7 +5981,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
         }
       >
         {lista.length === 0 ? (
-          <Vacio icon={FlaskConical} texto="Creá un pedido, imprimí la orden y después cargá los resultados: se guardan en la historia clínica." />
+          <Vacio icon={FlaskConical} texto="Crea un pedido, imprime la orden y después carga los resultados: se guardan en la historia clínica." />
         ) : (
           <ul className="space-y-3">
             {lista.map((p) => (
@@ -6055,7 +6055,7 @@ h1{margin:0;font-size:20px}.m{color:#64748b;font-size:12px;margin:3px 0}table{wi
 <table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
 ${f.items.map((i) => `<tr><td>${i.desc}</td><td>${i.cant}</td><td>${dinero(i.precio)}</td><td style="text-align:right">${dinero(i.cant * i.precio)}</td></tr>`).join("")}</tbody></table>
 <p class="tot">Total ${dinero(f.total)}</p>${f.estado === "Anulada" ? `<p style="color:#dc2626;font-weight:800">COMPROBANTE ANULADO</p>` : ""}
-<p class="nota">Comprobante interno de la clínica. La factura electrónica con CAE se emite al conectar ARCA (ex AFIP) en el sistema.</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+<p class="nota">Comprobante interno de la clínica. La factura electrónica (con CUFE) se emite al conectar la facturación electrónica de la DIAN.</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
 
 function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionUser; log: LogFn; turnos: Turno[]; vista: VistaFact; setVista: (v: VistaFact) => void }) {
@@ -6074,7 +6074,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
 
   const emitir = (e: FormEvent) => {
     e.preventDefault();
-    if (!form || !form.receptor.trim()) { toast.error("Completá el receptor"); return; }
+    if (!form || !form.receptor.trim()) { toast.error("Completa el receptor"); return; }
     const total = form.items.reduce((a, i) => a + i.cant * i.precio, 0);
     const f = JSON.parse(JSON.stringify({ ...form, id: nuevoId(), numero: proximoNumero(form.tipo), estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
     setFacturas((prev) => [f, ...prev]);
@@ -6105,13 +6105,13 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Receipt} label="Facturado este mes" value={dinero(delMes.reduce((a, f) => a + f.total, 0))} hint={`${delMes.length} comprobantes`} tono="verde" />
         <Kpi icon={Wallet} label="Cobrado" value={dinero(delMes.filter((f) => f.estado === "Cobrada").reduce((a, f) => a + f.total, 0))} hint="Del mes" delay={0.05} />
-        <Kpi icon={Building2} label="Pendiente obras sociales" value={dinero(pendOS.reduce((a, f) => a + f.total, 0))} hint={`${pendOS.length} por liquidar`} tono="ambar" delay={0.1} />
+        <Kpi icon={Building2} label="Pendiente EPS" value={dinero(pendOS.reduce((a, f) => a + f.total, 0))} hint={`${pendOS.length} por liquidar`} tono="ambar" delay={0.1} />
         <Kpi icon={AlertTriangle} label="Cobros sin facturar" value={String(sinFacturar.length)} hint="Pagos de pacientes" tono="rojo" delay={0.15} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
-          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "Obras sociales", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
+          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "EPS", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
             <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
               <Ic className="size-4" /> {l}
             </button>
@@ -6148,7 +6148,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
               <datalist id="fact-pacientes">{pacientes.map((p) => <option key={p.id} value={p.nombre} />)}</datalist>
             </Campo>
             <Campo label="Cédula / NIT"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
-            <Campo label="Cobertura"><input value={form.cobertura} onChange={(e) => setForm({ ...form, cobertura: e.target.value })} placeholder="Particular u obra social" className={inp} /></Campo>
+            <Campo label="Cobertura"><input value={form.cobertura} onChange={(e) => setForm({ ...form, cobertura: e.target.value })} placeholder="Particular u EPS" className={inp} /></Campo>
           </div>
           <datalist id="fact-servicios">{SERVICIOS.map((s) => <option key={s.id} value={s.nombre} />)}</datalist>
           <div className="space-y-2">
@@ -6194,7 +6194,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           }
         >
           {lista.length === 0 ? (
-            <Vacio icon={Receipt} texto="Todavía no emitiste comprobantes. Podés facturar los cobros de pacientes desde Por facturar." />
+            <Vacio icon={Receipt} texto="Todavía no emitiste comprobantes. Puedes facturar los cobros de pacientes desde Por facturar." />
           ) : (
             <ul className="divide-y divide-border/60">
               {lista.map((f) => (
@@ -6255,9 +6255,9 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
       )}
 
       {vista === "obras" && (
-        <Seccion icon={Building2} titulo="Liquidación por obra social" sub="Lo facturado a cada cobertura y lo que falta cobrar">
+        <Seccion icon={Building2} titulo="Liquidación por EPS" sub="Lo facturado a cada cobertura y lo que falta cobrar">
           {porOS.length === 0 ? (
-            <Vacio icon={Building2} texto="Cuando factures a una obra social o prepaga, acá ves cuánto te deben." />
+            <Vacio icon={Building2} texto="Cuando factures a una EPS o medicina prepagada, aquí ves cuánto te deben." />
           ) : (
             <ul className="space-y-3">
               {porOS.map(([os, v]) => (
@@ -6285,7 +6285,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           )}
         </Seccion>
       )}
-      <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos. La factura electrónica con CAE se emite al conectar ARCA (ex AFIP) en el backend.</p>
+      <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos. La factura electrónica (con CUFE) se emite al conectar la facturación electrónica de la DIAN.</p>
     </div>
   );
 }
@@ -6352,7 +6352,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
     const d = new Date();
     d.setDate(1);
     d.setMonth(d.getMonth() - (5 - i));
-    return { k: isoDe(d).slice(0, 7), l: d.toLocaleDateString("es-AR", { month: "short" }) };
+    return { k: isoDe(d).slice(0, 7), l: d.toLocaleDateString("es-CO", { month: "short" }) };
   });
   const turnosMes = meses.map((m) => ({ l: m.l, v: turnos.filter((t) => t.fecha.slice(0, 7) === m.k && t.estado !== "Cancelado").length }));
   const ingresosMes = meses.map((m) => ({ l: m.l, v: pagos.filter((p) => diaLocal(p.fecha).slice(0, 7) === m.k).reduce((a, p) => a + p.monto, 0) }));
@@ -6379,7 +6379,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
 
   const reportes: { t: string; d: string; icon: LucideIcon; run: () => void }[] = [
     { t: "Turnos", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
-    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Obra social", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
+    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "EPS", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
     { t: "Cobros", d: `${pagos.length} pagos`, icon: Wallet, run: () => exportarCSV("cobros", [["Fecha", "Paciente", "Concepto", "Medio", "Cobró", "Monto"], ...pagos.map((p) => [fechaHora(p.fecha), p.c.paciente, p.c.concepto, p.metodo, p.cobradoPor, p.monto])]) },
     { t: "Facturación", d: `${facturas.length} comprobantes`, icon: Receipt, run: () => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.cobertura, f.total, f.estado])]) },
     { t: "Evoluciones", d: `${evols.length} consultas`, icon: FileText, run: () => exportarCSV("evoluciones", [["Fecha", "Paciente", "Especialidad", "Doctor", "Motivo", "TA", "Diagnósticos"], ...evols.map((e) => [fechaHora(e.fecha), e.paciente, e.especialidad, e.doctor, e.motivo, e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", e.diagnosticos.join(" | ")])]) },
@@ -6406,10 +6406,10 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Seccion icon={CalendarDays} titulo="Turnos por mes" sub="Últimos 6 meses (sin cancelados)"><BarrasV datos={turnosMes} color="#3b82f6" /></Seccion>
+        <Seccion icon={CalendarDays} titulo="Citas por mes" sub="Últimos 6 meses (sin cancelados)"><BarrasV datos={turnosMes} color="#3b82f6" /></Seccion>
         <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes" delay={0.05}><BarrasV datos={ingresosMes} color="#10b981" fmt={dinero} /></Seccion>
-        <Seccion icon={Stethoscope} titulo="Turnos por doctor" sub="En el período" delay={0.1}><BarrasH datos={porDoctor} colores={["linear-gradient(90deg,#0ea5e9,#1d4ed8)", "linear-gradient(90deg,#f43f5e,#be123c)"]} /></Seccion>
-        <Seccion icon={ClipboardList} titulo="Estado de los turnos" sub="En el período" delay={0.15}><BarrasH datos={porEstado} colores={["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"]} /></Seccion>
+        <Seccion icon={Stethoscope} titulo="Citas por doctor" sub="En el período" delay={0.1}><BarrasH datos={porDoctor} colores={["linear-gradient(90deg,#0ea5e9,#1d4ed8)", "linear-gradient(90deg,#f43f5e,#be123c)"]} /></Seccion>
+        <Seccion icon={ClipboardList} titulo="Estado de las citas" sub="En el período" delay={0.15}><BarrasH datos={porEstado} colores={["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"]} /></Seccion>
         <Seccion icon={Receipt} titulo="Medios de pago" sub="Monto cobrado por medio" delay={0.2}><BarrasH datos={porMetodo} colores={["#10b981", "#0ea5e9", "#8b5cf6", "#f59e0b", "#06b6d4", "#64748b"]} /></Seccion>
         <Seccion icon={FileText} titulo="Consultas por profesional" sub="Evoluciones de historia clínica en el período" delay={0.25}><BarrasH datos={porProf} colores={["#0ea5e9", "#8b5cf6", "#f43f5e"]} /></Seccion>
       </div>
@@ -6472,11 +6472,11 @@ type Canal = "WhatsApp" | "Panel" | "Email";
 type AutoDef = { id: string; nombre: string; desc: string; canal: Canal; motor: boolean };
 const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon; grad: string; items: AutoDef[] }[] = [
   {
-    id: "agenda", letra: "A", titulo: "Agenda y turnos", icon: CalendarDays, grad: "from-sky-500 to-blue-700",
+    id: "agenda", letra: "A", titulo: "Agenda y citas", icon: CalendarDays, grad: "from-sky-500 to-blue-700",
     items: [
-      { id: "recordatorio24", nombre: "Recordatorio 24 h antes del turno", desc: "Mensaje al paciente el día anterior con día, hora y doctor.", canal: "WhatsApp", motor: true },
-      { id: "confirmar", nombre: "Pedir confirmación de turnos pendientes", desc: "Le pide al paciente que confirme o reprograme.", canal: "WhatsApp", motor: true },
-      { id: "ausentes", nombre: "Recuperar turnos cancelados", desc: "Ofrece un nuevo horario a quien canceló en las últimas 2 semanas.", canal: "WhatsApp", motor: true },
+      { id: "recordatorio24", nombre: "Recordatorio 24 h antes de la cita", desc: "Mensaje al paciente el día anterior con día, hora y doctor.", canal: "WhatsApp", motor: true },
+      { id: "confirmar", nombre: "Pedir confirmación de citas pendientes", desc: "Le pide al paciente que confirme o reprograme.", canal: "WhatsApp", motor: true },
+      { id: "ausentes", nombre: "Recuperar citas canceladas", desc: "Ofrece un nuevo horario a quien canceló en las últimas 2 semanas.", canal: "WhatsApp", motor: true },
       { id: "encuesta", nombre: "Encuesta después de la consulta", desc: "Pregunta cómo fue la atención al día siguiente.", canal: "WhatsApp", motor: true },
     ],
   },
@@ -6512,14 +6512,14 @@ const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon
     items: [
       { id: "saldo", nombre: "Aviso de saldo pendiente", desc: "Recordatorio amable a pacientes con saldo.", canal: "WhatsApp", motor: true },
       { id: "sinFacturar", nombre: "Cobros sin facturar", desc: "Avisa a administración qué cobros no tienen comprobante.", canal: "Panel", motor: true },
-      { id: "liquidacion", nombre: "Liquidación de obras sociales", desc: "A fin de mes muestra lo pendiente por cobertura.", canal: "Panel", motor: true },
+      { id: "liquidacion", nombre: "Liquidación de EPS", desc: "A fin de mes muestra lo pendiente por cobertura.", canal: "Panel", motor: true },
     ],
   },
   {
     id: "pacientes", letra: "F", titulo: "Pacientes y portal", icon: Users, grad: "from-fuchsia-500 to-pink-600",
     items: [
       { id: "cumple", nombre: "Saludo de cumpleaños", desc: "Mensaje de la clínica el día del cumpleaños.", canal: "WhatsApp", motor: true },
-      { id: "invitarPortal", nombre: "Invitar al portal a pacientes con turno", desc: "Detecta pacientes con turnos que todavía no tienen portal.", canal: "Panel", motor: true },
+      { id: "invitarPortal", nombre: "Invitar al portal a pacientes con cita", desc: "Detecta pacientes con citas que todavía no tienen portal.", canal: "Panel", motor: true },
       { id: "bienvenida", nombre: "Bienvenida al portal", desc: "Explica cómo usar el portal en el primer ingreso.", canal: "Email", motor: false },
     ],
   },
@@ -6543,17 +6543,17 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("recordatorio24"))
     d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu turno de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no podés venir, avisanos por acá.` });
+      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu cita de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no puedes venir, avísanos por aquí.` });
     });
   if (on("confirmar"))
     d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar turno de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirmás tu turno del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Respondé SÍ para confirmar o escribinos para cambiarlo.` });
+      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar cita de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirmas tu cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Responde SÍ para confirmar o escríbenos para cambiarlo.` });
     });
   if (on("ausentes"))
     d.turnos.filter((t) => t.estado === "Cancelado" && t.fecha >= isoDe(new Date(Date.now() - 14 * 86400000)) && t.fecha <= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `aus-${t.id}`, auto: "ausentes", titulo: `Ofrecer nuevo turno a ${t.paciente}`, detalle: `Canceló el ${fechaCorta(t.fecha)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, vimos que no pudiste venir a tu turno. ¿Querés que te busquemos un nuevo horario con ${t.doctor}?` });
+      if (tl) out.push({ key: `aus-${t.id}`, auto: "ausentes", titulo: `Ofrecer nueva cita a ${t.paciente}`, detalle: `Canceló el ${fechaCorta(t.fecha)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, vimos que no pudiste venir a tu cita. ¿Quieres que te busquemos un nuevo horario con ${t.doctor}?` });
     });
   if (on("encuesta"))
     d.turnos.filter((t) => t.estado === "Atendido" && t.fecha === ayer).forEach((t) => {
@@ -6573,7 +6573,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     tas.forEach((x) => { if (x.s > 180 || x.dd > 120) out.push({ key: `crisis-${x.id}-${x.f}`, auto: "crisisTA", titulo: `Presión en crisis: ${nombreDe(x.id)}`, detalle: `${x.s}/${x.dd} mmHg · ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
   if (on("controlTA"))
     d.pacientes.filter((p) => (p.ficha?.antecedentes ?? []).includes("Hipertensión arterial") && p.telefono).forEach((p) => {
-      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cargala en tu portal del Centro HEGO así tu médico la ve.` });
+      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cárgala en tu portal del Centro HEGO así tu médico la ve.` });
     });
   if (on("feviBaja")) {
     const fv = ult(d.evols.filter((e) => e.cardio?.fevi).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.cardio!.fevi! })));
@@ -6598,7 +6598,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     d.pacientes.filter((p) => esNefro(p.ficha?.antecedentes) && p.telefono).forEach((p) => {
       const u = egfrs.filter((x) => x.id === p.id).sort((a, b) => b.f.localeCompare(a.f))[0];
       if (!u || u.f.slice(0, 10) < isoDe(new Date(Date.now() - 90 * 86400000)))
-        out.push({ key: `labtri-${p.id}-${hoy.slice(0, 7)}`, auto: "labTrimestral", titulo: `Laboratorio renal: ${p.nombre}`, detalle: u ? `Último ${fechaDe(u.f)}` : "Sin laboratorio registrado", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ya te toca el control de laboratorio renal. Escribinos y te pasamos la orden.` });
+        out.push({ key: `labtri-${p.id}-${hoy.slice(0, 7)}`, auto: "labTrimestral", titulo: `Laboratorio renal: ${p.nombre}`, detalle: u ? `Último ${fechaDe(u.f)}` : "Sin laboratorio registrado", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ya te toca el control de laboratorio renal. Escríbenos y te pasamos la orden.` });
     });
   if (on("recetaLista"))
     d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === hoy).forEach((r) => {
@@ -6608,33 +6608,33 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("renovacion"))
     d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === isoDe(new Date(Date.now() - 25 * 86400000))).forEach((r) => {
       const tl = tel(r.paciente);
-      if (tl) out.push({ key: `ren-${r.id}`, auto: "renovacion", titulo: `Renovar medicación de ${r.paciente}`, detalle: `Receta N° ${r.numero} de hace 25 días`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, se está por terminar tu medicación (${r.items.map((i) => i.droga).join(", ")}). ¿Querés que te preparemos la nueva receta?` });
+      if (tl) out.push({ key: `ren-${r.id}`, auto: "renovacion", titulo: `Renovar medicación de ${r.paciente}`, detalle: `Receta N° ${r.numero} de hace 25 días`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, se está por terminar tu medicación (${r.items.map((i) => i.droga).join(", ")}). ¿Quieres que te preparemos la nueva receta?` });
     });
   if (on("labListo"))
     d.labs.filter((l) => l.estado === "Resultado" && (l.fechaResultado ?? "").slice(0, 10) >= isoDe(new Date(Date.now() - 3 * 86400000))).forEach((l) => {
       const tl = tel(l.paciente);
-      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Podés verlos en tu portal del Centro HEGO.` });
+      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Puedes verlos en tu portal del Centro HEGO.` });
     });
   if (on("labDemorado"))
     d.labs.filter((l) => l.estado !== "Resultado" && l.fecha.slice(0, 10) < isoDe(new Date(Date.now() - 7 * 86400000))).forEach((l) => out.push({ key: `labdem-${l.id}`, auto: "labDemorado", titulo: `Laboratorio demorado: ${l.paciente}`, detalle: `Pedido el ${fechaDe(l.fecha)}`, tipo: "alerta", ir: "laboratorio" }));
   if (on("saldo"))
     d.cobros.filter((c) => saldoDe(c) > 0).forEach((c) => {
       const tl = tel(c.paciente);
-      if (tl) out.push({ key: `saldo-${c.id}-${hoy.slice(0, 7)}`, auto: "saldo", titulo: `Saldo de ${c.paciente}`, detalle: `${dinero(saldoDe(c))} · ${c.concepto}`, tipo: "wa", tel: tl, msg: `Hola ${nom(c.paciente)}, te recordamos que quedó un saldo de ${dinero(saldoDe(c))} por ${c.concepto}. Podés abonarlo en tu próxima visita o por transferencia. ¡Gracias!` });
+      if (tl) out.push({ key: `saldo-${c.id}-${hoy.slice(0, 7)}`, auto: "saldo", titulo: `Saldo de ${c.paciente}`, detalle: `${dinero(saldoDe(c))} · ${c.concepto}`, tipo: "wa", tel: tl, msg: `Hola ${nom(c.paciente)}, te recordamos que quedó un saldo de ${dinero(saldoDe(c))} por ${c.concepto}. Puedes abonarlo en tu próxima visita o por transferencia. ¡Gracias!` });
     });
   if (on("sinFacturar")) {
     const n = d.cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !d.facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada")).length;
-    if (n > 0) out.push({ key: `sinfact-${hoy}`, auto: "sinFacturar", titulo: `${n} cobros sin facturar`, detalle: "Emití los comprobantes pendientes", tipo: "alerta", ir: "facturacion" });
+    if (n > 0) out.push({ key: `sinfact-${hoy}`, auto: "sinFacturar", titulo: `${n} cobros sin facturar`, detalle: "Emite los comprobantes pendientes", tipo: "alerta", ir: "facturacion" });
   }
   if (on("liquidacion") && new Date().getDate() >= 25) {
     const pend = d.facturas.filter((f) => f.estado === "Emitida" && f.cobertura !== "Particular");
-    if (pend.length) out.push({ key: `liq-${hoy.slice(0, 7)}`, auto: "liquidacion", titulo: "Liquidación de obras sociales", detalle: `${pend.length} comprobantes · ${dinero(pend.reduce((a, f) => a + f.total, 0))}`, tipo: "alerta", ir: "facturacion" });
+    if (pend.length) out.push({ key: `liq-${hoy.slice(0, 7)}`, auto: "liquidacion", titulo: "Liquidación de EPS", detalle: `${pend.length} comprobantes · ${dinero(pend.reduce((a, f) => a + f.total, 0))}`, tipo: "alerta", ir: "facturacion" });
   }
   if (on("cumple"))
     d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Te saludamos con mucho cariño desdel Centro HEGO.` }));
   if (on("invitarPortal")) {
     const sin = d.pacientes.filter((p) => !p.portal && d.turnos.some((t) => norm(t.paciente) === norm(p.nombre) && t.fecha >= hoy));
-    if (sin.length) out.push({ key: `inv-${hoy}`, auto: "invitarPortal", titulo: `${sin.length} pacientes con turno sin portal`, detalle: sin.slice(0, 3).map((p) => p.nombre).join(", "), tipo: "alerta", ir: "pacientes" });
+    if (sin.length) out.push({ key: `inv-${hoy}`, auto: "invitarPortal", titulo: `${sin.length} pacientes con cita sin portal`, detalle: sin.slice(0, 3).map((p) => p.nombre).join(", "), tipo: "alerta", ir: "pacientes" });
   }
   return out;
 }
@@ -6669,7 +6669,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
   };
 
   const FLUJOS: { t: string; pasos: { icon: LucideIcon; l: string; auto?: string }[] }[] = [
-    { t: "Ciclo del turno", pasos: [{ icon: CalendarCheck, l: "Turno reservado" }, { icon: Send, l: "Pide confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
+    { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pide confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
     { t: "Control renal", pasos: [{ icon: FlaskConical, l: "Resultado de laboratorio" }, { icon: AlertTriangle, l: "Potasio alto", auto: "potasio" }, { icon: TrendingDown, l: "Caída del filtrado", auto: "egfrCae" }, { icon: Bell, l: "Alerta al nefrólogo" }, { icon: Send, l: "Aviso al paciente", auto: "labListo" }] },
     { t: "Paciente hipertenso", pasos: [{ icon: Activity, l: "Presión registrada" }, { icon: AlertTriangle, l: "TA en crisis", auto: "crisisTA" }, { icon: Bell, l: "Alerta al cardiólogo" }, { icon: Send, l: "Control semanal", auto: "controlTA" }] },
     { t: "Receta crónica", pasos: [{ icon: Pill, l: "Receta firmada" }, { icon: Send, l: "Envío al paciente", auto: "recetaLista" }, { icon: Clock, l: "Esperar 25 días" }, { icon: Send, l: "Renovación", auto: "renovacion" }] },
@@ -6685,7 +6685,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Zap className="size-3.5" /> Automatizaciones</span>
             <h2 className="mt-3 text-3xl font-semibold">La clínica trabaja sola</h2>
             <p className="mt-2 text-sm text-white/70">
-              Cuando pasa algo —un turno, un resultado, una receta— la automatización prepara el aviso o la alerta. Los mensajes quedan listos para enviar por WhatsApp con un toque; el envío 100% automático se activa al conectar la API de WhatsApp en el backend.
+              Cuando pasa algo —una cita, un resultado, una receta— la automatización prepara el aviso o la alerta. Los mensajes quedan listos para enviar por WhatsApp con un toque; el envío 100% automático se activa al conectar la API de WhatsApp en el backend.
             </p>
           </div>
         </div>
@@ -6718,7 +6718,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
       {vista === "bandeja" && (
         <Seccion icon={Bell} titulo="Acciones preparadas" sub="Generadas por las automatizaciones activas">
           {nActivas === 0 ? (
-            <Vacio icon={Zap} titulo="No hay automatizaciones activas" texto="Activalas en el Catálogo y acá aparecen los avisos y alertas listos." accion={<Button className="rounded-xl" onClick={() => setVista("catalogo")}>Ir al catálogo</Button>} />
+            <Vacio icon={Zap} titulo="No hay automatizaciones activas" texto="Actívalas en el Catálogo y aquí aparecen los avisos y alertas listos." accion={<Button className="rounded-xl" onClick={() => setVista("catalogo")}>Ir al catálogo</Button>} />
           ) : pendientes.length === 0 ? (
             <Vacio icon={Check} titulo="Todo al día" texto="No hay avisos ni alertas pendientes por ahora." />
           ) : (
@@ -6809,7 +6809,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
                   );
                 })}
               </ol>
-              <p className="mt-4 text-xs text-muted-foreground">Los pasos tachados están pausados: activalos en el Catálogo.</p>
+              <p className="mt-4 text-xs text-muted-foreground">Los pasos tachados están pausados: actívalos en el Catálogo.</p>
             </Seccion>
           ))}
         </div>
@@ -6984,7 +6984,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
               </section>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-                <Indicador icon={CalendarDays} l="Próximo turno" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin turno"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agendá el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
+                <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agenda el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
                 <Indicador icon={Activity} l="Presión arterial" v={ta ? `${ta.s}/${ta.d}` : "—"} d={ta ? clasificarPresion(ta.s, ta.d).nivel : "Sin registros"} ir="historia" tono="from-rose-500 to-red-600" />
                 <Indicador icon={Scale} l="Índice de masa corporal" v={imcP ? `${imcP.valor} kg/m²` : "—"} d={imcP ? imcP.texto : "Sin peso y talla"} ir="historia" tono="from-cyan-400 to-sky-600" />
                 <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
@@ -7168,14 +7168,14 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
           {sec === "turnos" && (
             <>
-              <Cab t="Turnos" s={`${misTurnos.length} turnos en total`} />
-              {misTurnos.length === 0 ? <Vacio icon={CalendarDays} texto="Este paciente todavía no tiene turnos." /> : (
+              <Cab t="Turnos" s={`${misTurnos.length} citas en total`} />
+              {misTurnos.length === 0 ? <Vacio icon={CalendarDays} texto="Este paciente todavía no tiene citas." /> : (
                 <ul className="space-y-2">
                   {misTurnos.map((t) => (
                     <Fila key={t.id}>
                       <span className={`flex size-9 shrink-0 flex-col items-center justify-center rounded-lg text-white ${t.fecha >= hoy ? "bg-gradient-to-br from-sky-500 to-blue-700" : "bg-slate-400"}`}>
                         <span className="text-[11px] font-bold leading-none">{t.fecha.slice(8, 10)}</span>
-                        <span className="text-[8px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-AR", { month: "short" })}</span>
+                        <span className="text-[8px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-CO", { month: "short" })}</span>
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{t.hora} · {t.motivo || "Consulta"}</p>
@@ -7352,9 +7352,9 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
     e.preventDefault();
     if (esMedicoV) { toast.error("Los signos vitales los registra enfermería"); return; }
     if (soloLectura) { toast.error("Tu permiso en Enfermería – Triage es solo de lectura"); return; }
-    if (!pac) { toast.error("Seleccioná un paciente"); return; }
+    if (!pac) { toast.error("Selecciona un paciente"); return; }
     const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
-    if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registrá al menos un signo vital"); return; }
+    if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registra al menos un signo vital"); return; }
     const t = JSON.parse(JSON.stringify({ id: nuevoId(), pacienteId: pac.id, paciente: pac.nombre, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, signos })) as Triage;
     setTriages((prev) => [t, ...prev]);
     log("Signos vitales registrados", pac.nombre);
@@ -7374,7 +7374,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
             <span className="flex size-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25"><Syringe className="size-5" /></span>
             <div>
               <h2 className="text-lg font-semibold">Toma de signos vitales</h2>
-              <p className="text-xs text-white/70">{user.nombre} · {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</p>
+              <p className="text-xs text-white/70">{user.nombre} · {new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</p>
             </div>
           </div>
           <button onClick={onCerrar} aria-label="Cerrar" className="relative flex size-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"><X className="size-5" /></button>
@@ -7383,7 +7383,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden">
           {/* Pacientes de hoy */}
           <aside className="flex min-h-0 flex-col border-b border-border/60 bg-secondary/30 p-4 lg:border-b-0 lg:border-r">
-            <p className="px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Turnos de hoy · {turnosHoy.length}</p>
+            <p className="px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Citas de hoy · {turnosHoy.length}</p>
             <ul className="pn-noscroll mt-2 max-h-64 space-y-1.5 overflow-y-auto lg:max-h-none lg:flex-1">
               {turnosHoy.map((t) => {
                 const p = pacDeTurno(t);
@@ -7410,7 +7410,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
                   </li>
                 );
               })}
-              {turnosHoy.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted-foreground">No hay turnos para hoy.</li>}
+              {turnosHoy.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted-foreground">No hay citas para hoy.</li>}
             </ul>
             <div className="mt-3 border-t border-border/60 pt-3">
               <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Otro paciente</p>
@@ -7422,7 +7422,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
           <form onSubmit={guardar} className="flex min-h-0 flex-col lg:overflow-y-auto">
             {!pac ? (
               <div className="flex flex-1 items-center justify-center p-8">
-                <Vacio icon={Users} titulo="Elegí un paciente" texto="Seleccioná un turno de hoy o buscá otro paciente para registrar sus signos vitales." />
+                <Vacio icon={Users} titulo="Elige un paciente" texto="Selecciona una cita de hoy o busca otro paciente para registrar sus signos vitales." />
               </div>
             ) : (
               <div className="flex-1 space-y-6 p-6">
@@ -7463,7 +7463,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
                   <div className={`rounded-2xl p-4 ring-1 transition-colors ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">Índice de masa corporal</p>
                     <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{imc ? imc.valor : "—"} <span className="text-sm font-normal opacity-70">{imc ? "kg/m²" : ""}</span></p>
-                    <p className="text-sm font-semibold">{imc ? imc.texto : "Ingresá talla y peso"}</p>
+                    <p className="text-sm font-semibold">{imc ? imc.texto : "Ingresa talla y peso"}</p>
                   </div>
                   <div className="rounded-2xl bg-secondary/40 p-4 ring-1 ring-border/70">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Clasificación del IMC (OMS)</p>
@@ -7517,9 +7517,9 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
       <div className="max-w-md">
         <Kpi
           icon={CalendarDays}
-          label="Turnos de hoy"
+          label="Citas de hoy"
           value={String(turnosHoy.length)}
-          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · tocá para registrar` : "Tocá para registrar signos vitales"}
+          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · toca para registrar` : "Toca para registrar signos vitales"}
           tono="verde"
           onClick={() => setVentana(true)}
           accion="Tomar signos vitales"
@@ -7530,7 +7530,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
 
       <Seccion icon={ClipboardList} titulo="Signos vitales registrados hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · quedan en la Historia Clínica de cada paciente`}>
         {deHoy.length === 0 ? (
-          <Vacio icon={Activity} texto="Todavía no se registraron signos vitales hoy. Tocá «Turnos de hoy» para empezar." />
+          <Vacio icon={Activity} texto="Todavía no se registraron signos vitales hoy. Toca «Citas de hoy» para empezar." />
         ) : (
           <ul className="space-y-3">
             {deHoy.map((t) => (
@@ -7539,7 +7539,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
                   <Avatar nombre={t.paciente} size="size-10" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold">{t.paciente}</p>
-                    <p className="text-[11px] text-muted-foreground">{new Date(t.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {t.enfermera}</p>
+                    <p className="text-[11px] text-muted-foreground">{new Date(t.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {t.enfermera}</p>
                   </div>
                   {t.evolucionId ? (
                     <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Atendido · {nombreCorto(t.atendidoPor ?? "")}</span>
@@ -7572,7 +7572,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
   const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
 
   const mensaje = (p: Personal) =>
-    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntrá a este link y creá tu contraseña:\n${linkInvitacion(p, origen)}`;
+    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntra a este link y crea tu contraseña:\n${linkInvitacion(p, origen)}`;
   const copiar = async (p: Personal) => {
     try {
       await navigator.clipboard.writeText(linkInvitacion(p, origen));
@@ -7681,7 +7681,7 @@ function TurnosLectura({ turnos }: { turnos: Turno[] }) {
       acciones={<input type="date" value={dia} onChange={(e) => setDia(e.target.value)} className={inp + " h-10 w-44"} />}
     >
       {lista.length === 0 ? (
-        <Vacio icon={CalendarDays} texto="No hay turnos para este día." />
+        <Vacio icon={CalendarDays} texto="No hay citas para este día." />
       ) : (
         <ul className="divide-y divide-border/60">
           {lista.map((t) => (
@@ -7725,22 +7725,22 @@ function SitioTab({ log }: { log: LogFn }) {
   const [cargando, setCargando] = useState(false);
 
   const guardar = () => {
-    for (const x of d.semana) if (x.abierto && x.desde >= x.hasta) { toast.error(`Revisá el horario del ${NOMBRES_DIA[x.dia]}`); return; }
+    for (const x of d.semana) if (x.abierto && x.desde >= x.hasta) { toast.error(`Revisa el horario del ${NOMBRES_DIA[x.dia]}`); return; }
     try {
       setGuardado(() => d);
       log("Sitio web actualizado", "Contacto, horarios y música");
       toast.success("Cambios publicados en la web.");
     } catch {
-      toast.error("No hay espacio suficiente en este navegador. Usá un enlace en lugar de subir el audio.");
+      toast.error("No hay espacio suficiente en este navegador. Usa un enlace en lugar de subir el audio.");
     }
   };
 
   const subirAudio = (f: File | undefined) => {
     if (!f) return;
-    if (!f.type.startsWith("audio/")) { toast.error("Elegí un archivo de audio (mp3, ogg, wav)."); return; }
+    if (!f.type.startsWith("audio/")) { toast.error("Elige un archivo de audio (mp3, ogg, wav)."); return; }
     const enServidor = modoServidor();
     const max = enServidor ? 15 : MAX_AUDIO_MB;
-    if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Usá un enlace o un archivo más liviano.`); return; }
+    if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Usa un enlace o un archivo más liviano.`); return; }
     setCargando(true);
     if (enServidor) {
       // Con backend: el archivo se sube a Vercel Blob y queda disponible para todos los visitantes
@@ -7766,8 +7766,8 @@ function SitioTab({ log }: { log: LogFn }) {
   };
 
   const agregar = () => {
-    if (!nueva.nombre.trim()) { toast.error("Poné un nombre para el tema"); return; }
-    if (!nueva.url) { toast.error("Subí un archivo o pegá un enlace de audio"); return; }
+    if (!nueva.nombre.trim()) { toast.error("Pon un nombre para el tema"); return; }
+    if (!nueva.url) { toast.error("Sube un archivo o pega un enlace de audio"); return; }
     const p: PistaMusica = { id: nuevoId(), nombre: nueva.nombre.trim(), sub: nueva.sub.trim() || "Instrumental", url: nueva.url.trim(), color: COLORES_PISTA[d.pistas.length % COLORES_PISTA.length]! };
     set({ pistas: [...d.pistas, p] });
     setNueva({ nombre: "", sub: "", url: "" });
@@ -7788,7 +7788,7 @@ function SitioTab({ log }: { log: LogFn }) {
       <div className={`pn-card pn-up sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 p-4 ${cambios ? "ring-2 ring-[rgba(var(--acc),.35)]" : ""}`}>
         <p className="flex items-center gap-2 text-sm">
           <Globe className="size-4 text-[rgb(var(--acc))]" />
-          {cambios ? <span className="font-semibold">Tenés cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guardes acá se ve en la web pública.</span>}
+          {cambios ? <span className="font-semibold">Tienes cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guardes aquí se ve en la web pública.</span>}
         </p>
         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
           <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -7833,7 +7833,7 @@ function SitioTab({ log }: { log: LogFn }) {
         </Seccion>
       </div>
 
-      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Subí tus temas o usá las pistas de ejemplo.">
+      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Sube tus temas o usa las pistas de ejemplo.">
         <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-secondary/40 p-4">
           <Interruptor on={d.musicaActiva} onChange={(v) => set({ musicaActiva: v })} label="Mostrar el reproductor en la web" />
           <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Incluir las 4 pistas de ejemplo" />
@@ -7844,7 +7844,7 @@ function SitioTab({ log }: { log: LogFn }) {
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tus temas</p>
             {d.pistas.length === 0 ? (
-              <Vacio icon={Music2} titulo="Todavía no subiste música" texto="Agregá tu primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
+              <Vacio icon={Music2} titulo="Todavía no subiste música" texto="Agrega tu primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
             ) : (
               <ol className="space-y-2">
                 {d.pistas.map((p, i) => (
@@ -7883,7 +7883,7 @@ function SitioTab({ log }: { log: LogFn }) {
               <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
               {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
               <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Usá solo música con permiso de uso.</p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Usa solo música con permiso de uso.</p>
             </div>
           </div>
         </div>
@@ -7943,8 +7943,8 @@ const KEY_MENSAJES = "gb_mensajes";
 const CANALES: { id: string; nombre: string; desc: string; icon: LucideIcon; color: string; soloJefes?: boolean; medicos?: boolean }[] = [
   { id: "general", nombre: "General", desc: "Todo el equipo de la clínica", icon: MessagesSquare, color: "#0ea5e9" },
   { id: "avisos", nombre: "Avisos de dirección", desc: "Publican los médicos y Dirección; todos leen", icon: Megaphone, color: "#f59e0b", soloJefes: true },
-  { id: "turnos", nombre: "Turnos y recepción", desc: "Agenda, pacientes que llegan, cambios de horario", icon: CalendarDays, color: "#8b5cf6" },
-  { id: "enfermeria", nombre: "Enfermería", desc: "Triage, insumos y novedades de guardia", icon: Syringe, color: "#10b981" },
+  { id: "turnos", nombre: "Citas y recepción", desc: "Agenda, pacientes que llegan, cambios de horario", icon: CalendarDays, color: "#8b5cf6" },
+  { id: "enfermeria", nombre: "Enfermería", desc: "Triage, insumos y novedades de la cita", icon: Syringe, color: "#10b981" },
   { id: "medicos", nombre: "Médicos", desc: "Solo médicos y Dirección", icon: Stethoscope, color: "#f43f5e", medicos: true },
 ];
 const FONDOS_CHAT: { id: string; nombre: string; css: CSSProperties; oscuro?: boolean }[] = [
@@ -8118,7 +8118,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
             );
           })}
         </div>
-        <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No compartas acá datos clínicos de pacientes: eso va en su historia clínica.</p>
+        <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No compartas aquí datos clínicos de pacientes: eso va en su historia clínica.</p>
       </aside>
 
       {/* Conversación */}
@@ -8161,8 +8161,8 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
           {delCanal.length === 0 && (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <span className="flex size-16 items-center justify-center rounded-3xl text-white shadow-lg vz-flota" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-7" /></span>
-              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>{dm ? `Escribile a ${dm.nombre}` : `Todavía no hay mensajes en ${c.nombre}`}</p>
-              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{dm ? "Solo ustedes dos ven esta conversación." : puedeEscribir ? "Escribí el primero." : "Acá vas a ver los avisos de los médicos y Dirección."}</p>
+              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>{dm ? `Escríbele a ${dm.nombre}` : `Todavía no hay mensajes en ${c.nombre}`}</p>
+              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{dm ? "Solo ustedes dos ven esta conversación." : puedeEscribir ? "Escribe el primero." : "Aquí vas a ver los avisos de los médicos y Dirección."}</p>
             </div>
           )}
           {delCanal.map((m, i) => {
@@ -8262,8 +8262,8 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200">
-          <p className="font-semibold">Guardá estos códigos de respaldo</p>
-          <p className="mt-1">Sirven para entrar si perdés el celular. Cada uno se usa una sola vez y no se vuelven a mostrar: sacales captura o anotalos en un lugar seguro.</p>
+          <p className="font-semibold">Guarda estos códigos de respaldo</p>
+          <p className="mt-1">Sirven para entrar si pierdes el celular. Cada uno se usa una sola vez y no se vuelven a mostrar: sácales captura o anótalos en un lugar seguro.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 font-mono text-sm">
           {respaldo.map((c) => <span key={c} className="rounded-xl bg-secondary px-3 py-2 text-center tracking-wider">{c}</span>)}
@@ -8276,9 +8276,9 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
     return (
       <div className="space-y-4">
         <ol className="space-y-3 text-sm">
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">1</span> <span>Instalá en tu celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, en Play Store o App Store).</span></li>
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">2</span> <span>Tocá el botón de abajo y escaneá el código QR con la app.</span></li>
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">3</span> <span>Escribí el número de 6 dígitos que aparece en la app.</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">1</span> <span>Instala en tu celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, en Play Store o App Store).</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">2</span> <span>Toca el botón de abajo y escanea el código QR con la app.</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">3</span> <span>Escribe el número de 6 dígitos que aparece en la app.</span></li>
         </ol>
         <Button onClick={() => void generar()} disabled={cargando} className="h-11 w-full rounded-xl"><Smartphone className="size-4" /> {cargando ? "Generando..." : "Mostrar código QR"}</Button>
       </div>
@@ -8288,8 +8288,8 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
       <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/60 p-4 sm:flex-row">
         <img src={qr.qr} alt="Código QR para la app" className="size-44 rounded-xl bg-white p-1" />
         <div className="text-sm">
-          <p className="font-semibold">Escaneá este QR con la app</p>
-          <p className="mt-1 text-muted-foreground">¿No podés escanear? En la app elegí “ingresar clave” y escribí:</p>
+          <p className="font-semibold">Escanea este QR con la app</p>
+          <p className="mt-1 text-muted-foreground">¿No puedes escanear? En la app elige “ingresar clave” y escribe:</p>
           <p className="mt-2 select-all break-all rounded-lg bg-card px-2 py-1.5 font-mono text-xs">{qr.secreto}</p>
         </div>
       </div>
@@ -8372,7 +8372,7 @@ function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => vo
               {estado.activo ? (
                 <div className="mt-3 space-y-3 text-sm text-muted-foreground">
                   <p>Al entrar te pedimos el código de tu app. Te quedan <b>{estado.respaldos}</b> códigos de respaldo.</p>
-                  {estado.obligatorio && <p className="text-xs">Para médicos y Dirección es obligatoria. ¿Cambiás de celular o se la pasás a otra persona? Reiniciala: se cierra la sesión y al volver a entrar aparece el QR para escanear con el celular nuevo.</p>}
+                  {estado.obligatorio && <p className="text-xs">Para médicos y Dirección es obligatoria. ¿Cambias de celular o se la pasas a otra persona? Reiníciala: se cierra la sesión y al volver a entrar aparece el QR para escanear con el celular nuevo.</p>}
                   <form onSubmit={apagar} className="flex gap-2">
                     <input inputMode="numeric" maxLength={6} value={codigoOff} onChange={(e) => setCodigoOff(e.target.value.replace(/\D/g, ""))} placeholder="Código actual" className={inp + " h-10"} />
                     <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-xl text-rose-600">{estado.obligatorio ? "Reiniciar" : "Desactivar"}</Button>
@@ -8445,7 +8445,7 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
       </div>
       <form onSubmit={ir} className="mt-3 flex gap-2">
         <select value={id} onChange={(e) => setId(e.target.value)} className={inp + " h-10"}>
-          <option value="">Elegí a la persona…</option>
+          <option value="">Elige a la persona…</option>
           {opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
         </select>
         <Button type="submit" variant="outline" disabled={!id} className="h-10 shrink-0 rounded-xl">Restablecer 2FA</Button>
