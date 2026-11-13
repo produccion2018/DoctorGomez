@@ -185,6 +185,7 @@ import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
 import logoClinica from "@/assets/logo.png";
+import { MODULOS, SEED_PERMISOS, nivelDe, mk, type Nivel, type Permisos } from "@/lib/permisos";
 export const Route = createFileRoute("/panel")({
   head: () => ({
     meta: [
@@ -206,32 +207,12 @@ export const Route = createFileRoute("/panel")({
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
 type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
-type Nivel = "ninguno" | "ver" | "editar";
-type Permisos = Record<string, Record<string, Nivel>>;
 type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
 const ESTADOS: Estado[] = ["Pendiente", "Confirmado", "Atendido", "Cancelado"];
 
-const MODULOS = [
-  "Enfermería – Triage",
-  "Turnos",
-  "Pacientes",
-  "Historias clínicas",
-  "Recetas",
-  "Laboratorio",
-  "Estudios",
-  "Finanzas",
-  "Facturación",
-  "Reportes",
-  "Asistente IA",
-  "Automatizaciones",
-  "Horarios",
-  "Portal del paciente",
-  "Auditoría",
-  "Permisos",
-];
 
 /** Qué pestaña del panel abre cada módulo de permisos. */
 const MODULO_TAB: Partial<Record<string, Tab>> = {
@@ -345,32 +326,6 @@ const SEED_MOVS: Mov[] = [
   { id: "m4", fecha: hoy(), concepto: "Servicios del consultorio", tipo: "Egreso", monto: 32000 },
 ];
 
-const mk = (p: Partial<Record<string, Nivel>>): Record<string, Nivel> =>
-  Object.fromEntries(MODULOS.map((m) => [m, p[m] ?? "ninguno"])) as Record<string, Nivel>;
-
-const SEED_PERMISOS: Permisos = {
-  "Recepción": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", Horarios: "ver", "Portal del paciente": "editar" }),
-  "Secretaría médica": mk({ Turnos: "editar", Pacientes: "editar", "Historias clínicas": "ver", Estudios: "ver", "Asistente IA": "ver", Horarios: "editar", "Portal del paciente": "editar" }),
-  "Atención al paciente": mk({ Turnos: "editar", Pacientes: "ver", "Asistente IA": "ver", "Portal del paciente": "editar" }),
-  "Enfermería": mk({ "Enfermería – Triage": "editar", Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "ver" }),
-  "Cardiología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
-  "Nefrología": mk({ Turnos: "ver", Pacientes: "ver", "Historias clínicas": "ver", Estudios: "editar", "Asistente IA": "ver" }),
-  "Estudios y laboratorio": mk({ Turnos: "ver", Pacientes: "ver", Estudios: "editar", "Asistente IA": "ver" }),
-  "Diagnóstico por imágenes": mk({ Turnos: "ver", Pacientes: "ver", Estudios: "editar", "Asistente IA": "ver" }),
-  "Farmacia e insumos": mk({ Finanzas: "ver", Reportes: "ver" }),
-  "Administración": mk({ Turnos: "editar", Pacientes: "ver", Finanzas: "ver", Reportes: "ver", "Asistente IA": "ver" }),
-  "Facturación": mk({ Turnos: "ver", Finanzas: "editar", Facturación: "editar", Reportes: "ver", "Asistente IA": "ver" }),
-  "Recursos Humanos": mk({ Reportes: "ver" }),
-  "Sistemas": mk({ Auditoría: "ver", Reportes: "ver" }),
-};
-// Médicos invitados: atienden pacientes, pero no ven finanzas ni administración
-const PERMISOS_MEDICO_INVITADO = mk({ "Enfermería – Triage": "ver", Turnos: "ver", Pacientes: "ver", "Historias clínicas": "editar", Recetas: "editar", Laboratorio: "editar", Estudios: "editar", Horarios: "ver" });
-ESPECIALIDADES_MED.forEach((a) => {
-  SEED_PERMISOS[a.nombre] = PERMISOS_MEDICO_INVITADO;
-});
-
-const nivelDe = (p: Permisos, area: string, modulo: string): Nivel =>
-  p[area]?.[modulo] ?? SEED_PERMISOS[area]?.[modulo] ?? "ninguno";
 
 /* ---------- Persistencia local (se reemplaza por el backend) ---------- */
 function usePersist<T>(key: string, seed: T): readonly [T, Dispatch<SetStateAction<T>>] {

@@ -18,6 +18,7 @@ const PRIVADOS_MEDICOS = ["gb_permisos"] as const;
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
 
+import { permiteColeccion, type Permisos } from "./permisos";
 const modulo = () => import("./db.server");
 const acceso = () => import("./acceso.server");
 
@@ -286,18 +287,31 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
 
 const colecciones = () => import("./colecciones.server");
 
-type Quien = { tipo: "staff"; nombre: string } | { tipo: "paciente"; id: string; nombre: string } | null;
+type Quien = { tipo: "staff"; nombre: string; medico: boolean; area: string } | { tipo: "paciente"; id: string; nombre: string } | null;
 
 async function quienSoy(): Promise<Quien> {
   const u = await (await acceso()).usuarioActual();
-  if (u) return { tipo: "staff", nombre: u.nombre };
+  if (u) return { tipo: "staff", nombre: u.nombre, medico: u.rol === "medico", area: u.area ?? (u.rol === "enfermeria" ? "Enfermería" : "") };
   const c = await colecciones();
   const p = await c.pacienteActual().catch(() => null);
   if (p) return { tipo: "paciente", id: p.id, nombre: String(p["nombre"] ?? "") };
   return null;
 }
 
-/** Lee una colección. El personal ve todo; el paciente solo lo suyo. */
+/** Permisos por área guardados por los médicos (si no hay, valen los de fábrica). */
+async function permisosGuardados(): Promise<Permisos> {
+  const sql = await (await modulo()).db();
+  const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_permisos'`) as { valor: Permisos }[];
+  return filas[0]?.valor ?? {};
+}
+
+/** ¿Este integrante del personal puede ver / editar la colección según su área? */
+async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: string, accion: "ver" | "editar") {
+  if (q.medico) return true;
+  return permiteColeccion(await permisosGuardados(), q.area, coleccion, accion);
+}
+
+/** Lee una colección. Los médicos ven todo, el personal según su área y el paciente solo lo suyo. */
 export const leerColeccion = createServerFn({ method: "GET" })
   .validator((d: { coleccion: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ json: string }>> => {
@@ -307,6 +321,7 @@ export const leerColeccion = createServerFn({ method: "GET" })
     if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
     const q = await quienSoy();
     if (!q) return { ok: false, error: "Sin sesión." };
+    if (q.tipo === "staff" && !(await areaPermite(q, data.coleccion, "ver"))) return { ok: true, json: "[]" };
     let filas = await c.leer(data.coleccion);
     if (q.tipo === "paciente") {
       if (data.coleccion === "gb_pacientes") filas = filas.filter((p) => p.id === q.id);
@@ -326,7 +341,17 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     if (!q) return { ok: false, error: "Tu sesión venció. Volvé a ingresar." };
     const filas = data.upserts.map((x) => JSON.parse(x) as Record<string, unknown> & { id: string }).filter((f) => typeof f.id === "string" && f.id);
 
+    // Auditoría: cualquiera agrega eventos, nadie los cambia ni los borra (salvo los médicos)
+    if (data.coleccion === "gb_audit" && !(q.tipo === "staff" && q.medico)) {
+      for (const f of filas) if (!(await c.uno("gb_audit", f.id))) await c.guardar("gb_audit", { ...f, usuario: q.nombre });
+      return { ok: true };
+    }
+
     if (q.tipo === "staff") {
+      if (!(await areaPermite(q, data.coleccion, "editar"))) {
+        await (await acceso()).auditar(q.nombre, "Cambio bloqueado por permisos", `${q.area || "Sin área"} · ${data.coleccion.replace("gb_", "")}`);
+        return { ok: false, error: `Tu área (${q.area || "sin área"}) no tiene permiso para modificar esto. Pedíselo a un médico administrador.` };
+      }
       for (const f of filas) await c.guardar(data.coleccion, f);
       await c.borrar(data.coleccion, data.borrar);
       return { ok: true };
@@ -343,10 +368,6 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         const previo = await c.uno(data.coleccion, id);
         if (previo && previo["pacienteId"] === q.id) await c.borrar(data.coleccion, [id]);
       }
-      return { ok: true };
-    }
-    if (data.coleccion === "gb_audit") {
-      for (const f of filas) if (!(await c.uno("gb_audit", f.id))) await c.guardar("gb_audit", { ...f, usuario: q.nombre });
       return { ok: true };
     }
     // Paciente: solo pedir/cancelar sus turnos y editar su perfil
