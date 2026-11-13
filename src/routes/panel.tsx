@@ -7521,7 +7521,9 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
 
   return (
     <div className="space-y-6">
-      <div className="max-w-md">
+      <AccionesEnfermeria user={user} log={log} turnos={turnos} pacientes={pacientes} citasHoy={turnosHoy.length} sinSignos={sinSignos} soloLectura={soloLectura || esMedico} abrirSignos={() => setVentana(true)} />
+
+      <div className="hidden">
         <Kpi
           icon={CalendarDays}
           label="Citas de hoy"
@@ -8487,6 +8489,7 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
 
 /* ---------- Enfermería: notas y procedimientos ---------- */
 const TIPOS_NOTA_ENF = ["Nota de enfermería", "Procedimiento realizado", "Toma de muestra", "Administración de medicamento", "Educación al paciente", "Novedad / incidente"] as const;
+// (Glucometría, Electrocardiograma, Curación y Holter / MAPA se registran desde los botones de Enfermería)
 const COLOR_NOTA: Record<string, string> = {
   "Nota de enfermería": "bg-sky-100 text-sky-700 ring-sky-200",
   "Procedimiento realizado": "bg-violet-100 text-violet-700 ring-violet-200",
@@ -8494,6 +8497,10 @@ const COLOR_NOTA: Record<string, string> = {
   "Administración de medicamento": "bg-emerald-100 text-emerald-700 ring-emerald-200",
   "Educación al paciente": "bg-teal-100 text-teal-700 ring-teal-200",
   "Novedad / incidente": "bg-rose-100 text-rose-700 ring-rose-200",
+  "Glucometría": "bg-orange-100 text-orange-700 ring-orange-200",
+  "Electrocardiograma": "bg-red-100 text-red-700 ring-red-200",
+  "Curación": "bg-pink-100 text-pink-700 ring-pink-200",
+  "Holter / MAPA": "bg-indigo-100 text-indigo-700 ring-indigo-200",
 };
 
 /** Registro de enfermería del paciente (dentro de la Historia Clínica). Solo enfermería escribe; los médicos lo leen. */
@@ -8597,5 +8604,206 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
         </ul>
       )}
     </Seccion>
+  );
+}
+
+
+/* ---------- Botones de lo que hace enfermería ---------- */
+type AccionEnf = { id: string; t: string; d: string; icon: LucideIcon; c: string };
+const ACCIONES_ENF: AccionEnf[] = [
+  { id: "signos", t: "Signos vitales", d: "Presión arterial, pulso, temperatura, saturación, peso y talla", icon: HeartPulse, c: "#0ea5e9" },
+  { id: "Glucometría", t: "Glucometría", d: "Glucosa capilar en mg/dL", icon: Droplets, c: "#f97316" },
+  { id: "Electrocardiograma", t: "Electrocardiograma", d: "Toma del ECG de 12 derivaciones", icon: Activity, c: "#ef4444" },
+  { id: "Toma de muestra", t: "Toma de muestra", d: "Sangre, orina u otra muestra para laboratorio", icon: FlaskConical, c: "#eab308" },
+  { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10b981" },
+  { id: "Holter / MAPA", t: "Holter / MAPA", d: "Colocación o retiro del equipo", icon: Clock, c: "#6366f1" },
+  { id: "Curación", t: "Curación", d: "Curaciones y procedimientos menores", icon: Syringe, c: "#ec4899" },
+  { id: "Nota de enfermería", t: "Nota de enfermería", d: "Observaciones, educación al paciente o novedades", icon: NotebookPen, c: "#14b8a6" },
+];
+
+function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos, soloLectura, abrirSignos }: { user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; citasHoy: number; sinSignos: number; soloLectura: boolean; abrirSignos: () => void }) {
+  const [accion, setAccion] = useState<AccionEnf | null>(null);
+  return (
+    <section className="pn-card pn-up overflow-hidden p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">Enfermería</p>
+          <h2 className="mt-1 text-2xl font-semibold">¿Qué va a registrar?</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Toque una opción, elija al paciente y complete los datos. Todo queda en su historia clínica.</p>
+        </div>
+        <div className="flex gap-2 text-xs">
+          <span className="rounded-full bg-secondary px-3 py-1.5 font-semibold">{citasHoy} {citasHoy === 1 ? "cita" : "citas"} hoy</span>
+          {sinSignos > 0 && <span className="rounded-full bg-amber-100 px-3 py-1.5 font-semibold text-amber-800">{sinSignos} sin signos vitales</span>}
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
+        {ACCIONES_ENF.map((a, i) => (
+          <button
+            key={a.id}
+            type="button"
+            disabled={soloLectura}
+            onClick={() => (a.id === "signos" ? abrirSignos() : setAccion(a))}
+            className="group relative flex flex-col items-start gap-3 overflow-hidden rounded-2xl border border-border/70 bg-card p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_-24px_var(--c)] disabled:opacity-50"
+            style={{ ["--c" as string]: a.c, animationDelay: `${i * 40}ms` } as CSSProperties}
+          >
+            <span className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-30" style={{ background: a.c }} />
+            <span className="flex size-12 items-center justify-center rounded-2xl text-white shadow-lg transition-transform duration-300 group-hover:scale-110" style={{ background: `linear-gradient(140deg, ${a.c}, ${a.c}b3)` }}>
+              <a.icon className="size-6" />
+            </span>
+            <span>
+              <span className="block font-semibold">{a.t}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{a.d}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {soloLectura && <p className="mt-3 text-xs text-muted-foreground">Los registros de enfermería los carga el personal de enfermería.</p>}
+      {accion && <VentanaRegistroEnf accion={accion} user={user} log={log} turnos={turnos} pacientes={pacientes} onCerrar={() => setAccion(null)} />}
+    </section>
+  );
+}
+
+function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar }: { accion: AccionEnf; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; onCerrar: () => void }) {
+  const [, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const [pacId, setPacId] = useState("");
+  const hora = () => new Date().toTimeString().slice(0, 5);
+  type CamposEnf = { hora: string; valor?: string; momento?: string; obs?: string; entregado?: string; muestra?: string; examenes?: string; med?: string; dosis?: string; via?: string; indica?: string; tipo?: string; zona?: string; desc?: string };
+  const [f, setF] = useState<CamposEnf>({ hora: hora() });
+  const set = (k: keyof CamposEnf) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const pac = pacientes.find((p) => p.id === pacId);
+  const hoyIso = isoDe(new Date());
+  const citasHoy = turnos.filter((t) => t.fecha === hoyIso && t.estado !== "Cancelado").sort((a, b) => a.hora.localeCompare(b.hora));
+  const pacDe = (t: Turno) => pacientes.find((x) => (t.pacienteId && (x.id === t.pacienteId || x.portalId === t.pacienteId)) || norm(x.nombre) === norm(t.paciente));
+  const glu = Number(f.valor);
+  const gluNivel = !f.valor ? null : glu < 70 ? { t: "Baja (hipoglucemia)", c: "bg-red-100 text-red-700" } : glu > 180 ? { t: "Alta", c: "bg-red-100 text-red-700" } : glu > 140 && f.momento === "En ayunas" ? { t: "Elevada en ayunas", c: "bg-amber-100 text-amber-800" } : { t: "En rango", c: "bg-emerald-100 text-emerald-700" };
+
+  const Chips = ({ k, ops }: { k: keyof CamposEnf; ops: string[] }) => (
+    <div className="flex flex-wrap gap-1.5">
+      {ops.map((o) => (
+        <button key={o} type="button" onClick={() => setF((x) => ({ ...x, [k]: o }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${f[k] === o ? "bg-[rgb(var(--acc))] text-white ring-transparent" : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{o}</button>
+      ))}
+    </div>
+  );
+
+  const texto = (): string | null => {
+    const obs = f.obs?.trim() ? ` Observaciones: ${f.obs.trim()}` : "";
+    switch (accion.id) {
+      case "Glucometría":
+        if (!f.valor) return null;
+        return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${f.hora}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
+      case "Electrocardiograma":
+        return `Electrocardiograma de 12 derivaciones tomado a las ${f.hora}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
+      case "Toma de muestra":
+        if (!f.muestra) return null;
+        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${f.hora}.${obs}`;
+      case "Administración de medicamento":
+        if (!f.med || !f.dosis || !f.via) return null;
+        return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${f.hora}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
+      case "Holter / MAPA":
+        if (!f.tipo) return null;
+        return `${f.tipo} a las ${f.hora}.${obs}`;
+      case "Curación":
+        if (!f.zona) return null;
+        return `Curación en ${f.zona} a las ${f.hora}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
+      default:
+        return f.obs?.trim() ? f.obs.trim() : null;
+    }
+  };
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!pac) return toast.error("Elija el paciente.");
+    const t = texto();
+    if (!t) return toast.error("Complete los datos marcados con *.");
+    const n: NotaEnfermeria = { id: uid(), pacienteId: pac.id, paciente: pac.nombre, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: accion.id, texto: t };
+    setNotas((x) => [...x, n]);
+    log(accion.t, pac.nombre);
+    toast.success(`${accion.t} de ${pac.nombre} guardado en su historia clínica.`);
+    onCerrar();
+  };
+  const campo = (label: string, el: ReactNode, req = false) => (
+    <label className="block space-y-1.5"><span className="text-xs font-semibold text-muted-foreground">{label}{req && " *"}</span>{el}</label>
+  );
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCerrar} />
+      <form onSubmit={guardar} className="pn-root relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-[1.75rem]">
+        <div className="flex items-center gap-3 px-6 py-5 text-white" style={{ background: `linear-gradient(120deg, ${accion.c}, ${accion.c}cc)` }}>
+          <span className="flex size-11 items-center justify-center rounded-2xl bg-white/20"><accion.icon className="size-5" /></span>
+          <div className="flex-1">
+            <p className="text-lg font-semibold">{accion.t}</p>
+            <p className="text-xs text-white/80">{accion.d}</p>
+          </div>
+          <button type="button" onClick={onCerrar} aria-label="Cerrar" className="rounded-xl p-2 hover:bg-white/15"><X className="size-5" /></button>
+        </div>
+        <div className="space-y-5 overflow-y-auto p-6">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground">Paciente *</p>
+            {citasHoy.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {citasHoy.map((t) => {
+                  const p = pacDe(t);
+                  if (!p) return null;
+                  return <button key={t.id} type="button" onClick={() => setPacId(p.id)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${pacId === p.id ? "bg-[rgb(var(--acc))] text-white ring-transparent" : "bg-card ring-border hover:bg-secondary"}`}>{t.hora} · {t.paciente}</button>;
+                })}
+              </div>
+            )}
+            <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={setPacId} />
+            {pac?.ficha?.alergias && <p className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {pac.ficha.alergias}</p>}
+          </div>
+
+          {accion.id === "Glucometría" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {campo("Glucosa (mg/dL)", <input type="number" inputMode="numeric" value={f.valor ?? ""} onChange={set("valor")} placeholder="Ej.: 98" className={inp} />, true)}
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+              <div className="sm:col-span-2">{campo("Momento", <Chips k="momento" ops={["En ayunas", "Postprandial", "Al azar"]} />)}</div>
+              {gluNivel && <p className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${gluNivel.c}`}>{gluNivel.t}</p>}
+            </div>
+          )}
+          {accion.id === "Electrocardiograma" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+              <div className="sm:col-span-2">{campo("Trazado", <Chips k="entregado" ops={["Entregado al médico", "Subido a la historia", "Queda para lectura"]} />)}</div>
+            </div>
+          )}
+          {accion.id === "Toma de muestra" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">{campo("Tipo de muestra", <Chips k="muestra" ops={["Sangre venosa", "Orina", "Orina de 24 horas", "Otra"]} />, true)}</div>
+              {campo("Exámenes", <input value={f.examenes ?? ""} onChange={set("examenes")} placeholder="Ej.: creatinina, potasio, hemograma" className={inp} />)}
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+            </div>
+          )}
+          {accion.id === "Administración de medicamento" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {campo("Medicamento", <input value={f.med ?? ""} onChange={set("med")} placeholder="Ej.: Furosemida" className={inp} />, true)}
+              {campo("Dosis", <input value={f.dosis ?? ""} onChange={set("dosis")} placeholder="Ej.: 20 mg" className={inp} />, true)}
+              <div className="sm:col-span-2">{campo("Vía", <Chips k="via" ops={["Oral", "Intravenosa", "Intramuscular", "Subcutánea", "Sublingual", "Inhalada", "Tópica"]} />, true)}</div>
+              {campo("Indicado por", <input value={f.indica ?? ""} onChange={set("indica")} placeholder="Médico que lo indicó" list="medicos-hego" className={inp} />)}
+              <datalist id="medicos-hego">{ADMINS.map((a) => <option key={a.id} value={a.nombre} />)}</datalist>
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+            </div>
+          )}
+          {accion.id === "Holter / MAPA" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">{campo("Qué se hizo", <Chips k="tipo" ops={["Colocación de Holter 24 h", "Retiro de Holter", "Colocación de MAPA 24 h", "Retiro de MAPA"]} />, true)}</div>
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+            </div>
+          )}
+          {accion.id === "Curación" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {campo("Zona", <input value={f.zona ?? ""} onChange={set("zona")} placeholder="Ej.: sitio de punción brazo izquierdo" className={inp} />, true)}
+              {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
+              <div className="sm:col-span-2">{campo("Descripción", <input value={f.desc ?? ""} onChange={set("desc")} placeholder="Estado de la herida y material usado" className={inp} />)}</div>
+            </div>
+          )}
+          {campo(accion.id === "Nota de enfermería" ? "Nota" : "Observaciones", <textarea rows={3} value={f.obs ?? ""} onChange={set("obs")} placeholder={accion.id === "Nota de enfermería" ? "Estado del paciente, educación brindada, novedades…" : "Opcional"} className={inp + " h-auto py-2.5"} />, accion.id === "Nota de enfermería")}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border/60 bg-card px-6 py-4">
+          <Button type="button" variant="ghost" onClick={onCerrar} className="rounded-xl">Cancelar</Button>
+          <Button type="submit" className="rounded-xl"><Check className="size-4" /> Guardar en la historia</Button>
+        </div>
+      </form>
+    </div>,
+    document.body,
   );
 }
