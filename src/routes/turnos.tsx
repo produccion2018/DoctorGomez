@@ -29,7 +29,7 @@ export const Route = createFileRoute("/turnos")({
   head: () => ({
     meta: [
       { title: "Solicitar cita | HEGO · Centro de especialidades médicas" },
-      { name: "description", content: "Reserva tu cita en línea: elige especialidad, profesional, día y horario." },
+      { name: "description", content: "Reserve su cita en línea: elija especialidad, profesional, día y horario." },
     ],
   }),
   component: Turnos,
@@ -50,7 +50,7 @@ type TurnoGuardado = {
 
 const KEY = "gb_turnos";
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-const PASOS = ["Especialidad", "Profesional", "Día y hora", "Tus datos"];
+const PASOS = ["Especialidad", "Profesional", "Día y hora", "Sus datos"];
 
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const leer = (): TurnoGuardado[] => {
@@ -158,7 +158,7 @@ function Turnos() {
     }
     const actuales = leer();
     if (actuales.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === hora && t.estado !== "Cancelado")) {
-      toast.error("Ese horario se acaba de ocupar. Elige otro, por favor.");
+      toast.error("Ese horario se acaba de ocupar. Elija otro, por favor.");
       setOcupados(actuales);
       setHora(null);
       setPaso(2);
@@ -196,7 +196,7 @@ function Turnos() {
               <CheckCircle2 className="size-12" />
             </span>
             <h1 className="mt-8 text-4xl sm:text-5xl">¡Cita solicitada!</h1>
-            <p className="mt-3 text-muted-foreground">Te vamos a contactar para confirmarlo. Si quieres, envíanos el detalle por WhatsApp para agilizar.</p>
+            <p className="mt-3 text-muted-foreground">Le vamos a contactar para confirmarlo. Si quiere, envíenos el detalle por WhatsApp para agilizar.</p>
             <div className="mt-8 space-y-3 rounded-3xl border border-border bg-card p-6 text-left shadow-elevated">
               {[
                 { icon: User, t: listo.paciente },
@@ -225,8 +225,8 @@ function Turnos() {
     <PublicLayout>
       <PageHero
         kicker="Citas en línea"
-        title={<>Reserva tu cita en <span className="text-shine italic">4 pasos</span></>}
-        text="Elige la especialidad, el profesional y el horario que te queden mejor."
+        title={<>Reserve su cita en <span className="text-shine italic">4 pasos</span></>}
+        text="Elija la especialidad, el profesional y el horario que le queden mejor."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Solicitar cita" }]}
       />
 
@@ -258,7 +258,7 @@ function Turnos() {
           <div key={paso} className="min-w-0 animate-in fade-in slide-in-from-right-4 duration-500">
             {paso === 0 && (
               <div>
-                <h2 className="text-2xl">¿Qué especialidad necesitas?</h2>
+                <h2 className="text-2xl">¿Qué especialidad necesita?</h2>
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {ESPECIALIDADES.map((e) => {
                     const I = iconoEspecialidad(e.icono);
@@ -287,7 +287,7 @@ function Turnos() {
 
             {paso === 1 && (
               <div>
-                <h2 className="text-2xl">Elige el profesional</h2>
+                <h2 className="text-2xl">Elija el profesional</h2>
                 <div className="mt-6 grid gap-5 md:grid-cols-2">
                   {doctoresDisp.map((d) => {
                     const on = doc === d.id;
@@ -314,7 +314,7 @@ function Turnos() {
                           <p className="font-semibold leading-tight">{d.nombre}</p>
                           <p className="mt-1 text-xs font-bold text-primary">{d.titulo}</p>
                           {sinAgenda ? (
-                            <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Sin citas en línea por ahora · pídelo por WhatsApp</p>
+                            <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Sin citas en línea por ahora · pídalo por WhatsApp</p>
                           ) : (
                             <>
                               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{resumenAgenda(ag)}</p>
@@ -334,7 +334,7 @@ function Turnos() {
 
             {paso === 2 && (
               <div>
-                <h2 className="text-2xl">Elige día y horario</h2>
+                <h2 className="text-2xl">Elija día y horario</h2>
                 <div className="mt-6 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
                   {fechas.map((d) => {
                     const v = iso(d);
@@ -358,8 +358,8 @@ function Turnos() {
                 </div>
 
                 {agenda?.nota && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
-                {fechas.length === 0 && <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Este profesional no tiene días disponibles por ahora. Escríbenos por WhatsApp y te ayudamos.</p>}
-                {!fecha && fechas.length > 0 && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Selecciona un día para ver los horarios disponibles.</p>}
+                {fechas.length === 0 && <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Este profesional no tiene días disponibles por ahora. Escríbanos por WhatsApp y le ayudamos.</p>}
+                {!fecha && fechas.length > 0 && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Seleccione un día para ver los horarios disponibles.</p>}
                 {fecha && (
                   <div className="mt-8">
                     <p className="mb-3 text-sm font-medium capitalize text-muted-foreground">{fechaTxt(fecha)}</p>
@@ -389,7 +389,7 @@ function Turnos() {
 
             {paso === 3 && (
               <form id="form-turno" onSubmit={confirmar}>
-                <h2 className="text-2xl">Completa tus datos</h2>
+                <h2 className="text-2xl">Complete sus datos</h2>
                 <div className="mt-6 grid gap-4 rounded-3xl border border-border bg-card p-6 shadow-card sm:grid-cols-2">
                   <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Nombre y apellido *</span>
                     <input required value={datos.nombre} onChange={(e) => setDatos({ ...datos, nombre: e.target.value })} className={inp} /></label>
@@ -399,7 +399,7 @@ function Turnos() {
                     <input type="email" value={datos.email} onChange={(e) => setDatos({ ...datos, email: e.target.value })} className={inp} /></label>
                   <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Motivo de consulta (opcional)</span>
                     <textarea rows={3} value={datos.comentario} onChange={(e) => setDatos({ ...datos, comentario: e.target.value })} className={inp + " h-auto py-3"} /></label>
-                  <p className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2"><ShieldCheck className="size-4 text-emerald-600" /> Tus datos se usan solo para gestionar la cita.</p>
+                  <p className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2"><ShieldCheck className="size-4 text-emerald-600" /> Sus datos se usan solo para gestionar la cita.</p>
                 </div>
               </form>
             )}
@@ -424,7 +424,7 @@ function Turnos() {
           <aside className="lg:sticky lg:top-24 lg:self-start">
             <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-elevated">
               <div className="gradient-deep p-5 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Tu cita</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Su cita</p>
                 <p className="mt-1 font-display text-xl">{especialidad?.nombre ?? "Sin especialidad"}</p>
               </div>
               <div className="space-y-4 p-5 text-sm">
@@ -455,8 +455,8 @@ function Turnos() {
                 </div>
               </div>
               <div className="border-t border-border p-5 text-xs text-muted-foreground">
-                ¿Prefieres hablar con alguien?{" "}
-                <a href={waLink("Hola, quiero pedir una cita.")} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline">Escríbenos por WhatsApp</a>
+                ¿Prefiere hablar con alguien?{" "}
+                <a href={waLink("Hola, quiero pedir una cita.")} target="_blank" rel="noreferrer" className="font-semibold text-emerald-600 hover:underline">Escríbanos por WhatsApp</a>
               </div>
             </div>
           </aside>

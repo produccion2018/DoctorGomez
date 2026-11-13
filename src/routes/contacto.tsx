@@ -16,7 +16,7 @@ export const Route = createFileRoute("/contacto")({
   component: Contacto,
 });
 
-const TEMAS = ["Consulta general", "Turnos", "EPS", "Resultados de estudios", "Cardiología", "Nefrología"];
+const TEMAS = ["Consulta general", "Citas", "EPS", "Resultados de estudios", "Cardiología", "Nefrología"];
 
 const inp =
   "peer h-14 w-full rounded-2xl border border-input bg-background/60 px-4 pt-5 text-sm outline-none transition placeholder:text-transparent focus:border-primary focus:bg-background focus:ring-4 focus:ring-primary/15";
@@ -47,7 +47,7 @@ function Contacto() {
     e.preventDefault();
     const texto = `Hola, soy ${f.nombre.trim()} (tel. ${f.telefono.trim()}).\nTema: ${f.tema}\n\n${f.mensaje.trim()}`;
     window.open(waLink(texto), "_blank", "noopener");
-    toast.success("Abrimos WhatsApp con tu mensaje listo para enviar.");
+    toast.success("Abrimos WhatsApp con su mensaje listo para enviar.");
   };
 
   const canales = [
@@ -61,14 +61,14 @@ function Contacto() {
     <PublicLayout>
       <PageHero
         kicker="Contacto"
-        title={<>Estamos para <span className="text-shine italic">ayudarte</span></>}
-        text="Escríbenos, llámanos o acércate a la clínica. Te respondemos en horario de atención."
+        title={<>Estamos para <span className="text-shine italic">ayudarle</span></>}
+        text="Escríbanos, llámenos o acérquese a la clínica. Le respondemos en horario de atención."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Contacto" }]}
       >
         {ahora && cargado && (
           <span className="glass inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-white">
             <span className={`size-2 rounded-full ${abierto ? "pulse-dot bg-emerald-400" : "bg-rose-400"}`} />
-            {abierto ? `Abierto ahora · hasta las ${hoy?.hasta}` : "Cerrado ahora · déjanos tu mensaje"}
+            {abierto ? `Abierto ahora · hasta las ${hoy?.hasta}` : "Cerrado ahora · déjenos su mensaje"}
           </span>
         )}
       </PageHero>
@@ -108,7 +108,7 @@ function Contacto() {
           <div className="relative">
             <span className="glass inline-flex rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]">Horarios</span>
             <h2 className="mt-5 text-4xl leading-tight text-white">Hablemos</h2>
-            <p className="mt-3 text-white/65">Nuestro equipo te responde en horario de atención. Fuera de horario, déjanos tu mensaje y te escribimos.</p>
+            <p className="mt-3 text-white/65">Nuestro equipo le responde en horario de atención. Fuera de horario, déjenos su mensaje y le escribimos.</p>
 
             {!cargado && <p className="mt-8 rounded-2xl bg-white/[0.06] px-5 py-4 text-sm text-white/70 ring-1 ring-white/10">Los horarios de atención se publicarán próximamente.</p>}
             <ul className={`mt-8 divide-y divide-white/10 border-y border-white/10 ${cargado ? "" : "hidden"}`}>
@@ -137,16 +137,16 @@ function Contacto() {
                 </a>
               )}
             </div>
-            <p className="mt-8 flex items-center gap-2 text-xs text-white/50"><ShieldCheck className="size-4" /> Tus datos se usan solo para responder tu consulta.</p>
+            <p className="mt-8 flex items-center gap-2 text-xs text-white/50"><ShieldCheck className="size-4" /> Sus datos se usan solo para responder su consulta.</p>
           </div>
         </div>
 
         <form onSubmit={enviar} data-reveal className="rounded-[2rem] border border-border/70 bg-card/80 p-8 shadow-[0_40px_80px_-50px_rgba(10,25,70,.6)] backdrop-blur-xl sm:p-10">
           <span className="section-kicker">Mensaje</span>
-          <h2 className="mt-4 text-3xl sm:text-4xl">Envíanos tu consulta</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Se abre WhatsApp con tu mensaje listo para enviar.</p>
+          <h2 className="mt-4 text-3xl sm:text-4xl">Envíenos su consulta</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Se abre WhatsApp con su mensaje listo para enviar.</p>
 
-          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">¿Sobre qué quieres consultar?</p>
+          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">¿Sobre qué quiere consultar?</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {TEMAS.map((t) => {
               const on = f.tema === t;
@@ -176,7 +176,7 @@ function Contacto() {
             </label>
             <label className="relative block sm:col-span-2">
               <textarea required rows={5} maxLength={600} placeholder="Mensaje" value={f.mensaje} onChange={(e) => setF({ ...f, mensaje: e.target.value })} className={`${inp} h-auto resize-none pb-3 pt-7`} />
-              <span className={lbl}>Tu mensaje</span>
+              <span className={lbl}>Su mensaje</span>
               <span className="absolute bottom-3 right-4 text-[11px] tabular-nums text-muted-foreground">{f.mensaje.length}/600</span>
             </label>
           </div>

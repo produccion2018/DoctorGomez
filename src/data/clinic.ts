@@ -118,7 +118,7 @@ export const DOCTORS: Doctor[] = [
     titulo: "Especialista en Medicina Interna y Nefrología",
     especialidades: ["Medicina Interna", "Nefrología"],
     matricula: "MN 84.512",
-    bio: "Médico internista y nefrólogo. Acompaña a pacientes con enfermedad renal crónica, hipertensión y diabetes, con una mirada integral y seguimiento continuo.",
+    bio: "Médico internista y nefrólogo. Acompañe a pacientes con enfermedad renal crónica, hipertensión y diabetes, con una mirada integral y seguimiento continuo.",
     formacion: [
       "Médico Cirujano — Universidad de Guayaquil, Ecuador",
       "Especialista en Medicina Interna — Universidad del Zulia, Unidad Docente Hospital General del Sur, Maracaibo",
@@ -306,7 +306,7 @@ export const ESPECIALIDADES = [
     icono: "watch",
     doctorIds: ["d2"],
     descripcion:
-      "Monitoreo ambulatorio del ritmo cardíaco y de la presión arterial durante 24 horas, en tu vida diaria.",
+      "Monitoreo ambulatorio del ritmo cardíaco y de la presión arterial durante 24 horas, en su vida diaria.",
     aborda: [
       "Detección de arritmias",
       "Palpitaciones y desmayos",
@@ -360,7 +360,7 @@ export const ESPECIALIDADES = [
     cuando: [
       "Chequeo anual",
       "Control de enfermedades crónicas",
-      "Pedido de tu médico",
+      "Pedido de su médico",
     ],
     estudios: ["Hemograma", "Química completa", "Orina completa", "Perfil tiroideo"],
     seguimiento:
@@ -424,9 +424,9 @@ export const ESPECIALIDADES = [
       "Segunda opinión",
     ],
     cuando: [
-      "Vives lejos de la clínica",
-      "Necesitas un control rápido",
-      "Quieres mostrar resultados de estudios",
+      "Vive lejos de la clínica",
+      "Necesita un control rápido",
+      "Quiere mostrar resultados de estudios",
     ],
     estudios: ["Revisión de estudios previos", "Receta electrónica"],
     seguimiento:
@@ -449,18 +449,18 @@ export const SERVICIOS = [
 ];
 
 export const FAQS = [
-  { q: "¿Cómo solicito una cita?", a: "Puedes reservar desde la sección Citas eligiendo especialidad, profesional, fecha y horario. La clínica te contacta para confirmarlo." },
-  { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Puedes consultar directamente con Medicina Interna, Nefrología o Cardiología." },
-  { q: "¿Cuánto demora la entrega de estudios?", a: "Los informes se entregan en la clínica o por correo electrónico. Al hacer el estudio te indicamos cuándo vas a tenerlo." },
-  { q: "¿Puedo reprogramar o cancelar mi cita?", a: "Sí. Escríbenos por WhatsApp o llámanos con al menos 24 horas de anticipación y te ofrecemos un nuevo horario." },
+  { q: "¿Cómo solicito una cita?", a: "Puede reservar desde la sección Citas eligiendo especialidad, profesional, fecha y horario. La clínica lo contacta para confirmarla." },
+  { q: "¿Necesito derivación para una consulta?", a: "No es necesaria. Puede consultar directamente con Medicina Interna, Nefrología o Cardiología." },
+  { q: "¿Cuánto demora la entrega de estudios?", a: "Los informes se entregan en la clínica o por correo electrónico. Al hacer el estudio le indicamos cuándo va a tenerlo." },
+  { q: "¿Puedo reprogramar o cancelar mi cita?", a: "Sí. Escríbanos por WhatsApp o llámenos con al menos 24 horas de anticipación y le ofrecemos un nuevo horario." },
   { q: "¿Atienden teleconsulta?", a: "Sí, la modalidad de teleconsulta está disponible para controles y seguimiento de enfermedades crónicas." },
-  { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que estés tomando." },
-  { q: "¿Trabajan con EPS y medicina prepagada?", a: "Sí. Consulta por WhatsApp o teléfono si tu EPS o plan de medicina prepagada está incluido y si el estudio requiere autorización previa." },
-  { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Ven con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
-  { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Te confirmamos las indicaciones al reservar." },
+  { q: "¿Qué debo llevar a la primera consulta?", a: "Documento de identidad, estudios previos y la lista de medicación que esté tomando." },
+  { q: "¿Trabajan con EPS y medicina prepagada?", a: "Sí. Consulte por WhatsApp o teléfono si su EPS o plan de medicina prepagada está incluido y si el estudio requiere autorización previa." },
+  { q: "¿Cómo me preparo para un Holter o MAPA?", a: "Venga con ropa cómoda y sin cremas en el pecho. El equipo se coloca en el consultorio y se retira al día siguiente." },
+  { q: "¿Necesito ayuno para los análisis?", a: "Para la mayoría de los análisis de sangre se recomiendan 8 a 12 horas de ayuno. Le confirmamos las indicaciones al reservar." },
   { q: "¿Qué medios de pago aceptan?", a: "Efectivo, tarjetas de débito y crédito, y transferencia bancaria." },
-  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico. También los puedes ver en el portal del paciente." },
-  { q: "¿Atienden urgencias?", a: "No somos un servicio de urgencias. Ante una emergencia llama a la línea 123 o acude al servicio de urgencias más cercano." },
+  { q: "¿Cómo recibo los resultados de mis estudios?", a: "Los informes se entregan en la clínica o se envían por correo electrónico. También los puede ver en el portal del paciente." },
+  { q: "¿Atienden urgencias?", a: "No somos un servicio de urgencias. Ante una emergencia llama a la línea 123 o acuda al servicio de urgencias más cercano." },
 ];
 
 export const HORARIOS_BASE = [

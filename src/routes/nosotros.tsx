@@ -200,7 +200,7 @@ function Nosotros() {
         <div>
           <div data-reveal>
             <span className="section-kicker">Servicios ofrecidos</span>
-            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Cuidamos tu <span className="text-gradient-clinic italic">corazón</span> y tu salud</h2>
+            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Cuidamos su <span className="text-gradient-clinic italic">corazón</span> y su salud</h2>
           </div>
           {/* Cardiología: los servicios del cardiólogo */}
           <div data-reveal className="relative mt-10 overflow-hidden rounded-[2rem] bg-[oklch(0.17_0.05_262)] p-6 text-white shadow-[0_40px_80px_-45px_rgba(10,25,70,.9)] sm:p-8">

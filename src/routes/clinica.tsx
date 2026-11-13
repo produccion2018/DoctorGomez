@@ -101,14 +101,14 @@ function Recorrido() {
 }
 
 const PASOS = [
-  { n: "01", icon: CalendarPlus, t: "Reserva tu cita", d: "En línea, por WhatsApp o por teléfono." },
-  { n: "02", icon: ShieldCheck, t: "Confirmación", d: "Te contactamos para confirmar día, hora e indicaciones." },
+  { n: "01", icon: CalendarPlus, t: "Reserve su cita", d: "En línea, por WhatsApp o por teléfono." },
+  { n: "02", icon: ShieldCheck, t: "Confirmación", d: "Le contactamos para confirmar día, hora e indicaciones." },
   { n: "03", icon: Stethoscope, t: "Consulta", d: "Atención personalizada con revisión de estudios previos." },
   { n: "04", icon: FileText, t: "Seguimiento", d: "Plan escrito, estudios y controles programados." },
 ];
 
 const GALERIA = [
-  { img: imgPasillo, cls: "md:col-span-2 md:row-span-2", pos: "object-[50%_40%]", t: "Recepción y pasillos", d: "Espacios amplios, luminosos y señalizados para moverte con tranquilidad." },
+  { img: imgPasillo, cls: "md:col-span-2 md:row-span-2", pos: "object-[50%_40%]", t: "Recepción y pasillos", d: "Espacios amplios, luminosos y señalizados para moverse con tranquilidad." },
   { img: imgCardio, cls: "md:col-span-2", pos: "object-center", t: "Unidad cardiológica", d: "Ecocardiografía, Holter y ergometría." },
   { img: imgNefro, cls: "", pos: "object-center", t: "Sala de estudios", d: "Ecografía y doppler renal." },
   { img: imgInterna, cls: "", pos: "object-[center_25%]", t: "Consultorios", d: "Consultas con tiempo y escucha." },
@@ -118,7 +118,7 @@ const COMODIDADES = [
   { icon: Accessibility, t: "Accesibilidad", d: "Ingreso y circulación para personas con movilidad reducida.", c: "#0ea5e9", fx: "vz-flota" },
   { icon: Wifi, t: "Wi-Fi gratuito", d: "Conexión libre en la sala de espera.", c: "#8b5cf6", fx: "vz-senal" },
   { icon: ShieldCheck, t: "Bioseguridad", d: "Protocolos de higiene en cada consultorio.", c: "#10b981", fx: "vz-latido" },
-  { icon: Clock, t: "Puntualidad", d: "Agenda ordenada para que esperes lo menos posible.", c: "#f59e0b", fx: "vz-reloj" },
+  { icon: Clock, t: "Puntualidad", d: "Agenda ordenada para que espere lo menos posible.", c: "#f59e0b", fx: "vz-reloj" },
 ];
 
 function Clinica() {
@@ -140,7 +140,7 @@ function Clinica() {
       <PageHero
         kicker="Nuestra clínica"
         decoracion={<FondoEspecialidades />}
-        title={<>Un espacio pensado para <span className="text-shine italic">tu cuidado</span></>}
+        title={<>Un espacio pensado para <span className="text-shine italic">su cuidado</span></>}
         text="Consultorios, estudios y seguimiento en un solo lugar, con un circuito de atención ágil y cercano."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Clínica" }]}
       />
@@ -150,7 +150,7 @@ function Clinica() {
         <div data-reveal className="mb-10 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <span className="section-kicker">Instalaciones</span>
-            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Conoce <span className="text-gradient-clinic italic">la clínica</span></h2>
+            <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Conozca <span className="text-gradient-clinic italic">la clínica</span></h2>
           </div>
           <p className="max-w-sm text-muted-foreground">Consultorios, sala de estudios y unidad cardiológica en un mismo lugar.</p>
         </div>
@@ -262,8 +262,8 @@ function Clinica() {
       {/* ───────── RECORRIDO ───────── */}
       <section className="mx-auto max-w-7xl px-4 py-24 lg:px-8">
         <div data-reveal className="mx-auto max-w-2xl text-center">
-          <span className="section-kicker">Cómo te atendemos</span>
-          <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Tu recorrido <span className="text-gradient-clinic italic">en la clínica</span></h2>
+          <span className="section-kicker">Cómo le atendemos</span>
+          <h2 className="mt-4 text-4xl leading-tight sm:text-5xl">Su recorrido <span className="text-gradient-clinic italic">en la clínica</span></h2>
         </div>
         <Recorrido />
       </section>
@@ -280,8 +280,8 @@ function Clinica() {
             </div>
           )}
           <div className="relative m-4 rounded-[1.75rem] bg-[oklch(0.17_0.05_262/0.94)] p-8 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur-xl lg:absolute lg:left-6 lg:top-6 lg:m-0 lg:w-[400px]">
-            <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">Visítanos</span>
-            <h2 className="mt-4 text-3xl text-white">Te esperamos</h2>
+            <span className="glass inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">Visítenos</span>
+            <h2 className="mt-4 text-3xl text-white">Le esperamos</h2>
             <ul className="mt-6 space-y-4">
               {[
                 { icon: MapPin, t: sitio.direccion || "Dirección: próximamente" },

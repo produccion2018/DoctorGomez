@@ -212,7 +212,7 @@ export function createAppointment(
 ): { ok: boolean; error?: string; appointment?: Appointment } {
   const db = load();
   if (isSlotTaken(db, data.doctorId, data.fecha, data.hora)) {
-    return { ok: false, error: "Ese horario ya fue ocupado. Elige otro." };
+    return { ok: false, error: "Ese horario ya fue ocupado. Elija otro." };
   }
   const codigo = `TRN-${1000 + db.appointments.length + 1}`;
   const appointment: Appointment = {
@@ -228,7 +228,7 @@ export function createAppointment(
   });
   logAudit({ usuario: actor.nombre, rol: actor.role, accion: "Creó cita", modulo: "Turnos", registro: codigo, anterior: "—", nuevo: appointment.estado });
   pushNotification({ rol: "secretaria", titulo: "Nueva cita solicitada", mensaje: `${appointment.pacienteNombre} — ${appointment.especialidad} ${appointment.fecha} ${appointment.hora}.` });
-  pushNotification({ rol: "paciente", userId: appointment.pacienteId, titulo: "Cita registrada", mensaje: `Tu cita ${codigo} fue registrada.` });
+  pushNotification({ rol: "paciente", userId: appointment.pacienteId, titulo: "Cita registrada", mensaje: `Su cita ${codigo} fue registrada.` });
   return { ok: true, appointment };
 }
 
@@ -253,7 +253,7 @@ export function changeAppointmentStatus(
     usuario: actor.nombre, rol: actor.role, accion: `Cambió estado a ${estado}`, modulo: "Turnos",
     registro: prev.codigo, anterior: prev.estado, nuevo: estado,
   });
-  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita actualizada", mensaje: `Tu cita ${prev.codigo} ahora está ${estado}.` });
+  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita actualizada", mensaje: `Su cita ${prev.codigo} ahora está ${estado}.` });
   if (prev.estado === "confirmado" && estado === "cancelado") {
     pushAlert({ nivel: "media", tipo: "Modificación", mensaje: `${actor.nombre} canceló la cita confirmada ${prev.codigo}.` });
   }
@@ -281,7 +281,7 @@ export function rescheduleAppointment(
     usuario: actor.nombre, rol: actor.role, accion: "Reprogramó cita", modulo: "Turnos", registro: prev.codigo,
     anterior: `${prev.fecha} ${prev.hora}`, nuevo: `${fecha} ${hora}`,
   });
-  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita reprogramada", mensaje: `Tu cita ${prev.codigo} pasó al ${fecha} a las ${hora}.` });
+  pushNotification({ rol: "paciente", userId: prev.pacienteId, titulo: "Cita reprogramada", mensaje: `Su cita ${prev.codigo} pasó al ${fecha} a las ${hora}.` });
   pushAlert({ nivel: "baja", tipo: "Modificación", mensaje: `${actor.nombre} reprogramó la cita ${prev.codigo}.` });
   return { ok: true };
 }

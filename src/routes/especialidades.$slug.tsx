@@ -109,7 +109,7 @@ function Detalle() {
   const bloques = [
     { icon: Target, titulo: "Qué abordamos", sub: "Enfermedades y situaciones que tratamos", items: esp.aborda, color: "from-sky-500 to-blue-700", glow: "rgba(56,189,248,.55)", dot: "text-sky-400" },
     { icon: HeartPulse, titulo: "Cuándo consultar", sub: "Señales para pedir una cita", items: esp.cuando, color: "from-rose-500 to-red-600", glow: "rgba(244,63,94,.55)", dot: "text-rose-400" },
-    { icon: FlaskConical, titulo: "Estudios", sub: "Estudios que puedes hacer en la clínica", items: esp.estudios, color: "from-emerald-400 to-teal-600", glow: "rgba(16,185,129,.55)", dot: "text-emerald-400" },
+    { icon: FlaskConical, titulo: "Estudios", sub: "Estudios que puede hacer en la clínica", items: esp.estudios, color: "from-emerald-400 to-teal-600", glow: "rgba(16,185,129,.55)", dot: "text-emerald-400" },
   ];
 
   return (

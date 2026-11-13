@@ -120,7 +120,7 @@ export function AuthorizeDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Esta operación requiere autorización de un director médico</AlertDialogTitle>
           <AlertDialogDescription>
-            Operación solicitada: <strong>{operacion}</strong>. Selecciona el director que autoriza. La autorización queda registrada en auditoría.
+            Operación solicitada: <strong>{operacion}</strong>. Seleccione el director que autoriza. La autorización queda registrada en auditoría.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="grid gap-2">

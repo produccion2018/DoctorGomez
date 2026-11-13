@@ -29,11 +29,11 @@ export const Route = createFileRoute("/preguntas-frecuentes")({
   component: Faq,
 });
 
-type Cat = "Todas" | "Turnos" | "Estudios" | "Pagos y coberturas" | "Atención";
+type Cat = "Todas" | "Citas" | "Estudios" | "Pagos y coberturas" | "Atención";
 
 const CATS: { id: Cat; icon: LucideIcon }[] = [
   { id: "Todas", icon: LayoutGrid },
-  { id: "Turnos", icon: CalendarPlus },
+  { id: "Citas", icon: CalendarPlus },
   { id: "Estudios", icon: FlaskConical },
   { id: "Pagos y coberturas", icon: CreditCard },
   { id: "Atención", icon: HeartPulse },
@@ -43,7 +43,7 @@ function categoria(q: string): Exclude<Cat, "Todas"> {
   const t = q.toLowerCase();
   if (/pago|eps|prepagad|obra social|prepaga/.test(t)) return "Pagos y coberturas";
   if (/estudio|holter|mapa|ayuno|análisis|resultado/.test(t)) return "Estudios";
-  if (/turno|derivación|reprogramar/.test(t)) return "Turnos";
+  if (/turno|cita|derivación|reprogramar/.test(t)) return "Citas";
   return "Atención";
 }
 
@@ -62,14 +62,14 @@ function Resaltar({ texto, q }: { texto: string; q: string }) {
 
 const DESC: Record<Cat, string> = {
   Todas: "Todas las preguntas",
-  Turnos: "Reservar, cambiar o cancelar",
+  Citas: "Reservar, cambiar o cancelar",
   Estudios: "Preparación y resultados",
   "Pagos y coberturas": "EPS, prepagadas y medios de pago",
   Atención: "Antes y durante la consulta",
 };
 const COLOR_CAT: Record<Cat, string> = {
   Todas: "#1e40af",
-  Turnos: "#0ea5e9",
+  Citas: "#0ea5e9",
   Estudios: "#8b5cf6",
   "Pagos y coberturas": "#10b981",
   Atención: "#ef4444",
@@ -102,16 +102,16 @@ function Faq() {
       <p className="leading-relaxed text-muted-foreground sm:text-[17px]"><Resaltar texto={f.a} q={q} /></p>
       <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5 text-sm">
         {voto[f.q] ? (
-          <span className="text-muted-foreground">¡Gracias por tu respuesta!</span>
+          <span className="text-muted-foreground">¡Gracias por su respuesta!</span>
         ) : (
           <>
-            <span className="mr-1 text-muted-foreground">¿Te sirvió esta respuesta?</span>
+            <span className="mr-1 text-muted-foreground">¿Le sirvió esta respuesta?</span>
             <button onClick={() => setVoto({ ...voto, [f.q]: "si" })} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 transition hover:border-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-600"><ThumbsUp className="size-3.5" /> Sí</button>
             <button onClick={() => setVoto({ ...voto, [f.q]: "no" })} className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 transition hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-600"><ThumbsDown className="size-3.5" /> No</button>
           </>
         )}
         {voto[f.q] === "no" && (
-          <a href={waLink(`Hola, tengo una duda sobre: ${f.q}`)} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 font-semibold text-primary"><MessageCircle className="size-4" /> Consúltanos por WhatsApp</a>
+          <a href={waLink(`Hola, tengo una duda sobre: ${f.q}`)} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1.5 font-semibold text-primary"><MessageCircle className="size-4" /> Consúltenos por WhatsApp</a>
         )}
       </div>
     </>
@@ -122,7 +122,7 @@ function Faq() {
       <PageHero
         kicker="Ayuda"
         title={<>Preguntas <span className="text-shine italic">frecuentes</span></>}
-        text="Elige un tema, toca una pregunta y lee la respuesta. Así de simple."
+        text="Elija un tema, toque una pregunta y lea la respuesta. Así de simple."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Preguntas frecuentes" }]}
       >
         <div className="relative max-w-xl">
@@ -130,7 +130,7 @@ function Faq() {
           <input
             value={q}
             onChange={(e) => { setQ(e.target.value); setCat("Todas"); }}
-            placeholder="Busca tu pregunta: citas, ayuno, Holter..."
+            placeholder="Busque su pregunta: citas, ayuno, Holter..."
             className="h-14 w-full rounded-2xl border border-white/20 bg-white/10 pl-14 pr-4 text-base text-white shadow-2xl outline-none backdrop-blur-xl transition placeholder:text-white/50 focus:border-white/50 focus:bg-white/15 focus:ring-4 focus:ring-white/10"
           />
         </div>
@@ -149,7 +149,7 @@ function Faq() {
         {/* PASO 1 — TEMA */}
         <div className="flex items-center gap-3">
           <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">1</span>
-          <h2 className="font-sans text-lg font-semibold">Elige un tema</h2>
+          <h2 className="font-sans text-lg font-semibold">Elija un tema</h2>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-5">
           {CATS.map((c) => {
@@ -181,13 +181,13 @@ function Faq() {
           <div>
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">2</span>
-              <h2 className="font-sans text-lg font-semibold">Toca una pregunta</h2>
+              <h2 className="font-sans text-lg font-semibold">Toque una pregunta</h2>
               <span className="ml-auto text-sm text-muted-foreground">{lista.length} {lista.length === 1 ? "pregunta" : "preguntas"}</span>
             </div>
 
             {lista.length === 0 && (
               <div className="mt-5 rounded-3xl border border-dashed border-border p-10 text-center">
-                <p className="text-muted-foreground">No encontramos esa pregunta. Escríbenos y te respondemos.</p>
+                <p className="text-muted-foreground">No encontramos esa pregunta. Escríbanos y le respondemos.</p>
                 <Button asChild className="mt-4 rounded-full !bg-[#25D366] text-white hover:!bg-[#1ebe5b]">
                   <a href={waLink(`Hola, tengo una consulta: ${q}`)} target="_blank" rel="noreferrer"><MessageCircle className="size-4" /> Preguntar por WhatsApp</a>
                 </Button>
@@ -229,7 +229,7 @@ function Faq() {
           <div className="hidden lg:block">
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full gradient-deep font-display text-sm font-semibold text-white">3</span>
-              <h2 className="font-sans text-lg font-semibold">Lee la respuesta</h2>
+              <h2 className="font-sans text-lg font-semibold">Lea la respuesta</h2>
             </div>
             {actual && (
               <div className="sticky top-24 mt-5">
@@ -267,8 +267,8 @@ function Faq() {
             <div className="flex items-center gap-4">
               <span className="flex size-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20"><MessageCircle className="size-6" /></span>
               <div>
-                <h2 className="text-2xl text-white sm:text-3xl">¿No encontraste tu respuesta?</h2>
-                <p className="mt-1 text-white/70">Te respondemos por WhatsApp en horario de atención.</p>
+                <h2 className="text-2xl text-white sm:text-3xl">¿No encontró su respuesta?</h2>
+                <p className="mt-1 text-white/70">Le respondemos por WhatsApp en horario de atención.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-3">

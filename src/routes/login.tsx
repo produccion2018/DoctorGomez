@@ -155,10 +155,10 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
               Bienvenida/o al <span className="italic text-sky-300">equipo</span>
             </h2>
             <p className="mt-5 text-lg leading-relaxed text-white/75">
-              Un médico de la clínica te dio acceso al panel. Crea tu contraseña y empieza a trabajar con tu área.
+              Un médico de la clínica le dio acceso al panel. Cree su contraseña y empiece a trabajar con su área.
             </p>
             <ul className="mt-8 space-y-3 text-sm text-white/85">
-              {["Acceso solo a los módulos de tu área", "Cada acción queda registrada a tu nombre", "Tus datos de ingreso son personales"].map((t) => (
+              {["Acceso solo a los módulos de su área", "Cada acción queda registrada a su nombre", "Sus datos de ingreso son personales"].map((t) => (
                 <li key={t} className="flex items-center gap-3">
                   <span className="flex size-6 items-center justify-center rounded-full bg-emerald-400/20 ring-1 ring-emerald-300/40"><Check className="size-3.5 text-emerald-300" /></span>
                   {t}
@@ -189,7 +189,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
             <div className="iv-up rounded-[2rem] border border-border/70 bg-card/80 p-10 text-center shadow-[0_40px_80px_-40px_rgba(10,25,70,.45)] backdrop-blur-xl">
               <span className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-red-50 text-red-500 ring-1 ring-red-100"><ShieldCheck className="size-7" /></span>
               <h1 className="mt-5 font-display text-3xl font-semibold">Invitación no válida</h1>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">El link ya se usó, venció o el acceso fue bloqueado. Pídele a un médico de la clínica que te envíe uno nuevo.</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">El link ya se usó, venció o el acceso fue bloqueado. Pídale a un médico de la clínica que le envíe uno nuevo.</p>
               <Button asChild className="mt-7 h-11 rounded-xl px-6"><Link to="/login">Ir al acceso</Link></Button>
             </div>
           ) : (
@@ -221,7 +221,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
                     </span>
                   </div>
                 </div>
-                <p className="mt-6 text-sm leading-relaxed text-muted-foreground">Crea tu contraseña personal. La vas a usar cada vez que entres al panel.</p>
+                <p className="mt-6 text-sm leading-relaxed text-muted-foreground">Cree su contraseña personal. La va a usar cada vez que entre al panel.</p>
 
                 <div className="mt-6 space-y-4">
                   <div className="space-y-1.5">
@@ -246,7 +246,7 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
                     <label htmlFor="inv2" className="text-sm font-medium">Repetir contraseña</label>
                     <div className="group relative">
                       <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                      <input id="inv2" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Repite la contraseña" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} />
+                      <input id="inv2" type={show ? "text" : "password"} required autoComplete="new-password" placeholder="Repita la contraseña" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} />
                     </div>
                   </div>
                 </div>
@@ -261,10 +261,10 @@ function AceptarInvitacion({ codigo }: { codigo: string }) {
                 </ul>
 
                 <Button type="submit" size="lg" disabled={loading} className="iv-btn mt-6 h-12 w-full rounded-xl text-[15px] shadow-[0_18px_40px_-16px_rgba(20,50,120,.9)] transition-transform hover:-translate-y-0.5">
-                  {loading ? "Creando tu acceso..." : <>Crear contraseña e ingresar <ArrowRight className="size-4" /></>}
+                  {loading ? "Creando su acceso..." : <>Crear contraseña e ingresar <ArrowRight className="size-4" /></>}
                 </Button>
                 <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-                  <ShieldCheck className="size-3.5 shrink-0" /> <span>Después entras desde el acceso eligiendo <b>Equipo</b> y tu nombre.</span>
+                  <ShieldCheck className="size-3.5 shrink-0" /> <span>Después entra desde el acceso eligiendo <b>Equipo</b> y su nombre.</span>
                 </p>
               </form>
             </>
@@ -318,7 +318,7 @@ function LoginNormal() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!adminId) return toast.error("Elige tu usuario.");
+    if (!adminId) return toast.error("Elija su usuario.");
     if (primera) {
       if (password.length < 8) return toast.error("La contraseña debe tener al menos 8 caracteres.");
       if (password !== password2) return toast.error("Las contraseñas no coinciden.");
@@ -401,11 +401,11 @@ function LoginNormal() {
             <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-primary">
               <ShieldCheck className="size-3.5" /> Acceso restringido
             </span>
-            <h1 className="text-3xl font-semibold">{primera ? "Crea tu contraseña" : rol === "enfermeria" ? "Enfermería – Triage" : "Panel administrativo"}</h1>
+            <h1 className="text-3xl font-semibold">{primera ? "Cree su contraseña" : rol === "enfermeria" ? "Enfermería – Triage" : "Panel administrativo"}</h1>
             <p className="text-sm text-muted-foreground">
               {primera
-                ? "Es tu primer ingreso. Elige una contraseña personal para entrar al panel."
-                : "Selecciona tu usuario e ingresa tu contraseña."}
+                ? "Es su primer ingreso. Elija una contraseña personal para entrar al panel."
+                : "Seleccione su usuario e ingresa su contraseña."}
             </p>
           </div>
 
@@ -456,7 +456,7 @@ function LoginNormal() {
                   <p className="font-semibold text-foreground">Todavía no hay personal habilitado en esta computadora.</p>
                   <ol className="mx-auto mt-3 max-w-xs space-y-1.5 text-left">
                     <li>1. Un médico entra a <b>Permisos y accesos</b> → <b>Personal y accesos</b>.</li>
-                    <li>2. Da de alta a la persona y elige su área (Enfermería, Recepción…).</li>
+                    <li>2. Dé de alta a la persona y elija su área (Enfermería, Recepción…).</li>
                     <li>3. Le envía el <b>link de invitación</b> por WhatsApp.</li>
                     <li>4. La persona abre el link, crea su contraseña y entra.</li>
                   </ol>
@@ -503,7 +503,7 @@ function LoginNormal() {
                     type={show ? "text" : "password"}
                     required
                     autoComplete="new-password"
-                    placeholder="Repite la contraseña"
+                    placeholder="Repita la contraseña"
                     value={password2}
                     onChange={(e) => setPassword2(e.target.value)}
                     className={inputClass}
@@ -518,7 +518,7 @@ function LoginNormal() {
               </Button>
               {!primera && (
                 <button type="button" onClick={() => setOlvide(true)} className="mt-3 w-full text-center text-sm font-medium text-primary hover:underline">
-                  ¿Olvidaste tu contraseña?
+                  ¿Olvidó su contraseña?
                 </button>
               )}
             </div>
@@ -558,7 +558,7 @@ function PasoCodigo({ ticket, onOk, onVolver }: { ticket: string; onOk: () => vo
     <form onSubmit={enviar} className="lg-up mt-8 space-y-5">
       <div className="flex items-center gap-4 rounded-2xl bg-secondary/70 p-4">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl gradient-deep text-white"><Smartphone className="size-5" /></span>
-        <p className="text-sm">{respaldo ? "Escribe uno de tus códigos de respaldo (formato XXXXX-XXXXX). Cada uno sirve una sola vez." : "Abre tu app de códigos (Google Authenticator o Microsoft Authenticator) y escribe el número de 6 dígitos de HEGO."}</p>
+        <p className="text-sm">{respaldo ? "Escriba uno de sus códigos de respaldo (formato XXXXX-XXXXX). Cada uno sirve una sola vez." : "Abra su app de códigos (Google Authenticator o Microsoft Authenticator) y escriba el número de 6 dígitos de HEGO."}</p>
       </div>
       <input
         autoFocus
@@ -603,12 +603,12 @@ function OlvideClave({ onCerrar }: { onCerrar: () => void }) {
         <h2 className="mt-4 text-2xl">Recuperar contraseña</h2>
         {enviado ? (
           <>
-            <p className="mt-2 text-sm text-muted-foreground">Si ese correo está registrado en el panel, te llegó un link para crear una contraseña nueva. Vale por 1 hora. Revisa también el correo no deseado.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Si ese correo está registrado en el panel, le llegó un link para crear una contraseña nueva. Vale por 1 hora. Revise también el correo no deseado.</p>
             <Button onClick={onCerrar} className="mt-6 w-full rounded-xl">Entendido</Button>
           </>
         ) : (
           <form onSubmit={enviar} className="mt-2 space-y-4">
-            <p className="text-sm text-muted-foreground">Escribe el correo que cargaste en <b>Mi seguridad</b> dentro del panel. Si no cargaste ninguno, pídele a un médico o a Dirección que te restablezca la contraseña.</p>
+            <p className="text-sm text-muted-foreground">Escriba el correo que cargó en <b>Mi seguridad</b> dentro del panel. Si no cargó ninguno, pídale a un médico o a Dirección que le restablezca la contraseña.</p>
             <div className="group relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" className={inputClass} />
@@ -638,7 +638,7 @@ function RestablecerClave({ token }: { token: string }) {
     const r = await usarRecupero(token, p1);
     setCargando(false);
     if (!r.ok) return toast.error(r.error);
-    toast.success("Listo: ya puedes ingresar con tu contraseña nueva.");
+    toast.success("Listo: ya puede ingresar con su contraseña nueva.");
     navigate({ to: "/login", search: {} });
   };
   return (
@@ -646,7 +646,7 @@ function RestablecerClave({ token }: { token: string }) {
       <form onSubmit={enviar} className="w-full max-w-md space-y-4 rounded-3xl bg-card p-8 shadow-2xl">
         <img src={logoClinica} alt="HEGO" className="size-14 rounded-2xl" />
         <h1 className="text-2xl font-semibold">Contraseña nueva</h1>
-        <p className="text-sm text-muted-foreground">Elige una contraseña de al menos 8 caracteres. Si tienes verificación en dos pasos, al ingresar te va a pedir el código de la app como siempre.</p>
+        <p className="text-sm text-muted-foreground">Elija una contraseña de al menos 8 caracteres. Si tiene verificación en dos pasos, al ingresar le va a pedir el código de la app como siempre.</p>
         <div className="relative"><Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input type="password" required autoComplete="new-password" placeholder="Contraseña nueva" value={p1} onChange={(e) => setP1(e.target.value)} className={inputClass} /></div>
         <div className="relative"><Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input type="password" required autoComplete="new-password" placeholder="Repetila" value={p2} onChange={(e) => setP2(e.target.value)} className={inputClass} /></div>
         <Button type="submit" disabled={cargando} className="h-12 w-full rounded-xl">{cargando ? "Guardando..." : "Guardar contraseña"}</Button>

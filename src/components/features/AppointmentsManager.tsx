@@ -54,7 +54,7 @@ export function AppointmentsManager({ user, soloDoctorId, detalleAvanzado = fals
     <div className="space-y-5">
       <Panel
         title="Gestión de citas"
-        description="Filtra, confirma, reprograma o cancela citas. Cada operación queda registrada en auditoría."
+        description="Filtre, confirme, reprograme o cancele citas. Cada operación queda registrada en auditoría."
         action={<NuevoTurnoDialog user={user} pacientes={pacientes} />}
       >
         <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -230,7 +230,7 @@ export function NuevoTurnoDialog({ user, pacientes }: { user: User; pacientes: U
   function guardar() {
     const paciente = pacientes.find((p) => p.id === pacienteId);
     if (!paciente || !doctorId || !fecha || !hora || !especialidad) {
-      toast.error("Completa todos los campos.");
+      toast.error("Complete todos los campos.");
       return;
     }
     if (isSlotTaken(getDB(), doctorId, fecha, hora)) {

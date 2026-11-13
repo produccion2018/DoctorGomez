@@ -75,7 +75,7 @@ function PerfilDoctor() {
                 ))}
               </div>
               {agenda.dias.length === 0 ? (
-                <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, puedes consultar por WhatsApp.</p>
+                <p className="rounded-xl bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">Los días y horarios de atención se publicarán próximamente. Mientras tanto, puede consultar por WhatsApp.</p>
               ) : (
                 <p className="text-sm text-muted-foreground">{resumenAgenda(agenda)} · citas de {agenda.duracion} minutos</p>
               )}

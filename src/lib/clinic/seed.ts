@@ -115,8 +115,8 @@ export function buildSeed(): DB {
   ];
 
   const notifications: DB["notifications"] = [
-    { id: "n1", rol: "paciente", userId: "p1", titulo: "Cita confirmada", mensaje: "Tu cita TRN-1001 fue confirmada.", fecha: nowISO, leida: false },
-    { id: "n2", rol: "paciente", userId: "p1", titulo: "Estudio disponible", mensaje: "El informe de tu ecocardiograma ya está disponible.", fecha: nowISO, leida: false },
+    { id: "n1", rol: "paciente", userId: "p1", titulo: "Cita confirmada", mensaje: "Su cita TRN-1001 fue confirmada.", fecha: nowISO, leida: false },
+    { id: "n2", rol: "paciente", userId: "p1", titulo: "Estudio disponible", mensaje: "El informe de su ecocardiograma ya está disponible.", fecha: nowISO, leida: false },
     { id: "n3", rol: "secretaria", titulo: "Nueva cita solicitada", mensaje: "Rosa Medina solicitó una cita de Nefrología.", fecha: nowISO, leida: false },
     { id: "n4", rol: "director", titulo: "Modificación administrativa", mensaje: "Se detectó una modificación sobre una cita confirmada.", fecha: nowISO, leida: false },
     { id: "n5", rol: "medico", titulo: "Agenda del día", mensaje: "Tiene 5 pacientes próximos en su agenda.", fecha: nowISO, leida: false },

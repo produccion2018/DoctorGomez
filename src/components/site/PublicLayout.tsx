@@ -573,8 +573,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <div className="relative mx-auto max-w-7xl px-4 pt-14 lg:px-8">
           <div className="flex flex-col items-start justify-between gap-6 rounded-3xl bg-white/[0.06] p-8 ring-1 ring-white/10 backdrop-blur md:flex-row md:items-center">
             <div>
-              <h3 className="text-2xl text-deep-foreground sm:text-3xl">¿Necesitas una consulta?</h3>
-              <p className="mt-1 text-deep-foreground/70">Reserva en línea en minutos o escríbenos por WhatsApp.</p>
+              <h3 className="text-2xl text-deep-foreground sm:text-3xl">¿Necesita una consulta?</h3>
+              <p className="mt-1 text-deep-foreground/70">Reserve en línea en minutos o escríbanos por WhatsApp.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[var(--deep)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
@@ -1063,20 +1063,20 @@ export function InstalarApp({ nombre = "la app", oscuro = false, className = "" 
               <img src={logoClinica} alt="" className="size-12 rounded-2xl" />
               <div>
                 <p className="font-semibold">Instalar {nombre}</p>
-                <p className="text-xs text-muted-foreground">Queda como un ícono en tu pantalla de inicio</p>
+                <p className="text-xs text-muted-foreground">Queda como un ícono en su pantalla de inicio</p>
               </div>
             </div>
             {ios ? (
               <ol className="mt-5 space-y-3 text-sm">
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Share className="size-4" /></span> Toca <b>Compartir</b> abajo en Safari.</li>
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><SquarePlus className="size-4" /></span> Elige <b>Agregar a pantalla de inicio</b>.</li>
-                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Download className="size-4" /></span> Toca <b>Agregar</b>. ¡Listo!</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Share className="size-4" /></span> Toque <b>Compartir</b> abajo en Safari.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><SquarePlus className="size-4" /></span> Elija <b>Agregar a pantalla de inicio</b>.</li>
+                <li className="flex items-center gap-3"><span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-secondary"><Download className="size-4" /></span> Toque <b>Agregar</b>. ¡Listo!</li>
               </ol>
             ) : (
               <ol className="mt-5 space-y-3 text-sm">
-                <li>1. Abre el menú del navegador (<b>⋮</b> arriba a la derecha).</li>
-                <li>2. Elige <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</li>
-                <li>3. Confirma. En la compu también aparece un ícono de instalar en la barra de direcciones.</li>
+                <li>1. Abra el menú del navegador (<b>⋮</b> arriba a la derecha).</li>
+                <li>2. Elija <b>Instalar aplicación</b> o <b>Agregar a pantalla de inicio</b>.</li>
+                <li>3. Confirme. En el computador también aparece un ícono de instalar en la barra de direcciones.</li>
               </ol>
             )}
             <Button onClick={() => setGuia(false)} className="mt-6 w-full rounded-xl">Entendido</Button>

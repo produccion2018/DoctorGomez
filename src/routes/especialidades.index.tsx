@@ -107,8 +107,8 @@ function Especialidades() {
 
         <div data-reveal className="mt-16 flex flex-col items-center justify-between gap-5 rounded-3xl border border-border bg-secondary/50 p-8 text-center sm:flex-row sm:text-left">
           <div>
-            <h3 className="text-2xl">¿No sabes qué especialidad necesitas?</h3>
-            <p className="mt-1 text-muted-foreground">Empieza por Medicina Interna: evaluamos tu caso y te derivamos dentro de la clínica.</p>
+            <h3 className="text-2xl">¿No sabe qué especialidad necesita?</h3>
+            <p className="mt-1 text-muted-foreground">Empiece por Medicina Interna: evaluamos su caso y le derivamos dentro de la clínica.</p>
           </div>
           <Button asChild size="lg" className="btn-glow rounded-full px-6"><Link to="/turnos" search={{ especialidad: "medicina-interna" }}><CalendarPlus className="size-4" /> Pedir cita</Link></Button>
         </div>

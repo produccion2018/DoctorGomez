@@ -742,11 +742,11 @@ export async function ingresarPaciente(dniOEmail: string, codigoOClave: string):
   const u = dniOEmail.trim().toLowerCase();
   const dni = u.replace(/\D/g, "");
   const p = lista.find((x) => (dni.length >= 5 && x.dni === dni) || (u.includes("@") && x.email.toLowerCase() === u));
-  if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pídele a la clínica que te envíe la invitación." };
-  if (p.estado === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunícate con la clínica." };
+  if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pídale a la clínica que le envíe la invitación." };
+  if (p.estado === "Revocado") return { ok: false, error: "Su acceso al portal está deshabilitado. Comuníquese con la clínica." };
   const c = codigoOClave.trim();
   const valida = c === p.codigo || (!!p.clave && (await hash(c)) === p.clave);
-  if (!valida) return { ok: false, error: p.clave ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisa el mensaje de la clínica." };
+  if (!valida) return { ok: false, error: p.clave ? "El código o la contraseña no son correctos." : "El código no es correcto. Revise el mensaje de la clínica." };
   const actualizado: PacientePortal = { ...p, estado: "Activo", ultimoIngreso: new Date().toISOString() };
   guardarDato(KEY_PACIENTES, lista.map((x) => (x.id === p.id ? actualizado : x)));
   localStorage.setItem(KEY_SESION_PACIENTE, p.id);
@@ -978,11 +978,11 @@ export const TIPOS_ESTUDIO = [
 export type NivelPresion = { nivel: string; tono: "verde" | "ambar" | "naranja" | "rojo" | "critico"; consejo: string };
 /** Clasificación según guías AHA/ACC 2017 (valores en mmHg). */
 export function clasificarPresion(s: number, d: number): NivelPresion {
-  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tienes dolor de pecho, falta de aire, visión borrosa o confusión, llama al 123 o ve a urgencias." };
-  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Vuelve a medirla en 5 minutos. Si sigue alta, avísale a tu médico." };
-  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Regístrala y coméntalo en tu próximo control." };
-  if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantén los hábitos saludables y sigue registrando." };
-  return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Sigue así." };
+  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tiene dolor de pecho, falta de aire, visión borrosa o confusión, llame a la línea 123 o vaya a urgencias." };
+  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Vuelva a medirla en 5 minutos. Si sigue alta, avísele a su médico." };
+  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Regístrela y coméntelo en su próximo control." };
+  if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantenga los hábitos saludables y siga registrando." };
+  return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Siga así." };
 }
 
 /** Estadio de enfermedad renal crónica según filtrado glomerular (KDIGO). */

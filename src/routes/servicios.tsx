@@ -25,7 +25,7 @@ export const Route = createFileRoute("/servicios")({
   head: () => ({
     meta: [
       { title: "Servicios | HEGO · Centro de especialidades médicas" },
-      { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reserva tu cita en línea." },
+      { name: "description", content: "Consultas, evaluaciones y estudios de cada especialidad. Reserve su cita en línea." },
     ],
   }),
   component: Servicios,
@@ -69,7 +69,7 @@ function Servicios() {
         kicker="Servicios"
         decoracion={<FondoEspecialidades />}
         title={<>Consultas y estudios con <span className="text-shine italic">cita en línea</span></>}
-        text="Consultas y estudios de cada especialidad. El valor de la consulta y la cobertura de tu EPS o prepagada te los confirmamos al reservar."
+        text="Consultas y estudios de cada especialidad. El valor de la consulta y la cobertura de su EPS o prepagada le los confirmamos al reservar."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Servicios" }]}
       />
 
@@ -160,8 +160,8 @@ function Servicios() {
           <div className="pointer-events-none absolute -bottom-24 left-10 size-64 rounded-full bg-rose-500/20 blur-3xl" />
           <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
             <div>
-              <h2 className="text-3xl text-white">¿No sabes qué servicio necesitas?</h2>
-              <p className="mt-2 max-w-xl text-white/70">Empieza por una consulta de Medicina Interna: evaluamos tu caso y te derivamos dentro de la clínica.</p>
+              <h2 className="text-3xl text-white">¿No sabe qué servicio necesita?</h2>
+              <p className="mt-2 max-w-xl text-white/70">Empiece por una consulta de Medicina Interna: evaluamos su caso y le derivamos dentro de la clínica.</p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full !bg-white px-6 text-[oklch(0.25_0.08_260)] hover:!bg-white/90"><Link to="/turnos"><CalendarPlus className="size-4" /> Pedir cita</Link></Button>

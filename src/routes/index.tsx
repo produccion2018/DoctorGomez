@@ -40,7 +40,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "HEGO · Centro de especialidades médicas | Medicina Interna, Cardiología y Nefrología" },
-      { name: "description", content: "Ciencia, experiencia y compromiso con tu salud. Citas en línea y atención especializada en Medicina Interna, Cardiología y Nefrología." },
+      { name: "description", content: "Ciencia, experiencia y compromiso con su salud. Citas en línea y atención especializada en Medicina Interna, Cardiología y Nefrología." },
       { property: "og:title", content: "HEGO · Centro de especialidades médicas | Atención médica especializada" },
       { property: "og:description", content: "Medicina Interna, Cardiología, Nefrología, Cardiología Crítica y Ecocardiografía." },
     ],
@@ -314,9 +314,9 @@ function PasosTurno() {
     return () => clearInterval(t);
   }, []);
   const PASOS = [
-    { n: "01", icon: Stethoscope, t: "Elige la especialidad", d: "Cardiología, nefrología, medicina interna y más.", c: "#0ea5e9" },
-    { n: "02", icon: CalendarDays, t: "Elige día y horario", d: "Ves solo los horarios libres, actualizados por cada doctor.", c: "#8b5cf6" },
-    { n: "03", icon: ShieldCheck, t: "Confirmamos tu cita", d: "Te escribimos por WhatsApp con las indicaciones.", c: "#10b981" },
+    { n: "01", icon: Stethoscope, t: "Elija la especialidad", d: "Cardiología, nefrología, medicina interna y más.", c: "#0ea5e9" },
+    { n: "02", icon: CalendarDays, t: "Elija día y horario", d: "Verá solo los horarios libres, actualizados por cada doctor.", c: "#8b5cf6" },
+    { n: "03", icon: ShieldCheck, t: "Confirmamos su cita", d: "Le escribimos por WhatsApp con las indicaciones.", c: "#10b981" },
   ];
   return (
     <div className="relative" data-reveal>
@@ -662,7 +662,7 @@ function Home() {
           <SectionTitle
             kicker="Servicios"
             title="Servicios destacados"
-            text="Consultas y estudios con cita en línea. La clínica te confirma el horario."
+            text="Consultas y estudios con cita en línea. La clínica le confirma el horario."
           />
           <Button asChild variant="outline" className="rounded-full" data-reveal><Link to="/servicios">Ver todos los servicios</Link></Button>
         </div>
@@ -718,7 +718,7 @@ function Home() {
       <section className="relative mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div className="mx-auto mb-14 max-w-2xl text-center" data-reveal>
           <span className="section-kicker"><CalendarPlus className="size-3.5" /> Citas en línea</span>
-          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu cita en <span className="text-gradient-clinic italic">tres pasos</span></h2>
+          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Su cita en <span className="text-gradient-clinic italic">tres pasos</span></h2>
         </div>
         <PasosTurno />
         <div className="mt-10 flex justify-center" data-reveal>
@@ -735,7 +735,7 @@ function Home() {
         <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 lg:grid-cols-2 lg:px-8">
           <div data-reveal className="text-white">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-white/85 ring-1 ring-white/15"><Smartphone className="size-3.5" /> Portal del paciente</span>
-            <h2 className="mt-5 text-3xl leading-tight text-white sm:text-5xl">Tu salud, <span className="text-shine italic">en tu celular</span></h2>
+            <h2 className="mt-5 text-3xl leading-tight text-white sm:text-5xl">Su salud, <span className="text-shine italic">en su celular</span></h2>
             <p className="mt-4 max-w-lg text-lg text-white/70">Los pacientes de la clínica tienen su propio portal para seguir su tratamiento entre consulta y consulta.</p>
             <ul className="mt-8 grid gap-3 sm:grid-cols-2">
               {[
@@ -753,7 +753,7 @@ function Home() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" className="rounded-full !bg-white px-7 text-[var(--deep)] hover:!bg-white/90"><Link to="/portal">Entrar a mi portal <ArrowRight className="size-4" /></Link></Button>
             </div>
-            <p className="mt-4 text-xs text-white/50">El acceso lo habilita la clínica: te enviamos tu código por WhatsApp.</p>
+            <p className="mt-4 text-xs text-white/50">El acceso lo habilita la clínica: le enviamos su código por WhatsApp.</p>
           </div>
 
           {/* Maqueta de teléfono */}
@@ -765,7 +765,7 @@ function Home() {
                 <div className="space-y-3 p-4">
                   <div className="rounded-2xl gradient-deep p-4 text-white">
                     <p className="text-[10px] text-white/70">Buenos días</p>
-                    <p className="font-display text-lg leading-tight">Laura, ¿cómo te sientes?</p>
+                    <p className="font-display text-lg leading-tight">Laura, ¿cómo se siente?</p>
                     <div className="mt-3 rounded-xl bg-white/15 p-2.5 text-[10px]">
                       <p className="text-white/70">Próxima cita · mañana</p>
                       <p className="font-semibold">Ecocardiograma · 10:00</p>
@@ -810,14 +810,14 @@ function Home() {
             <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground">
               <Sparkles className="size-3.5" /> Atención personalizada
             </span>
-            <h2 className="mt-5 text-3xl text-deep-foreground sm:text-5xl">Tu salud, con seguimiento real</h2>
+            <h2 className="mt-5 text-3xl text-deep-foreground sm:text-5xl">Su salud, con seguimiento real</h2>
             <p className="mx-auto mt-4 max-w-2xl text-deep-foreground/80">
-              Reserva tu cita en línea en minutos o escríbenos por WhatsApp. Te acompañamos en cada control y estudio.
+              Reserve su cita en línea en minutos o escríbanos por WhatsApp. Le acompañamos en cada control y estudio.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button asChild size="lg" variant="secondary" className="rounded-full px-7 transition-transform hover:-translate-y-0.5"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
               <Button asChild size="lg" variant="outline" className="glass !border-white/30 !bg-white/10 rounded-full px-7 text-deep-foreground hover:bg-white/20 hover:text-deep-foreground">
-                <Link to="/contacto">Contáctanos</Link>
+                <Link to="/contacto">Contáctenos</Link>
               </Button>
             </div>
           </div>

@@ -375,7 +375,7 @@ const inp =
 
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
-  { id: "turnos", label: "Turnos", icon: CalendarDays },
+  { id: "turnos", label: "Citas", icon: CalendarDays },
   { id: "historia", label: "Historia", icon: FileText },
   { id: "triage", label: "Triage", icon: Syringe },
   { id: "padron", label: "Pacientes", icon: Users },
@@ -452,10 +452,10 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
 
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
-  turnos: ["Turnos", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
+  turnos: ["Citas", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
   triage: ["Enfermería – Triage", "Toma de signos vitales y clasificación de pacientes antes de la consulta médica."],
   padron: ["Pacientes", "Padrón de pacientes: datos, cobertura, antecedentes y accesos rápidos."],
-  recetas: ["Receta digital", "Recetas con tu firma digitalizada, código de verificación y envío por WhatsApp."],
+  recetas: ["Receta digital", "Recetas con su firma digitalizada, código de verificación y envío por WhatsApp."],
   laboratorio: ["Laboratorio", "Pedidos, órdenes firmadas y resultados con valores fuera de rango marcados."],
   facturacion: ["Facturación", "Comprobantes, cobros por facturar y liquidación de EPS."],
   analitica: ["Analítica y reportes", "Indicadores de la clínica, clínicos y reportes para descargar."],
@@ -465,7 +465,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
   finanzas: ["Finanzas", "Cobros a pacientes, control de la caja e ingresos y egresos de la clínica."],
-  permisos: ["Permisos", "Define qué puede ver y hacer cada departamento."],
+  permisos: ["Permisos", "Defina qué puede ver y hacer cada departamento."],
   asistente: ["Asistente IA", "Consultas rápidas sobre citas, finanzas, permisos y actividad."],
   auditoria: ["Auditoría", "Registro de todas las acciones realizadas en el panel."],
   sitio: ["Sitio web", "Datos de contacto, horario de la clínica y música de espera que se ven en la web."],
@@ -508,7 +508,7 @@ function Panel() {
     // Con backend: la sesión tiene que seguir vigente en el servidor
     void validarSesion().then((v) => {
       if (!v) {
-        toast.error("Tu sesión venció. Vuelve a ingresar.");
+        toast.error("Su sesión venció. Vuelva a ingresar.");
         navigate({ to: "/login" });
         return;
       }
@@ -538,7 +538,7 @@ function Panel() {
       <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(at_20%_10%,rgba(56,189,248,.18),transparent_50%),linear-gradient(180deg,#0b1430,#0a1024)] p-4">
         <div className="w-full max-w-lg rounded-3xl bg-card p-6 shadow-2xl sm:p-8">
           <img src={logoClinica} alt="HEGO" className="size-12 rounded-2xl" />
-          <h1 className="mt-4 text-2xl font-semibold">Activa la verificación en dos pasos</h1>
+          <h1 className="mt-4 text-2xl font-semibold">Active la verificación en dos pasos</h1>
           <p className="mt-1 text-sm text-muted-foreground">Por seguridad, los médicos y Dirección general tienen que usar una app de códigos para entrar al panel. Se hace una sola vez.</p>
           <div className="mt-6">
             <Activar2FA onListo={() => { setObliga2fa(false); void refrescarTodo(); if (user.rol === "medico" || user.area === "Dirección general") void sincronizarPersonal(); }} />
@@ -903,13 +903,13 @@ function Panel() {
                 </h1>
                 <p className="mt-1 text-sm text-deep-foreground/75">
                   {esEnf && esAreaMedica(areaUsuario)
-                    ? `Panel médico · ${areaUsuario}. Atiende a tus pacientes desde la Historia Clínica.`
+                    ? `Panel médico · ${areaUsuario}. Atiende a sus pacientes desde la Historia Clínica.`
                     : esEnf && areaUsuario !== "Enfermería"
-                    ? `Panel de ${areaUsuario}: ves los módulos que tu área tiene habilitados.`
+                    ? `Panel de ${areaUsuario}: verá los módulos que su área tiene habilitados.`
                     : esEnf
-                    ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con cita hoy. Registra sus signos vitales antes de la consulta.`
+                    ? `Hay ${turnos.filter((t) => t.fecha === isoDe(new Date()) && t.estado !== "Cancelado").length} pacientes con cita hoy. Registre sus signos vitales antes de la consulta.`
                     : pendientes > 0
-                    ? `Tienes ${pendientes} cita${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
+                    ? `Tiene ${pendientes} cita${pendientes === 1 ? "" : "s"} pendiente${pendientes === 1 ? "" : "s"} de confirmar.`
                     : "Todo al día: no hay citas pendientes."}
                 </p>
               </div>
@@ -948,7 +948,7 @@ function Panel() {
         </div>
 
         {esEnf && TABS_ENF.length === 0 && (
-          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto={`Pídele a un médico que te habilite módulos en Permisos → ${areaUsuario}.`} /></section>
+          <section className="pn-card p-6"><Vacio icon={KeyRound} titulo="Sin módulos habilitados" texto={`Pídale a un médico que le habilite módulos en Permisos → ${areaUsuario}.`} /></section>
         )}
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
@@ -1404,7 +1404,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
           icon={Clock}
           label="Agenda del día"
           valor={turnosHoy}
-          detalle={`${plural(deHoy.filter((t) => t.estado === "Confirmado").length, "confirmado")} · ${plural(deHoy.filter((t) => t.estado === "Pendiente").length, "pendiente")}`}
+          detalle={`${plural(deHoy.filter((t) => t.estado === "Confirmado").length, "confirmada")} · ${plural(deHoy.filter((t) => t.estado === "Pendiente").length, "pendiente")}`}
           onClick={() => abrirTurnos("agenda")}
         />
         <TarjetaDia
@@ -1441,7 +1441,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={CalendarCheck} titulo="Próximas citas" sub="Pendientes y confirmados" delay={0.25} className="xl:col-span-3"
+        <Seccion icon={CalendarCheck} titulo="Próximas citas" sub="Pendientes y confirmadas" delay={0.25} className="xl:col-span-3"
           acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("turnos")}>Ver agenda <ArrowUpRight className="size-4" /></Button>}>
           {proximos.length === 0 && <Vacio icon={CalendarDays} titulo="Agenda libre" texto="Todavía no hay citas. Las que se reserven desde la web o se creen aquí van a aparecer en esta lista." accion={<Button onClick={() => irA("turnos")} className="rounded-xl"><Plus className="size-4" /> Crear cita</Button>} />}
           <div className="space-y-2">
@@ -1491,7 +1491,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
               <p className="text-sm text-muted-foreground">
                 {turnos.length
                   ? `${Math.round((conteo.find((c) => c.e === "Confirmado")!.n / totalT) * 100)}% de la agenda está confirmada.`
-                  : "Cuando haya citas vas a ver aquí cómo se reparten por estado."}
+                  : "Cuando haya citas verá aquí cómo se reparten por estado."}
               </p>
             </div>
             <div className="space-y-3">
@@ -1511,7 +1511,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
 
           <Seccion icon={ClipboardList} titulo="Actividad reciente" delay={0.35}
             acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("auditoria")}>Ver todo</Button>}>
-            {audit.length === 0 && <Vacio icon={ClipboardList} titulo="Sin actividad" texto="Aquí vas a ver cada acción del panel." />}
+            {audit.length === 0 && <Vacio icon={ClipboardList} titulo="Sin actividad" texto="Aquí va a ver cada acción del panel." />}
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border">
               {audit.slice(0, 5).map((e) => {
                 const { icon: I, clase } = iconoEvento(e.accion);
@@ -1594,7 +1594,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
 
   const asignar = (doctor: string, hora: string) => {
     if (!rapido.paciente.trim()) {
-      toast.error("Escribe el nombre del paciente.");
+      toast.error("Escriba el nombre del paciente.");
       return;
     }
     const nuevo: Turno = {
@@ -1636,7 +1636,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
         )}
         {t.estado === "Atendido" && <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700"><Check className="size-3" /> Atendido</span>}
         {t.telefono && (
-          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, te escribimos del Centro HEGO por tu cita del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
+          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO por su cita del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
             <Send className="size-3.5" />
           </a>
         )}
@@ -1687,10 +1687,10 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
           {[
-            { l: "Turnos", v: ocupados, c: "text-foreground" },
-            { l: "Confirmados", v: confirmados, c: "text-sky-700" },
+            { l: "Citas", v: ocupados, c: "text-foreground" },
+            { l: "Confirmadas", v: confirmados, c: "text-sky-700" },
             { l: "Pendientes", v: pendientes, c: "text-amber-700" },
-            { l: "Atendidos", v: atendidos, c: "text-emerald-700" },
+            { l: "Atendidas", v: atendidos, c: "text-emerald-700" },
             { l: "Libres", v: Math.max(0, totalSlots - columnas.reduce((acc, c) => acc + c.suyos.filter((t) => c.slots.includes(t.hora)).length, 0)), c: "text-muted-foreground" },
           ].map((x) => (
             <div key={x.l} className="rounded-xl bg-secondary/50 px-3 py-2">
@@ -1828,7 +1828,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
   const agregar = (e: FormEvent) => {
     e.preventDefault();
     if (!f.hora) {
-      toast.error("Elige un horario.");
+      toast.error("Elija un horario.");
       return;
     }
     if (turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === f.hora && t.estado !== "Cancelado")) {
@@ -1888,7 +1888,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarCheck className="size-5" /></span>
               <div>
                 <h3 className="text-lg font-semibold tracking-tight">Nueva cita</h3>
-                <p className="text-xs text-muted-foreground">Elige profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
+                <p className="text-xs text-muted-foreground">Elija profesional, día y horario libre. Se crea como pendiente hasta confirmarlo.</p>
               </div>
               <button type="button" onClick={() => setManual(false)} className="ml-auto rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary">Cerrar</button>
             </div>
@@ -1948,7 +1948,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               {otraHora ? (
                 <input type="time" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp + " sm:w-48"} />
               ) : !atiende ? (
-                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elige otro día o usa "Otro horario".</p>
+                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elija otro día o use "Otro horario".</p>
               ) : (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
                   {slots.map(({ h, ocupado }) => (
@@ -2001,7 +2001,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               </div>
               <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
                 <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span></p>
-                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elige un horario</span>}</p>
+                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elija un horario</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
               </div>
@@ -2054,7 +2054,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               {lista.length === 0 && (
                 <tr><td colSpan={5}>
                   {turnos.length === 0 ? (
-                    <Vacio icon={CalendarDays} titulo="Sin citas todavía" texto="Crea el primero arriba o espera las reservas que lleguen desde la web." accion={<Button variant="outline" className="rounded-xl" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); window.setTimeout(() => document.getElementById("nt-paciente")?.focus(), 400); }}><Plus className="size-4" /> Crear el primera cita</Button>} />
+                    <Vacio icon={CalendarDays} titulo="Sin citas todavía" texto="Cree el primero arriba o espere las reservas que lleguen desde la web." accion={<Button variant="outline" className="rounded-xl" onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); window.setTimeout(() => document.getElementById("nt-paciente")?.focus(), 400); }}><Plus className="size-4" /> Crear el primera cita</Button>} />
                   ) : (
                     <Vacio icon={Search} titulo="Sin resultados" texto="No hay citas con ese filtro o búsqueda." />
                   )}
@@ -2282,7 +2282,7 @@ function FinanzasResumen({ movs, setMovs, log }: { movs: Mov[]; setMovs: Dispatc
     e.preventDefault();
     const monto = Number(f.monto);
     if (!monto || monto <= 0) {
-      toast.error("Ingresa un monto válido.");
+      toast.error("Ingrese un monto válido.");
       return;
     }
     const nuevo: Mov = { id: uid(), fecha: f.fecha, concepto: f.concepto.trim(), tipo: f.tipo, monto };
@@ -2558,7 +2558,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
     const valor = Number(f.valor);
     const pagado = Number(f.pagado || 0);
     if (!valor || valor <= 0) {
-      toast.error("Ingresa el valor.");
+      toast.error("Ingrese el valor.");
       return;
     }
     if (pagado < 0 || pagado > valor) {
@@ -2589,7 +2589,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
   const agregarPago = (c: Cobro) => {
     const monto = Number(abono.monto);
     if (!monto || monto <= 0 || monto > saldoDe(c)) {
-      toast.error(`Ingresa un monto entre $1 y ${dinero(saldoDe(c))}.`);
+      toast.error(`Ingrese un monto entre $1 y ${dinero(saldoDe(c))}.`);
       return;
     }
     setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, pagos: [...x.pagos, { fecha: new Date().toISOString(), monto, metodo: abono.metodo, cobradoPor: abono.cobradoPor }] } : x)));
@@ -2601,7 +2601,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
 
   const anular = (c: Cobro) => {
     if (motivo.trim().length < 4) {
-      toast.error("Escribe el motivo de la anulación.");
+      toast.error("Escriba el motivo de la anulación.");
       return;
     }
     setCobros((l) => l.map((x) => (x.id === c.id ? { ...x, anulado: { por: user.nombre, motivo: motivo.trim(), fecha: new Date().toISOString() } } : x)));
@@ -2640,7 +2640,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             </Campo>
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Valor"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
-              <Campo label="Paga ahora"><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+              <Campo label="Pague ahora"><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
             </div>
             <div>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">Medio de pago</p>
@@ -2661,7 +2661,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
         </Seccion>
 
         <div className="space-y-6 xl:col-span-3">
-          <Seccion icon={CalendarCheck} titulo="Citas atendidas sin cobrar" sub="Marca la cita como Atendido en Citas y aparece aquí" delay={0.15}>
+          <Seccion icon={CalendarCheck} titulo="Citas atendidas sin cobrar" sub="Marque la cita como Atendido en Citas y aparece aquí" delay={0.15}>
             {sinCobrar.length === 0 ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> No hay citas atendidas pendientes de cobro.</p>
             ) : (
@@ -2704,7 +2704,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             );
           })}
         </div>
-        {lista.length === 0 && <Vacio icon={Receipt} titulo="Sin cobros" texto="Los cobros que registres aquí quedan con el nombre de quien cobró, para que los doctores puedan controlarlos." />}
+        {lista.length === 0 && <Vacio icon={Receipt} titulo="Sin cobros" texto="Los cobros que registre aquí quedan con el nombre de quien cobró, para que los doctores puedan controlarlos." />}
         <div className="space-y-2">
           {lista.map((c) => {
             const est = estadoCobro(c);
@@ -2804,7 +2804,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
     e.preventDefault();
     const declarado = Number(ci.declarado);
     if (Number.isNaN(declarado) || ci.declarado === "") {
-      toast.error("Ingresa el efectivo contado.");
+      toast.error("Ingrese el efectivo contado.");
       return;
     }
     const c: CierreCaja = { id: nuevoId(), fecha: dia, persona: ci.persona, esperado, declarado, nota: ci.nota.trim(), registradoPor: user.nombre, creado: new Date().toISOString() };
@@ -2842,7 +2842,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={Wallet} titulo="Cierre de caja" sub="Compara el efectivo contado con lo registrado" className="xl:col-span-2" delay={0.1}>
+        <Seccion icon={Wallet} titulo="Cierre de caja" sub="Compare el efectivo contado con lo registrado" className="xl:col-span-2" delay={0.1}>
           <form onSubmit={cerrar} className="space-y-4">
             <Campo label="Persona"><select value={ci.persona} onChange={(e) => setCi({ ...ci, persona: e.target.value })} className={inp}>{personas.map((n) => <option key={n}>{n}</option>)}</select></Campo>
             <div className="grid grid-cols-2 gap-3">
@@ -3040,7 +3040,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
         </div>
       </Seccion>
 
-      <Seccion icon={Lock} titulo="Seguridad" sub={`Cambia tu contraseña de administrador (${user.nombre}).`} delay={0.25}>
+      <Seccion icon={Lock} titulo="Seguridad" sub={`Cambie su contraseña de administrador (${user.nombre}).`} delay={0.25}>
         <form onSubmit={guardarClave} className="grid gap-4 sm:grid-cols-3">
           <Campo label="Contraseña actual"><input type="password" required value={actual} onChange={(e) => setActual(e.target.value)} className={inp} /></Campo>
           <Campo label="Nueva contraseña"><input type="password" required placeholder="Mínimo 8 caracteres" value={nueva} onChange={(e) => setNueva(e.target.value)} className={inp} /></Campo>
@@ -3084,14 +3084,14 @@ function listaTurnos(ts: Turno[]) {
 function responder(pregunta: string, ctx: Ctx): string {
   const p = norm(pregunta);
   const tiene = (...ws: string[]) => ws.some((w) => p.includes(w));
-  const sinPermiso = (m: string) => `🔒 El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pídele a un administrador que lo habilite en Permisos.`;
+  const sinPermiso = (m: string) => `🔒 El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pídale a un administrador que lo habilite en Permisos.`;
 
   if (ctx.rol !== ROL_ADMIN && nivelDe(ctx.permisos, ctx.rol, "Asistente IA") === "ninguno") {
     return `🔒 ${ctx.rol} no tiene habilitado el Asistente IA. Un administrador puede activarlo desde Permisos.`;
   }
 
-  if (tiene("hola", "ayuda", "que podes", "que sabes", "buen dia", "buenas")) {
-    return "¡Hola! Puedo responderte sobre:\n• Citas de hoy, de mañana, pendientes o canceladas\n• Citas de un paciente o de un doctor\n• Ingresos, egresos y balance\n• Permisos de cada departamento\n• Actividad reciente y quién hizo cada cambio\nPrueba con: \"¿cuántos citas hay hoy?\"";
+  if (tiene("hola", "ayuda", "que podes", "que sabe", "buen dia", "buenas")) {
+    return "¡Hola! Puedo responderle sobre:\n• Citas de hoy, de mañana, pendientes o canceladas\n• Citas de un paciente o de un doctor\n• Ingresos, egresos y balance\n• Permisos de cada departamento\n• Actividad reciente y quién hizo cada cambio\nPrueba con: \"¿cuántos citas hay hoy?\"";
   }
 
   // Permisos de un departamento
@@ -3165,7 +3165,7 @@ function responder(pregunta: string, ctx: Ctx): string {
     return generarInsights(ctx.turnos, puede(ctx, "Finanzas") ? ctx.movs : []).join("\n");
   }
 
-  return "No estoy seguro de haber entendido 🤔. Prueba preguntando por citas de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
+  return "No estoy seguro de haber entendido 🤔. Pruebe preguntando por citas de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
 }
 
 const SUGERENCIAS = [
@@ -3182,7 +3182,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([
-    { id: "hola", de: "ia", texto: `¡Hola, ${nombreCorto(user.nombre)}! Soy el asistente de la clínica. Pregúntame por citas, finanzas, permisos o actividad. Si eliges un departamento arriba, respondo solo con lo que ese departamento tiene permitido ver.` },
+    { id: "hola", de: "ia", texto: `¡Hola, ${nombreCorto(user.nombre)}! Soy el asistente de la clínica. Pregúnteme por citas, finanzas, permisos o actividad. Si elige un departamento arriba, respondo solo con lo que ese departamento tiene permitido ver.` },
   ]);
   const fin = useRef<HTMLDivElement>(null);
 
@@ -3196,7 +3196,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
     setMsgs((m) => [...m, { id: uid(), de: "yo", texto: pregunta, quien: rol }]);
     setTexto("");
     setPensando(true);
-    log("Consulta al asistente", `${rol}: ${pregunta.slice(0, 80)}`);
+    log("Consulte al asistente", `${rol}: ${pregunta.slice(0, 80)}`);
     window.setTimeout(() => {
       const r = responder(pregunta, { turnos, movs, permisos, audit, rol });
       setMsgs((m) => [...m, { id: uid(), de: "ia", texto: r }]);
@@ -3217,7 +3217,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
             </span>
             <div className="leading-tight">
               <p className="font-semibold">Asistente de la clínica</p>
-              <p className="text-xs text-white/75">Responde con los datos del panel en tiempo real</p>
+              <p className="text-xs text-white/75">Responda con los datos del panel en tiempo real</p>
             </div>
           </div>
           <label className="flex items-center gap-2 text-xs">
@@ -3281,7 +3281,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
             ))}
           </div>
           <form onSubmit={(e) => { e.preventDefault(); enviar(texto); }} className="flex gap-2">
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escribe tu consulta..." className={inp} />
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escriba su consulta..." className={inp} />
             <Button type="submit" disabled={!texto.trim() || pensando} className="h-11 rounded-xl px-5"><Send className="size-4" /></Button>
           </form>
         </div>
@@ -3304,7 +3304,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
         </Seccion>
         <div className="pn-up rounded-2xl border border-dashed border-border p-4 text-xs text-muted-foreground" style={{ animationDelay: ".2s" }}>
           <Clock className="mb-1 size-4" />
-          Por ahora el asistente funciona dentro del navegador con los datos del panel. Cuando conectes el backend se puede enlazar a una IA real para consultas libres.
+          Por ahora el asistente funciona dentro del navegador con los datos del panel. Cuando conecte el backend se puede enlazar a una IA real para consultas libres.
         </div>
       </div>
     </div>
@@ -3393,7 +3393,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
   const agregarProfesional = () => {
     const nombre = nuevo.nombre.trim();
     if (!nombre || !nuevo.especialidad.trim()) {
-      toast.error("Completa el nombre y la especialidad.");
+      toast.error("Complete el nombre y la especialidad.");
       return;
     }
     const id = "p-" + uid();
@@ -3418,15 +3418,15 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
 
   const guardar = () => {
     if (!propia) {
-      toast.error("No puedes modificar estos horarios.");
+      toast.error("No puede modificar estos horarios.");
       return;
     }
     if (draft.dias.length === 0) {
-      toast.error("Elige al menos un día de atención.");
+      toast.error("Elija al menos un día de atención.");
       return;
     }
     if (!draft.duracion || draft.duracion < 5 || draft.duracion > 240) {
-      toast.error("Elige cuánto dura cada cita (entre 5 y 240 minutos).");
+      toast.error("Elija cuánto dura cada cita (entre 5 y 240 minutos).");
       return;
     }
     const malo = draft.dias.find((d) => { const r = rangoDia(draft, d); return r.desde >= r.hasta; });
@@ -3464,7 +3464,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
           const ag = agendaDe(agendas, a.id);
           const on = sel === a.id;
           const f = fotoDe(a.id);
-          const etiqueta = a.id === user.id ? "Tus horarios" : editable(a.id) ? "Puedes editar" : "Solo ver";
+          const etiqueta = a.id === user.id ? "Sus horarios" : editable(a.id) ? "Puede editar" : "Solo ver";
           return (
             <button
               key={a.id}
@@ -3513,14 +3513,14 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
       )}
       {!propia && (
         <div className="flex items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
-          <Lock className="size-4 shrink-0" /> Estás viendo los horarios de {admin.nombre}. {prof.admin ? "Solo él puede modificarlos desde su usuario." : "Los carga la secretaría o un médico administrador."}
+          <Lock className="size-4 shrink-0" /> Está viendo los horarios de {admin.nombre}. {prof.admin ? "Solo él puede modificarlos desde su usuario." : "Los carga la secretaría o un médico administrador."}
         </div>
       )}
 
       <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-6 xl:col-span-3">
-          <Seccion icon={CalendarDays} titulo={propia ? "Tus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar cita»`}
+          <Seccion icon={CalendarDays} titulo={propia ? "Sus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar cita»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
             <p className="mb-2 text-xs font-medium text-muted-foreground">Días y horario de cada día</p>
             <div className="space-y-2">
@@ -3583,7 +3583,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                   {m} min
                 </button>
               ))}
-              <span className="text-xs text-muted-foreground">o escribe el tiempo que quieras (5 a 240 min)</span>
+              <span className="text-xs text-muted-foreground">o escriba el tiempo que quiera (5 a 240 min)</span>
             </div>
             <p className="mt-3 text-xs text-muted-foreground">La duración, los días, los horarios y las pausas los define cada profesional. Si un día no hay pausa, no se toca nada.</p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -3636,7 +3636,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} citas el próximo día` : "Elige la duración de la cita"}</p>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} citas el próximo día` : "Elija la duración de la cita"}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
                 </div>
@@ -3672,7 +3672,7 @@ function waPaciente(tel: string, texto: string) {
 
 function mensajeInvitacion(p: PacientePortal) {
   const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
-  return `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO. Te habilitamos el Portal del paciente para que saques tus citas y gestiones tus autorizaciones.\n\nIngresa en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+  return `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO. Le habilitamos el Portal del paciente para que saque sus citas y gestiones sus autorizaciones.\n\nIngresa en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
 }
 
 const ESTADO_ACCESO: Record<EstadoAcceso, string> = {
@@ -3698,7 +3698,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
     e.preventDefault();
     const p = pacientes.find((x) => x.id === f.pacienteId);
     if (!p) {
-      toast.error("Elige un paciente.");
+      toast.error("Elija un paciente.");
       return;
     }
     const valores: ValoresEstudio = {};
@@ -3732,7 +3732,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
           <div className="grid gap-3 sm:grid-cols-3">
             <Campo label="Paciente">
               <select required value={f.pacienteId} onChange={(e) => setF({ ...f, pacienteId: e.target.value })} className={inp}>
-                <option value="">Elige un paciente</option>
+                <option value="">Elija un paciente</option>
                 {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
             </Campo>
@@ -3782,7 +3782,7 @@ function EstudiosPortal({ user, log, pacientes }: { user: SessionUser; log: LogF
                 <Avatar nombre={p!.nombre} size="size-9" />
                 <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{p!.nombre}</p><p className="text-xs text-muted-foreground">{fechaHora(c.fecha)} · {k.nivel}</p></div>
                 <span className="font-display text-lg font-semibold tabular-nums text-rose-700">{c.sistolica}/{c.diastolica}</span>
-                <a href={waPaciente(p!.telefono, `Hola ${p!.nombre.split(" ")[0]}, vimos en tu portal una presión de ${c.sistolica}/${c.diastolica}. ¿Cómo te sientes?`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"><Send className="size-4" /></a>
+                <a href={waPaciente(p!.telefono, `Hola ${p!.nombre.split(" ")[0]}, vimos en su portal una presión de ${c.sistolica}/${c.diastolica}. ¿Cómo se siente?`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"><Send className="size-4" /></a>
               </div>
             ))}
           </div>
@@ -3797,7 +3797,7 @@ function verPortal(id: string) {
 }
 
 function mailInvitacion(p: PacientePortal) {
-  return `mailto:${p.email}?subject=${encodeURIComponent("Tu acceso al Portal del paciente · HEGO · Centro de especialidades médicas")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
+  return `mailto:${p.email}?subject=${encodeURIComponent("Su acceso al Portal del paciente · HEGO · Centro de especialidades médicas")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
 }
 
 function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; turnos: Turno[] }) {
@@ -3819,7 +3819,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     e.preventDefault();
     const dni = f.dni.replace(/\D/g, "");
     if (dni.length < 5) {
-      toast.error("Ingresa una cédula válida.");
+      toast.error("Ingrese una cédula válida.");
       return;
     }
     if (pacientes.some((p) => p.dni === dni)) {
@@ -3862,7 +3862,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     e.preventDefault();
     const p = pacientes.find((x) => x.id === fa.pacienteId);
     if (!p) {
-      toast.error("Elige un paciente.");
+      toast.error("Elija un paciente.");
       return;
     }
     const nueva: Autorizacion = {
@@ -3907,7 +3907,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
         <div className="relative flex flex-wrap items-center justify-between gap-5">
           <div className="max-w-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Cómo funciona</p>
-            <p className="mt-1 text-lg font-semibold">1. Creas el acceso · 2. Le envías la invitación por WhatsApp o email · 3. El paciente entra con su cédula y el código y saca sus citas.</p>
+            <p className="mt-1 text-lg font-semibold">1. Cree el acceso · 2. Envíele la invitación por WhatsApp o correo · 3. El paciente entra con su cédula y el código, y agenda sus citas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => verPortal("demo")} className="rounded-xl !bg-white text-[#a21caf] hover:!bg-white/90"><Eye className="size-4" /> Ver cómo se ve el portal</Button>
@@ -3952,7 +3952,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
 
         <Seccion icon={Users} titulo="Pacientes del portal" sub={`${pacientes.length} con acceso`} className="xl:col-span-3" delay={0.15}
           acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-52"} /></div>}>
-          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitaste pacientes" texto="Crea un acceso y mándale el código por WhatsApp. Con eso entra al portal y saca sus citas." />}
+          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitó pacientes" texto="Cree un acceso y mándele el código por WhatsApp. Con eso entra al portal y agenda sus citas." />}
           <div className="space-y-2">
             {lista.map((p) => {
               const n = turnos.filter((t) => t.pacienteId === p.id).length;
@@ -3997,7 +3997,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
           <form onSubmit={pedirAut} className="space-y-4">
             <Campo label="Paciente">
               <select required value={fa.pacienteId} onChange={(e) => setFa({ ...fa, pacienteId: e.target.value })} className={inp}>
-                <option value="">Elige un paciente</option>
+                <option value="">Elija un paciente</option>
                 {pacientes.filter((p) => p.estado !== "Revocado").map((p) => <option key={p.id} value={p.id}>{p.nombre} · C.C. {p.dni}</option>)}
               </select>
             </Campo>
@@ -4020,7 +4020,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
               ))}
             </div>
           }>
-          {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pidas o que pidan los pacientes aparecen aquí." />}
+          {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pida o que pidan los pacientes aparecen aquí." />}
           <div className="space-y-3">
             {autsLista.map((a) => (
               <div key={a.id} className="rounded-2xl border border-border/70 p-4">
@@ -4034,7 +4034,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                 {a.detalle && <p className="mt-2 text-sm text-muted-foreground">{a.detalle}</p>}
                 {a.respuesta && <p className="mt-2 rounded-xl bg-secondary/60 px-3 py-2 text-xs"><b>Respuesta:</b> {a.respuesta}</p>}
                 {a.estado === "Pendiente" && a.origen === "Paciente" && (
-                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-semibold text-pink-700 ring-1 ring-pink-100"><Bell className="size-3" /> Pedido del paciente desde su portal: responde aquí</p>
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-[11px] font-semibold text-pink-700 ring-1 ring-pink-100"><Bell className="size-3" /> Pedido del paciente desde su portal: responda aquí</p>
                 )}
                 {a.estado === "Pendiente" && a.origen === "Paciente" && (
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -4241,7 +4241,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
             if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
             if (e.key === "Enter" && resultados[idx]) { e.preventDefault(); agregar(resultados[idx]!); }
           }}
-          placeholder="Busca por código (I10, E11.9) o por descripción (hipertensión, diabetes…)"
+          placeholder="Busque por código (I10, E11.9) o por descripción (hipertensión, diabetes…)"
           className={inp + " pl-10"}
           role="combobox"
           aria-expanded={abierto}
@@ -4291,7 +4291,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
           ))}
         </ol>
       ) : (
-        <p className="text-xs text-muted-foreground">Todavía no agregaste diagnósticos. El primero que agregues queda como principal.</p>
+        <p className="text-xs text-muted-foreground">Todavía no agregó diagnósticos. El primero que agregue queda como principal.</p>
       )}
     </div>
   );
@@ -4387,13 +4387,13 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false }: { user
                 </li>
               );
             })}
-            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Sin pacientes. Cárgalos en Pacientes.</li>}
+            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Sin pacientes. Cárguelos en Pacientes.</li>}
           </ul>
         </section>
 
         {!sel ? (
           <section className="pn-card pn-up p-6">
-            <Vacio icon={FileText} titulo="Elige un paciente" texto="Abre su historia clínica para ver las consultas anteriores, signos vitales, diagnósticos e indicaciones, y registrar una nueva evolución." />
+            <Vacio icon={FileText} titulo="Elija un paciente" texto="Abra su historia clínica para ver las consultas anteriores, signos vitales, diagnósticos e indicaciones, y registrar una nueva evolución." />
           </section>
         ) : (
           <FichaHC
@@ -4579,7 +4579,7 @@ function FichaHC({
           }
         >
           {linea.length === 0 ? (
-            <Vacio icon={NotebookPen} titulo="Sin registros" texto="Registra la primera consulta con Nueva evolución." />
+            <Vacio icon={NotebookPen} titulo="Sin registros" texto="Registre la primera consulta con Nueva evolución." />
           ) : (
             <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[19px] before:top-2 before:w-px before:bg-border">
               {linea.map((it, i) => {
@@ -4793,9 +4793,9 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
-    if (!f.motivo.trim()) { toast.error("Completa el motivo de consulta"); return; }
-    if (!f.nota.trim()) { toast.error("Escribe la evolución del cuadro clínico"); return; }
-    if (dx.length === 0) { toast.error("Agrega al menos un diagnóstico"); return; }
+    if (!f.motivo.trim()) { toast.error("Complete el motivo de consulta"); return; }
+    if (!f.nota.trim()) { toast.error("Escriba la evolución del cuadro clínico"); return; }
+    if (dx.length === 0) { toast.error("Agregue al menos un diagnóstico"); return; }
     const id = nuevoId();
     const ahora = new Date().toISOString();
     const ev = JSON.parse(
@@ -4854,7 +4854,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
               <Syringe className="mt-0.5 size-5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold">Enfermería todavía no registró los signos vitales</p>
-                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen aquí automáticamente. Puedes guardar la evolución igual.</p>
+                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen aquí automáticamente. Puede guardar la evolución igual.</p>
               </div>
             </div>
           )}
@@ -4976,7 +4976,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
   return (
     <div className="relative">
       <button type="button" onClick={() => setAbierto(!abierto)} className={inp + " flex items-center justify-between text-left"}>
-        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · C.C. ${sel.dni}` : ""}` : "Elige un paciente"}</span>
+        <span className={sel ? "" : "text-muted-foreground"}>{sel ? `${sel.nombre}${sel.dni ? ` · C.C. ${sel.dni}` : ""}` : "Elija un paciente"}</span>
         <ChevronDown className="size-4 text-muted-foreground" />
       </button>
       {abierto && (
@@ -4992,7 +4992,7 @@ function SelectorPaciente({ pacientes, valor, onChange }: { pacientes: PacienteH
                 </button>
               </li>
             ))}
-            {lista.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados. Cárgalo en Pacientes.</li>}
+            {lista.length === 0 && <li className="px-2 py-3 text-center text-xs text-muted-foreground">Sin resultados. Cárguelo en Pacientes.</li>}
           </ul>
         </div>
       )}
@@ -5287,7 +5287,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
         </div>
 
         {visibles.length === 0 ? (
-          <Vacio icon={Users} titulo="No hay pacientes" texto="Carga el primero con Nuevo paciente. También aparecen los del portal y los que piden cita." />
+          <Vacio icon={Users} titulo="No hay pacientes" texto="Cargue el primero con Nuevo paciente. También aparecen los del portal y los que piden cita." />
         ) : (
           <ul className="divide-y divide-border/60">
             {visibles.map((p) => {
@@ -5430,7 +5430,7 @@ function FirmaPad({ onGuardar, onCancelar }: { onGuardar: (dataUrl: string) => v
           onPointerUp={() => (dibujando.current = false)}
           onPointerLeave={() => (dibujando.current = false)}
         />
-        {vacio && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firma aquí con el mouse o el dedo</p>}
+        {vacio && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firme aquí con el mouse o el dedo</p>}
         <span className="pointer-events-none absolute inset-x-8 bottom-8 h-px bg-slate-300" />
       </div>
       <div className="flex flex-wrap justify-end gap-2">
@@ -5456,7 +5456,7 @@ function htmlReceta(r: Receta, firma: string | undefined) {
 .grid b{color:#475569;font-weight:600}.it{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-top:12px}.n{margin:0;font-weight:700;font-size:15px}.m{margin:4px 0 0;font-size:13px;color:#334155}
 .dx{margin-top:16px;font-size:13px}.ind{margin-top:12px;font-size:13px;background:#f8fafc;border-radius:10px;padding:10px 12px}
 .pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:28px}
-.firma{text-align:center;min-width:220px}.firma img{height:70px}.firma .l{border-top:1px solid #334155;padding-top:6px;font-size:12px}
+.firme{text-align:center;min-width:220px}.firme img{height:70px}.firme .l{border-top:1px solid #334155;padding-top:6px;font-size:12px}
 .cod{font-size:11px;color:#64748b}.cod b{font-family:ui-monospace,monospace;font-size:14px;color:#0f172a;letter-spacing:.12em}
 .anulada{color:#dc2626;font-weight:800;border:2px solid #dc2626;padding:6px 10px;border-radius:8px;display:inline-block;margin-bottom:10px}
 @media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
@@ -5469,7 +5469,7 @@ function htmlReceta(r: Receta, firma: string | undefined) {
 ${items}
 <p class="dx"><b>Diagnóstico:</b> ${r.diagnostico}</p>${r.indicaciones ? `<p class="ind"><b>Indicaciones:</b> ${r.indicaciones}</p>` : ""}
 <div class="pie"><div class="cod">Código de verificación<br><b>${r.codigo}</b><br>Firmada digitalmente el ${new Date(r.fecha).toLocaleString("es-CO")}</div>
-<div class="firma">${firma ? `<img src="${firma}" alt="Firma">` : ""}<div class="l">${r.doctor}<br>${r.matricula}</div></div></div>
+<div class="firme">${firma ? `<img src="${firma}" alt="Firma">` : ""}<div class="l">${r.doctor}<br>${r.matricula}</div></div></div>
 </div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
 function imprimirHtml(html: string) {
@@ -5496,10 +5496,10 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
 
   const emitir = (e: FormEvent) => {
     e.preventDefault();
-    if (!pac) { toast.error("Elige un paciente"); return; }
-    if (!firma) { toast.error("Primero registra tu firma"); return; }
+    if (!pac) { toast.error("Elija un paciente"); return; }
+    if (!firma) { toast.error("Primero registra su firma"); return; }
     const validos = items.filter((i) => i.droga.trim());
-    if (validos.length === 0) { toast.error("Agrega al menos un medicamento"); return; }
+    if (validos.length === 0) { toast.error("Agregue al menos un medicamento"); return; }
     const numero = (recetas.reduce((m, r) => Math.max(m, r.numero), 0) || 0) + 1;
     const r = JSON.parse(
       JSON.stringify({
@@ -5541,7 +5541,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
         <Kpi icon={Pill} label="Recetas emitidas" value={String(recetas.filter((r) => !r.anulada).length)} hint="En total" tono="violeta" />
         <Kpi icon={CalendarCheck} label="Hoy" value={String(hoy)} hint="Recetas de hoy" delay={0.05} />
         <Kpi icon={Users} label="Pacientes" value={String(new Set(recetas.map((r) => r.pacienteId)).size)} hint="Con receta" tono="verde" delay={0.1} />
-        <Kpi icon={PenLine} label="Tu firma" value={firma ? "Registrada" : "Falta"} hint={firma ? "Se usa en cada receta" : "Regístrala para emitir"} tono={firma ? "verde" : "ambar"} delay={0.15} />
+        <Kpi icon={PenLine} label="Su firma" value={firma ? "Registrada" : "Falta"} hint={firma ? "Se usa en cada receta" : "Regístrela para emitir"} tono={firma ? "verde" : "ambar"} delay={0.15} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -5590,14 +5590,14 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
           <Campo label="Indicaciones (opcional)"><textarea rows={2} value={indic} onChange={(e) => setIndic(e.target.value)} placeholder="Dieta hiposódica, control de presión en domicilio…" className={inp + " h-auto resize-none py-3"} /></Campo>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <p className="max-w-md text-[11px] leading-relaxed text-muted-foreground">
-              La receta sale con tu firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y EPS, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
+              La receta sale con su firma digitalizada y un código de verificación. Para que valga como receta electrónica ante farmacias y EPS, se tiene que emitir por una plataforma registrada (Ley 27.553); eso se conecta en el backend.
             </p>
             <Button type="submit" className="rounded-xl px-6" disabled={!firma}><PenLine className="size-4" /> Firmar y emitir</Button>
           </div>
         </form>
 
         <div className="space-y-6">
-          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibújala una sola vez"} delay={0.05}>
+          <Seccion icon={PenLine} titulo="Firma del médico" sub={firma ? "Registrada" : "Dibújela una sola vez"} delay={0.05}>
             {firmando ? (
               <FirmaPad
                 onCancelar={() => setFirmando(false)}
@@ -5617,7 +5617,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
                 <Button variant="outline" className="w-full rounded-xl" onClick={() => setFirmando(true)}><Pencil className="size-4" /> Cambiar firma</Button>
               </div>
             ) : (
-              <Vacio icon={PenLine} titulo="Sin firma" texto="Registra tu firma para poder emitir recetas y órdenes." accion={<Button className="rounded-xl" onClick={() => setFirmando(true)}><PenLine className="size-4" /> Registrar firma</Button>} />
+              <Vacio icon={PenLine} titulo="Sin firma" texto="Registre su firma para poder emitir recetas y órdenes." accion={<Button className="rounded-xl" onClick={() => setFirmando(true)}><PenLine className="size-4" /> Registrar firma</Button>} />
             )}
           </Seccion>
         </div>
@@ -5635,7 +5635,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
         }
       >
         {lista.length === 0 ? (
-          <Vacio icon={Pill} texto="Las recetas que emitas aparecen aquí para reimprimir, enviar o anular." />
+          <Vacio icon={Pill} texto="Las recetas que emita aparecen aquí para reimprimir, enviar o anular." />
         ) : (
           <ul className="divide-y divide-border/60">
             {lista.map((r) => {
@@ -5658,7 +5658,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
                     <button onClick={() => imprimirHtml(htmlReceta(r, firmas[r.doctorId]))} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"><FileText className="size-3.5" /> Ver / imprimir</button>
                     {tel && !r.anulada && (
                       <a
-                        href={waDe(tel, `Hola ${r.paciente.split(" ")[0]}, te enviamos tu receta N° ${r.numero} del Centro HEGO:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo de verificación: ${r.codigo}`)}
+                        href={waDe(tel, `Hola ${r.paciente.split(" ")[0]}, le enviamos su receta N° ${r.numero} del Centro HEGO:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo de verificación: ${r.codigo}`)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
@@ -5798,12 +5798,12 @@ function htmlOrdenLab(p: PedidoLab, med: ReturnType<typeof datosMedico>, firma?:
 <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:720px;margin:auto}h1{margin:0;font-size:20px}.m{color:#64748b;font-size:13px}
 .box{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-top:14px}.box h3{margin:0 0 6px;font-size:14px}.box p{margin:0;font-size:13px;color:#334155}
 .tag{display:inline-block;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;margin-right:6px}
-.firma{text-align:right;margin-top:40px}.firma img{height:64px}.firma div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
+.firme{text-align:right;margin-top:40px}.firme img{height:64px}.firme div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
 <h1>HEGO · Centro de especialidades médicas · Orden de laboratorio</h1><p class="m">${fechaDe(p.fecha)} · ${med.nombre} · ${med.matricula}</p>
 <p><b>Paciente:</b> ${p.paciente}</p>${p.urgente ? `<span class="tag">URGENTE</span>` : ""}${p.ayuno ? `<span class="tag" style="background:#e0f2fe;color:#075985">Con ayuno de 8 a 12 h</span>` : ""}
 ${paneles.map((x) => `<div class="box"><h3>${x.nombre}</h3><p>${x.det.map((d) => d.nombre).join(" · ")}</p></div>`).join("")}
 ${p.nota ? `<p class="m" style="margin-top:14px"><b>Nota:</b> ${p.nota}</p>` : ""}
-<div class="firma">${firma ? `<img src="${firma}"><br>` : ""}<div>${med.nombre}<br>${med.matricula}</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+<div class="firme">${firma ? `<img src="${firma}"><br>` : ""}<div>${med.nombre}<br>${med.matricula}</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
 
 function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null }) {
@@ -5825,8 +5825,8 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
   const crear = (e: FormEvent) => {
     e.preventDefault();
     const pac = pacientes.find((p) => p.id === pacId);
-    if (!pac) { toast.error("Elige un paciente"); return; }
-    if (paneles.length === 0) { toast.error("Elige al menos un panel"); return; }
+    if (!pac) { toast.error("Elija un paciente"); return; }
+    if (paneles.length === 0) { toast.error("Elija al menos un panel"); return; }
     const p = JSON.parse(JSON.stringify({ id: nuevoId(), fecha: new Date().toISOString(), pacienteId: pac.id, paciente: pac.nombre, doctor: user.nombre, paneles, urgente, ayuno, estado: "Pedido", resultados: {}, nota: nota.trim() || undefined })) as PedidoLab;
     setPedidos((prev) => [p, ...prev]);
     log("Pedido de laboratorio", `${pac.nombre} · ${paneles.length} paneles`);
@@ -5893,7 +5893,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
           <div className="flex items-center justify-between border-b border-border/60 pb-4">
             <div>
               <h3 className="text-[15px] font-semibold">Nuevo pedido de laboratorio</h3>
-              <p className="text-xs text-muted-foreground">Se imprime la orden con tu firma</p>
+              <p className="text-xs text-muted-foreground">Se imprime la orden con su firma</p>
             </div>
             <button type="button" onClick={() => setNuevo(false)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
           </div>
@@ -5981,7 +5981,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
         }
       >
         {lista.length === 0 ? (
-          <Vacio icon={FlaskConical} texto="Crea un pedido, imprime la orden y después carga los resultados: se guardan en la historia clínica." />
+          <Vacio icon={FlaskConical} texto="Cree un pedido, imprima la orden y después cargue los resultados: se guardan en la historia clínica." />
         ) : (
           <ul className="space-y-3">
             {lista.map((p) => (
@@ -6074,7 +6074,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
 
   const emitir = (e: FormEvent) => {
     e.preventDefault();
-    if (!form || !form.receptor.trim()) { toast.error("Completa el receptor"); return; }
+    if (!form || !form.receptor.trim()) { toast.error("Complete el receptor"); return; }
     const total = form.items.reduce((a, i) => a + i.cant * i.precio, 0);
     const f = JSON.parse(JSON.stringify({ ...form, id: nuevoId(), numero: proximoNumero(form.tipo), estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
     setFacturas((prev) => [f, ...prev]);
@@ -6194,7 +6194,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           }
         >
           {lista.length === 0 ? (
-            <Vacio icon={Receipt} texto="Todavía no emitiste comprobantes. Puedes facturar los cobros de pacientes desde Por facturar." />
+            <Vacio icon={Receipt} texto="Todavía no emitió comprobantes. Puede facturar los cobros de pacientes desde Por facturar." />
           ) : (
             <ul className="divide-y divide-border/60">
               {lista.map((f) => (
@@ -6257,7 +6257,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
       {vista === "obras" && (
         <Seccion icon={Building2} titulo="Liquidación por EPS" sub="Lo facturado a cada cobertura y lo que falta cobrar">
           {porOS.length === 0 ? (
-            <Vacio icon={Building2} texto="Cuando factures a una EPS o medicina prepagada, aquí ves cuánto te deben." />
+            <Vacio icon={Building2} texto="Cuando facture a una EPS o medicina prepagada, aquí verá cuánto le deben." />
           ) : (
             <ul className="space-y-3">
               {porOS.map(([os, v]) => (
@@ -6378,7 +6378,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
   const porProf = ADMINS.map((a) => ({ l: nombreCorto(a.nombre), v: evols.filter((x) => x.doctor === a.nombre && enRango(x.fecha)).length }));
 
   const reportes: { t: string; d: string; icon: LucideIcon; run: () => void }[] = [
-    { t: "Turnos", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
+    { t: "Citas", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
     { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "EPS", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
     { t: "Cobros", d: `${pagos.length} pagos`, icon: Wallet, run: () => exportarCSV("cobros", [["Fecha", "Paciente", "Concepto", "Medio", "Cobró", "Monto"], ...pagos.map((p) => [fechaHora(p.fecha), p.c.paciente, p.c.concepto, p.metodo, p.cobradoPor, p.monto])]) },
     { t: "Facturación", d: `${facturas.length} comprobantes`, icon: Receipt, run: () => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.cobertura, f.total, f.estado])]) },
@@ -6399,7 +6399,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={CalendarDays} label="Turnos" value={String(ts.length)} hint={`${atendidos} atendidos`} />
+        <Kpi icon={CalendarDays} label="Citas" value={String(ts.length)} hint={`${atendidos} atendidas`} />
         <Kpi icon={Ban} label="Ausentismo" value={ts.length ? `${Math.round((cancelados / ts.length) * 100)}%` : "0%"} hint={`${cancelados} cancelados`} tono="ambar" delay={0.05} />
         <Kpi icon={Wallet} label="Ingresos" value={dinero(ingresos)} hint={pagosR.length ? `Ticket promedio ${dinero(Math.round(ingresos / pagosR.length))}` : "Sin cobros"} tono="verde" delay={0.1} />
         <Kpi icon={Users} label="Pacientes nuevos" value={String(nuevos)} hint={`${pacientes.length} en total`} tono="violeta" delay={0.15} />
@@ -6483,35 +6483,35 @@ const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon
   {
     id: "cardio", letra: "B", titulo: "Cardiología", icon: HeartPulse, grad: "from-rose-500 to-red-600",
     items: [
-      { id: "crisisTA", nombre: "Alerta de presión en crisis", desc: "Avisa al cardiólogo si se registra una TA > 180/120.", canal: "Panel", motor: true },
-      { id: "controlTA", nombre: "Recordatorio semanal de control de presión", desc: "Pide a los hipertensos que carguen su presión en el portal.", canal: "WhatsApp", motor: true },
-      { id: "feviBaja", nombre: "Seguimiento de FEVI reducida", desc: "Marca a los pacientes con FEVI < 41% sin control en 90 días.", canal: "Panel", motor: true },
-      { id: "prepHolter", nombre: "Preparación para Holter / MAPA", desc: "Envía las indicaciones el día anterior al estudio.", canal: "WhatsApp", motor: false },
+      { id: "crisisTA", nombre: "Alerta de presión en crisis", desc: "Avise al cardiólogo si se registra una TA > 180/120.", canal: "Panel", motor: true },
+      { id: "controlTA", nombre: "Recordatorio semanal de control de presión", desc: "Pida a los hipertensos que carguen su presión en el portal.", canal: "WhatsApp", motor: true },
+      { id: "feviBaja", nombre: "Seguimiento de FEVI reducida", desc: "Marque a los pacientes con FEVI < 41% sin control en 90 días.", canal: "Panel", motor: true },
+      { id: "prepHolter", nombre: "Preparación para Holter / MAPA", desc: "Envíe las indicaciones el día anterior al estudio.", canal: "WhatsApp", motor: false },
     ],
   },
   {
     id: "nefro", letra: "C", titulo: "Nefrología", icon: Droplets, grad: "from-sky-400 to-cyan-600",
     items: [
-      { id: "potasio", nombre: "Alerta de potasio alto", desc: "Avisa al nefrólogo si un resultado supera 5,5 mEq/l.", canal: "Panel", motor: true },
+      { id: "potasio", nombre: "Alerta de potasio alto", desc: "Avise al nefrólogo si un resultado supera 5,5 mEq/l.", canal: "Panel", motor: true },
       { id: "egfrCae", nombre: "Caída del filtrado glomerular", desc: "Detecta una caída mayor al 25% entre dos resultados.", canal: "Panel", motor: true },
-      { id: "g4", nombre: "Estadio G4–G5: evaluar derivación", desc: "Marca pacientes con eGFR < 30 para planificar el tratamiento.", canal: "Panel", motor: true },
-      { id: "labTrimestral", nombre: "Laboratorio renal trimestral", desc: "Recuerda a pacientes con ERC hacer su control cada 3 meses.", canal: "WhatsApp", motor: true },
+      { id: "g4", nombre: "Estadio G4–G5: evaluar derivación", desc: "Marque pacientes con eGFR < 30 para planificar el tratamiento.", canal: "Panel", motor: true },
+      { id: "labTrimestral", nombre: "Laboratorio renal trimestral", desc: "Recuerde a pacientes con ERC hacer su control cada 3 meses.", canal: "WhatsApp", motor: true },
     ],
   },
   {
     id: "recetas", letra: "D", titulo: "Recetas y laboratorio", icon: Pill, grad: "from-violet-500 to-indigo-700",
     items: [
-      { id: "recetaLista", nombre: "Aviso de receta emitida", desc: "Envía al paciente la receta del día con su código.", canal: "WhatsApp", motor: true },
-      { id: "labListo", nombre: "Resultados de laboratorio disponibles", desc: "Avisa que ya puede ver sus resultados en el portal.", canal: "WhatsApp", motor: true },
-      { id: "labDemorado", nombre: "Pedidos sin resultado hace más de 7 días", desc: "Avisa al equipo para reclamar al laboratorio.", canal: "Panel", motor: true },
-      { id: "renovacion", nombre: "Renovación de medicación crónica", desc: "Recuerda renovar la receta a los 25 días.", canal: "WhatsApp", motor: true },
+      { id: "recetaLista", nombre: "Aviso de receta emitida", desc: "Envíe al paciente la receta del día con su código.", canal: "WhatsApp", motor: true },
+      { id: "labListo", nombre: "Resultados de laboratorio disponibles", desc: "Avise que ya puede ver sus resultados en el portal.", canal: "WhatsApp", motor: true },
+      { id: "labDemorado", nombre: "Pedidos sin resultado hace más de 7 días", desc: "Avise al equipo para reclamar al laboratorio.", canal: "Panel", motor: true },
+      { id: "renovacion", nombre: "Renovación de medicación crónica", desc: "Recuerde renovar la receta a los 25 días.", canal: "WhatsApp", motor: true },
     ],
   },
   {
     id: "pagos", letra: "E", titulo: "Pagos y facturación", icon: Wallet, grad: "from-emerald-400 to-teal-600",
     items: [
       { id: "saldo", nombre: "Aviso de saldo pendiente", desc: "Recordatorio amable a pacientes con saldo.", canal: "WhatsApp", motor: true },
-      { id: "sinFacturar", nombre: "Cobros sin facturar", desc: "Avisa a administración qué cobros no tienen comprobante.", canal: "Panel", motor: true },
+      { id: "sinFacturar", nombre: "Cobros sin facturar", desc: "Avise a administración qué cobros no tienen comprobante.", canal: "Panel", motor: true },
       { id: "liquidacion", nombre: "Liquidación de EPS", desc: "A fin de mes muestra lo pendiente por cobertura.", canal: "Panel", motor: true },
     ],
   },
@@ -6520,7 +6520,7 @@ const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon
     items: [
       { id: "cumple", nombre: "Saludo de cumpleaños", desc: "Mensaje de la clínica el día del cumpleaños.", canal: "WhatsApp", motor: true },
       { id: "invitarPortal", nombre: "Invitar al portal a pacientes con cita", desc: "Detecta pacientes con citas que todavía no tienen portal.", canal: "Panel", motor: true },
-      { id: "bienvenida", nombre: "Bienvenida al portal", desc: "Explica cómo usar el portal en el primer ingreso.", canal: "Email", motor: false },
+      { id: "bienvenida", nombre: "Bienvenida al portal", desc: "Explique cómo usar el portal en el primer ingreso.", canal: "Email", motor: false },
     ],
   },
 ];
@@ -6543,22 +6543,22 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("recordatorio24"))
     d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, te recordamos tu cita de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no puedes venir, avísanos por aquí.` });
+      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, le recordamos su cita de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no puede venir, avísenos por aquí.` });
     });
   if (on("confirmar"))
     d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar cita de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirmas tu cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Responde SÍ para confirmar o escríbenos para cambiarlo.` });
+      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar cita de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirma su cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Responda SÍ para confirmar o escríbanos para cambiarlo.` });
     });
   if (on("ausentes"))
     d.turnos.filter((t) => t.estado === "Cancelado" && t.fecha >= isoDe(new Date(Date.now() - 14 * 86400000)) && t.fecha <= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `aus-${t.id}`, auto: "ausentes", titulo: `Ofrecer nueva cita a ${t.paciente}`, detalle: `Canceló el ${fechaCorta(t.fecha)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, vimos que no pudiste venir a tu cita. ¿Quieres que te busquemos un nuevo horario con ${t.doctor}?` });
+      if (tl) out.push({ key: `aus-${t.id}`, auto: "ausentes", titulo: `Ofrecer nueva cita a ${t.paciente}`, detalle: `Canceló el ${fechaCorta(t.fecha)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, vimos que no pudo venir a su cita. ¿Quiere que le busquemos un nuevo horario con ${t.doctor}?` });
     });
   if (on("encuesta"))
     d.turnos.filter((t) => t.estado === "Atendido" && t.fecha === ayer).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `enc-${t.id}`, auto: "encuesta", titulo: `Encuesta a ${t.paciente}`, detalle: "Consulta de ayer", tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, gracias por atenderte ayer en el Centro HEGO. Del 1 al 5, ¿cómo fue tu experiencia?` });
+      if (tl) out.push({ key: `enc-${t.id}`, auto: "encuesta", titulo: `Encuesta a ${t.paciente}`, detalle: "Consulta de ayer", tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, gracias por atenderlo ayer en el Centro HEGO. Del 1 al 5, ¿cómo fue su experiencia?` });
     });
 
   // Último valor por paciente
@@ -6573,7 +6573,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     tas.forEach((x) => { if (x.s > 180 || x.dd > 120) out.push({ key: `crisis-${x.id}-${x.f}`, auto: "crisisTA", titulo: `Presión en crisis: ${nombreDe(x.id)}`, detalle: `${x.s}/${x.dd} mmHg · ${fechaDe(x.f)}`, tipo: "alerta", ir: "historia" }); });
   if (on("controlTA"))
     d.pacientes.filter((p) => (p.ficha?.antecedentes ?? []).includes("Hipertensión arterial") && p.telefono).forEach((p) => {
-      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿te mediste la presión esta semana? Cárgala en tu portal del Centro HEGO así tu médico la ve.` });
+      out.push({ key: `ctrlta-${p.id}-${semana}`, auto: "controlTA", titulo: `Control de presión: ${p.nombre}`, detalle: "Recordatorio semanal", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ¿le midió la presión esta semana? Cárguela en su portal del Centro HEGO así su médico la ve.` });
     });
   if (on("feviBaja")) {
     const fv = ult(d.evols.filter((e) => e.cardio?.fevi).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.cardio!.fevi! })));
@@ -6598,29 +6598,29 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     d.pacientes.filter((p) => esNefro(p.ficha?.antecedentes) && p.telefono).forEach((p) => {
       const u = egfrs.filter((x) => x.id === p.id).sort((a, b) => b.f.localeCompare(a.f))[0];
       if (!u || u.f.slice(0, 10) < isoDe(new Date(Date.now() - 90 * 86400000)))
-        out.push({ key: `labtri-${p.id}-${hoy.slice(0, 7)}`, auto: "labTrimestral", titulo: `Laboratorio renal: ${p.nombre}`, detalle: u ? `Último ${fechaDe(u.f)}` : "Sin laboratorio registrado", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ya te toca el control de laboratorio renal. Escríbenos y te pasamos la orden.` });
+        out.push({ key: `labtri-${p.id}-${hoy.slice(0, 7)}`, auto: "labTrimestral", titulo: `Laboratorio renal: ${p.nombre}`, detalle: u ? `Último ${fechaDe(u.f)}` : "Sin laboratorio registrado", tipo: "wa", tel: p.telefono!, msg: `Hola ${nom(p.nombre)}, ya le toca el control de laboratorio renal. Escríbanos y le pasamos la orden.` });
     });
   if (on("recetaLista"))
     d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === hoy).forEach((r) => {
       const tl = tel(r.paciente);
-      if (tl) out.push({ key: `rx-${r.id}`, auto: "recetaLista", titulo: `Enviar receta a ${r.paciente}`, detalle: `N° ${r.numero} · ${r.items.length} medicamentos`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, tu receta N° ${r.numero} ya está lista:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo: ${r.codigo}` });
+      if (tl) out.push({ key: `rx-${r.id}`, auto: "recetaLista", titulo: `Enviar receta a ${r.paciente}`, detalle: `N° ${r.numero} · ${r.items.length} medicamentos`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, su receta N° ${r.numero} ya está lista:\n${r.items.map((i) => `• ${i.droga} ${i.presentacion} — ${i.posologia}`).join("\n")}\nCódigo: ${r.codigo}` });
     });
   if (on("renovacion"))
     d.recetas.filter((r) => !r.anulada && isoDe(new Date(r.fecha)) === isoDe(new Date(Date.now() - 25 * 86400000))).forEach((r) => {
       const tl = tel(r.paciente);
-      if (tl) out.push({ key: `ren-${r.id}`, auto: "renovacion", titulo: `Renovar medicación de ${r.paciente}`, detalle: `Receta N° ${r.numero} de hace 25 días`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, se está por terminar tu medicación (${r.items.map((i) => i.droga).join(", ")}). ¿Quieres que te preparemos la nueva receta?` });
+      if (tl) out.push({ key: `ren-${r.id}`, auto: "renovacion", titulo: `Renovar medicación de ${r.paciente}`, detalle: `Receta N° ${r.numero} de hace 25 días`, tipo: "wa", tel: tl, msg: `Hola ${nom(r.paciente)}, se está por terminar su medicación (${r.items.map((i) => i.droga).join(", ")}). ¿Quiere que le preparemos la nueva receta?` });
     });
   if (on("labListo"))
     d.labs.filter((l) => l.estado === "Resultado" && (l.fechaResultado ?? "").slice(0, 10) >= isoDe(new Date(Date.now() - 3 * 86400000))).forEach((l) => {
       const tl = tel(l.paciente);
-      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están tus resultados de laboratorio. Puedes verlos en tu portal del Centro HEGO.` });
+      if (tl) out.push({ key: `labok-${l.id}`, auto: "labListo", titulo: `Resultados listos: ${l.paciente}`, detalle: "Avisar que están en el portal", tipo: "wa", tel: tl, msg: `Hola ${nom(l.paciente)}, ya están sus resultados de laboratorio. Puede verlos en su portal del Centro HEGO.` });
     });
   if (on("labDemorado"))
     d.labs.filter((l) => l.estado !== "Resultado" && l.fecha.slice(0, 10) < isoDe(new Date(Date.now() - 7 * 86400000))).forEach((l) => out.push({ key: `labdem-${l.id}`, auto: "labDemorado", titulo: `Laboratorio demorado: ${l.paciente}`, detalle: `Pedido el ${fechaDe(l.fecha)}`, tipo: "alerta", ir: "laboratorio" }));
   if (on("saldo"))
     d.cobros.filter((c) => saldoDe(c) > 0).forEach((c) => {
       const tl = tel(c.paciente);
-      if (tl) out.push({ key: `saldo-${c.id}-${hoy.slice(0, 7)}`, auto: "saldo", titulo: `Saldo de ${c.paciente}`, detalle: `${dinero(saldoDe(c))} · ${c.concepto}`, tipo: "wa", tel: tl, msg: `Hola ${nom(c.paciente)}, te recordamos que quedó un saldo de ${dinero(saldoDe(c))} por ${c.concepto}. Puedes abonarlo en tu próxima visita o por transferencia. ¡Gracias!` });
+      if (tl) out.push({ key: `saldo-${c.id}-${hoy.slice(0, 7)}`, auto: "saldo", titulo: `Saldo de ${c.paciente}`, detalle: `${dinero(saldoDe(c))} · ${c.concepto}`, tipo: "wa", tel: tl, msg: `Hola ${nom(c.paciente)}, le recordamos que quedó un saldo de ${dinero(saldoDe(c))} por ${c.concepto}. Puede abonarlo en su próxima visita o por transferencia. ¡Gracias!` });
     });
   if (on("sinFacturar")) {
     const n = d.cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !d.facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada")).length;
@@ -6631,7 +6631,7 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
     if (pend.length) out.push({ key: `liq-${hoy.slice(0, 7)}`, auto: "liquidacion", titulo: "Liquidación de EPS", detalle: `${pend.length} comprobantes · ${dinero(pend.reduce((a, f) => a + f.total, 0))}`, tipo: "alerta", ir: "facturacion" });
   }
   if (on("cumple"))
-    d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Te saludamos con mucho cariño desdel Centro HEGO.` }));
+    d.pacientes.filter((p) => p.ficha?.nacimiento && p.ficha.nacimiento.slice(5, 10) === hoy.slice(5, 10) && p.telefono).forEach((p) => out.push({ key: `cumple-${p.id}-${hoy}`, auto: "cumple", titulo: `Cumpleaños de ${p.nombre}`, detalle: "Hoy", tipo: "wa", tel: p.telefono!, msg: `¡Feliz cumpleaños, ${nom(p.nombre)}! Le saludamos con mucho cariño desdel Centro HEGO.` }));
   if (on("invitarPortal")) {
     const sin = d.pacientes.filter((p) => !p.portal && d.turnos.some((t) => norm(t.paciente) === norm(p.nombre) && t.fecha >= hoy));
     if (sin.length) out.push({ key: `inv-${hoy}`, auto: "invitarPortal", titulo: `${sin.length} pacientes con cita sin portal`, detalle: sin.slice(0, 3).map((p) => p.nombre).join(", "), tipo: "alerta", ir: "pacientes" });
@@ -6669,7 +6669,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
   };
 
   const FLUJOS: { t: string; pasos: { icon: LucideIcon; l: string; auto?: string }[] }[] = [
-    { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pide confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
+    { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pida confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
     { t: "Control renal", pasos: [{ icon: FlaskConical, l: "Resultado de laboratorio" }, { icon: AlertTriangle, l: "Potasio alto", auto: "potasio" }, { icon: TrendingDown, l: "Caída del filtrado", auto: "egfrCae" }, { icon: Bell, l: "Alerta al nefrólogo" }, { icon: Send, l: "Aviso al paciente", auto: "labListo" }] },
     { t: "Paciente hipertenso", pasos: [{ icon: Activity, l: "Presión registrada" }, { icon: AlertTriangle, l: "TA en crisis", auto: "crisisTA" }, { icon: Bell, l: "Alerta al cardiólogo" }, { icon: Send, l: "Control semanal", auto: "controlTA" }] },
     { t: "Receta crónica", pasos: [{ icon: Pill, l: "Receta firmada" }, { icon: Send, l: "Envío al paciente", auto: "recetaLista" }, { icon: Clock, l: "Esperar 25 días" }, { icon: Send, l: "Renovación", auto: "renovacion" }] },
@@ -6718,7 +6718,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
       {vista === "bandeja" && (
         <Seccion icon={Bell} titulo="Acciones preparadas" sub="Generadas por las automatizaciones activas">
           {nActivas === 0 ? (
-            <Vacio icon={Zap} titulo="No hay automatizaciones activas" texto="Actívalas en el Catálogo y aquí aparecen los avisos y alertas listos." accion={<Button className="rounded-xl" onClick={() => setVista("catalogo")}>Ir al catálogo</Button>} />
+            <Vacio icon={Zap} titulo="No hay automatizaciones activas" texto="Actívelas en el Catálogo y aquí aparecen los avisos y alertas listos." accion={<Button className="rounded-xl" onClick={() => setVista("catalogo")}>Ir al catálogo</Button>} />
           ) : pendientes.length === 0 ? (
             <Vacio icon={Check} titulo="Todo al día" texto="No hay avisos ni alertas pendientes por ahora." />
           ) : (
@@ -6809,7 +6809,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
                   );
                 })}
               </ol>
-              <p className="mt-4 text-xs text-muted-foreground">Los pasos tachados están pausados: actívalos en el Catálogo.</p>
+              <p className="mt-4 text-xs text-muted-foreground">Los pasos tachados están pausados: actívelos en el Catálogo.</p>
             </Seccion>
           ))}
         </div>
@@ -6835,7 +6835,7 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
   {
     titulo: "Gestión",
     items: [
-      { id: "turnos", label: "Turnos", icon: CalendarDays },
+      { id: "turnos", label: "Citas", icon: CalendarDays },
       { id: "cuenta", label: "Cuenta corriente", icon: Wallet },
     ],
   },
@@ -6969,7 +6969,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {p.telefono && (
-                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, te escribimos del Centro HEGO.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
+                      <a href={waDe(p.telefono, `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Send className="size-3.5" /> WhatsApp</a>
                     )}
                     <Button size="sm" variant="outline" className="rounded-xl" onClick={onEditar}><Pencil className="size-3.5" /> Editar paciente</Button>
                   </div>
@@ -6984,7 +6984,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
               </section>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-                <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agenda el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
+                <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agende el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
                 <Indicador icon={Activity} l="Presión arterial" v={ta ? `${ta.s}/${ta.d}` : "—"} d={ta ? clasificarPresion(ta.s, ta.d).nivel : "Sin registros"} ir="historia" tono="from-rose-500 to-red-600" />
                 <Indicador icon={Scale} l="Índice de masa corporal" v={imcP ? `${imcP.valor} kg/m²` : "—"} d={imcP ? imcP.texto : "Sin peso y talla"} ir="historia" tono="from-cyan-400 to-sky-600" />
                 <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
@@ -7168,7 +7168,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
           {sec === "turnos" && (
             <>
-              <Cab t="Turnos" s={`${misTurnos.length} citas en total`} />
+              <Cab t="Citas" s={`${misTurnos.length} citas en total`} />
               {misTurnos.length === 0 ? <Vacio icon={CalendarDays} texto="Este paciente todavía no tiene citas." /> : (
                 <ul className="space-y-2">
                   {misTurnos.map((t) => (
@@ -7247,7 +7247,7 @@ const NIVELES_TRIAGE: { id: NivelTriage; nombre: string; desc: string; espera: s
   { id: "II", nombre: "Triage II", desc: "Riesgo de deterioro rápido", espera: "Hasta 30 min", clase: "bg-orange-500 text-white ring-orange-600", punto: "bg-orange-500" },
   { id: "III", nombre: "Triage III", desc: "Requiere estudios o tratamiento, estable", espera: "Según disponibilidad", clase: "bg-amber-400 text-amber-950 ring-amber-500", punto: "bg-amber-400" },
   { id: "IV", nombre: "Triage IV", desc: "Sin riesgo de deterioro", espera: "Consulta prioritaria", clase: "bg-emerald-500 text-white ring-emerald-600", punto: "bg-emerald-500" },
-  { id: "V", nombre: "Triage V", desc: "Problema crónico o consulta programada", espera: "Consulta programada", clase: "bg-sky-500 text-white ring-sky-600", punto: "bg-sky-500" },
+  { id: "V", nombre: "Triage V", desc: "Problema crónico o consulte programada", espera: "Consulta programada", clase: "bg-sky-500 text-white ring-sky-600", punto: "bg-sky-500" },
 ];
 const nivelTriage = (n?: NivelTriage) => NIVELES_TRIAGE.find((x) => x.id === n);
 function fueraSpo2(v?: number) {
@@ -7351,10 +7351,10 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (esMedicoV) { toast.error("Los signos vitales los registra enfermería"); return; }
-    if (soloLectura) { toast.error("Tu permiso en Enfermería – Triage es solo de lectura"); return; }
-    if (!pac) { toast.error("Selecciona un paciente"); return; }
+    if (soloLectura) { toast.error("Su permiso en Enfermería – Triage es solo de lectura"); return; }
+    if (!pac) { toast.error("Seleccione un paciente"); return; }
     const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
-    if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registra al menos un signo vital"); return; }
+    if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registre al menos un signo vital"); return; }
     const t = JSON.parse(JSON.stringify({ id: nuevoId(), pacienteId: pac.id, paciente: pac.nombre, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, signos })) as Triage;
     setTriages((prev) => [t, ...prev]);
     log("Signos vitales registrados", pac.nombre);
@@ -7422,7 +7422,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
           <form onSubmit={guardar} className="flex min-h-0 flex-col lg:overflow-y-auto">
             {!pac ? (
               <div className="flex flex-1 items-center justify-center p-8">
-                <Vacio icon={Users} titulo="Elige un paciente" texto="Selecciona una cita de hoy o busca otro paciente para registrar sus signos vitales." />
+                <Vacio icon={Users} titulo="Elija un paciente" texto="Seleccione una cita de hoy o busque otro paciente para registrar sus signos vitales." />
               </div>
             ) : (
               <div className="flex-1 space-y-6 p-6">
@@ -7437,7 +7437,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
 
                 {esMedicoV && (
                   <div className="flex items-center gap-2.5 rounded-xl bg-amber-50 px-4 py-2.5 text-xs text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30">
-                    <Lock className="size-4 shrink-0" /> Solo el personal de enfermería puede cargar signos vitales. Como médico los ves en la Historia Clínica al iniciar la evolución.
+                    <Lock className="size-4 shrink-0" /> Solo el personal de enfermería puede cargar signos vitales. Como médico los ve en la Historia Clínica al iniciar la evolución.
                   </div>
                 )}
                 <fieldset disabled={bloqueado} className={`min-w-0 border-0 p-0 ${bloqueado ? "pointer-events-none opacity-60" : ""}`}>
@@ -7463,7 +7463,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar }: { user: Ses
                   <div className={`rounded-2xl p-4 ring-1 transition-colors ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">Índice de masa corporal</p>
                     <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{imc ? imc.valor : "—"} <span className="text-sm font-normal opacity-70">{imc ? "kg/m²" : ""}</span></p>
-                    <p className="text-sm font-semibold">{imc ? imc.texto : "Ingresa talla y peso"}</p>
+                    <p className="text-sm font-semibold">{imc ? imc.texto : "Ingrese talla y peso"}</p>
                   </div>
                   <div className="rounded-2xl bg-secondary/40 p-4 ring-1 ring-border/70">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Clasificación del IMC (OMS)</p>
@@ -7519,7 +7519,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
           icon={CalendarDays}
           label="Citas de hoy"
           value={String(turnosHoy.length)}
-          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · toca para registrar` : "Toca para registrar signos vitales"}
+          hint={turnosHoy.length ? `${sinSignos} sin signos vitales · toca para registrar` : "Toque para registrar signos vitales"}
           tono="verde"
           onClick={() => setVentana(true)}
           accion="Tomar signos vitales"
@@ -7530,7 +7530,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
 
       <Seccion icon={ClipboardList} titulo="Signos vitales registrados hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · quedan en la Historia Clínica de cada paciente`}>
         {deHoy.length === 0 ? (
-          <Vacio icon={Activity} texto="Todavía no se registraron signos vitales hoy. Toca «Citas de hoy» para empezar." />
+          <Vacio icon={Activity} texto="Todavía no se registraron signos vitales hoy. Toque «Citas de hoy» para empezar." />
         ) : (
           <ul className="space-y-3">
             {deHoy.map((t) => (
@@ -7572,7 +7572,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
   const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
 
   const mensaje = (p: Personal) =>
-    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, te damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntra a este link y crea tu contraseña:\n${linkInvitacion(p, origen)}`;
+    `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, le damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntre a este link y cree su contraseña:\n${linkInvitacion(p, origen)}`;
   const copiar = async (p: Personal) => {
     try {
       await navigator.clipboard.writeText(linkInvitacion(p, origen));
@@ -7589,7 +7589,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
     setLista((p) => [...p, n]);
     log("Acceso al panel creado", `${n.nombre} · ${area}`);
     setNuevoLink(linkInvitacion(n, origen));
-    toast.success("Listo. Enviale el link para que cree su contraseña.");
+    toast.success("Listo. Envíele el link para que cree su contraseña.");
     setNombre("");
     setDoc("");
   };
@@ -7633,7 +7633,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
       )}
 
       {visibles.length === 0 ? (
-        <Vacio icon={UserCog} texto="Todavía no hay personal con acceso. Dale acceso arriba y enviale el link de invitación." />
+        <Vacio icon={UserCog} texto="Todavía no hay personal con acceso. Dele acceso arriba y envíele el link de invitación." />
       ) : (
         <ul className="divide-y divide-border/60">
           {visibles.map((n) => {
@@ -7725,22 +7725,22 @@ function SitioTab({ log }: { log: LogFn }) {
   const [cargando, setCargando] = useState(false);
 
   const guardar = () => {
-    for (const x of d.semana) if (x.abierto && x.desde >= x.hasta) { toast.error(`Revisa el horario del ${NOMBRES_DIA[x.dia]}`); return; }
+    for (const x of d.semana) if (x.abierto && x.desde >= x.hasta) { toast.error(`Revise el horario del ${NOMBRES_DIA[x.dia]}`); return; }
     try {
       setGuardado(() => d);
       log("Sitio web actualizado", "Contacto, horarios y música");
       toast.success("Cambios publicados en la web.");
     } catch {
-      toast.error("No hay espacio suficiente en este navegador. Usa un enlace en lugar de subir el audio.");
+      toast.error("No hay espacio suficiente en este navegador. Use un enlace en lugar de subir el audio.");
     }
   };
 
   const subirAudio = (f: File | undefined) => {
     if (!f) return;
-    if (!f.type.startsWith("audio/")) { toast.error("Elige un archivo de audio (mp3, ogg, wav)."); return; }
+    if (!f.type.startsWith("audio/")) { toast.error("Elija un archivo de audio (mp3, ogg, wav)."); return; }
     const enServidor = modoServidor();
     const max = enServidor ? 15 : MAX_AUDIO_MB;
-    if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Usa un enlace o un archivo más liviano.`); return; }
+    if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Use un enlace o un archivo más liviano.`); return; }
     setCargando(true);
     if (enServidor) {
       // Con backend: el archivo se sube a Vercel Blob y queda disponible para todos los visitantes
@@ -7766,8 +7766,8 @@ function SitioTab({ log }: { log: LogFn }) {
   };
 
   const agregar = () => {
-    if (!nueva.nombre.trim()) { toast.error("Pon un nombre para el tema"); return; }
-    if (!nueva.url) { toast.error("Sube un archivo o pega un enlace de audio"); return; }
+    if (!nueva.nombre.trim()) { toast.error("Ponga un nombre para el tema"); return; }
+    if (!nueva.url) { toast.error("Suba un archivo o pegue un enlace de audio"); return; }
     const p: PistaMusica = { id: nuevoId(), nombre: nueva.nombre.trim(), sub: nueva.sub.trim() || "Instrumental", url: nueva.url.trim(), color: COLORES_PISTA[d.pistas.length % COLORES_PISTA.length]! };
     set({ pistas: [...d.pistas, p] });
     setNueva({ nombre: "", sub: "", url: "" });
@@ -7788,7 +7788,7 @@ function SitioTab({ log }: { log: LogFn }) {
       <div className={`pn-card pn-up sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 p-4 ${cambios ? "ring-2 ring-[rgba(var(--acc),.35)]" : ""}`}>
         <p className="flex items-center gap-2 text-sm">
           <Globe className="size-4 text-[rgb(var(--acc))]" />
-          {cambios ? <span className="font-semibold">Tienes cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guardes aquí se ve en la web pública.</span>}
+          {cambios ? <span className="font-semibold">Tiene cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guarde aquí se ve en la web pública.</span>}
         </p>
         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
           <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-emerald-500" : "bg-amber-500"}`} />
@@ -7833,7 +7833,7 @@ function SitioTab({ log }: { log: LogFn }) {
         </Seccion>
       </div>
 
-      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Sube tus temas o usa las pistas de ejemplo.">
+      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Suba sus temas o use las pistas de ejemplo.">
         <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-secondary/40 p-4">
           <Interruptor on={d.musicaActiva} onChange={(v) => set({ musicaActiva: v })} label="Mostrar el reproductor en la web" />
           <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Incluir las 4 pistas de ejemplo" />
@@ -7842,9 +7842,9 @@ function SitioTab({ log }: { log: LogFn }) {
 
         <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_380px]">
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tus temas</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sus temas</p>
             {d.pistas.length === 0 ? (
-              <Vacio icon={Music2} titulo="Todavía no subiste música" texto="Agrega tu primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
+              <Vacio icon={Music2} titulo="Todavía no subió música" texto="Agregue su primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
             ) : (
               <ol className="space-y-2">
                 {d.pistas.map((p, i) => (
@@ -7883,7 +7883,7 @@ function SitioTab({ log }: { log: LogFn }) {
               <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
               {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
               <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Usa solo música con permiso de uso.</p>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Use solo música con permiso de uso.</p>
             </div>
           </div>
         </div>
@@ -8100,7 +8100,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
           {personas.length > 6 && (
             <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar persona…" className="mb-1 h-9 w-full rounded-xl border border-input bg-background px-3 text-xs outline-none focus:border-[rgb(var(--acc))]" />
           )}
-          {directos.length === 0 && <p className="px-2 text-xs text-muted-foreground">Cuando haya personal con acceso, vas a poder escribirles en privado.</p>}
+          {directos.length === 0 && <p className="px-2 text-xs text-muted-foreground">Cuando haya personal con acceso, va a poder escribirles en privado.</p>}
           {directos.filter((d) => norm(d.nombre).includes(norm(buscar))).map((d) => {
             const on = d.canal === canal;
             const n = sinLeer(d.canal);
@@ -8118,7 +8118,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
             );
           })}
         </div>
-        <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No compartas aquí datos clínicos de pacientes: eso va en su historia clínica.</p>
+        <p className="border-t border-border/60 p-3 text-[11px] leading-relaxed text-muted-foreground">Para información del equipo. No comparta aquí datos clínicos de pacientes: eso va en su historia clínica.</p>
       </aside>
 
       {/* Conversación */}
@@ -8161,8 +8161,8 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
           {delCanal.length === 0 && (
             <div className="flex h-full flex-col items-center justify-center text-center">
               <span className="flex size-16 items-center justify-center rounded-3xl text-white shadow-lg vz-flota" style={{ background: `linear-gradient(140deg, ${c.color}, ${c.color}b3)` }}><c.icon className="size-7" /></span>
-              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>{dm ? `Escríbele a ${dm.nombre}` : `Todavía no hay mensajes en ${c.nombre}`}</p>
-              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{dm ? "Solo ustedes dos ven esta conversación." : puedeEscribir ? "Escribe el primero." : "Aquí vas a ver los avisos de los médicos y Dirección."}</p>
+              <p className={`mt-4 font-semibold ${fondo.oscuro ? "text-white" : ""}`}>{dm ? `Escríbale a ${dm.nombre}` : `Todavía no hay mensajes en ${c.nombre}`}</p>
+              <p className={`mt-1 text-sm ${fondo.oscuro ? "text-white/60" : "text-muted-foreground"}`}>{dm ? "Solo ustedes dos ven esta conversación." : puedeEscribir ? "Escriba el primero." : "Aquí va a ver los avisos de los médicos y Dirección."}</p>
             </div>
           )}
           {delCanal.map((m, i) => {
@@ -8262,8 +8262,8 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200">
-          <p className="font-semibold">Guarda estos códigos de respaldo</p>
-          <p className="mt-1">Sirven para entrar si pierdes el celular. Cada uno se usa una sola vez y no se vuelven a mostrar: sácales captura o anótalos en un lugar seguro.</p>
+          <p className="font-semibold">Guarde estos códigos de respaldo</p>
+          <p className="mt-1">Sirven para entrar si pierde el celular. Cada uno se usa una sola vez y no se vuelven a mostrar: sáqueles captura o anótelos en un lugar seguro.</p>
         </div>
         <div className="grid grid-cols-2 gap-2 font-mono text-sm">
           {respaldo.map((c) => <span key={c} className="rounded-xl bg-secondary px-3 py-2 text-center tracking-wider">{c}</span>)}
@@ -8276,9 +8276,9 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
     return (
       <div className="space-y-4">
         <ol className="space-y-3 text-sm">
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">1</span> <span>Instala en tu celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, en Play Store o App Store).</span></li>
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">2</span> <span>Toca el botón de abajo y escanea el código QR con la app.</span></li>
-          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">3</span> <span>Escribe el número de 6 dígitos que aparece en la app.</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">1</span> <span>Instale en su celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, en Play Store o App Store).</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">2</span> <span>Toque el botón de abajo y escanee el código QR con la app.</span></li>
+          <li className="flex gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold">3</span> <span>Escriba el número de 6 dígitos que aparece en la app.</span></li>
         </ol>
         <Button onClick={() => void generar()} disabled={cargando} className="h-11 w-full rounded-xl"><Smartphone className="size-4" /> {cargando ? "Generando..." : "Mostrar código QR"}</Button>
       </div>
@@ -8288,8 +8288,8 @@ function Activar2FA({ onListo }: { onListo: () => void }) {
       <div className="flex flex-col items-center gap-3 rounded-2xl bg-secondary/60 p-4 sm:flex-row">
         <img src={qr.qr} alt="Código QR para la app" className="size-44 rounded-xl bg-white p-1" />
         <div className="text-sm">
-          <p className="font-semibold">Escanea este QR con la app</p>
-          <p className="mt-1 text-muted-foreground">¿No puedes escanear? En la app elige “ingresar clave” y escribe:</p>
+          <p className="font-semibold">Escanee este QR con la app</p>
+          <p className="mt-1 text-muted-foreground">¿No puede escanear? En la app elija “ingresar clave” y escriba:</p>
           <p className="mt-2 select-all break-all rounded-lg bg-card px-2 py-1.5 font-mono text-xs">{qr.secreto}</p>
         </div>
       </div>
@@ -8371,8 +8371,8 @@ function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => vo
               </div>
               {estado.activo ? (
                 <div className="mt-3 space-y-3 text-sm text-muted-foreground">
-                  <p>Al entrar te pedimos el código de tu app. Te quedan <b>{estado.respaldos}</b> códigos de respaldo.</p>
-                  {estado.obligatorio && <p className="text-xs">Para médicos y Dirección es obligatoria. ¿Cambias de celular o se la pasas a otra persona? Reiníciala: se cierra la sesión y al volver a entrar aparece el QR para escanear con el celular nuevo.</p>}
+                  <p>Al entrar le pedimos el código de su app. Le quedan <b>{estado.respaldos}</b> códigos de respaldo.</p>
+                  {estado.obligatorio && <p className="text-xs">Para médicos y Dirección es obligatoria. ¿Cambia de celular o se la pasa a otra persona? Reiníciela: se cierra la sesión y al volver a entrar aparece el QR para escanear con el celular nuevo.</p>}
                   <form onSubmit={apagar} className="flex gap-2">
                     <input inputMode="numeric" maxLength={6} value={codigoOff} onChange={(e) => setCodigoOff(e.target.value.replace(/\D/g, ""))} placeholder="Código actual" className={inp + " h-10"} />
                     <Button type="submit" variant="outline" className="h-10 shrink-0 rounded-xl text-rose-600">{estado.obligatorio ? "Reiniciar" : "Desactivar"}</Button>
@@ -8382,7 +8382,7 @@ function MiSeguridad({ user, onCerrar }: { user: SessionUser; onCerrar: () => vo
                 <div className="mt-4"><Activar2FA onListo={() => { setActivando(false); void cargar(); }} /></div>
               ) : (
                 <div className="mt-3 space-y-3">
-                  <p className="text-sm text-muted-foreground">Además de la contraseña, te pedimos un código de tu celular. Aunque alguien sepa tu contraseña, no puede entrar.</p>
+                  <p className="text-sm text-muted-foreground">Además de la contraseña, le pedimos un código de su celular. Aunque alguien sepa su contraseña, no puede entrar.</p>
                   <Button onClick={() => setActivando(true)} className="rounded-xl"><ShieldCheck className="size-4" /> Activar</Button>
                 </div>
               )}
@@ -8445,7 +8445,7 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
       </div>
       <form onSubmit={ir} className="mt-3 flex gap-2">
         <select value={id} onChange={(e) => setId(e.target.value)} className={inp + " h-10"}>
-          <option value="">Elige a la persona…</option>
+          <option value="">Elija a la persona…</option>
           {opciones.map((o) => <option key={o.id} value={o.id}>{o.nombre}</option>)}
         </select>
         <Button type="submit" variant="outline" disabled={!id} className="h-10 shrink-0 rounded-xl">Restablecer 2FA</Button>

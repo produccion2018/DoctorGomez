@@ -74,13 +74,13 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
       else if (esAgenda) {
         // Agenda: los médicos, o el personal con permiso de editar Horarios (secretaría)
         const x = await a.usuarioActual();
-        if (!x) throw new Error("Tu sesión venció. Vuelve a ingresar.");
-        if (x.rol !== "medico" && !permiteModulo(await permisosGuardados(), x.area ?? "", "Horarios", "editar")) throw new Error("Tu área no tiene permiso para modificar horarios.");
+        if (!x) throw new Error("Su sesión venció. Vuelva a ingresar.");
+        if (x.rol !== "medico" && !permiteModulo(await permisosGuardados(), x.area ?? "", "Horarios", "editar")) throw new Error("Su área no tiene permiso para modificar horarios.");
         u = x;
       }
       else {
         const x = await a.usuarioActual();
-        if (!x) throw new Error("Tu sesión venció. Vuelve a ingresar.");
+        if (!x) throw new Error("Su sesión venció. Vuelva a ingresar.");
         u = x;
       }
     } catch (e) {
@@ -188,7 +188,7 @@ export const verificar2faServidor = createServerFn({ method: "POST" })
     const filas = (await sql`SELECT u.id, u.nombre, u.rol, u.area, u.totp, u.respaldo FROM desafios d JOIN usuarios u ON u.id = d.usuario_id
       WHERE d.token = ${a.sha(data.ticket)} AND d.expira > now() AND u.activo = true`) as { id: string; nombre: string; rol: string; area: string | null; totp: string | null; respaldo: string | null }[];
     const f = filas[0];
-    if (!f || !f.totp) return { ok: false, error: "El ingreso venció. Vuelve a poner tu contraseña." };
+    if (!f || !f.totp) return { ok: false, error: "El ingreso venció. Vuelva a poner su contraseña." };
     const llave = `2fa:${f.id}`;
     const freno = await a.bloqueado(llave);
     if (freno) return { ok: false, error: freno };
@@ -207,7 +207,7 @@ export const verificar2faServidor = createServerFn({ method: "POST" })
     if (!ok) {
       await a.registrarFallo(llave);
       await a.auditar(f.nombre, "Código 2FA incorrecto", "");
-      return { ok: false, error: (await a.bloqueado(llave)) ?? "Código incorrecto. Fíjate en la app y prueba de nuevo." };
+      return { ok: false, error: (await a.bloqueado(llave)) ?? "Código incorrecto. Fíjese en la app y pruebe de nuevo." };
     }
     await a.limpiarFallos(llave);
     await sql`DELETE FROM desafios WHERE usuario_id = ${f.id}`;
@@ -231,8 +231,8 @@ export const seguridadServidor = createServerFn({ method: "GET" }).handler(async
 export const iniciar2faServidor = createServerFn({ method: "POST" }).handler(async (): Promise<Resultado<{ qr: string; secreto: string }>> => {
   const a = await acceso();
   const s = await a.sesionCompleta();
-  if (!s) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
-  if (s.totpOk) return { ok: false, error: "Ya tienes la verificación en dos pasos activa." };
+  if (!s) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+  if (s.totpOk) return { ok: false, error: "Ya tiene la verificación en dos pasos activa." };
   const secreto = a.nuevoSecreto();
   const sql = await (await modulo()).db();
   await sql`UPDATE usuarios SET totp = ${secreto}, totp_ok = false WHERE id = ${s.usuario.id}`;
@@ -249,11 +249,11 @@ export const confirmar2faServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado<{ respaldo: string[] }>> => {
     const a = await acceso();
     const s = await a.sesionCompleta();
-    if (!s) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
+    if (!s) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
     const sql = await (await modulo()).db();
     const f = (await sql`SELECT totp FROM usuarios WHERE id = ${s.usuario.id}`) as { totp: string | null }[];
-    if (!f[0]?.totp) return { ok: false, error: "Vuelve a generar el código QR." };
-    if (!a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "El código no coincide. Usa el que muestra la app en este momento." };
+    if (!f[0]?.totp) return { ok: false, error: "Vuelva a generar el código QR." };
+    if (!a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "El código no coincide. Use el que muestra la app en este momento." };
     const respaldo = a.codigosRespaldo();
     await sql`UPDATE usuarios SET totp_ok = true, respaldo = ${JSON.stringify(respaldo.map(a.sha))} WHERE id = ${s.usuario.id}`;
     const token = a.tokenCookie();
@@ -268,7 +268,7 @@ export const desactivar2faServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado> => {
     const a = await acceso();
     const s = await a.sesionCompleta();
-    if (!s || s.falta2fa) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
+    if (!s || s.falta2fa) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
     const sql = await (await modulo()).db();
     const f = (await sql`SELECT totp FROM usuarios WHERE id = ${s.usuario.id}`) as { totp: string | null }[];
     if (!f[0]?.totp || !a.totpValido(f[0].totp, data.codigo)) return { ok: false, error: "Código incorrecto." };
@@ -290,7 +290,7 @@ export const restablecer2faServidor = createServerFn({ method: "POST" })
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }
-    if (data.id === u.id) return { ok: false, error: "No puedes restablecer tu propia verificación." };
+    if (data.id === u.id) return { ok: false, error: "No puede restablecer su propia verificación." };
     const sql = await (await modulo()).db();
     const f = (await sql`SELECT nombre, rol FROM usuarios WHERE id = ${data.id}`) as { nombre: string; rol: string }[];
     if (!f[0]) return { ok: false, error: "Usuario no encontrado." };
@@ -307,7 +307,7 @@ export const guardarEmailServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado> => {
     const a = await acceso();
     const u = await a.usuarioActual();
-    if (!u) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
+    if (!u) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
     const email = data.email.trim().toLowerCase();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "Ese correo no parece válido." };
     const sql = await (await modulo()).db();
@@ -321,7 +321,7 @@ export const pedirRecuperoServidor = createServerFn({ method: "POST" })
   .validator((d: { email: string; origen: string }) => d)
   .handler(async ({ data }): Promise<Resultado> => {
     const clave = process.env["RESEND_API_KEY"];
-    if (!clave) return { ok: false, error: "El envío de correos todavía no está configurado. Pídele a un médico o a Dirección que te restablezca la contraseña." };
+    if (!clave) return { ok: false, error: "El envío de correos todavía no está configurado. Pídale a un médico o a Dirección que le restablezca la contraseña." };
     const a = await acceso();
     const email = data.email.trim().toLowerCase();
     const llave = `rec:${email}`;
@@ -338,13 +338,13 @@ export const pedirRecuperoServidor = createServerFn({ method: "POST" })
       const link = `${base}/login?recuperar=${token}`;
       const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#0b1f4d">
         <h2 style="margin:0 0 12px">HEGO · Centro de especialidades médicas</h2>
-        <p>Hola ${f[0].nombre.replace(/[<>]/g, "")}, pediste restablecer tu contraseña del panel.</p>
+        <p>Hola ${f[0].nombre.replace(/[<>]/g, "")}, pidió restablecer su contraseña del panel.</p>
         <p><a href="${link}" style="display:inline-block;background:#0b3d91;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Crear contraseña nueva</a></p>
-        <p style="font-size:13px;color:#555">El link vale por 1 hora y sirve una sola vez. Si no fuiste tú, ignora este correo: tu contraseña no cambia.</p></div>`;
+        <p style="font-size:13px;color:#555">El link vale por 1 hora y sirve una sola vez. Si no fue usted, ignore este correo: su contraseña no cambia.</p></div>`;
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: process.env["RESEND_FROM"] ?? "HEGO <onboarding@resend.dev>", to: [email], subject: "Restablecer tu contraseña · HEGO", html }),
+        body: JSON.stringify({ from: process.env["RESEND_FROM"] ?? "HEGO <onboarding@resend.dev>", to: [email], subject: "Restablecer su contraseña · HEGO", html }),
       }).catch(() => null);
       await a.auditar(f[0].nombre, "Pidió restablecer contraseña", r?.ok ? "Correo enviado" : `No se pudo enviar (${r?.status ?? "sin respuesta"})`);
     }
@@ -361,7 +361,7 @@ export const usarRecuperoServidor = createServerFn({ method: "POST" })
     const sql = await db();
     const f = (await sql`SELECT r.usuario_id, u.nombre FROM recuperos r JOIN usuarios u ON u.id = r.usuario_id
       WHERE r.token = ${a.sha(data.token)} AND r.expira > now() AND r.usado = false AND u.activo = true`) as { usuario_id: string; nombre: string }[];
-    if (!f[0]) return { ok: false, error: "El link venció o ya se usó. Pide uno nuevo." };
+    if (!f[0]) return { ok: false, error: "El link venció o ya se usó. Pida uno nuevo." };
     await sql`UPDATE usuarios SET hash = ${hashClave(data.password)} WHERE id = ${f[0].usuario_id}`;
     await sql`UPDATE recuperos SET usado = true WHERE usuario_id = ${f[0].usuario_id}`;
     await sql`DELETE FROM sesiones WHERE usuario_id = ${f[0].usuario_id}`;
@@ -392,7 +392,7 @@ export const cambiarClaveServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado> => {
     const { db, hashClave, verificarClave } = await modulo();
     const u = await (await acceso()).usuarioActual();
-    if (!u) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
+    if (!u) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
     const sql = await db();
     const filas = (await sql`SELECT hash FROM usuarios WHERE id = ${u.id}`) as { hash: string | null }[];
     if (!verificarClave(data.actual, filas[0]?.hash ?? null)) return { ok: false, error: "La contraseña actual no es correcta." };
@@ -484,7 +484,7 @@ export const aceptarInvitacionServidor = createServerFn({ method: "POST" })
       WHERE id = ${data.id} AND invitacion = ${data.token} AND activo = true AND rol <> 'medico'
       RETURNING id, nombre, rol, area`) as { id: string; nombre: string; rol: string; area: string | null }[];
     const f = filas[0];
-    if (!f) return { ok: false, error: "Este link ya se usó o no es válido. Pide uno nuevo." };
+    if (!f) return { ok: false, error: "Este link ya se usó o no es válido. Pida uno nuevo." };
     await (await acceso()).auditar(f.nombre, "Contraseña creada", `Invitación aceptada · ${f.area ?? ""}`);
     await (await acceso()).abrirSesion(f.id);
     return { ok: true, usuario: (await acceso()).aUsuario(f) };
@@ -581,7 +581,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     const c = await colecciones();
     if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
     const q = await quienSoy();
-    if (!q) return { ok: false, error: "Tu sesión venció. Vuelve a ingresar." };
+    if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
     const filas = data.upserts.map((x) => JSON.parse(x) as Record<string, unknown> & { id: string }).filter((f) => typeof f.id === "string" && f.id);
 
     // Auditoría: cualquiera agrega eventos, nadie los cambia ni los borra (salvo los médicos)
@@ -599,7 +599,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         const canal = String(previo?.["canal"] ?? f["canal"] ?? "");
         const privado = canal.startsWith("dm:");
         if (privado && !canal.slice(3).split("|").includes(q.id)) return { ok: false, error: "No autorizado." };
-        if (previo && previo["deId"] !== q.id && (!jefe || privado)) return { ok: false, error: "Solo puedes editar tus mensajes." };
+        if (previo && previo["deId"] !== q.id && (!jefe || privado)) return { ok: false, error: "Solo puede editar sus mensajes." };
         if (!previo && f["canal"] === "avisos" && !jefe) return { ok: false, error: "En Avisos publican los médicos y Dirección." };
         await c.guardar("gb_mensajes", { ...f, deId: previo?.["deId"] ?? q.id, de: previo?.["de"] ?? q.nombre });
       }
@@ -614,7 +614,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     if (q.tipo === "staff") {
       if (!(await areaPermite(q, data.coleccion, "editar"))) {
         await (await acceso()).auditar(q.nombre, "Cambio bloqueado por permisos", `${q.area || "Sin área"} · ${data.coleccion.replace("gb_", "")}`);
-        return { ok: false, error: `Tu área (${q.area || "sin área"}) no tiene permiso para modificar esto. Pídeselo a un médico administrador.` };
+        return { ok: false, error: `Su área (${q.area || "sin área"}) no tiene permiso para modificar esto. Pídaselo a un médico administrador.` };
       }
       for (const f of filas) await c.guardar(data.coleccion, f);
       await c.borrar(data.coleccion, data.borrar);
@@ -645,7 +645,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
           continue;
         }
         const t: Record<string, unknown> & { id: string } = { ...f, pacienteId: q.id, paciente: q.nombre, estado: "Pendiente", origen: "portal" };
-        if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elige otro." };
+        if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro." };
         await c.guardar("gb_turnos", t);
         await (await acceso()).auditar(q.nombre, "Cita pedida desde el portal", `${t["fecha"]} ${t["hora"]} · ${t["doctor"]}`);
       }
@@ -691,7 +691,7 @@ export const reservarTurnoPublico = createServerFn({ method: "POST" })
       origen: "web",
     };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha) || !/^\d{2}:\d{2}$/.test(t.hora) || t.paciente.length < 3 || !t.telefono) return { ok: false, error: "Faltan datos de la cita." };
-    if (await c.horarioOcupado(t.doctor, t.fecha, t.hora)) return { ok: false, error: "Ese horario se acaba de ocupar. Elige otro, por favor." };
+    if (await c.horarioOcupado(t.doctor, t.fecha, t.hora)) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro, por favor." };
     await c.guardar("gb_turnos", t);
     await (await acceso()).auditar("Web", "Cita solicitada desde la web", `${t.paciente} · ${t.fecha} ${t.hora} · ${t.doctor}`);
     return { ok: true, id: t.id };
@@ -706,8 +706,8 @@ export const ingresarPacienteServidor = createServerFn({ method: "POST" })
     const dni = u.replace(/\D/g, "");
     const lista = await c.leer("gb_pacientes");
     const p = lista.find((x) => (dni.length >= 5 && x["dni"] === dni) || (u.includes("@") && String(x["email"] ?? "").toLowerCase() === u));
-    if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pídele a la clínica que te envíe la invitación." };
-    if (p["estado"] === "Revocado") return { ok: false, error: "Tu acceso al portal está deshabilitado. Comunícate con la clínica." };
+    if (!p) return { ok: false, error: "No encontramos un paciente con esa cédula o correo. Pídale a la clínica que le envíe la invitación." };
+    if (p["estado"] === "Revocado") return { ok: false, error: "Su acceso al portal está deshabilitado. Comuníquese con la clínica." };
     const a = await acceso();
     const llave = `pac:${p.id}`;
     const freno = await a.bloqueado(llave);
@@ -716,7 +716,7 @@ export const ingresarPacienteServidor = createServerFn({ method: "POST" })
     const valida = cod === p["codigo"] || (!!p["clave"] && c.sha256(cod) === p["clave"]);
     if (!valida) {
       await a.registrarFallo(llave);
-      return { ok: false, error: (await a.bloqueado(llave)) ?? (p["clave"] ? "El código o la contraseña no son correctos." : "El código no es correcto. Revisa el mensaje de la clínica.") };
+      return { ok: false, error: (await a.bloqueado(llave)) ?? (p["clave"] ? "El código o la contraseña no son correctos." : "El código no es correcto. Revise el mensaje de la clínica.") };
     }
     await a.limpiarFallos(llave);
     const primero = p["estado"] === "Invitado";
