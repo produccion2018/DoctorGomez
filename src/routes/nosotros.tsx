@@ -61,8 +61,8 @@ function Nosotros() {
       <PageHero
         kicker="Nosotros"
         decoracion={<FondoEspecialidades />}
-        title={<>Una clínica construida sobre la <span className="text-shine italic">confianza</span></>}
-        text="Dos hermanos médicos, una misma convicción: la medicina especializada sólo tiene sentido con tiempo, escucha y continuidad."
+        title={<>Aquí su <span className="text-shine italic">historia</span> importa tanto como su salud</>}
+        text="Porque detrás de cada enfermedad hay una persona, una familia y una historia que merecen ser escuchadas. En HEGO cuidamos de usted con la misma dedicación, respeto y cariño con que cuidaríamos a nuestra propia familia."
         crumbs={[{ label: "Inicio", to: "/" }, { label: "Nosotros" }]}
       />
 
