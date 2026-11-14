@@ -65,6 +65,13 @@ export async function db(): Promise<Sql> {
       await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS respaldo text`;
       await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email text`;
       await sql`ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS limitada boolean NOT NULL DEFAULT false`;
+      // Dos citas activas nunca pueden ocupar el mismo profesional, día y hora (aunque lleguen a la vez)
+      try {
+        await sql`CREATE UNIQUE INDEX IF NOT EXISTS turnos_unico ON registros ((valor->>'doctor'), (valor->>'fecha'), (valor->>'hora'))
+          WHERE coleccion = 'gb_turnos' AND coalesce(valor->>'estado','') <> 'Cancelado'`;
+      } catch (e) {
+        console.error("No se pudo crear el índice de citas únicas (¿hay citas duplicadas?):", (e as Error).message);
+      }
       await sql`CREATE TABLE IF NOT EXISTS desafios (
         token text PRIMARY KEY,
         usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,

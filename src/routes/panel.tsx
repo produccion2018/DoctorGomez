@@ -3393,6 +3393,12 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
   const editable = (id: string) => (ADMIN_IDS.includes(id) ? id === user.id : esAdmin || puedeEditarOtros);
   const proximos = proximosDias(draft, 6);
   const slots = horariosDelDia(draft, proximos[0]);
+  // Citas ya tomadas que quedarían fuera del horario (o en vacaciones) con estos cambios
+  const [turnosAg] = useDato<Turno[]>("gb_turnos", []);
+  const afectadas = turnosAg
+    .filter((t) => t.doctor === prof?.nombre && t.fecha >= hoy() && t.estado !== "Cancelado" && t.estado !== "Atendido")
+    .filter((t) => !atiendeEl(draft, t.fecha) || !horariosDelDia(draft, t.fecha).includes(t.hora))
+    .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
   /** Prende / apaga un día y le pone un horario inicial (el del último día cargado). */
   const toggleDia = (d: number) => {
     const on = draft.dias.includes(d);
@@ -3618,6 +3624,21 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
             </div>
           </Seccion>
 
+          {afectadas.length > 0 && (
+            <div className="pn-up rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <p className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-200"><AlertTriangle className="size-4" /> {afectadas.length} {afectadas.length === 1 ? "cita queda" : "citas quedan"} fuera de este horario</p>
+              <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-200/80">No se borran solas: avísele a cada paciente y reprográmela en Agenda y citas.</p>
+              <ul className="mt-3 space-y-1.5">
+                {afectadas.slice(0, 12).map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm ring-1 ring-amber-200 dark:ring-amber-500/20">
+                    <span className="font-semibold tabular-nums">{fechaCorta(t.fecha)} {t.hora}</span>
+                    <span className="min-w-0 flex-1 truncate">{t.paciente}</span>
+                    {t.telefono && <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO. Necesitamos reprogramar su cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}. ¿Qué día le queda bien?`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Avisar</a>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <Seccion icon={Ban} titulo="Vacaciones, ausencias y días sin atención" sub="Vacaciones, un trámite, un congreso: esos días no se pueden reservar citas" delay={0.05}>
             <form onSubmit={agregarBloqueo} className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
               <Campo label="Desde"><input type="date" required value={bloq.desde} onChange={(e) => setBloq({ ...bloq, desde: e.target.value })} className={inp} /></Campo>

@@ -616,6 +616,19 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         await (await acceso()).auditar(q.nombre, "Cambio bloqueado por permisos", `${q.area || "Sin área"} · ${data.coleccion.replace("gb_", "")}`);
         return { ok: false, error: `Su área (${q.area || "sin área"}) no tiene permiso para modificar esto. Pídaselo a un médico administrador.` };
       }
+      if (data.coleccion === "gb_turnos") {
+        // El equipo puede dar sobreturnos fuera de la agenda, pero nunca dos citas en el mismo horario
+        for (const f of filas) {
+          const previo = await c.uno("gb_turnos", f.id);
+          const mismoLugar = !!previo && previo["estado"] !== "Cancelado" && previo["doctor"] === f["doctor"] && previo["fecha"] === f["fecha"] && previo["hora"] === f["hora"];
+          if (f["estado"] !== "Cancelado" && !mismoLugar && (await c.horarioOcupado(String(f["doctor"]), String(f["fecha"]), String(f["hora"]), f.id)))
+            return { ok: false, error: `Ese horario (${f["fecha"]} ${f["hora"]}) ya está ocupado para ${f["doctor"]}. Se recargó la agenda.` };
+          const choque = await guardarCita(c, f);
+          if (choque) return { ok: false, error: choque };
+        }
+        await c.borrar(data.coleccion, data.borrar);
+        return { ok: true };
+      }
       for (const f of filas) await c.guardar(data.coleccion, f);
       await c.borrar(data.coleccion, data.borrar);
       return { ok: true };
@@ -645,8 +658,11 @@ export const aplicarCambios = createServerFn({ method: "POST" })
           continue;
         }
         const t: Record<string, unknown> & { id: string } = { ...f, pacienteId: q.id, paciente: q.nombre, estado: "Pendiente", origen: "portal" };
+        const malo = await validarHorario(String(t["doctor"]), String(t["fecha"]), String(t["hora"]));
+        if (malo) return { ok: false, error: malo };
         if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro." };
-        await c.guardar("gb_turnos", t);
+        const choque = await guardarCita(c, t);
+        if (choque) return { ok: false, error: choque };
         await (await acceso()).auditar(q.nombre, "Cita pedida desde el portal", `${t["fecha"]} ${t["hora"]} · ${t["doctor"]}`);
       }
       return { ok: true };
@@ -662,6 +678,39 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     }
     return { ok: false, error: "No autorizado." };
   });
+
+/** Fecha y hora actuales en Colombia (UTC-5, sin horario de verano). */
+const ahoraColombia = () => {
+  const iso = new Date(Date.now() - 5 * 3600e3).toISOString();
+  return { fecha: iso.slice(0, 10), hora: iso.slice(11, 16) };
+};
+
+/** Comprueba que el horario pedido exista en la agenda del profesional y no haya pasado. */
+async function validarHorario(doctor: string, fecha: string, hora: string): Promise<string | null> {
+  const sql = await (await modulo()).db();
+  const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_agenda'`) as { valor: Record<string, never> }[];
+  const agendas = filas[0]?.valor ?? {};
+  const L = await import("./auth-local");
+  const prof = L.profesionalesAgenda(agendas).find((p) => p.nombre === doctor);
+  if (!prof) return "Ese profesional no tiene agenda publicada.";
+  const a = L.agendaDe(agendas, prof.id);
+  if (!L.atiendeEl(a, fecha)) return "Ese día el profesional no atiende. Elija otra fecha.";
+  if (!L.horariosDelDia(a, fecha).includes(hora)) return "Ese horario no está en la agenda del profesional.";
+  const ya = ahoraColombia();
+  if (fecha < ya.fecha || (fecha === ya.fecha && hora <= ya.hora)) return "Ese horario ya pasó. Elija otro.";
+  return null;
+}
+
+/** Guarda una cita y traduce el choque con el índice único en un mensaje claro. */
+async function guardarCita(c: Awaited<ReturnType<typeof colecciones>>, t: Record<string, unknown> & { id: string }) {
+  try {
+    await c.guardar("gb_turnos", t);
+    return null;
+  } catch (e) {
+    if (/turnos_unico|duplicate key/i.test((e as Error).message)) return "Ese horario se acaba de ocupar. Elija otro.";
+    throw e;
+  }
+}
 
 /** Horarios tomados (sin datos de pacientes) para mostrar disponibilidad en la web. */
 export const horariosOcupados = createServerFn({ method: "GET" })
@@ -691,8 +740,11 @@ export const reservarTurnoPublico = createServerFn({ method: "POST" })
       origen: "web",
     };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha) || !/^\d{2}:\d{2}$/.test(t.hora) || t.paciente.length < 3 || !t.telefono) return { ok: false, error: "Faltan datos de la cita." };
+    const malo = await validarHorario(t.doctor, t.fecha, t.hora);
+    if (malo) return { ok: false, error: malo };
     if (await c.horarioOcupado(t.doctor, t.fecha, t.hora)) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro, por favor." };
-    await c.guardar("gb_turnos", t);
+    const choque = await guardarCita(c, t);
+    if (choque) return { ok: false, error: choque };
     await (await acceso()).auditar("Web", "Cita solicitada desde la web", `${t.paciente} · ${t.fecha} ${t.hora} · ${t.doctor}`);
     return { ok: true, id: t.id };
   });
