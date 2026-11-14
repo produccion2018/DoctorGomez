@@ -1552,9 +1552,9 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
           <div className="space-y-2">
             {proximos.map((t) => (
               <div key={t.id} className="flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-colors hover:border-border hover:bg-secondary/40">
-                <div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-secondary py-1.5">
-                  <span className="text-sm font-bold tabular-nums text-primary">{hora12(t.hora)}</span>
-                  <span className="text-[10px] text-muted-foreground">{fechaCorta(t.fecha).slice(0, 5)}</span>
+                <div className="flex w-[4.75rem] shrink-0 flex-col items-center rounded-xl bg-primary/[0.07] px-1 py-2 ring-1 ring-primary/10 dark:bg-white/5 dark:ring-white/10">
+                  <span className="whitespace-nowrap leading-none text-primary dark:text-sky-300"><span className="text-base font-bold tabular-nums">{hora12(t.hora).split(" ")[0]}</span> <span className="text-[10px] font-semibold">{hora12(t.hora).split(" ").slice(1).join(" ")}</span></span>
+                  <span className="mt-1 whitespace-nowrap text-[10px] font-medium capitalize text-muted-foreground">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "").replace(",", "")}</span>
                 </div>
                 <Avatar nombre={t.paciente} />
                 <div className="min-w-0 flex-1">
@@ -2198,8 +2198,8 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
               {lista.map((t) => (
                 <tr key={t.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40">
                   <td className="py-3 pr-3">
-                    <p className="font-semibold tabular-nums">{hora12(t.hora)}</p>
-                    <p className="text-xs text-muted-foreground">{fechaCorta(t.fecha)}</p>
+                    <p className="whitespace-nowrap font-semibold tabular-nums">{hora12(t.hora)}</p>
+                    <p className="whitespace-nowrap text-xs text-muted-foreground">{fechaCorta(t.fecha)}</p>
                   </td>
                   <td className="py-3 pr-3">
                     <div className="flex items-center gap-3">
@@ -5748,7 +5748,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                     <div className="min-w-0 text-xs">
                       {proximo ? (
                         <>
-                          <p className="flex items-center gap-1.5 font-semibold text-foreground/85"><CalendarDays className="size-3.5 text-[rgb(var(--acc))]" /> {proximo.fecha === hoyIso ? "Hoy" : fechaCorta(proximo.fecha).slice(0, 5)} · {proximo.hora}</p>
+                          <p className="flex items-center gap-1.5 font-semibold text-foreground/85"><CalendarDays className="size-3.5 text-[rgb(var(--acc))]" /> {proximo.fecha === hoyIso ? "Hoy" : fechaCorta(proximo.fecha).slice(0, 5)} · {hora12(proximo.hora)}</p>
                           <p className="mt-1 truncate text-muted-foreground">{nombreCorto(proximo.doctor)}</p>
                         </>
                       ) : (

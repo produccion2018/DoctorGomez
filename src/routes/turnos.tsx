@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
+import { CalendarioMes, PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import { ADMINS, KEY_AGENDA, hora12, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
@@ -125,7 +125,7 @@ function Turnos() {
 
   const agenda = doctor ? agendaDe(agendas, doctor.agendaId) : null;
   const servicio = especialidad?.nombre ?? null;
-  const fechas = useMemo(() => (agenda ? proximosDias(agenda, 15, servicio).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda, servicio]);
+  const fechas = useMemo(() => (agenda ? proximosDias(agenda, 60, servicio).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda, servicio]);
   /** ¿Algún profesional atiende esa especialidad en línea? */
   const disponible = (nombre: string, ids: string[]) =>
     todos.some((d) => (d.esp === null ? ids.includes(d.id) : sinTilde(d.esp) === sinTilde(nombre)) && proximosDias(agendaDe(agendas, d.agendaId), 1, nombre).length > 0);
@@ -342,34 +342,18 @@ function Turnos() {
             {paso === 2 && (
               <div>
                 <h2 className="text-2xl">Elija día y horario</h2>
-                <div className="mt-6 flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-                  {fechas.map((d) => {
-                    const v = iso(d);
-                    const on = fecha === v;
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => {
-                          setFecha(v);
-                          setHora(null);
-                        }}
-                        className={`flex w-20 shrink-0 flex-col items-center rounded-2xl border py-3 transition-all duration-300 ${on ? "border-transparent gradient-deep text-white shadow-lg" : "border-border bg-card hover:border-primary/40"}`}
-                      >
-                        <span className={`text-[11px] font-semibold uppercase ${on ? "text-white/75" : "text-muted-foreground"}`}>{DIAS[d.getDay()]!.slice(0, 3)}</span>
-                        <span className="font-display text-2xl font-semibold">{d.getDate()}</span>
-                        <span className={`text-[11px] ${on ? "text-white/75" : "text-muted-foreground"}`}>{d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {fechas.length > 0 && (
+                  <div className="mt-6 max-w-md">
+                    <CalendarioMes disponibles={fechas.map(iso)} valor={fecha} onElegir={(f) => { setFecha(f); setHora(null); }} />
+                  </div>
+                )}
 
                 {agenda?.nota && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">{agenda.nota}</p>}
                 {fechas.length === 0 && <p className="mt-6 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Este profesional no tiene días disponibles por ahora. Escríbanos por WhatsApp y le ayudamos.</p>}
                 {!fecha && fechas.length > 0 && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Seleccione un día para ver los horarios disponibles.</p>}
                 {fecha && (
                   <div className="mt-8">
-                    <p className="mb-3 text-sm font-medium capitalize text-muted-foreground">{fechaTxt(fecha)}</p>
+                    <p className="mb-3 text-sm font-semibold text-foreground first-letter:uppercase">{fechaTxt(fecha)}</p>
                     <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
                       {horarios.map(({ h, libre }) => (
                         <button
@@ -450,7 +434,7 @@ function Turnos() {
                   <span className="flex size-11 items-center justify-center rounded-xl bg-secondary text-primary"><CalendarDays className="size-5" /></span>
                   <div>
                     <p className="text-xs text-muted-foreground">Día</p>
-                    <p className="font-medium capitalize">{fecha ? fechaTxt(fecha) : "—"}</p>
+                    <p className="font-medium first-letter:uppercase">{fecha ? fechaTxt(fecha) : "—"}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode, Fragment, isValidElement } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -421,6 +421,69 @@ export function VisualEspecialidad({ slug, foto, className = "", sinIcono = fals
       {!sinIcono && <span className="vz-flota absolute left-[20%] top-[34%] flex size-[18%] min-h-16 min-w-16 items-center justify-center rounded-[28%] text-white shadow-2xl ring-1 ring-white/30" style={{ background: `linear-gradient(145deg, ${v.c}, ${v.c2})`, boxShadow: `0 30px 60px -20px ${v.c}` }}>
         <Icono className="size-[45%]" />
       </span>}
+    </div>
+  );
+}
+
+const MESES_CAL = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const SEMANA_CAL = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const isoCal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Calendario mensual: solo se pueden tocar los días en que el profesional atiende. */
+export function CalendarioMes({ disponibles, valor, onElegir, compacto = false }: { disponibles: string[]; valor: string | null; onElegir: (f: string) => void; compacto?: boolean }) {
+  const set = new Set(disponibles);
+  const hoyIso = isoCal(new Date());
+  const primero = disponibles[0] ?? hoyIso;
+  const ultimo = disponibles[disponibles.length - 1] ?? hoyIso;
+  const mesDe = (f: string) => Number(f.slice(0, 4)) * 12 + Number(f.slice(5, 7)) - 1;
+  const [mes, setMes] = useState(() => mesDe(valor ?? primero));
+  useEffect(() => { setMes(mesDe(valor ?? primero)); }, [primero]); // eslint-disable-line react-hooks/exhaustive-deps
+  const min = Math.min(mesDe(hoyIso), mesDe(primero));
+  const max = Math.max(mesDe(ultimo), min);
+  const anio = Math.floor(mes / 12);
+  const m = mes % 12;
+  const inicio = (new Date(anio, m, 1).getDay() + 6) % 7;
+  const total = new Date(anio, m + 1, 0).getDate();
+  const celdas: (string | null)[] = [...Array(inicio).fill(null), ...Array.from({ length: total }, (_, i) => isoCal(new Date(anio, m, i + 1)))];
+  const enMes = disponibles.filter((f) => mesDe(f) === mes).length;
+  return (
+    <div className={`rounded-3xl border border-border bg-card shadow-card dark:border-white/10 ${compacto ? "p-3" : "p-4 sm:p-6"}`}>
+      <div className="flex items-center justify-between">
+        <button type="button" aria-label="Mes anterior" disabled={mes <= min} onClick={() => setMes(mes - 1)} className="grid size-9 place-items-center rounded-full border border-border transition-colors hover:bg-secondary disabled:opacity-30 dark:border-white/10"><ChevronLeft className="size-4" /></button>
+        <div className="text-center">
+          <p className="font-display text-lg font-semibold">{MESES_CAL[m]} {anio}</p>
+          <p className="text-[11px] text-muted-foreground">{enMes ? `${enMes} día${enMes === 1 ? "" : "s"} con citas` : "Sin días disponibles este mes"}</p>
+        </div>
+        <button type="button" aria-label="Mes siguiente" disabled={mes >= max} onClick={() => setMes(mes + 1)} className="grid size-9 place-items-center rounded-full border border-border transition-colors hover:bg-secondary disabled:opacity-30 dark:border-white/10"><ChevronRight className="size-4" /></button>
+      </div>
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center">
+        {SEMANA_CAL.map((d) => <span key={d} className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{d}</span>)}
+        {celdas.map((f, i) => {
+          if (!f) return <span key={`v${i}`} />;
+          const libre = set.has(f);
+          const on = valor === f;
+          const esHoy = f === hoyIso;
+          return (
+            <button
+              key={f}
+              type="button"
+              disabled={!libre}
+              onClick={() => onElegir(f)}
+              className={`relative mx-auto grid aspect-square w-full max-w-12 place-items-center rounded-2xl text-sm font-semibold tabular-nums transition-all duration-200 ${
+                on ? "gradient-deep scale-105 text-white shadow-lg" : libre ? "bg-sky-100 text-sky-900 ring-1 ring-sky-300 hover:bg-sky-200 hover:ring-sky-400 dark:bg-sky-400/15 dark:text-sky-200 dark:ring-sky-400/40" : "cursor-default text-muted-foreground/35"
+              }`}
+            >
+              {Number(f.slice(8))}
+              {esHoy && <span className={`absolute bottom-1 size-1 rounded-full ${on ? "bg-white" : "bg-primary"}`} />}
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5"><span className="size-3 rounded bg-sky-100 ring-1 ring-sky-300" /> Disponible</span>
+        <span className="flex items-center gap-1.5"><span className="gradient-deep size-3 rounded" /> Elegido</span>
+        <span className="flex items-center gap-1.5"><span className="size-3 rounded border border-border" /> No atiende</span>
+      </div>
     </div>
   );
 }

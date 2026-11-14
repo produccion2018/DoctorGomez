@@ -42,7 +42,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
-import { waLink, Electro, InstalarApp } from "@/components/site/PublicLayout";
+import { waLink, Electro, InstalarApp, CalendarioMes } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import {
   ADMINS,
@@ -890,7 +890,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
   const doctor = DOCTORS.find((d) => d.id === doc);
   const agenda = doctor ? agendaDe(agendas, doctor.foto) : null;
   const servicio = especialidad?.nombre ?? null;
-  const dias = agenda ? proximosDias(agenda, 14, servicio) : [];
+  const dias = agenda ? proximosDias(agenda, 60, servicio) : [];
   const libres = useMemo(() => {
     if (!agenda || !doctor || !fecha || !atiendeEl(agenda, fecha, servicio)) return [] as { h: string; libre: boolean }[];
     const nom = nombrePanel(doctor.id);
@@ -973,18 +973,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
             <>
               {paso(3, "Día y horario")}
               {agenda.nota && <p className={`mb-2 rounded-xl px-3 py-2 text-xs ring-1 ${TONO.ambar}`}>{agenda.nota}</p>}
-              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-                {dias.length === 0 && <p className="text-sm text-muted-foreground">No hay días disponibles por ahora.</p>}
-                {dias.map((f) => {
-                  const d = new Date(f + "T12:00:00");
-                  return (
-                    <button key={f} onClick={() => { setFecha(f); setHora(""); }} className={`flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 transition-all ${fecha === f ? "border-transparent gradient-deep text-white shadow-lg" : "border-border hover:border-primary/40 dark:border-white/10"}`}>
-                      <span className="text-[10px] font-semibold uppercase opacity-70">{d.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
-                      <span className="font-display text-xl font-semibold">{d.getDate()}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {dias.length === 0 ? <p className="text-sm text-muted-foreground">No hay días disponibles por ahora.</p> : <CalendarioMes compacto disponibles={dias} valor={fecha || null} onElegir={(f) => { setFecha(f); setHora(""); }} />}
               {fecha && (
                 <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
                   {libres.map(({ h, libre }) => (
