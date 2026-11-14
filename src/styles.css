@@ -690,3 +690,9 @@
 .hc-card { transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s; }
 .hc-item:hover .hc-card { transform: translateY(-2px); box-shadow: 0 22px 44px -28px rgba(15,23,42,.45); }
 @media (prefers-reduced-motion: reduce) { .hc-linea::after, .hc-item { animation: none; } }
+
+/* Ondas del micrófono del asistente de IA */
+@keyframes pn-ola {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}

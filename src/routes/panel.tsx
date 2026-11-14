@@ -1,13 +1,20 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { subirAudioServidor } from "@/lib/servidor";
+import { subirAudioServidor, asistenteIA, ejecutarIA } from "@/lib/servidor";
+import type { AccionIA } from "@/lib/ia.server";
 import { Electro, InstalarApp } from "@/components/site/PublicLayout";
 import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
 import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
   QrCode,
+  Mic,
+  Square,
+  Sparkles,
+  Volume2,
+  VolumeX,
+  Loader2,
   ListChecks,
   Landmark,
   Globe,
@@ -120,6 +127,7 @@ import {
   sincronizarPersonal,
   validarSesion,
   refrescarTodo,
+  refrescarAgendaYCitas,
   modoServidor,
   useDato,
   leerDato,
@@ -934,7 +942,7 @@ function Panel() {
               <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
               <InstalarApp nombre="el panel" oscuro className="h-11" />
               {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} />}
-              {!esEnf && <Button onClick={() => setTab("asistente")} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
+              {!esEnf && <Button onClick={() => abrirIA()} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
               </Button>}
               {!esEnf && <Button onClick={() => setTab("turnos")} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
@@ -987,6 +995,7 @@ function Panel() {
         {tabVisible === "comunicacion" && <ComunicacionTab user={user} log={log} />}
         {tabVisible === "ministerio" && <MinisterioTab user={user} log={log} turnos={turnos} abrirPaciente={(id) => abrirPaciente("padron", id)} />}
         {seguridad && <MiSeguridad user={user} onCerrar={() => setSeguridad(false)} />}
+        {(user.rol === "medico" || user.area === "Dirección general") && <AsistenteVoz user={user} log={log} />}
       </main>
     </div>
   );
@@ -1767,9 +1776,14 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                     ) : (
                       <>Los {NOMBRES_DIA[new Date(dia + "T12:00:00").getDay()]!.toLowerCase()} no atiende. <span className="block pt-1 text-xs">Atiende: {resumenAgenda(ag)}</span></>
                     )}
-                    {irHorarios && !bloqueo && (
-                      <button onClick={() => irHorarios(a.id)} className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-xl pn-acc-tile px-4 py-2 text-xs font-semibold text-white"><Clock className="size-3.5" /> {esSuyo ? (sinCargar ? "Cargar mis horarios" : "Cambiar mis horarios") : "Ver sus horarios"}</button>
-                    )}
+                    <div className="mt-3 flex flex-wrap justify-center gap-2">
+                      {irHorarios && !bloqueo && (
+                        <button onClick={() => irHorarios(a.id)} className="inline-flex items-center gap-1.5 rounded-xl pn-acc-tile px-4 py-2 text-xs font-semibold text-white"><Clock className="size-3.5" /> {esSuyo ? (sinCargar ? "Cargar mis horarios" : "Cambiar mis horarios") : "Ver sus horarios"}</button>
+                      )}
+                      {esSuyo && sinCargar && (
+                        <button onClick={() => abrirIA("Atiendo de lunes a viernes de 8 a 12, citas de 20 minutos")} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-700 px-4 py-2 text-xs font-semibold text-white"><Mic className="size-3.5" /> Decírselo a la IA</button>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
@@ -3574,6 +3588,16 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
         </div>
       )}
 
+      {propia && sel === user.id && (
+        <button onClick={() => abrirIA()} className="pn-up group flex w-full items-center gap-4 overflow-hidden rounded-[1.4rem] bg-gradient-to-r from-indigo-600 via-violet-700 to-fuchsia-700 p-4 text-left text-white shadow-[0_20px_40px_-24px_rgba(124,58,237,.9)] transition hover:-translate-y-0.5">
+          <span className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><span className="absolute inset-0 animate-ping rounded-2xl bg-white/10" /><Mic className="relative size-5" /></span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">¿Sin tiempo? Dígaselo a la IA</span>
+            <span className="block text-xs text-white/80">Ej.: “Atiendo lunes a viernes de 8 a 12 y de 2 a 5, citas de 20 minutos, almuerzo de 12 a 2”. Usted confirma antes de guardar.</span>
+          </span>
+          <ArrowRight className="size-5 shrink-0 transition group-hover:translate-x-1" />
+        </button>
+      )}
       <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="space-y-6 xl:col-span-3">
@@ -9423,5 +9447,235 @@ function MinisterioTab({ user, log, turnos, abrirPaciente }: { user: SessionUser
         </div>
       </Seccion>
     </div>
+  );
+}
+
+/* ---------- Asistente de IA por voz (médicos y Dirección) ---------- */
+/** Abre el asistente desde cualquier parte del panel, opcionalmente con un texto sugerido. */
+const abrirIA = (texto?: string) => window.dispatchEvent(new CustomEvent("gb-abrir-ia", { detail: texto ?? "" }));
+
+type MsgIA = { id: string; de: "yo" | "ia"; texto: string; audio?: boolean; acciones?: AccionIA[]; estado?: "pendiente" | "hecho" | "descartado" };
+
+const SUGERENCIAS_IA = [
+  "Atiendo de lunes a viernes de 8 a 12, citas de 20 minutos",
+  "¿Qué pacientes tengo mañana?",
+  "¿Qué horarios libres tengo el lunes?",
+  "Me voy de vacaciones del 20 al 27 de diciembre",
+  "Dele una cita a Ana Ruiz el lunes a las 9, teléfono 3001234567",
+];
+
+function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
+  const [abierto, setAbierto] = useState(false);
+  const [msgs, setMsgs] = useState<MsgIA[]>([]);
+  const [texto, setTexto] = useState("");
+  const [pensando, setPensando] = useState(false);
+  const [grabando, setGrabando] = useState(false);
+  const [segs, setSegs] = useState(0);
+  const [voz, setVoz] = useState(() => {
+    try { return localStorage.getItem("gb_ia_voz") !== "0"; } catch { return true; }
+  });
+  const rec = useRef<MediaRecorder | null>(null);
+  const partes = useRef<Blob[]>([]);
+  const reloj = useRef<number | null>(null);
+  const fin = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const f = (e: Event) => {
+      setAbierto(true);
+      const t = (e as CustomEvent<string>).detail;
+      if (t) setTexto(t);
+    };
+    window.addEventListener("gb-abrir-ia", f);
+    return () => window.removeEventListener("gb-abrir-ia", f);
+  }, []);
+  useEffect(() => fin.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [msgs, pensando]);
+  useEffect(() => () => { if (reloj.current) window.clearInterval(reloj.current); }, []);
+
+  const hablar = (t: string) => {
+    if (!voz || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(t.replace(/[*_#`]/g, ""));
+      u.lang = "es-CO";
+      const es = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith("es"));
+      if (es) u.voice = es;
+      window.speechSynthesis.speak(u);
+    } catch { /* sin voz */ }
+  };
+
+  const preguntar = async (entrada: { texto?: string; audio?: string }) => {
+    if (pensando) return;
+    const historial = msgs.slice(-8).map((m) => ({ de: m.de, texto: m.texto }));
+    if (entrada.texto) setMsgs((m) => [...m, { id: uid(), de: "yo", texto: entrada.texto! }]);
+    setTexto("");
+    setPensando(true);
+    try {
+      const r = await asistenteIA({ data: { ...entrada, historial } });
+      if (!r.ok) {
+        setMsgs((m) => [...m, { id: uid(), de: "ia", texto: r.error }]);
+        return;
+      }
+      setMsgs((m) => [
+        ...m,
+        ...(r.transcripcion ? [{ id: uid(), de: "yo" as const, texto: r.transcripcion, audio: true }] : []),
+        { id: uid(), de: "ia", texto: r.respuesta, ...(r.acciones.length ? { acciones: r.acciones, estado: "pendiente" as const } : {}) },
+      ]);
+      if (entrada.audio) hablar(r.respuesta);
+    } catch {
+      setMsgs((m) => [...m, { id: uid(), de: "ia", texto: "No me pude conectar. Revise la conexión e intente de nuevo." }]);
+    } finally {
+      setPensando(false);
+    }
+  };
+
+  const grabar = async () => {
+    if (grabando) {
+      rec.current?.stop();
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("Este navegador no permite grabar audio. Escriba el pedido.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const tipo = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((t) => MediaRecorder.isTypeSupported(t));
+      const r = new MediaRecorder(stream, tipo ? { mimeType: tipo } : undefined);
+      partes.current = [];
+      r.ondataavailable = (e) => e.data.size && partes.current.push(e.data);
+      r.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (reloj.current) window.clearInterval(reloj.current);
+        setGrabando(false);
+        const blob = new Blob(partes.current, { type: r.mimeType || "audio/webm" });
+        if (blob.size < 1500) {
+          toast.error("El audio quedó muy corto. Mantenga la grabación un poco más.");
+          return;
+        }
+        const fr = new FileReader();
+        fr.onload = () => void preguntar({ audio: String(fr.result).split(",")[1] ?? "" });
+        fr.readAsDataURL(blob);
+      };
+      rec.current = r;
+      r.start();
+      setSegs(0);
+      setGrabando(true);
+      window.speechSynthesis?.cancel();
+      reloj.current = window.setInterval(() => setSegs((x) => {
+        if (x + 1 >= 120) rec.current?.stop();
+        return x + 1;
+      }), 1000);
+    } catch {
+      toast.error("Necesito permiso para usar el micrófono. Actívelo en el navegador.");
+    }
+  };
+
+  const confirmar = async (m: MsgIA) => {
+    if (!m.acciones) return;
+    setMsgs((x) => x.map((y) => (y.id === m.id ? { ...y, estado: "hecho" } : y)));
+    const r = await ejecutarIA({ data: { acciones: m.acciones } }).catch(() => null);
+    if (!r || !r.ok) {
+      toast.error(r && !r.ok ? r.error : "No se pudo guardar.");
+      setMsgs((x) => x.map((y) => (y.id === m.id ? { ...y, estado: "pendiente" } : y)));
+      return;
+    }
+    await refrescarAgendaYCitas();
+    r.hechas.forEach((h) => log("Cambio hecho con la IA", h));
+    if (r.hechas.length) toast.success(r.hechas.length === 1 ? "Listo, guardado." : `Listo: ${r.hechas.length} cambios guardados.`);
+    const aviso = r.errores.length ? `No pude hacer: ${r.errores.join(" · ")}` : "Listo, quedó guardado. Ya se ve en la agenda y en la web.";
+    setMsgs((x) => [...x, { id: uid(), de: "ia", texto: aviso }]);
+  };
+
+  const mmss = `${Math.floor(segs / 60)}:${String(segs % 60).padStart(2, "0")}`;
+
+  return (
+    <>
+      {!abierto && (
+        <button onClick={() => setAbierto(true)} aria-label="Asistente de IA" className="group fixed bottom-24 right-4 z-40 flex items-center gap-2 rounded-full bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 p-1.5 pr-4 text-white shadow-[0_18px_40px_-12px_rgba(124,58,237,.8)] transition hover:-translate-y-0.5 lg:bottom-6 lg:right-6">
+          <span className="relative flex size-11 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/30">
+            <span className="absolute inset-0 animate-ping rounded-full bg-white/20" />
+            <Mic className="relative size-5" />
+          </span>
+          <span className="text-left leading-tight"><span className="block text-sm font-semibold">Asistente IA</span><span className="block text-[10px] text-white/75">Háblele o escríbale</span></span>
+        </button>
+      )}
+
+      {abierto && (
+        <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 backdrop-blur-[2px] sm:p-4" onClick={() => !grabando && setAbierto(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="flex h-[88dvh] w-full flex-col overflow-hidden rounded-t-[1.6rem] bg-card shadow-2xl ring-1 ring-border animate-in slide-in-from-bottom-6 duration-300 sm:h-[min(720px,90dvh)] sm:max-w-md sm:rounded-[1.6rem]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-700 to-fuchsia-700 px-5 py-4 text-white">
+              <span className="pointer-events-none absolute -right-10 -top-16 size-44 rounded-full bg-white/15 blur-2xl" />
+              <div className="relative flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Sparkles className="size-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">Asistente IA</p>
+                  <p className="truncate text-[11px] text-white/75">Agenda, horarios y citas · {nombreCorto(user.nombre)}</p>
+                </div>
+                <button onClick={() => { const v = !voz; setVoz(v); try { localStorage.setItem("gb_ia_voz", v ? "1" : "0"); } catch { /* */ } if (!v) window.speechSynthesis?.cancel(); }} aria-label={voz ? "Silenciar respuestas" : "Leer respuestas en voz alta"} className="rounded-xl p-2 hover:bg-white/15">{voz ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}</button>
+                <button onClick={() => { window.speechSynthesis?.cancel(); setAbierto(false); }} aria-label="Cerrar" className="rounded-xl p-2 hover:bg-white/15"><X className="size-4" /></button>
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-y-auto bg-secondary/30 p-4">
+              {msgs.length === 0 && (
+                <div className="space-y-3">
+                  <p className="rounded-2xl bg-card p-3 text-sm leading-relaxed ring-1 ring-border">Hola, {nombreCorto(user.nombre)}. Toque el micrófono y dígame lo que necesita: sus horarios, vacaciones, dar o mover citas, o qué pacientes tiene. <b>Nada se guarda hasta que usted toque Confirmar.</b></p>
+                  <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Por ejemplo</p>
+                  {SUGERENCIAS_IA.map((q) => (
+                    <button key={q} onClick={() => void preguntar({ texto: q })} className="block w-full rounded-xl bg-card px-3 py-2.5 text-left text-sm ring-1 ring-border transition hover:ring-violet-300">“{q}”</button>
+                  ))}
+                </div>
+              )}
+              {msgs.map((m) => (
+                <div key={m.id} className={`flex ${m.de === "yo" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-200`}>
+                  <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${m.de === "yo" ? "rounded-br-sm bg-gradient-to-br from-indigo-600 to-violet-700 text-white" : "rounded-bl-sm bg-card ring-1 ring-border"}`}>
+                    {m.audio && <p className="mb-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/70"><Mic className="size-3" /> Audio</p>}
+                    <p className="whitespace-pre-line">{m.texto}</p>
+                    {m.acciones && (
+                      <div className="mt-2.5 space-y-1.5 rounded-xl bg-violet-50 p-2.5 ring-1 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/30">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">Para confirmar</p>
+                        {m.acciones.map((x, i) => <p key={i} className="flex gap-1.5 text-[13px]"><Check className="mt-0.5 size-3.5 shrink-0 text-violet-600" />{x.descripcion}</p>)}
+                        {m.estado === "pendiente" && (
+                          <div className="flex gap-2 pt-1">
+                            <button onClick={() => void confirmar(m)} className="flex-1 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-700 py-2 text-xs font-semibold text-white">Confirmar</button>
+                            <button onClick={() => setMsgs((x) => x.map((y) => (y.id === m.id ? { ...y, estado: "descartado" } : y)))} className="rounded-lg px-3 py-2 text-xs font-semibold text-muted-foreground ring-1 ring-border">Descartar</button>
+                          </div>
+                        )}
+                        {m.estado === "hecho" && <p className="pt-1 text-xs font-semibold text-emerald-700">Guardado</p>}
+                        {m.estado === "descartado" && <p className="pt-1 text-xs text-muted-foreground">Descartado</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {pensando && <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Pensando…</div>}
+              <div ref={fin} />
+            </div>
+
+            <div className="border-t border-border bg-card p-3">
+              {grabando ? (
+                <div className="flex items-center gap-3">
+                  <span className="flex h-8 flex-1 items-center justify-center gap-1">
+                    {Array.from({ length: 18 }, (_, i) => <span key={i} className="w-1 rounded-full bg-gradient-to-t from-violet-500 to-fuchsia-500 [animation:pn-ola_0.9s_ease-in-out_infinite]" style={{ height: `${30 + ((i * 37) % 60)}%`, animationDelay: `${i * 0.06}s` }} />)}
+                  </span>
+                  <span className="w-12 text-center font-mono text-sm tabular-nums text-rose-600">{mmss}</span>
+                  <button onClick={() => void grabar()} aria-label="Terminar y enviar" className="flex size-14 items-center justify-center rounded-full bg-rose-500 text-white shadow-[0_10px_24px_-8px_rgba(244,63,94,.9)]"><Square className="size-5 fill-current" /></button>
+                </div>
+              ) : (
+                <form onSubmit={(e) => { e.preventDefault(); if (texto.trim()) void preguntar({ texto: texto.trim() }); }} className="flex items-center gap-2">
+                  <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Escriba o toque el micrófono…" className={inp + " h-12 flex-1 rounded-full px-4"} />
+                  {texto.trim() ? (
+                    <button type="submit" disabled={pensando} aria-label="Enviar" className="flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-700 text-white disabled:opacity-50"><Send className="size-5" /></button>
+                  ) : (
+                    <button type="button" disabled={pensando} onClick={() => void grabar()} aria-label="Grabar audio" className="flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 text-white shadow-[0_12px_28px_-10px_rgba(124,58,237,.9)] disabled:opacity-50"><Mic className="size-6" /></button>
+                  )}
+                </form>
+              )}
+              <p className="mt-2 text-center text-[10px] text-muted-foreground">La IA propone; usted confirma. Puede equivocarse: revise antes de confirmar.</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

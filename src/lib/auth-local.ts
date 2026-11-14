@@ -405,6 +405,12 @@ const COLECCIONES = [
 type ConId = { id: string };
 const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");
 
+/** Vuelve a traer la agenda y las citas (después de un cambio hecho por la IA). */
+export async function refrescarAgendaYCitas() {
+  traidos.delete("gb_agenda");
+  await Promise.all([traerDelServidor("gb_agenda"), traerColeccion("gb_turnos")]);
+}
+
 /** Vuelve a traer del servidor todo lo que el panel usa (al iniciar sesión). */
 export async function refrescarTodo() {
   if (!(await iniciarBackend())) return;

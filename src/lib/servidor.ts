@@ -783,3 +783,38 @@ export const salirPacienteServidor = createServerFn({ method: "POST" }).handler(
   await (await colecciones()).cerrarSesionPaciente();
   return { ok: true };
 });
+
+/* ===================================================================== */
+/* Asistente de IA (médicos y Dirección)                                   */
+/* ===================================================================== */
+const errorIA = (e: unknown) => {
+  const m = (e as Error)?.message ?? "";
+  if (/credit|insufficient|budget|402/i.test(m)) return "La IA se quedó sin créditos este mes. Avísele al administrador.";
+  if (/rate|429/i.test(m)) return "La IA está muy ocupada. Intente en un minuto.";
+  if (/auth|401|403|oidc|api key/i.test(m)) return "La IA todavía no está habilitada en el servidor. Avísele al administrador.";
+  return "La IA no pudo responder. Intente de nuevo.";
+};
+
+export const asistenteIA = createServerFn({ method: "POST" })
+  .validator((d: { texto?: string; audio?: string; historial?: { de: "yo" | "ia"; texto: string }[] }) => d)
+  .handler(async ({ data }) => {
+    const u = await (await acceso()).usuarioActual();
+    if (!u) return { ok: false as const, error: "Su sesión venció. Vuelva a ingresar." };
+    if (u.rol !== "medico" && u.area !== "Dirección general") return { ok: false as const, error: "El asistente de IA está habilitado para los médicos y Dirección." };
+    if (data.audio && data.audio.length > 8_000_000) return { ok: false as const, error: "El audio es muy largo. Hable menos de 2 minutos." };
+    try {
+      return await (await import("./ia.server")).asistente(u, data);
+    } catch (e) {
+      console.error("Asistente IA:", e);
+      return { ok: false as const, error: errorIA(e) };
+    }
+  });
+
+export const ejecutarIA = createServerFn({ method: "POST" })
+  .validator((d: { acciones: import("./ia.server").AccionIA[] }) => d)
+  .handler(async ({ data }) => {
+    const u = await (await acceso()).usuarioActual();
+    if (!u) return { ok: false as const, error: "Su sesión venció. Vuelva a ingresar." };
+    if (u.rol !== "medico" && u.area !== "Dirección general") return { ok: false as const, error: "No autorizado." };
+    return (await import("./ia.server")).ejecutarAcciones(u, data.acciones ?? []);
+  });
