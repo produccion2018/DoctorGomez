@@ -477,7 +477,7 @@ export async function ocupadosServidor(desde: string) {
 }
 
 /** Reserva desde la web pública: con backend va al servidor. */
-export async function reservarTurnoWeb(t: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string }): Promise<Result | null> {
+export async function reservarTurnoWeb(t: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string }): Promise<Result | null> {
   if (!(await iniciarBackend())) return null;
   return reservarTurnoPublico({ data: t });
 }
@@ -566,11 +566,15 @@ export type AgendaDoctor = {
   bloqueos: Bloqueo[];
   /** Horario propio de cada día (clave = número de día), con pausa opcional de ese día. */
   porDia?: Record<string, RangoDia>;
+  /** Bloques de atención: día + desde/hasta + qué atiende (especialidad o estudio) + duración de cada cita. */
+  bloques?: BloqueAgenda[];
   /** Solo profesionales que no son los médicos administradores (los carga la secretaría). */
   nombre?: string;
   especialidad?: string;
 };
 export type RangoDia = { desde: string; hasta: string; pausaDesde?: string; pausaHasta?: string };
+/** servicio "*" = agenda vieja sin especialidad: sirve para cualquiera de sus especialidades. */
+export type BloqueAgenda = { id: string; dia: number; desde: string; hasta: string; servicio: string; duracion: number };
 export type Agendas = Record<string, AgendaDoctor>;
 export const KEY_AGENDA = "gb_agenda";
 export const NOMBRES_DIA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -621,76 +625,92 @@ export function rangoDia(a: AgendaDoctor, dia: number): RangoDia {
   return a.porDia?.[String(dia)] ?? { desde: a.desde, hasta: a.hasta, ...(a.pausa ? { pausaDesde: a.pausaDesde, pausaHasta: a.pausaHasta } : {}) };
 }
 
-/** Horarios de inicio de turno. Con fecha usa el horario de ese día; sin fecha, el general. */
-export function horariosDelDia(a: AgendaDoctor, fecha?: string): string[] {
-  const r = fecha ? rangoDia(a, new Date(fecha + "T12:00:00").getDay()) : rangoDia(a, -1);
+const sinTildeAg = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+/** ¿El bloque sirve para ese servicio? (sin servicio = cualquiera). */
+export const bloqueSirve = (b: BloqueAgenda, servicio?: string | null) => !servicio || b.servicio === "*" || sinTildeAg(b.servicio) === sinTildeAg(servicio);
+
+/** Bloques de la agenda. Las agendas viejas (un horario por día) se convierten solas. */
+export function bloquesDe(a: AgendaDoctor): BloqueAgenda[] {
+  if (a.bloques) return a.bloques;
+  if (!a.duracion || a.duracion < 5) return [];
+  return a.dias.flatMap((d) => {
+    const r = rangoDia(a, d);
+    const partes: [string, string][] = r.pausaDesde && r.pausaHasta ? [[r.desde, r.pausaDesde], [r.pausaHasta, r.hasta]] : [[r.desde, r.hasta]];
+    return partes.map(([x, y], i) => ({ id: `l${d}${i}`, dia: d, desde: x, hasta: y, servicio: "*", duracion: a.duracion }));
+  });
+}
+
+/** Horas de inicio de un bloque. */
+export function horasDeBloque(b: BloqueAgenda): string[] {
   const out: string[] = [];
-  if (!a.duracion || a.duracion < 5) return out; // sin duración elegida todavía
-  const fin = aMin(r.hasta);
-  const hayPausa = !!(r.pausaDesde && r.pausaHasta && r.pausaDesde < r.pausaHasta);
-  const pD = aMin(r.pausaDesde ?? "00:00");
-  const pH = aMin(r.pausaHasta ?? "00:00");
-  let t = aMin(r.desde);
-  const dur = a.duracion;
-  while (t + dur <= fin && out.length < 300) {
-    if (hayPausa && t < pH && t + dur > pD) {
-      t = pH;
-      continue;
-    }
-    out.push(aHora(t));
-    t += dur;
-  }
+  if (!b.duracion || b.duracion < 5) return out;
+  for (let t = aMin(b.desde); t + b.duracion <= aMin(b.hasta) && out.length < 300; t += b.duracion) out.push(aHora(t));
   return out;
+}
+
+/** Horarios de inicio de cita de ese día (solo los del servicio pedido, si se indica). */
+export function horariosDelDia(a: AgendaDoctor, fecha?: string, servicio?: string | null): string[] {
+  const dia = fecha ? new Date(fecha + "T12:00:00").getDay() : null;
+  const set = new Set<string>();
+  for (const b of bloquesDe(a)) if ((dia === null || b.dia === dia) && bloqueSirve(b, servicio)) horasDeBloque(b).forEach((h) => set.add(h));
+  return [...set].sort();
+}
+
+/** Qué se atiende en esa hora (para mostrarlo en la agenda). "" si es sobreturno. */
+export function servicioEn(a: AgendaDoctor, fecha: string, hora: string): string {
+  const dia = new Date(fecha + "T12:00:00").getDay();
+  const b = bloquesDe(a).find((x) => x.dia === dia && horasDeBloque(x).includes(hora));
+  return b && b.servicio !== "*" ? b.servicio : "";
+}
+
+/** Servicios (especialidades y estudios) que el profesional tiene en su agenda. */
+export function serviciosDe(a: AgendaDoctor): string[] {
+  return [...new Set(bloquesDe(a).map((b) => b.servicio).filter((x) => x !== "*"))];
 }
 
 export function bloqueoEn(a: AgendaDoctor, fecha: string): Bloqueo | undefined {
   return a.bloqueos.find((b) => fecha >= b.desde && fecha <= b.hasta);
 }
 
-export function atiendeEl(a: AgendaDoctor, fecha: string): boolean {
-  const d = new Date(fecha + "T12:00:00");
-  return a.activo && (a.duracion ?? 0) >= 5 && a.dias.includes(d.getDay()) && !bloqueoEn(a, fecha);
+export function atiendeEl(a: AgendaDoctor, fecha: string, servicio?: string | null): boolean {
+  const d = new Date(fecha + "T12:00:00").getDay();
+  return a.activo && !bloqueoEn(a, fecha) && bloquesDe(a).some((b) => b.dia === d && bloqueSirve(b, servicio) && horasDeBloque(b).length > 0);
 }
 
-/** Próximos días en que el doctor atiende. */
-export function proximosDias(a: AgendaDoctor, cantidad = 15): string[] {
+/** Próximos días en que el doctor atiende (ese servicio, si se indica). */
+export function proximosDias(a: AgendaDoctor, cantidad = 15, servicio?: string | null): string[] {
   const out: string[] = [];
   const hoy = new Date();
   for (let i = 0; out.length < cantidad && i < 90; i++) {
     const f = isoDe(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i));
-    if (atiendeEl(a, f)) out.push(f);
+    if (atiendeEl(a, f, servicio)) out.push(f);
   }
   return out;
 }
 
-/** Texto corto: "Lun a Vie · 08:00 a 12:00" o, si cada día tiene su horario, "Mar 08:00–12:00 · Mié 14:00–18:00". */
-export function resumenAgenda(a: AgendaDoctor): string {
+/** Texto corto: "Lun a Vie · 8:00 a. m. a 12:00 m." (por servicio, si se indica). */
+export function resumenAgenda(a: AgendaDoctor, servicio?: string | null): string {
   if (!a.activo) return "Agenda pausada momentáneamente";
-  if (a.dias.length === 0) return "Horarios a confirmar";
-  const d = [...a.dias].sort((x, y) => ((x + 6) % 7) - ((y + 6) % 7));
+  const bs = bloquesDe(a).filter((b) => bloqueSirve(b, servicio));
+  if (bs.length === 0) return "Horarios a confirmar";
   const corto = (n: number) => NOMBRES_DIA[n]!.slice(0, 3);
-  const pausa = "";
-  // Agrupa los días que comparten horario
-  const grupos = new Map<string, number[]>();
-  for (const n of d) {
-    const r = rangoDia(a, n);
-    const k = r.pausaDesde && r.pausaHasta ? `${hora12(r.desde)} a ${hora12(r.pausaDesde)} y ${hora12(r.pausaHasta)} a ${hora12(r.hasta)}` : `${hora12(r.desde)} a ${hora12(r.hasta)}`;
-    grupos.set(k, [...(grupos.get(k) ?? []), n]);
+  const porDia = new Map<number, string>();
+  for (const n of [...new Set(bs.map((b) => b.dia))]) {
+    const txt = bs.filter((b) => b.dia === n).sort((x, y) => x.desde.localeCompare(y.desde)).map((b) => `${hora12(b.desde)} a ${hora12(b.hasta)}`).join(" y ");
+    porDia.set(n, txt);
   }
+  const grupos = new Map<string, number[]>();
+  for (const [n, k] of [...porDia.entries()].sort((x, y) => ((x[0] + 6) % 7) - ((y[0] + 6) % 7))) grupos.set(k, [...(grupos.get(k) ?? []), n]);
   const nombreDias = (ds: number[]) => {
     const seguidos = ds.length > 2 && ds.every((v, i) => i === 0 || ((v + 6) % 7) - ((ds[i - 1]! + 6) % 7) === 1);
     return seguidos ? `${corto(ds[0]!)} a ${corto(ds[ds.length - 1]!)}` : ds.map(corto).join(", ");
   };
-  if (grupos.size === 1) {
-    const [k] = [...grupos.keys()];
-    return `${nombreDias(d)} · ${k!}${pausa}`;
-  }
-  return [...grupos.entries()].map(([k, ds]) => `${nombreDias(ds)} ${k}`).join(" · ") + pausa;
+  return [...grupos.entries()].map(([k, ds]) => `${nombreDias(ds)} · ${k}`).join(" · ");
 }
 
 /** Fecha del próximo día con atención, en texto ("mar 17 nov"), o null. */
-export function proximoDiaTexto(a: AgendaDoctor): string | null {
-  const f = proximosDias(a, 1)[0];
+export function proximoDiaTexto(a: AgendaDoctor, servicio?: string | null): string | null {
+  const f = proximosDias(a, 1, servicio)[0];
   return f ? new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }) : null;
 }
 

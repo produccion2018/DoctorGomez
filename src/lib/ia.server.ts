@@ -16,8 +16,8 @@ const ADMINS = ["alonso", "alberto"];
 const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
 export type AccionIA =
-  | { tipo: "horarios"; descripcion: string; dias: { dia: number; desde: string; hasta: string; pausaDesde?: string | undefined; pausaHasta?: string | undefined }[]; duracion?: number; reemplazar: boolean }
-  | { tipo: "duracion"; descripcion: string; duracion: number }
+  | { tipo: "horarios"; descripcion: string; bloques: { dia: number; desde: string; hasta: string; servicio: string; duracion: number }[]; reemplazar: boolean }
+  | { tipo: "duracion"; descripcion: string; duracion: number; servicio?: string | undefined }
   | { tipo: "vacaciones"; descripcion: string; desde: string; hasta: string; motivo: string }
   | { tipo: "quitarVacaciones"; descripcion: string; id: string }
   | { tipo: "crearCita"; descripcion: string; paciente: string; telefono?: string; fecha: string; hora: string; doctor: string; motivo: string; sobreturno: boolean }
@@ -79,10 +79,10 @@ async function resolverDoctor(u: UsuarioServidor, nombre?: string) {
   );
 }
 
-async function slotsDe(doctorId: string, fecha: string) {
+async function slotsDe(doctorId: string, fecha: string, servicio?: string | null) {
   const lib = await L();
   const ag = lib.agendaDe((await leerAgendas()) as never, doctorId);
-  return lib.atiendeEl(ag, fecha) ? lib.horariosDelDia(ag, fecha) : [];
+  return lib.atiendeEl(ag, fecha, servicio) ? lib.horariosDelDia(ag, fecha, servicio) : [];
 }
 
 /* ---------- validaciones compartidas (propuesta y ejecución) ---------- */
@@ -114,7 +114,13 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
   const lista = await profesionales();
   const lib = await L();
   const agendas = await leerAgendas();
-  const resumenProfs = lista.map((p) => `- ${p.nombre} (${p.especialidad || "sin especialidad"})${p.id === u.id ? " ← es quien le habla" : ""}: ${lib.resumenAgenda(lib.agendaDe(agendas as never, p.id))}`).join("\n");
+  const resumenProfs = lista
+    .map((p) => {
+      const ag = lib.agendaDe(agendas as never, p.id);
+      const bs = lib.bloquesDe(ag).map((b) => `${DIAS[b.dia]} ${b.desde}-${b.hasta} ${b.servicio === "*" ? "(sin especialidad)" : b.servicio} cada ${b.duracion} min`).join("; ");
+      return `- ${p.nombre} (${p.especialidad || "sin especialidad"})${p.id === u.id ? " ← es quien le habla" : ""}: ${bs || "sin horarios cargados"}`;
+    })
+    .join("\n");
 
   const tools = {
     verCitas: tool({
@@ -132,12 +138,12 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
       },
     }),
     horariosLibres: tool({
-      description: "Horarios libres de un profesional en una fecha, según su agenda.",
-      inputSchema: z.object({ fecha: fechaIso, doctor: z.string().optional() }),
-      execute: async ({ fecha, doctor }) => {
+      description: "Horarios libres de un profesional en una fecha, según su agenda. Indique la especialidad o estudio si la sabe.",
+      inputSchema: z.object({ fecha: fechaIso, doctor: z.string().optional(), servicio: z.string().optional().describe("Especialidad o estudio, ej. Cardiología, Medicina Interna, Ecocardiografía") }),
+      execute: async ({ fecha, doctor, servicio }) => {
         const d = await resolverDoctor(u, doctor);
         if (!d) return { error: "No encontré a ese profesional." };
-        const slots = await slotsDe(d.id, fecha);
+        const slots = await slotsDe(d.id, fecha, servicio);
         const ocupados = (await c.leer("gb_turnos")).filter((t) => t["doctor"] === d.nombre && t["fecha"] === fecha && t["estado"] !== "Cancelado").map((t) => String(t["hora"]));
         const ya = ahoraCO();
         return { doctor: d.nombre, fecha, libres: slots.filter((h) => !ocupados.includes(h) && !(fecha === ya.fecha && h <= ya.hora)), atiende: slots.length > 0 };
@@ -150,7 +156,7 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
         const d = await resolverDoctor(u, doctor);
         if (!d) return { error: "No encontré a ese profesional." };
         const ag = lib.agendaDe((await leerAgendas()) as never, d.id);
-        return { doctor: d.nombre, resumen: lib.resumenAgenda(ag), duracionMin: ag.duracion, dias: ag.dias.map((n) => ({ dia: DIAS[n], ...lib.rangoDia(ag, n) })), vacaciones: ag.bloqueos };
+        return { doctor: d.nombre, resumen: lib.resumenAgenda(ag), bloques: lib.bloquesDe(ag).map((b) => ({ dia: DIAS[b.dia], desde: b.desde, hasta: b.hasta, atiende: b.servicio === "*" ? "sin especialidad" : b.servicio, duracionMin: b.duracion })), vacaciones: ag.bloqueos };
       },
     }),
     buscarPaciente: tool({
@@ -164,31 +170,27 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
     }),
     proponerHorarios: tool({
       description:
-        "Propone cargar o cambiar los días y horarios de atención DEL MÉDICO QUE HABLA. dia: 0=domingo,1=lunes…6=sábado. Si dice 'de lunes a viernes de 8 a 12' son 5 entradas. reemplazar=true si esos son TODOS sus días (los demás quedan sin atención); false si solo cambia esos días.",
+        "Propone cargar o cambiar los horarios DEL MÉDICO QUE HABLA, como bloques: cada bloque = día (0=domingo,1=lunes…6=sábado) + desde/hasta + qué atiende (especialidad o estudio) + duración de cada cita en minutos. 'De lunes a viernes de 8 a 12 cardiología' son 5 bloques. 'De 8 a 12 y de 2 a 6' son 2 bloques por día. reemplazar=true si esos son TODOS sus horarios; false si solo cambia los días mencionados (los demás días quedan como estaban).",
       inputSchema: z.object({
-        dias: z.array(z.object({ dia: z.number().int().min(0).max(6), desde: hhmm, hasta: hhmm, pausaDesde: hhmm.optional(), pausaHasta: hhmm.optional() })).min(1),
-        duracion: z.number().int().min(5).max(240).optional().describe("Minutos por cita, si lo dijo"),
+        bloques: z.array(z.object({ dia: z.number().int().min(0).max(6), desde: hhmm, hasta: hhmm, servicio: z.string().min(3).describe("Qué atiende: Cardiología, Medicina Interna, Nefrología, Ecocardiografía, Holter y MAPA…"), duracion: z.number().int().min(5).max(240) })).min(1),
         reemplazar: z.boolean(),
       }),
-      execute: async ({ dias, duracion, reemplazar }) => {
+      execute: async ({ bloques, reemplazar }) => {
         if (u.rol !== "medico") return { error: "Solo cada médico puede cambiar sus horarios." };
-        for (const d of dias) {
-          if (d.desde >= d.hasta) return { error: `${DIAS[d.dia]}: la hora de inicio debe ser anterior a la de fin.` };
-          if ((d.pausaDesde && !d.pausaHasta) || (d.pausaDesde && d.pausaHasta && (d.pausaDesde >= d.pausaHasta || d.pausaDesde < d.desde || d.pausaHasta > d.hasta))) return { error: `${DIAS[d.dia]}: la pausa no es válida.` };
-        }
-        const actual = lib.agendaDe((await leerAgendas()) as never, u.id);
-        if (!duracion && (actual.duracion ?? 0) < 5) return { error: "Falta la duración de cada cita (por ejemplo 20 minutos). Pregúntesela al médico." };
-        const txt = dias.map((d) => `${DIAS[d.dia]} ${d.pausaDesde && d.pausaHasta ? `${h12(d.desde)} a ${h12(d.pausaDesde)} y ${h12(d.pausaHasta)} a ${h12(d.hasta)}` : `${h12(d.desde)} a ${h12(d.hasta)}`}`).join("; ");
-        acciones.push({ tipo: "horarios", dias, ...(duracion ? { duracion } : {}), reemplazar, descripcion: `${reemplazar ? "Dejar sus horarios en" : "Cambiar"}: ${txt}${duracion ? ` · citas de ${duracion} min` : ""}` });
+        for (const b of bloques) if (b.desde >= b.hasta) return { error: `${DIAS[b.dia]}: la hora de inicio debe ser anterior a la de fin.` };
+        const cruce = bloques.find((b, i) => bloques.some((o, k) => k !== i && o.dia === b.dia && b.desde < o.hasta && o.desde < b.hasta));
+        if (cruce) return { error: `${DIAS[cruce.dia]}: dos horarios se pisan.` };
+        const txt = bloques.map((b) => `${DIAS[b.dia]} ${h12(b.desde)} a ${h12(b.hasta)} ${b.servicio} (${b.duracion} min)`).join("; ");
+        acciones.push({ tipo: "horarios", bloques, reemplazar, descripcion: `${reemplazar ? "Dejar sus horarios en" : "Cambiar"}: ${txt}` });
         return { propuesto: true };
       },
     }),
     proponerDuracion: tool({
-      description: "Propone cambiar solo la duración de cada cita del médico que habla.",
-      inputSchema: z.object({ duracion: z.number().int().min(5).max(240) }),
-      execute: async ({ duracion }) => {
+      description: "Propone cambiar la duración de cada cita del médico que habla (de todos sus horarios o solo de una especialidad/estudio).",
+      inputSchema: z.object({ duracion: z.number().int().min(5).max(240), servicio: z.string().optional() }),
+      execute: async ({ duracion, servicio }) => {
         if (u.rol !== "medico") return { error: "Solo cada médico puede cambiar sus horarios." };
-        acciones.push({ tipo: "duracion", duracion, descripcion: `Citas de ${duracion} minutos` });
+        acciones.push({ tipo: "duracion", duracion, servicio, descripcion: `Citas de ${duracion} minutos${servicio ? ` en ${servicio}` : ""}` });
         return { propuesto: true };
       },
     }),
@@ -217,14 +219,15 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
     }),
     proponerCita: tool({
       description: "Propone dar una cita. Antes verifique horarios libres. sobreturno=true solo si el médico pide explícitamente una hora fuera de la agenda.",
-      inputSchema: z.object({ paciente: z.string().min(3), telefono: z.string().optional(), fecha: fechaIso, hora: hhmm, doctor: z.string().optional(), motivo: z.string().default("Consulta"), sobreturno: z.boolean().default(false) }),
+      inputSchema: z.object({ paciente: z.string().min(3), telefono: z.string().optional(), fecha: fechaIso, hora: hhmm, doctor: z.string().optional(), motivo: z.string().optional().describe("Especialidad o estudio de la cita; si no lo dice se toma el del horario"), sobreturno: z.boolean().default(false) }),
       execute: async (x) => {
         const d = await resolverDoctor(u, x.doctor);
         if (!d) return { error: "No encontré a ese profesional." };
         const malo = await validarCita(d.nombre, d.id, x.fecha, x.hora, x.sobreturno);
         if (malo) return { error: malo };
         if (acciones.some((y) => y.tipo === "crearCita" && y.doctor === d.nombre && y.fecha === x.fecha && y.hora === x.hora)) return { error: "Ya propuso otra cita en ese mismo horario." };
-        acciones.push({ tipo: "crearCita", paciente: x.paciente.trim(), ...(x.telefono ? { telefono: x.telefono } : {}), fecha: x.fecha, hora: x.hora, doctor: d.nombre, motivo: x.motivo, sobreturno: x.sobreturno, descripcion: `Cita para ${x.paciente.trim()} · ${x.fecha} ${h12(x.hora)} con ${d.nombre}${x.sobreturno ? " (sobreturno)" : ""}` });
+        const motivo = x.motivo || lib.servicioEn(lib.agendaDe((await leerAgendas()) as never, d.id), x.fecha, x.hora) || "Consulta";
+        acciones.push({ tipo: "crearCita", paciente: x.paciente.trim(), ...(x.telefono ? { telefono: x.telefono } : {}), fecha: x.fecha, hora: x.hora, doctor: d.nombre, motivo, sobreturno: x.sobreturno, descripcion: `Cita para ${x.paciente.trim()} · ${x.fecha} ${h12(x.hora)} · ${motivo} con ${d.nombre}${x.sobreturno ? " (sobreturno)" : ""}` });
         return { propuesto: true };
       },
     }),
@@ -266,7 +269,8 @@ Reglas:
 - Si falta un dato necesario (duración de la cita, hora, paciente), pregúnteselo en una sola frase.
 - Fechas relativas ("el lunes", "mañana", "la semana que viene") conviértalas con el calendario de arriba.
 - Las horas: en las herramientas use formato 24 h (14:00), pero AL HABLAR con el médico dígalas como en Colombia: 8:00 a. m., 12:00 m., 2:30 p. m. Nunca hora militar.
-- "Pausa" o "almuerzo" = mañana y tarde: por ejemplo "de 8 a 12 y de 2 a 6" es desde 08:00, pausaDesde 12:00, pausaHasta 14:00, hasta 18:00.
+- Los horarios son BLOQUES: cada uno con día, desde, hasta, qué atiende (especialidad o estudio) y duración por cita. El mismo médico puede atender Cardiología unas horas y Medicina Interna otras. Si no dice qué atiende o cuánto dura cada cita, pregúntelo.
+- "De 8 a 12 y de 2 a 6" = dos bloques ese día (el almuerzo queda en el medio).
 - No dé diagnósticos ni consejos médicos: este asistente es para agenda y organización.`;
 
   const historial = (entrada.historial ?? []).slice(-8).map((m) => ({ role: m.de === "yo" ? ("user" as const) : ("assistant" as const), content: m.texto.slice(0, 2000) }));
@@ -294,15 +298,16 @@ export async function ejecutarAcciones(u: UsuarioServidor, acciones: AccionIA[])
         const todas = await leerAgendas();
         const ag = lib.agendaDe(todas as never, u.id);
         if (x.tipo === "horarios") {
-          const porDia: Record<string, { desde: string; hasta: string; pausaDesde?: string; pausaHasta?: string }> = x.reemplazar ? {} : Object.fromEntries(ag.dias.map((n) => [String(n), lib.rangoDia(ag, n)]));
-          for (const d of x.dias) porDia[String(d.dia)] = { desde: d.desde, hasta: d.hasta, ...(d.pausaDesde && d.pausaHasta ? { pausaDesde: d.pausaDesde, pausaHasta: d.pausaHasta } : {}) };
-          const dias = Object.keys(porDia).map(Number).sort();
-          const rs = Object.values(porDia);
-          const duracion = x.duracion ?? ag.duracion;
-          if (!duracion || duracion < 5) throw new Error("Falta la duración de la cita.");
-          todas[u.id] = { ...ag, activo: true, dias, porDia, duracion, pausa: false, desde: rs.map((r) => r.desde).sort()[0]!, hasta: rs.map((r) => r.hasta).sort().reverse()[0]! };
+          const previos = lib.bloquesDe(ag).map((b) => (b.servicio === "*" ? { ...b, servicio: x.bloques[0]?.servicio ?? "Consulta" } : b));
+          const dias = new Set(x.bloques.map((b) => b.dia));
+          const quedan = x.reemplazar ? [] : previos.filter((b) => !dias.has(b.dia));
+          const bloques = [...quedan, ...x.bloques.map((b) => ({ id: uid(), dia: b.dia, desde: b.desde, hasta: b.hasta, servicio: b.servicio.slice(0, 60), duracion: Math.max(5, Math.min(240, Math.round(b.duracion))) }))];
+          if (bloques.some((b, i) => bloques.some((o, k) => k !== i && o.dia === b.dia && b.desde < o.hasta && o.desde < b.hasta))) throw new Error("Hay horarios que se pisan.");
+          todas[u.id] = { ...ag, activo: true, bloques, dias: [...new Set(bloques.map((b) => b.dia))].sort(), duracion: bloques[0]?.duracion ?? ag.duracion, desde: bloques.map((b) => b.desde).sort()[0] ?? ag.desde, hasta: bloques.map((b) => b.hasta).sort().reverse()[0] ?? ag.hasta };
         } else if (x.tipo === "duracion") {
-          todas[u.id] = { ...ag, duracion: Math.max(5, Math.min(240, Math.round(x.duracion))) };
+          const d = Math.max(5, Math.min(240, Math.round(x.duracion)));
+          const bloques = lib.bloquesDe(ag).map((b) => (!x.servicio || lib.bloqueSirve(b, x.servicio) ? { ...b, duracion: d } : b));
+          todas[u.id] = { ...ag, bloques, duracion: d };
         } else if (x.tipo === "vacaciones") {
           if (!/^\d{4}-\d{2}-\d{2}$/.test(x.desde) || !/^\d{4}-\d{2}-\d{2}$/.test(x.hasta) || x.hasta < x.desde) throw new Error("Fechas inválidas.");
           todas[u.id] = { ...ag, bloqueos: [...ag.bloqueos, { id: uid(), desde: x.desde, hasta: x.hasta, motivo: (x.motivo || "No atiende").slice(0, 80) }] };

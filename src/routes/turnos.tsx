@@ -124,26 +124,30 @@ function Turnos() {
     : todos;
 
   const agenda = doctor ? agendaDe(agendas, doctor.agendaId) : null;
-  const fechas = useMemo(() => (agenda ? proximosDias(agenda, 15).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda]);
+  const servicio = especialidad?.nombre ?? null;
+  const fechas = useMemo(() => (agenda ? proximosDias(agenda, 15, servicio).map((f) => new Date(f + "T12:00:00")) : ([] as Date[])), [agenda, servicio]);
+  /** ¿Algún profesional atiende esa especialidad en línea? */
+  const disponible = (nombre: string, ids: string[]) =>
+    todos.some((d) => (d.esp === null ? ids.includes(d.id) : sinTilde(d.esp) === sinTilde(nombre)) && proximosDias(agendaDe(agendas, d.agendaId), 1, nombre).length > 0);
 
   const horarios = useMemo(() => {
-    if (!doctor || !fecha || !agenda || !atiendeEl(agenda, fecha)) return [] as { h: string; libre: boolean }[];
+    if (!doctor || !fecha || !agenda || !atiendeEl(agenda, fecha, servicio)) return [] as { h: string; libre: boolean }[];
     const nom = doctor.panel;
     const ahora = new Date();
     const esHoy = fecha === iso(ahora);
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
-    return horariosDelDia(agenda, fecha).map((h) => ({
+    return horariosDelDia(agenda, fecha, servicio).map((h) => ({
       h,
       libre: !ocupados.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(esHoy && h <= hhmm),
     }));
-  }, [doctor, fecha, ocupados, agenda]);
+  }, [doctor, fecha, ocupados, agenda, servicio]);
 
   const confirmar = async (e: FormEvent) => {
     e.preventDefault();
     if (!doctor || !fecha || !hora || !especialidad) return;
     const nom = doctor.panel;
     const motivo = especialidad.nombre + (datos.comentario.trim() ? ` · ${datos.comentario.trim()}` : "");
-    const r = await reservarTurnoWeb({ fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim() });
+    const r = await reservarTurnoWeb({ fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim(), servicio: especialidad.nombre });
     if (r) {
       if (!r.ok) {
         toast.error(r.error);
@@ -276,7 +280,10 @@ function Turnos() {
                         className={`group flex items-center gap-4 rounded-2xl border p-4 text-left transition-all duration-300 ${on ? "border-primary bg-secondary/60 shadow-elevated ring-4 ring-primary/10" : "border-border bg-card shadow-card hover:-translate-y-0.5 hover:border-primary/30"}`}
                       >
                         <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl transition-colors ${on ? "gradient-deep text-white" : "bg-secondary text-primary"}`}><I className="size-5" /></span>
-                        <span className="font-semibold leading-tight">{e.nombre}</span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold leading-tight">{e.nombre}</span>
+                          {disponible(e.nombre, e.doctorIds) ? <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><span className="size-1.5 rounded-full bg-emerald-500" /> Citas en línea</span> : <span className="mt-1 block text-[11px] text-muted-foreground">Consultar por WhatsApp</span>}
+                        </span>
                         {on && <CheckCircle2 className="ml-auto size-5 shrink-0 text-primary" />}
                       </button>
                     );
@@ -292,7 +299,7 @@ function Turnos() {
                   {doctoresDisp.map((d) => {
                     const on = doc === d.id;
                     const ag = agendaDe(agendas, d.agendaId);
-                    const sinAgenda = !ag.activo || proximosDias(ag, 15).length === 0;
+                    const sinAgenda = !ag.activo || proximosDias(ag, 15, servicio).length === 0;
                     return (
                       <button
                         key={d.id}
@@ -317,9 +324,9 @@ function Turnos() {
                             <p className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-amber-100">Sin citas en línea por ahora · pídalo por WhatsApp</p>
                           ) : (
                             <>
-                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{resumenAgenda(ag)}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{resumenAgenda(ag, servicio)}</p>
                               <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                                <span className="size-1.5 rounded-full bg-emerald-500 pulse-dot" /> Próximo día: {proximoDiaTexto(ag)}
+                                <span className="size-1.5 rounded-full bg-emerald-500 pulse-dot" /> Próximo día: {proximoDiaTexto(ag, servicio)}
                               </p>
                             </>
                           )}

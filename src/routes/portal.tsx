@@ -889,14 +889,15 @@ function Turnos({ ctx }: { ctx: Ctx }) {
   const doctores = especialidad ? DOCTORS.filter((d) => especialidad.doctorIds.includes(d.id)) : [];
   const doctor = DOCTORS.find((d) => d.id === doc);
   const agenda = doctor ? agendaDe(agendas, doctor.foto) : null;
-  const dias = agenda ? proximosDias(agenda, 14) : [];
+  const servicio = especialidad?.nombre ?? null;
+  const dias = agenda ? proximosDias(agenda, 14, servicio) : [];
   const libres = useMemo(() => {
-    if (!agenda || !doctor || !fecha || !atiendeEl(agenda, fecha)) return [] as { h: string; libre: boolean }[];
+    if (!agenda || !doctor || !fecha || !atiendeEl(agenda, fecha, servicio)) return [] as { h: string; libre: boolean }[];
     const nom = nombrePanel(doctor.id);
     const ahora = new Date();
     const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
-    return horariosDelDia(agenda, fecha).map((h) => ({ h, libre: !todos.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(fecha === isoDe(ahora) && h <= hhmm) }));
-  }, [agenda, doctor, fecha, todos]);
+    return horariosDelDia(agenda, fecha, servicio).map((h) => ({ h, libre: !todos.some((t) => t.doctor === nom && t.fecha === fecha && t.hora === h && t.estado !== "Cancelado") && !(fecha === isoDe(ahora) && h <= hhmm) }));
+  }, [agenda, doctor, fecha, todos, servicio]);
 
   const reset = () => { setPidiendo(false); setEsp(""); setDoc(""); setFecha(""); setHora(""); setNota(""); };
 
@@ -915,7 +916,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
     };
     ctx.setTurnos((p) => [...p, nuevo]);
     auditar(ctx.paciente.nombre, "Cita pedida desde el portal", `${fechaCorta(fecha)} ${hora} · ${nom}`);
-    toast.success("¡Cita pedida! La clínica le lo confirma.");
+    toast.success("¡Cita pedida! La clínica se la confirmará.");
     reset();
   };
 

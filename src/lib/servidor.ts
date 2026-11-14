@@ -658,7 +658,8 @@ export const aplicarCambios = createServerFn({ method: "POST" })
           continue;
         }
         const t: Record<string, unknown> & { id: string } = { ...f, pacienteId: q.id, paciente: q.nombre, estado: "Pendiente", origen: "portal" };
-        const malo = await validarHorario(String(t["doctor"]), String(t["fecha"]), String(t["hora"]));
+        const servicioPortal = String(t["motivo"] ?? "").split(" · ")[0]?.trim() || undefined;
+        const malo = await validarHorario(String(t["doctor"]), String(t["fecha"]), String(t["hora"]), servicioPortal);
         if (malo) return { ok: false, error: malo };
         if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro." };
         const choque = await guardarCita(c, t);
@@ -686,7 +687,7 @@ const ahoraColombia = () => {
 };
 
 /** Comprueba que el horario pedido exista en la agenda del profesional y no haya pasado. */
-async function validarHorario(doctor: string, fecha: string, hora: string): Promise<string | null> {
+async function validarHorario(doctor: string, fecha: string, hora: string, servicio?: string): Promise<string | null> {
   const sql = await (await modulo()).db();
   const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_agenda'`) as { valor: Record<string, never> }[];
   const agendas = filas[0]?.valor ?? {};
@@ -694,8 +695,8 @@ async function validarHorario(doctor: string, fecha: string, hora: string): Prom
   const prof = L.profesionalesAgenda(agendas).find((p) => p.nombre === doctor);
   if (!prof) return "Ese profesional no tiene agenda publicada.";
   const a = L.agendaDe(agendas, prof.id);
-  if (!L.atiendeEl(a, fecha)) return "Ese día el profesional no atiende. Elija otra fecha.";
-  if (!L.horariosDelDia(a, fecha).includes(hora)) return "Ese horario no está en la agenda del profesional.";
+  if (!L.atiendeEl(a, fecha, servicio)) return "Ese día el profesional no atiende esa especialidad. Elija otra fecha.";
+  if (!L.horariosDelDia(a, fecha, servicio).includes(hora)) return "Ese horario no está en la agenda del profesional.";
   const ya = ahoraColombia();
   if (fecha < ya.fecha || (fecha === ya.fecha && hora <= ya.hora)) return "Ese horario ya pasó. Elija otro.";
   return null;
@@ -723,7 +724,7 @@ export const horariosOcupados = createServerFn({ method: "GET" })
 
 /** Reserva desde la web pública (sin cuenta). */
 export const reservarTurnoPublico = createServerFn({ method: "POST" })
-  .validator((d: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string }) => d)
+  .validator((d: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ id: string }>> => {
     const c = await colecciones();
     const limpio = (s: string, n: number) => String(s ?? "").trim().slice(0, n);
@@ -740,10 +741,11 @@ export const reservarTurnoPublico = createServerFn({ method: "POST" })
       origen: "web",
     };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha) || !/^\d{2}:\d{2}$/.test(t.hora) || t.paciente.length < 3 || !t.telefono) return { ok: false, error: "Faltan datos de la cita." };
-    const malo = await validarHorario(t.doctor, t.fecha, t.hora);
+    const servicio = data.servicio ? limpio(data.servicio, 80) : undefined;
+    const malo = await validarHorario(t.doctor, t.fecha, t.hora, servicio);
     if (malo) return { ok: false, error: malo };
     if (await c.horarioOcupado(t.doctor, t.fecha, t.hora)) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro, por favor." };
-    const choque = await guardarCita(c, t);
+    const choque = await guardarCita(c, servicio ? { ...t, servicio } : t);
     if (choque) return { ok: false, error: choque };
     await (await acceso()).auditar("Web", "Cita solicitada desde la web", `${t.paciente} · ${t.fecha} ${t.hora} · ${t.doctor}`);
     return { ok: true, id: t.id };
