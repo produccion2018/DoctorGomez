@@ -543,6 +543,7 @@ function Panel() {
   }, []);
 
   const noLeidos = useNoLeidos(user);
+  const [horarioSel, setHorarioSel] = useState<string | null>(null);
   if (!user) return null;
   if (obliga2fa)
     return (
@@ -594,6 +595,10 @@ function Panel() {
   const fechaLarga = ahora.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
   const hora = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 
+  const irHorarios = (id: string) => {
+    setHorarioSel(id);
+    irTab("horarios");
+  };
   const irTab = (t: Tab) => {
     if (!permitido(t)) return;
     if (t !== tab) setPacSel(null);
@@ -963,7 +968,7 @@ function Panel() {
         )}
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
-        {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} />}
+        {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} irHorarios={permitido("horarios") ? irHorarios : undefined} />}
         {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf || esAreaMedica(user.area)} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
         {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
         {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} notasEnf={esEnf && !esAreaMedica(user.area) && TABS_ENF.includes("triage") && !soloLectura("triage")} />}
@@ -972,7 +977,7 @@ function Panel() {
         {tabVisible === "facturacion" && <FacturacionTab user={user} log={log} turnos={turnos} vista={factVista} setVista={setFactVista} />}
         {tabVisible === "analitica" && <AnaliticaTab log={log} turnos={turnos} />}
         {tabVisible === "automatizaciones" && <AutomatizacionesTab log={log} turnos={turnos} irA={irTab} />}
-        {tabVisible === "horarios" && <HorariosTab user={user} log={log} puedeEditarOtros={!soloLectura("horarios")} />}
+        {tabVisible === "horarios" && <HorariosTab key={horarioSel ?? "h"} user={user} log={log} puedeEditarOtros={!soloLectura("horarios")} inicial={horarioSel} />}
         {tabVisible === "pacientes" && <PacientesTab user={user} log={log} turnos={turnos} />}
         {tabVisible === "finanzas" && <FinanzasTab movs={movs} setMovs={setMovs} log={log} turnos={turnos} user={user} vista={finVista} setVista={setFinVista} />}
         {tabVisible === "permisos" && <PermisosTab permisos={permisos} setPermisos={setPermisos} log={log} user={user} />}
@@ -1568,7 +1573,8 @@ function waDe(tel: string, texto: string) {
   return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
 }
 
-function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; onCargaManual: () => void }) {
+function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; onCargaManual: () => void; irHorarios?: ((id: string) => void) | undefined }) {
+  const yo = sesionActual();
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [dia, setDia] = useState(hoy());
   const [asignando, setAsignando] = useState<string | null>(null); // "doctor|hora"
@@ -1739,16 +1745,34 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
                 {foto && <img src={foto} alt="" className="size-11 rounded-xl object-cover object-top" />}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{a.nombre}</p>
-                  <p className="truncate text-xs text-muted-foreground">{atiende ? `${ag.desde} a ${ag.hasta}` : "No atiende este día"}</p>
+                  <p className="truncate text-xs text-muted-foreground">{atiende ? (() => { const r = rangoDia(ag, new Date(dia + "T12:00:00").getDay()); return `Hoy atiende ${r.desde} a ${r.hasta}${r.pausaDesde && r.pausaHasta ? ` · pausa ${r.pausaDesde}–${r.pausaHasta}` : ""} · citas de ${ag.duracion} min`; })() : resumenAgenda(ag)}</p>
                 </div>
                 {atiende && <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold">{suyos.length}/{slots.length}</span>}
+                {irHorarios && (
+                  <button onClick={() => irHorarios(a.id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[rgba(var(--acc),.1)] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] transition hover:bg-[rgba(var(--acc),.18)]"><Clock className="size-3.5" /> {yo?.id === a.id ? "Mis horarios" : "Horarios"}</button>
+                )}
               </div>
 
-              {!atiende && (
-                <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-6 text-center text-sm text-muted-foreground">
-                  {bloqueo ? <>No atiende: <b>{bloqueo.motivo}</b></> : !ag.activo ? "Agenda pausada." : "Este día no está en su agenda."}
-                </div>
-              )}
+              {!atiende && (() => {
+                const sinCargar = ag.dias.length === 0 || (ag.duracion ?? 0) < 5;
+                const esSuyo = yo?.id === a.id;
+                return (
+                  <div className={`rounded-2xl border border-dashed p-6 text-center text-sm ${sinCargar ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200" : "border-border bg-secondary/30 text-muted-foreground"}`}>
+                    {bloqueo ? <>No atiende: <b>{bloqueo.motivo}</b></> : !ag.activo ? "Agenda pausada." : sinCargar ? (
+                      <>
+                        <Clock className="mx-auto mb-2 size-6" />
+                        <p className="font-semibold">{esSuyo ? "Todavía no cargó sus horarios" : `${nombreCorto(a.nombre)} todavía no cargó sus horarios`}</p>
+                        <p className="mt-1 text-xs opacity-80">Sin días, horario y duración de la cita no aparecen horas para reservar, ni aquí ni en la web.</p>
+                      </>
+                    ) : (
+                      <>Los {NOMBRES_DIA[new Date(dia + "T12:00:00").getDay()]!.toLowerCase()} no atiende. <span className="block pt-1 text-xs">Atiende: {resumenAgenda(ag)}</span></>
+                    )}
+                    {irHorarios && !bloqueo && (
+                      <button onClick={() => irHorarios(a.id)} className="mx-auto mt-3 inline-flex items-center gap-1.5 rounded-xl pn-acc-tile px-4 py-2 text-xs font-semibold text-white"><Clock className="size-3.5" /> {esSuyo ? (sinCargar ? "Cargar mis horarios" : "Cambiar mis horarios") : "Ver sus horarios"}</button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {atiende && (
                 <div className="space-y-1.5">
@@ -1813,7 +1837,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual }: { turnos: Turno[];
   );
 }
 
-function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; foco?: FocoTurnos }) {
+function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; foco?: FocoTurnos; irHorarios?: ((id: string) => void) | undefined }) {
   const [procHoy, setProcHoy] = useState(foco === "procedimientos");
   useEffect(() => {
     if (!foco) return;
@@ -1894,7 +1918,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
   return (
     <div className="space-y-6">
       <div id="agenda-hoy" className="scroll-mt-24" />
-      <AgendaDia turnos={turnos} setTurnos={setTurnos} log={log} onCargaManual={() => { setManual(true); window.setTimeout(() => document.getElementById("carga-manual")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
+      <AgendaDia turnos={turnos} setTurnos={setTurnos} log={log} irHorarios={irHorarios} onCargaManual={() => { setManual(true); window.setTimeout(() => document.getElementById("carga-manual")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); }} />
 
       {!manual && (
         <button onClick={() => setManual(true)} className="pn-card flex w-full items-center gap-4 p-5 text-left transition-transform hover:-translate-y-0.5">
@@ -1975,7 +1999,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null }: { turnos: Turno[]; s
               {otraHora ? (
                 <input type="time" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp + " sm:w-48"} />
               ) : !atiende ? (
-                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda. Elija otro día o use "Otro horario".</p>
+                <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda ({resumenAgenda(agendaSel)}). Elija otro día o use "Otro horario".{irHorarios && <button type="button" onClick={() => irHorarios(adminSel.id)} className="ml-1 font-semibold text-[rgb(var(--acc))] hover:underline">Ver horarios</button>}</p>
               ) : (
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
                   {slots.map(({ h, ocupado }) => (
@@ -3359,7 +3383,7 @@ function isoDiaSemana(d: number) {
   return isoDe(x);
 }
 
-function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: LogFn; puedeEditarOtros: boolean }) {
+function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: SessionUser; log: LogFn; puedeEditarOtros: boolean; inicial?: string | null }) {
   const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [personal] = useDato<Personal[]>(KEY_ENFERMERIA, []);
   const esAdmin = ADMIN_IDS.includes(user.id);
@@ -3371,7 +3395,7 @@ function HorariosTab({ user, log, puedeEditarOtros }: { user: SessionUser; log: 
       .filter((p) => p.activo && esAreaMedica(areaDe(p)) && !conAgenda.some((c) => c.id === p.id || c.nombre === p.nombre))
       .map((p) => ({ id: p.id, nombre: p.nombre, especialidad: areaDe(p).replace(" (médicos)", ""), admin: false })),
   ];
-  const [sel, setSel] = useState<string>(esAdmin ? user.id : ADMINS[0]!.id);
+  const [sel, setSel] = useState<string>(inicial ?? (esAdmin ? user.id : ADMINS[0]!.id));
   const [nuevo, setNuevo] = useState({ nombre: "", especialidad: "" });
   const [agregando, setAgregando] = useState(false);
   const guardada = agendaDe(agendas, sel);
