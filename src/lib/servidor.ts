@@ -66,7 +66,7 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
     const { db } = await modulo();
     const esAgenda = data.clave === "gb_agenda";
     const deMedicos = !esAgenda && ([...SOLO_MEDICOS, ...PRIVADOS_MEDICOS] as readonly string[]).includes(data.clave);
-    if (!deMedicos && !(PRIVADOS as readonly string[]).includes(data.clave)) return { ok: false, error: "Dato no habilitado." };
+    if (!esAgenda && !deMedicos && !(PRIVADOS as readonly string[]).includes(data.clave)) return { ok: false, error: "Dato no habilitado." };
     let u: UsuarioServidor;
     try {
       const a = await acceso();
