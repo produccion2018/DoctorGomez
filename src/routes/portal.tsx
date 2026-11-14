@@ -66,6 +66,7 @@ import {
   estadoCobro,
   hashTexto,
   horariosDelDia,
+  hora12,
   ingresarPaciente,
   isoDe,
   nuevoId,
@@ -164,7 +165,7 @@ function cuandoFalta(fecha: string, hora: string) {
 
 function descargarICS(t: TurnoClinica) {
   const d = doctorDePanel(t.doctor);
-  const ini = new Date(`${t.fecha}T${t.hora}:00`);
+  const ini = new Date(`${t.fecha}T${hora12(t.hora)}:00`);
   const fin = new Date(ini.getTime() + 40 * 60000);
   const f = (x: Date) => x.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const ics = [
@@ -550,7 +551,7 @@ function useAvisos(ctx: Ctx) {
   const out: { titulo: string; texto: string; icon: LucideIcon; tono: Tono; ir: Seccion }[] = [];
   const hoy = hoyIso();
   const prox = proximos(ctx.turnos)[0];
-  if (prox) out.push({ titulo: `Cita ${cuandoFalta(prox.fecha, prox.hora)}`, texto: `${fechaCorta(prox.fecha)} ${prox.hora} · ${doctorDePanel(prox.doctor)?.nombre ?? prox.doctor}`, icon: CalendarCheck, tono: "azul", ir: "turnos" });
+  if (prox) out.push({ titulo: `Cita ${cuandoFalta(prox.fecha, prox.hora)}`, texto: `${fechaCorta(prox.fecha)} ${hora12(prox.hora)} · ${doctorDePanel(prox.doctor)?.nombre ?? prox.doctor}`, icon: CalendarCheck, tono: "azul", ir: "turnos" });
   ctx.auts.filter((a) => a.estado === "Pendiente" && a.origen === "Clínica").forEach((a) => out.push({ titulo: "Autorización pendiente", texto: a.titulo, icon: ShieldCheck, tono: "ambar", ir: "autorizaciones" }));
   ctx.auts
     .filter((a) => a.origen === "Paciente" && a.estado !== "Pendiente" && a.fechaRespuesta && Date.now() - new Date(a.fechaRespuesta).getTime() < 7 * 86400000)
@@ -644,7 +645,7 @@ function FilaTurno({ t, onCancelar }: { t: TurnoClinica; onCancelar?: () => void
         <div className="flex w-16 shrink-0 flex-col items-center rounded-2xl gradient-deep py-2 text-white shadow-md">
           <span className="text-[10px] font-semibold uppercase text-white/70">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
           <span className="font-display text-2xl font-semibold leading-none">{Number(t.fecha.slice(8))}</span>
-          <span className="text-[11px] tabular-nums">{t.hora}</span>
+          <span className="text-[11px] tabular-nums">{hora12(t.hora)}</span>
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{t.motivo.split(" · ")[0]}</p>
@@ -719,7 +720,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                 {d0 && <img src={fotoDoctor(d0.foto)} alt="" className="size-14 rounded-2xl object-cover object-top ring-2 ring-white/30" />}
                 <div className="min-w-0">
                   <p className="font-semibold">{p0.motivo.split(" · ")[0]}</p>
-                  <p className="text-sm capitalize text-white/80">{fechaTxt(p0.fecha)} · {p0.hora}</p>
+                  <p className="text-sm capitalize text-white/80">{fechaTxt(p0.fecha)} · {hora12(p0.hora)}</p>
                   <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-100"><Clock className="size-3" /> {cuandoFalta(p0.fecha, p0.hora)}</p>
                 </div>
               </div>
@@ -920,7 +921,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
 
   const cancelar = (t: TurnoClinica) => {
     ctx.setTurnos((p) => p.map((x) => (x.id === t.id ? { ...x, estado: "Cancelado" } : x)));
-    auditar(ctx.paciente.nombre, "Cita cancelada desde el portal", `${fechaCorta(t.fecha)} ${t.hora} · ${t.doctor}`);
+    auditar(ctx.paciente.nombre, "Cita cancelada desde el portal", `${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${t.doctor}`);
     toast.success("Cita cancelada. El horario quedó libre.");
   };
 
@@ -986,7 +987,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
               {fecha && (
                 <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
                   {libres.map(({ h, libre }) => (
-                    <button key={h} disabled={!libre} onClick={() => setHora(h)} className={`rounded-xl border py-2.5 text-sm font-semibold tabular-nums transition-all ${!libre ? "border-border bg-secondary/40 text-muted-foreground/40 line-through dark:border-white/5 dark:bg-white/[0.02]" : hora === h ? "border-transparent gradient-deep text-white shadow-md" : "border-border hover:border-primary/50 dark:border-white/10"}`}>{h}</button>
+                    <button key={h} disabled={!libre} onClick={() => setHora(h)} className={`rounded-xl border py-2.5 text-sm font-semibold tabular-nums transition-all ${!libre ? "border-border bg-secondary/40 text-muted-foreground/40 line-through dark:border-white/5 dark:bg-white/[0.02]" : hora === h ? "border-transparent gradient-deep text-white shadow-md" : "border-border hover:border-primary/50 dark:border-white/10"}`}>{hora12(h)}</button>
                   ))}
                 </div>
               )}
@@ -996,7 +997,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
             <div className="mt-6 space-y-3 animate-in fade-in duration-300">
               <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Motivo o comentario (opcional)" className={inp} />
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-secondary/60 p-4 dark:bg-white/5">
-                <p className="text-sm"><b className="capitalize">{fechaTxt(fecha)}</b> a las <b>{hora}</b> con {doctor?.nombre}</p>
+                <p className="text-sm"><b className="capitalize">{fechaTxt(fecha)}</b> a las <b>{hora ? hora12(hora) : ""}</b> con {doctor?.nombre}</p>
                 <Button onClick={confirmar} className="btn-glow rounded-xl"><Check className="size-4" /> Confirmar pedido</Button>
               </div>
             </div>
@@ -1258,7 +1259,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
                       const ok = !!m.tomas[`${hoy}|${h}`];
                       return (
                         <button key={h} onClick={() => marcar(m, h)} className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-all ${ok ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/30" : "bg-secondary text-foreground hover:bg-secondary/70 dark:bg-white/5"}`}>
-                          {ok ? <CheckCircle2 className="size-4" /> : <Clock className="size-4" />} {h}
+                          {ok ? <CheckCircle2 className="size-4" /> : <Clock className="size-4" />} {hora12(h)}
                         </button>
                       );
                     })}
@@ -1294,7 +1295,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
               <p className="mb-2 text-xs font-medium text-muted-foreground">Horarios</p>
               <div className="flex flex-wrap gap-2">
                 {f.horarios.map((h) => (
-                  <span key={h} className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-1.5 text-sm font-semibold tabular-nums dark:bg-white/5">{h}
+                  <span key={h} className="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3 py-1.5 text-sm font-semibold tabular-nums dark:bg-white/5">{hora12(h)}
                     <button type="button" onClick={() => setF({ ...f, horarios: f.horarios.filter((x) => x !== h) })} aria-label="Quitar"><X className="size-3.5" /></button>
                   </span>
                 ))}

@@ -128,6 +128,7 @@ import {
   validarSesion,
   refrescarTodo,
   refrescarAgendaYCitas,
+  hora12,
   modoServidor,
   useDato,
   leerDato,
@@ -1033,7 +1034,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
       : []),
     ...turnos
       .filter((t) => t.estado === "Pendiente" && (t.origen === "web" || t.origen === "portal") && t.fecha >= hoy())
-      .map((t) => ({ id: `turno-${t.id}`, titulo: `Nueva cita ${t.origen === "portal" ? "desde el portal" : "desde la web"}`, texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora} · ${nombreCorto(t.doctor)}`, icon: CalendarCheck, tono: "azul" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${t.hora}` })),
+      .map((t) => ({ id: `turno-${t.id}`, titulo: `Nueva cita ${t.origen === "portal" ? "desde el portal" : "desde la web"}`, texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${nombreCorto(t.doctor)}`, icon: CalendarCheck, tono: "azul" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${hora12(t.hora)}` })),
     ...auts
       .filter((a) => a.estado === "Pendiente" && a.origen === "Paciente")
       .map((a) => ({ id: `aut-${a.id}`, titulo: "Pedido de autorización", texto: `${a.paciente} · ${a.titulo}`, icon: ShieldCheck, tono: "violeta" as Tono, tab: "pacientes" as Tab, fecha: a.fecha })),
@@ -1489,7 +1490,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
             {proximos.map((t) => (
               <div key={t.id} className="flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-colors hover:border-border hover:bg-secondary/40">
                 <div className="flex w-16 shrink-0 flex-col items-center rounded-xl bg-secondary py-1.5">
-                  <span className="text-sm font-bold tabular-nums text-primary">{t.hora}</span>
+                  <span className="text-sm font-bold tabular-nums text-primary">{hora12(t.hora)}</span>
                   <span className="text-[10px] text-muted-foreground">{fechaCorta(t.fecha).slice(0, 5)}</span>
                 </div>
                 <Avatar nombre={t.paciente} />
@@ -1503,7 +1504,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
           </div>
         </Seccion>
 
-        <div className="space-y-6 xl:col-span-2">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           <Seccion icon={Activity} titulo="Estado de la agenda" sub={`${turnos.length} citas en total`} delay={0.3}>
             <div className="mb-5 flex items-center gap-5">
               <div
@@ -1651,7 +1652,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
       ...(rapido.telefono.trim() ? { telefono: rapido.telefono.trim() } : {}),
     };
     setTurnos((p) => [...p, nuevo]);
-    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora} · ${doctor}`);
+    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora12(hora)} · ${doctor}`);
     toast.success("Cita asignada.");
     setAsignando(null);
     setRapido({ paciente: "", telefono: "", motivo: "Consulta" });
@@ -1678,7 +1679,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
         )}
         {t.estado === "Atendido" && <span className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold text-emerald-700"><Check className="size-3" /> Atendido</span>}
         {t.telefono && (
-          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO por su cita del ${fechaCorta(t.fecha)} a las ${t.hora}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
+          <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO por su cita del ${fechaCorta(t.fecha)} a las ${hora12(t.hora)}.`)} target="_blank" rel="noreferrer" aria-label="WhatsApp" className="rounded-lg p-1.5 text-emerald-600 opacity-60 transition-opacity hover:bg-emerald-50 group-hover:opacity-100">
             <Send className="size-3.5" />
           </a>
         )}
@@ -1796,8 +1797,8 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                     const pasado = esHoy && h < hhmm && h !== actual;
                     return (
                       <div key={h} className={`flex gap-3 ${pasado && !t ? "opacity-45" : ""}`}>
-                        <div className="w-12 shrink-0 pt-3 text-right">
-                          <span className={`text-xs font-semibold tabular-nums ${h === actual ? "" : "text-muted-foreground"}`} style={h === actual ? { color: `rgb(var(--acc))` } : undefined}>{h}</span>
+                        <div className="w-[4.5rem] shrink-0 pt-3 text-right">
+                          <span className={`text-xs font-semibold tabular-nums ${h === actual ? "" : "text-muted-foreground"}`} style={h === actual ? { color: `rgb(var(--acc))` } : undefined}>{hora12(h)}</span>
                           {h === actual && <span className="block text-[9px] font-bold uppercase" style={{ color: `rgb(var(--acc))` }}>Ahora</span>}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -1836,7 +1837,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                   <div className="space-y-1.5">
                     {fuera.map((t) => (
                       <div key={t.id} className="flex gap-3">
-                        <span className="w-12 shrink-0 pt-3 text-right text-xs font-semibold tabular-nums text-muted-foreground">{t.hora}</span>
+                        <span className="w-[4.5rem] shrink-0 pt-3 text-right text-xs font-semibold tabular-nums text-muted-foreground">{hora12(t.hora)}</span>
                         <div className="min-w-0 flex-1"><FilaPaciente t={t} ahoraEs={false} /></div>
                       </div>
                     ))}
@@ -1912,7 +1913,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
       ...(f.telefono.trim() ? { telefono: f.telefono.trim() } : {}),
     };
     setTurnos((p) => [...p, nuevo]);
-    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${nuevo.hora} · ${nuevo.doctor}`);
+    log("Cita creada", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${hora12(nuevo.hora)} · ${nuevo.doctor}`);
     toast.success("Cita creada.");
     setF({ ...f, hora: "", paciente: "", telefono: "", motivo: "" });
   };
@@ -1924,7 +1925,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
 
   const borrar = (t: Turno) => {
     setTurnos((p) => p.filter((x) => x.id !== t.id));
-    log("Cita eliminada", `${t.paciente} · ${fechaCorta(t.fecha)} ${t.hora}`);
+    log("Cita eliminada", `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)}`);
   };
 
   const filtros: ("Todos" | Estado)[] = ["Todos", ...ESTADOS];
@@ -2011,7 +2012,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
                 <button type="button" onClick={() => setOtraHora((v) => !v)} className="text-xs font-semibold hover:underline" style={{ color: `rgb(var(--acc))` }}>{otraHora ? "Ver horarios de la agenda" : "Otro horario (sobreturno)"}</button>
               </div>
               {otraHora ? (
-                <input type="time" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} className={inp + " sm:w-48"} />
+                <SelectorHora value={f.hora || "08:00"} onChange={(v) => setF({ ...f, hora: v })} label="Hora del sobreturno" />
               ) : !atiende ? (
                 <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda ({resumenAgenda(agendaSel)}). Elija otro día o use "Otro horario".{irHorarios && <button type="button" onClick={() => irHorarios(adminSel.id)} className="ml-1 font-semibold text-[rgb(var(--acc))] hover:underline">Ver horarios</button>}</p>
               ) : (
@@ -2066,7 +2067,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
               </div>
               <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
                 <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span></p>
-                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? `${f.hora} hs` : <span className="text-white/50">Elija un horario</span>}</p>
+                <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? hora12(f.hora) : <span className="text-white/50">Elija un horario</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
               </div>
@@ -2128,7 +2129,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
               {lista.map((t) => (
                 <tr key={t.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40">
                   <td className="py-3 pr-3">
-                    <p className="font-semibold tabular-nums">{t.hora}</p>
+                    <p className="font-semibold tabular-nums">{hora12(t.hora)}</p>
                     <p className="text-xs text-muted-foreground">{fechaCorta(t.fecha)}</p>
                   </td>
                   <td className="py-3 pr-3">
@@ -2725,7 +2726,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
           </form>
         </Seccion>
 
-        <div className="space-y-6 xl:col-span-3">
+        <div className="min-w-0 space-y-6 xl:col-span-3">
           <Seccion icon={CalendarCheck} titulo="Citas atendidas sin cobrar" sub="Marque la cita como Atendido en Citas y aparece aquí" delay={0.15}>
             {sinCobrar.length === 0 ? (
               <p className="flex items-center gap-2 text-sm text-muted-foreground"><Check className="size-4 text-emerald-600" /> No hay citas atendidas pendientes de cobro.</p>
@@ -2734,7 +2735,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                 {sinCobrar.map((t) => (
                   <div key={t.id} className="flex items-center gap-3 rounded-xl bg-amber-50/70 p-3 ring-1 ring-amber-100">
                     <Avatar nombre={t.paciente} size="size-9" />
-                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{t.paciente}</p><p className="text-xs text-muted-foreground">{fechaCorta(t.fecha)} {t.hora} · {t.motivo} · {nombreCorto(t.doctor)}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{t.paciente}</p><p className="text-xs text-muted-foreground">{fechaCorta(t.fecha)} {hora12(t.hora)} · {t.motivo} · {nombreCorto(t.doctor)}</p></div>
                     <Button size="sm" className="rounded-lg" onClick={() => cobrarTurno(t)}><Wallet className="size-4" /> Cobrar</Button>
                   </div>
                 ))}
@@ -3129,7 +3130,7 @@ function generarInsights(turnos: Turno[], movs: Mov[]): string[] {
   const ing = movs.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0);
   const egr = movs.filter((m) => m.tipo === "Egreso").reduce((a, m) => a + m.monto, 0);
   const out: string[] = [];
-  out.push(deHoy.length ? `Hoy hay ${deHoy.length} cita${deHoy.length === 1 ? "" : "s"}; la próxima es a las ${[...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora}.` : "Hoy no hay citas agendadas.");
+  out.push(deHoy.length ? `Hoy hay ${deHoy.length} cita${deHoy.length === 1 ? "" : "s"}; la próxima es a las ${hora12([...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora)}.` : "Hoy no hay citas agendadas.");
   if (pend.length) out.push(`${pend.length} cita${pend.length === 1 ? "" : "s"} sigue${pend.length === 1 ? "" : "n"} pendiente${pend.length === 1 ? "" : "s"}: conviene confirmarlos para evitar ausencias.`);
   if (ing + egr > 0) out.push(`Los egresos representan el ${Math.round((egr / Math.max(1, ing)) * 100)}% de los ingresos; balance de ${dinero(ing - egr)}.`);
   return out;
@@ -3142,7 +3143,7 @@ function puede(ctx: Ctx, modulo: string) {
 function listaTurnos(ts: Turno[]) {
   return ts
     .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))
-    .map((t) => `• ${fechaCorta(t.fecha)} ${t.hora} — ${t.paciente} (${t.motivo}) · ${nombreCorto(t.doctor)} · ${t.estado}`)
+    .map((t) => `• ${fechaCorta(t.fecha)} ${hora12(t.hora)} — ${t.paciente} (${t.motivo}) · ${nombreCorto(t.doctor)} · ${t.estado}`)
     .join("\n");
 }
 
@@ -3224,7 +3225,7 @@ function responder(pregunta: string, ctx: Ctx): string {
     const ts = ctx.turnos.filter((t) => t.fecha === hoy() && t.estado !== "Cancelado");
     if (!ts.length) return "Hoy no hay citas agendadas.";
     const prox = ts.filter((t) => t.hora >= new Date().toTimeString().slice(0, 5)).sort((a, b) => a.hora.localeCompare(b.hora))[0];
-    return `Hoy hay ${ts.length} cita${ts.length === 1 ? "" : "s"}${prox ? ` (el próximo es ${prox.paciente} a las ${prox.hora})` : ""}:\n${listaTurnos(ts)}`;
+    return `Hoy hay ${ts.length} cita${ts.length === 1 ? "" : "s"}${prox ? ` (el próximo es ${prox.paciente} a las ${hora12(prox.hora)})` : ""}:\n${listaTurnos(ts)}`;
   }
   if (tiene("resumen", "como viene", "como va", "estado", "dia")) {
     return generarInsights(ctx.turnos, puede(ctx, "Finanzas") ? ctx.movs : []).join("\n");
@@ -3397,6 +3398,21 @@ function isoDiaSemana(d: number) {
   return isoDe(x);
 }
 
+
+/** Selector de hora fácil: lista de 15 en 15 minutos, en formato 8:00 a. m. / 2:30 p. m. */
+const HORAS_SELECTOR = Array.from({ length: (22 - 5) * 4 + 1 }, (_, i) => {
+  const m = 5 * 60 + i * 15;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+});
+function SelectorHora({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const opciones = HORAS_SELECTOR.includes(value) || !value ? HORAS_SELECTOR : [...HORAS_SELECTOR, value].sort();
+  return (
+    <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={inp.replace("w-full", "") + " h-11 w-full min-w-0 cursor-pointer px-2.5 font-medium tabular-nums sm:w-[8.5rem]"}>
+      {opciones.map((h) => <option key={h} value={h}>{hora12(h)}</option>)}
+    </select>
+  );
+}
+
 function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: SessionUser; log: LogFn; puedeEditarOtros: boolean; inicial?: string | null }) {
   const [agendas, setAgendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [personal] = useDato<Personal[]>(KEY_ENFERMERIA, []);
@@ -3450,6 +3466,21 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
   };
   const setRango = (d: number, patch: Partial<RangoDia>) =>
     set({ porDia: { ...(draft.porDia ?? {}), [String(d)]: { ...rangoDia(draft, d), ...patch } } });
+  /** Divide el día en mañana y tarde (con almuerzo en el medio) o lo vuelve jornada continua. */
+  const toggleTarde = (d: number) => {
+    const r = rangoDia(draft, d);
+    const m = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+    const hh = (x: number) => `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+    const nuevo: RangoDia = r.pausaDesde && r.pausaHasta
+      ? { desde: r.desde, hasta: r.pausaDesde }
+      : { desde: r.desde, pausaDesde: r.hasta, pausaHasta: hh(Math.min(m(r.hasta) + 120, 20 * 60)), hasta: hh(Math.min(m(r.hasta) + 360, 22 * 60)) };
+    set({ porDia: { ...(draft.porDia ?? {}), [String(d)]: nuevo } });
+  };
+  const copiarATodos = (d: number) => {
+    const r = rangoDia(draft, d);
+    set({ porDia: Object.fromEntries(draft.dias.map((x) => [String(x), { ...r }])) });
+    toast.success(`Horario del ${NOMBRES_DIA[d]!.toLowerCase()} copiado a todos sus días.`);
+  };
   const togglePausa = (d: number) => {
     const r = rangoDia(draft, d);
     // Pausa sugerida: 30 minutos a mitad del horario de ese día (después la cambian)
@@ -3600,7 +3631,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
       )}
       <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
-        <div className="space-y-6 xl:col-span-3">
+        <div className="min-w-0 space-y-6 xl:col-span-3">
           <Seccion icon={CalendarDays} titulo={propia ? "Sus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar cita»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
             <p className="mb-2 text-xs font-medium text-muted-foreground">Días y horario de cada día</p>
@@ -3614,24 +3645,37 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
                       className={`h-11 w-full shrink-0 rounded-xl text-sm font-semibold sm:w-28 transition-all ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
                       {NOMBRES_DIA[d]}
                     </button>
-                    {on ? (
-                      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                        <input type="time" aria-label={`${NOMBRES_DIA[d]} desde`} value={r.desde} onChange={(e) => setRango(d, { desde: e.target.value })} className={inp.replace("w-full", "") + " h-11 w-[7.5rem] sm:w-32"} />
-                        <span className="text-sm text-muted-foreground">a</span>
-                        <input type="time" aria-label={`${NOMBRES_DIA[d]} hasta`} value={r.hasta} onChange={(e) => setRango(d, { hasta: e.target.value })} className={inp.replace("w-full", "") + " h-11 w-[7.5rem] sm:w-32"} />
-                        <button type="button" onClick={() => togglePausa(d)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${r.pausaDesde ? "bg-amber-100 text-amber-800 ring-1 ring-amber-200" : "bg-background text-muted-foreground ring-1 ring-border hover:text-foreground"}`}>
-                          {r.pausaDesde ? "Con pausa" : "+ Pausa"}
-                        </button>
-                        {r.pausaDesde && (
-                          <span className="flex items-center gap-1.5">
-                            <input type="time" aria-label={`${NOMBRES_DIA[d]} pausa desde`} value={r.pausaDesde} onChange={(e) => setRango(d, { pausaDesde: e.target.value })} className={inp.replace("w-full", "") + " h-9 w-[7.5rem] text-xs sm:w-32"} />
-                            <span className="text-xs text-muted-foreground">a</span>
-                            <input type="time" aria-label={`${NOMBRES_DIA[d]} pausa hasta`} value={r.pausaHasta} onChange={(e) => setRango(d, { pausaHasta: e.target.value })} className={inp.replace("w-full", "") + " h-9 w-[7.5rem] text-xs sm:w-32"} />
-                          </span>
-                        )}
-                        <span className="text-xs text-muted-foreground tabular-nums">{draft.duracion >= 5 ? `${horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length} citas` : ""}</span>
-                      </div>
-                    ) : (
+                    {on ? (() => {
+                      const partido = !!(r.pausaDesde && r.pausaHasta);
+                      const n = draft.duracion >= 5 ? horariosDelDia({ ...draft, porDia: { [String(d)]: r } }, isoDiaSemana(d)).length : 0;
+                      return (
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
+                            {partido && <span className="col-span-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground sm:w-16 sm:normal-case sm:tracking-normal">Mañana</span>}
+                            <span className="hidden text-sm text-muted-foreground sm:inline">De</span>
+                            <SelectorHora value={r.desde} onChange={(v) => setRango(d, { desde: v })} label={`${NOMBRES_DIA[d]} desde`} />
+                            <span className="text-sm text-muted-foreground">a</span>
+                            <SelectorHora value={partido ? r.pausaDesde! : r.hasta} onChange={(v) => setRango(d, partido ? { pausaDesde: v } : { hasta: v })} label={`${NOMBRES_DIA[d]} hasta`} />
+                          </div>
+                          {partido && (
+                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
+                              <span className="col-span-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground sm:w-16 sm:normal-case sm:tracking-normal">Tarde</span>
+                              <span className="hidden text-sm text-muted-foreground sm:inline">De</span>
+                              <SelectorHora value={r.pausaHasta!} onChange={(v) => setRango(d, { pausaHasta: v })} label={`${NOMBRES_DIA[d]} tarde desde`} />
+                              <span className="text-sm text-muted-foreground">a</span>
+                              <SelectorHora value={r.hasta} onChange={(v) => setRango(d, { hasta: v })} label={`${NOMBRES_DIA[d]} tarde hasta`} />
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => toggleTarde(d)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${partido ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-background text-muted-foreground ring-border hover:text-foreground"}`}>
+                              {partido ? "Quitar la tarde (horario corrido)" : "+ Agregar horario de tarde (con almuerzo)"}
+                            </button>
+                            {draft.dias.length > 1 && <button type="button" onClick={() => copiarATodos(d)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] ring-1 ring-[rgba(var(--acc),.3)] hover:bg-[rgba(var(--acc),.06)]">Copiar a todos mis días</button>}
+                            {n > 0 && <span className="ml-auto rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">≈ {n} pacientes</span>}
+                          </div>
+                        </div>
+                      );
+                    })() : (
                       <span className="text-sm text-muted-foreground">No atiende</span>
                     )}
                   </div>
@@ -3639,7 +3683,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
               })}
             </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
-              <Campo label="Duración de la cita">
+              <Campo label="¿Cuánto dura cada consulta? (solo lo ve el equipo)">
                 <div className="relative">
                   <input
                     type="number"
@@ -3666,10 +3710,13 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
               ))}
               <span className="text-xs text-muted-foreground">o escriba el tiempo que quiera (5 a 240 min)</span>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">La duración, los días, los horarios y las pausas los define cada profesional. Si un día no hay pausa, no se toca nada.</p>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Campo label="Aviso para pacientes (se ve en la web)"><input value={draft.nota} placeholder="Ej: traer estudios previos" onChange={(e) => set({ nota: e.target.value })} className={inp} /></Campo>
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">Con el horario y la duración, el sistema arma solo las horas que ven los pacientes para reservar. La duración no se muestra en la web.</p>
+            <details className="group mt-4 rounded-2xl ring-1 ring-border open:bg-secondary/30">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">+ Aviso para pacientes (opcional)</summary>
+              <div className="px-4 pb-4">
+                <Campo label="Se muestra en la web al reservar"><input value={draft.nota} placeholder="Ej: traer estudios previos" onChange={(e) => set({ nota: e.target.value })} className={inp} /></Campo>
+              </div>
+            </details>
           </Seccion>
 
           {afectadas.length > 0 && (
@@ -3679,9 +3726,9 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
               <ul className="mt-3 space-y-1.5">
                 {afectadas.slice(0, 12).map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm ring-1 ring-amber-200 dark:ring-amber-500/20">
-                    <span className="font-semibold tabular-nums">{fechaCorta(t.fecha)} {t.hora}</span>
+                    <span className="font-semibold tabular-nums">{fechaCorta(t.fecha)} {hora12(t.hora)}</span>
                     <span className="min-w-0 flex-1 truncate">{t.paciente}</span>
-                    {t.telefono && <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO. Necesitamos reprogramar su cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}. ¿Qué día le queda bien?`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Avisar</a>}
+                    {t.telefono && <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO. Necesitamos reprogramar su cita del ${fechaCorta(t.fecha)} a las ${hora12(t.hora)} con ${t.doctor}. ¿Qué día le queda bien?`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Avisar</a>}
                   </li>
                 ))}
               </ul>
@@ -3707,7 +3754,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
           </Seccion>
         </div>
 
-        <div className="space-y-6 xl:col-span-2">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           <section className="pn-card pn-up overflow-hidden xl:sticky xl:top-6" style={{ animationDelay: ".1s" }}>
             <div className="gradient-deep relative p-5 text-white">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Así se ve en la web</p>
@@ -3734,7 +3781,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{draft.duracion >= 5 ? `${slots.length} citas el próximo día` : "Elija la duración de la cita"}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{h}</span>)}
+                  {slots.map((h) => <span key={h} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{hora12(h)}</span>)}
                 </div>
               </div>
               <div className="flex flex-col gap-2 border-t border-border pt-4">
@@ -6845,12 +6892,12 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   if (on("recordatorio24"))
     d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${t.hora} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, le recordamos su cita de mañana a las ${t.hora} con ${t.doctor} en el Centro HEGO. Si no puede venir, avísenos por aquí.` });
+      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${hora12(t.hora)} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, le recordamos su cita de mañana a las ${hora12(t.hora)} con ${t.doctor} en el Centro HEGO. Si no puede venir, avísenos por aquí.` });
     });
   if (on("confirmar"))
     d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar cita de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${t.hora}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirma su cita del ${fechaCorta(t.fecha)} a las ${t.hora} con ${t.doctor}? Responda SÍ para confirmar o escríbanos para cambiarlo.` });
+      if (tl) out.push({ key: `conf-${t.id}`, auto: "confirmar", titulo: `Confirmar cita de ${t.paciente}`, detalle: `${fechaCorta(t.fecha)} ${hora12(t.hora)}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, ¿nos confirma su cita del ${fechaCorta(t.fecha)} a las ${hora12(t.hora)} con ${t.doctor}? Responda SÍ para confirmar o escríbanos para cambiarlo.` });
     });
   if (on("ausentes"))
     d.turnos.filter((t) => t.estado === "Cancelado" && t.fecha >= isoDe(new Date(Date.now() - 14 * 86400000)) && t.fecha <= hoy).forEach((t) => {
@@ -7304,7 +7351,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
               </section>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-                <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${proximo.hora}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agende el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
+                <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${hora12(proximo.hora)}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agende el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
                 <Indicador icon={Activity} l="Presión arterial" v={ta ? `${ta.s}/${ta.d}` : "—"} d={ta ? clasificarPresion(ta.s, ta.d).nivel : "Sin registros"} ir="historia" tono="from-rose-500 to-red-600" />
                 <Indicador icon={Scale} l="Índice de masa corporal" v={imcP ? `${imcP.valor} kg/m²` : "—"} d={imcP ? imcP.texto : "Sin peso y talla"} ir="historia" tono="from-cyan-400 to-sky-600" />
                 <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
@@ -7531,7 +7578,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                         <span className="text-[8px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-CO", { month: "short" })}</span>
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">{t.hora} · {t.motivo || "Consulta"}</p>
+                        <p className="text-sm font-medium">{hora12(t.hora)} · {t.motivo || "Consulta"}</p>
                         <p className="text-xs text-muted-foreground">{t.doctor}{t.origen ? ` · desde ${t.origen}` : ""}</p>
                       </div>
                       <Estadito estado={t.estado} />
@@ -7753,7 +7800,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
                       onClick={() => p && elegir(p.id)}
                       className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-card shadow-sm ring-1 ring-[rgba(var(--acc),.4)]" : "hover:bg-card"}`}
                     >
-                      <span className="w-11 shrink-0 text-center font-display text-sm font-semibold tabular-nums">{t.hora}</span>
+                      <span className="w-11 shrink-0 text-center font-display text-sm font-semibold tabular-nums">{hora12(t.hora)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{t.paciente}</span>
                         <span className="block truncate text-[11px] text-muted-foreground">{nombreCorto(t.doctor)} · {t.motivo || "Consulta"}</span>
@@ -8071,7 +8118,7 @@ function TurnosLectura({ turnos }: { turnos: Turno[] }) {
         <ul className="divide-y divide-border/60">
           {lista.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-3 py-3">
-              <span className="w-14 font-display text-lg font-semibold tabular-nums">{t.hora}</span>
+              <span className="w-14 font-display text-lg font-semibold tabular-nums">{hora12(t.hora)}</span>
               <Avatar nombre={t.paciente} size="size-9" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{t.paciente}</p>
@@ -8909,7 +8956,7 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
   const hecho = (t: Turno) => notas.find((n) => n.turnoId === t.id);
   const marcar = (t: Turno) => {
     const p = pacDe(t);
-    const n: NotaEnfermeria = { id: uid(), pacienteId: p?.id ?? t.pacienteId ?? t.id, paciente: t.paciente, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: "Procedimiento realizado", texto: `${t.motivo} realizado (cita de las ${t.hora} con ${nombreCorto(t.doctor)}).`, turnoId: t.id };
+    const n: NotaEnfermeria = { id: uid(), pacienteId: p?.id ?? t.pacienteId ?? t.id, paciente: t.paciente, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: "Procedimiento realizado", texto: `${t.motivo} realizado (cita de las ${hora12(t.hora)} con ${nombreCorto(t.doctor)}).`, turnoId: t.id };
     setNotas((x) => [...x, n]);
     log("Procedimiento realizado", `${t.paciente} · ${t.motivo}`);
     toast.success("Marcado como realizado. Quedó en la historia clínica.");
@@ -8925,7 +8972,7 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
             const al = pacDe(t)?.ficha?.alergias;
             return (
               <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3.5 ${h ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5" : "border-border/70 bg-card"}`}>
-                <span className="w-14 shrink-0 font-display text-lg tabular-nums">{t.hora}</span>
+                <span className="w-14 shrink-0 font-display text-lg tabular-nums">{hora12(t.hora)}</span>
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 font-semibold">{t.paciente}{al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span>}</p>
                   <p className="text-xs text-muted-foreground">{t.motivo} · {nombreCorto(t.doctor)}</p>
@@ -9103,21 +9150,21 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
     switch (accion.id) {
       case "Glucometría":
         if (!f.valor) return null;
-        return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${f.hora}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
+        return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${hora12(f.hora)}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
       case "Electrocardiograma":
-        return `Electrocardiograma de 12 derivaciones tomado a las ${f.hora}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
+        return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora)}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
       case "Toma de muestra":
         if (!f.muestra) return null;
-        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${f.hora}.${obs}`;
+        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${hora12(f.hora)}.${obs}`;
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
-        return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${f.hora}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
+        return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora)}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
       case "Holter / MAPA":
         if (!f.tipo) return null;
-        return `${f.tipo} a las ${f.hora}.${obs}`;
+        return `${f.tipo} a las ${hora12(f.hora)}.${obs}`;
       case "Curación":
         if (!f.zona) return null;
-        return `Curación en ${f.zona} a las ${f.hora}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
+        return `Curación en ${f.zona} a las ${hora12(f.hora)}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
       default:
         return f.obs?.trim() ? f.obs.trim() : null;
     }
@@ -9157,7 +9204,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
                 {citasHoy.map((t) => {
                   const p = pacDe(t);
                   if (!p) return null;
-                  return <button key={t.id} type="button" onClick={() => setPacId(p.id)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${pacId === p.id ? "bg-[rgb(var(--acc))] text-white ring-transparent" : "bg-card ring-border hover:bg-secondary"}`}>{t.hora} · {t.paciente}</button>;
+                  return <button key={t.id} type="button" onClick={() => setPacId(p.id)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${pacId === p.id ? "bg-[rgb(var(--acc))] text-white ring-transparent" : "bg-card ring-border hover:bg-secondary"}`}>{hora12(t.hora)} · {t.paciente}</button>;
                 })}
               </div>
             )}

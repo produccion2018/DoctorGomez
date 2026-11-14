@@ -603,6 +603,16 @@ const aMin = (h: string) => {
   return (a ?? 0) * 60 + (b ?? 0);
 };
 const aHora = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+/** "14:30" → "2:30 p. m." · "12:00" → "12:00 m." (como se dice en Colombia). */
+export function hora12(h?: string | null): string {
+  if (!h || !/^\d{1,2}:\d{2}/.test(h)) return h ?? "";
+  const [hh, mm] = h.split(":").map(Number) as [number, number];
+  const m = String(mm).padStart(2, "0");
+  if (hh === 12 && mm === 0) return "12:00 m.";
+  const suf = hh < 12 ? "a. m." : "p. m.";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${m} ${suf}`;
+}
 export const isoDe = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
@@ -664,7 +674,7 @@ export function resumenAgenda(a: AgendaDoctor): string {
   const grupos = new Map<string, number[]>();
   for (const n of d) {
     const r = rangoDia(a, n);
-    const k = `${r.desde}–${r.hasta}` + (r.pausaDesde && r.pausaHasta ? ` (pausa ${r.pausaDesde}–${r.pausaHasta})` : "");
+    const k = r.pausaDesde && r.pausaHasta ? `${hora12(r.desde)} a ${hora12(r.pausaDesde)} y ${hora12(r.pausaHasta)} a ${hora12(r.hasta)}` : `${hora12(r.desde)} a ${hora12(r.hasta)}`;
     grupos.set(k, [...(grupos.get(k) ?? []), n]);
   }
   const nombreDias = (ds: number[]) => {
@@ -673,7 +683,7 @@ export function resumenAgenda(a: AgendaDoctor): string {
   };
   if (grupos.size === 1) {
     const [k] = [...grupos.keys()];
-    return `${nombreDias(d)} · ${k!.replace("–", " a ")}${pausa}`;
+    return `${nombreDias(d)} · ${k!}${pausa}`;
   }
   return [...grupos.entries()].map(([k, ds]) => `${nombreDias(ds)} ${k}`).join(" · ") + pausa;
 }

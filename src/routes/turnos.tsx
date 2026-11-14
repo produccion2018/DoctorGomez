@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, KEY_AGENDA, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
+import { ADMINS, KEY_AGENDA, hora12, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -177,7 +177,7 @@ function Turnos() {
       origen: "web",
     };
     localStorage.setItem(KEY, JSON.stringify([...actuales, nuevo]));
-    auditar("Web", "Cita solicitada desde la web", `${nuevo.paciente} · ${fecha.split("-").reverse().join("/")} ${hora} · ${nom}`);
+    auditar("Web", "Cita solicitada desde la web", `${nuevo.paciente} · ${fecha.split("-").reverse().join("/")} ${hora12(hora)} · ${nom}`);
     setListo(nuevo);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -186,7 +186,7 @@ function Turnos() {
     new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
 
   if (listo) {
-    const msg = `Hola, solicité una cita desde la web:\n• Paciente: ${listo.paciente}\n• ${especialidad?.nombre}\n• ${doctor?.nombre}\n• ${fechaTxt(listo.fecha)} a las ${listo.hora}\n¿Me lo confirman? Gracias.`;
+    const msg = `Hola, solicité una cita desde la web:\n• Paciente: ${listo.paciente}\n• ${especialidad?.nombre}\n• ${doctor?.nombre}\n• ${fechaTxt(listo.fecha)} a las ${hora12(listo.hora)}\n¿Me lo confirman? Gracias.`;
     return (
       <PublicLayout>
         <section className="relative overflow-hidden py-20">
@@ -202,7 +202,7 @@ function Turnos() {
                 { icon: User, t: listo.paciente },
                 { icon: Stethoscope, t: `${especialidad?.nombre} · ${doctor?.nombre}` },
                 { icon: CalendarDays, t: fechaTxt(listo.fecha) },
-                { icon: Clock, t: `${listo.hora} hs` },
+                { icon: Clock, t: hora12(listo.hora) },
               ].map((x) => (
                 <p key={x.t} className="flex items-center gap-3 text-sm"><span className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary"><x.icon className="size-4" /></span>{x.t}</p>
               ))}
@@ -378,7 +378,7 @@ function Turnos() {
                                 : "border-border bg-card hover:border-primary/50 hover:text-primary"
                           }`}
                         >
-                          {h}
+                          {hora12(h)}
                         </button>
                       ))}
                     </div>
@@ -450,7 +450,7 @@ function Turnos() {
                   <span className="flex size-11 items-center justify-center rounded-xl bg-secondary text-primary"><Clock className="size-5" /></span>
                   <div>
                     <p className="text-xs text-muted-foreground">Horario</p>
-                    <p className="font-medium">{hora ? `${hora} hs` : "—"}</p>
+                    <p className="font-medium">{hora ? hora12(hora) : "—"}</p>
                   </div>
                 </div>
               </div>

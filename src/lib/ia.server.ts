@@ -40,6 +40,11 @@ const sumarDias = (f: string, n: number) => {
 const diaSemana = (f: string) => new Date(f + "T12:00:00Z").getUTCDay();
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:MM, 24 horas");
 const fechaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Formato AAAA-MM-DD");
+const h12 = (h: string) => {
+  const [a, b] = h.split(":").map(Number) as [number, number];
+  if (a === 12 && b === 0) return "12:00 m.";
+  return `${a % 12 === 0 ? 12 : a % 12}:${String(b).padStart(2, "0")} ${a < 12 ? "a. m." : "p. m."}`;
+};
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 async function leerAgendas(): Promise<Record<string, Record<string, unknown>>> {
@@ -173,7 +178,7 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
         }
         const actual = lib.agendaDe((await leerAgendas()) as never, u.id);
         if (!duracion && (actual.duracion ?? 0) < 5) return { error: "Falta la duración de cada cita (por ejemplo 20 minutos). Pregúntesela al médico." };
-        const txt = dias.map((d) => `${DIAS[d.dia]} ${d.desde}–${d.hasta}${d.pausaDesde ? ` (pausa ${d.pausaDesde}–${d.pausaHasta})` : ""}`).join("; ");
+        const txt = dias.map((d) => `${DIAS[d.dia]} ${d.pausaDesde && d.pausaHasta ? `${h12(d.desde)} a ${h12(d.pausaDesde)} y ${h12(d.pausaHasta)} a ${h12(d.hasta)}` : `${h12(d.desde)} a ${h12(d.hasta)}`}`).join("; ");
         acciones.push({ tipo: "horarios", dias, ...(duracion ? { duracion } : {}), reemplazar, descripcion: `${reemplazar ? "Dejar sus horarios en" : "Cambiar"}: ${txt}${duracion ? ` · citas de ${duracion} min` : ""}` });
         return { propuesto: true };
       },
@@ -219,7 +224,7 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
         const malo = await validarCita(d.nombre, d.id, x.fecha, x.hora, x.sobreturno);
         if (malo) return { error: malo };
         if (acciones.some((y) => y.tipo === "crearCita" && y.doctor === d.nombre && y.fecha === x.fecha && y.hora === x.hora)) return { error: "Ya propuso otra cita en ese mismo horario." };
-        acciones.push({ tipo: "crearCita", paciente: x.paciente.trim(), ...(x.telefono ? { telefono: x.telefono } : {}), fecha: x.fecha, hora: x.hora, doctor: d.nombre, motivo: x.motivo, sobreturno: x.sobreturno, descripcion: `Cita para ${x.paciente.trim()} · ${x.fecha} ${x.hora} con ${d.nombre}${x.sobreturno ? " (sobreturno)" : ""}` });
+        acciones.push({ tipo: "crearCita", paciente: x.paciente.trim(), ...(x.telefono ? { telefono: x.telefono } : {}), fecha: x.fecha, hora: x.hora, doctor: d.nombre, motivo: x.motivo, sobreturno: x.sobreturno, descripcion: `Cita para ${x.paciente.trim()} · ${x.fecha} ${h12(x.hora)} con ${d.nombre}${x.sobreturno ? " (sobreturno)" : ""}` });
         return { propuesto: true };
       },
     }),
@@ -229,7 +234,7 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
       execute: async ({ id, estado }) => {
         const t = await c.uno("gb_turnos", id);
         if (!t) return { error: "No encontré esa cita." };
-        acciones.push({ tipo: "estadoCita", id, estado, descripcion: `${estado === "Cancelado" ? "Cancelar" : `Pasar a ${estado}`} la cita de ${t["paciente"]} (${t["fecha"]} ${t["hora"]})` });
+        acciones.push({ tipo: "estadoCita", id, estado, descripcion: `${estado === "Cancelado" ? "Cancelar" : `Pasar a ${estado}`} la cita de ${t["paciente"]} (${t["fecha"]} ${h12(String(t["hora"]))})` });
         return { propuesto: true };
       },
     }),
@@ -242,7 +247,7 @@ export async function asistente(u: UsuarioServidor, entrada: { texto?: string; a
         const d = lista.find((p) => p.nombre === t["doctor"]);
         const malo = await validarCita(String(t["doctor"]), d?.id ?? "", fecha, hora, false, id);
         if (malo) return { error: malo };
-        acciones.push({ tipo: "moverCita", id, fecha, hora, descripcion: `Mover la cita de ${t["paciente"]} del ${t["fecha"]} ${t["hora"]} al ${fecha} ${hora}` });
+        acciones.push({ tipo: "moverCita", id, fecha, hora, descripcion: `Mover la cita de ${t["paciente"]} del ${t["fecha"]} ${h12(String(t["hora"]))} al ${fecha} ${h12(hora)}` });
         return { propuesto: true };
       },
     }),
@@ -260,6 +265,8 @@ Reglas:
 - Cada médico solo cambia SUS horarios y vacaciones. Si pide cambiar los del otro médico, explíquele que el otro lo hace desde su panel.
 - Si falta un dato necesario (duración de la cita, hora, paciente), pregúnteselo en una sola frase.
 - Fechas relativas ("el lunes", "mañana", "la semana que viene") conviértalas con el calendario de arriba.
+- Las horas: en las herramientas use formato 24 h (14:00), pero AL HABLAR con el médico dígalas como en Colombia: 8:00 a. m., 12:00 m., 2:30 p. m. Nunca hora militar.
+- "Pausa" o "almuerzo" = mañana y tarde: por ejemplo "de 8 a 12 y de 2 a 6" es desde 08:00, pausaDesde 12:00, pausaHasta 14:00, hasta 18:00.
 - No dé diagnósticos ni consejos médicos: este asistente es para agenda y organización.`;
 
   const historial = (entrada.historial ?? []).slice(-8).map((m) => ({ role: m.de === "yo" ? ("user" as const) : ("assistant" as const), content: m.texto.slice(0, 2000) }));
