@@ -3466,6 +3466,10 @@ function isoDiaSemana(d: number) {
 }
 
 
+/** JSON con las claves ordenadas, para comparar agendas sin importar el orden en que vienen del servidor. */
+const canonico = (v: unknown): string =>
+  JSON.stringify(v, (_k, x: unknown) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b))) : x));
+
 /** Selector de hora fácil: lista de 15 en 15 minutos, en formato 8:00 a. m. / 2:30 p. m. */
 const HORAS_SELECTOR = Array.from({ length: (22 - 5) * 4 + 1 }, (_, i) => {
   const m = 5 * 60 + i * 15;
@@ -3500,12 +3504,19 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
   const [bloq, setBloq] = useState({ desde: hoy(), hasta: hoy(), motivo: "" });
   const firma = JSON.stringify(guardada);
 
+  // Si llega una versión nueva del servidor, solo se reemplaza el borrador cuando no hay cambios sin guardar
+  // (antes la sincronización cada 20 s podía borrar lo que el médico estaba editando).
+  const firmaPrev = useRef(firma);
+  const selPrev = useRef(sel);
   useEffect(() => {
-    setDraft(agendaDe(agendas, sel));
+    const cambioDoctor = selPrev.current !== sel;
+    setDraft((d) => (cambioDoctor || canonico(d) === canonico(JSON.parse(firmaPrev.current) as AgendaDoctor) ? agendaDe(agendas, sel) : d));
+    firmaPrev.current = firma;
+    selPrev.current = sel;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, firma]);
 
-  const cambios = JSON.stringify(draft) !== firma;
+  const cambios = canonico(draft) !== canonico(guardada);
   const set = (patch: Partial<AgendaDoctor>) => setDraft((d) => ({ ...d, ...patch }));
   const prof = profesionales.find((p) => p.id === sel) ?? profesionales[0]!;
   const admin = { nombre: prof.nombre };
@@ -3634,6 +3645,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
     }
     const final = { ...draft, ...(prof.admin ? {} : { nombre: prof.nombre, especialidad: prof.especialidad }), bloques: lista, dias: [...new Set(lista.map((b) => b.dia))].sort(), duracion: lista[0]!.duracion, pausa: false, desde: lista.map((b) => b.desde).sort()[0]!, hasta: lista.map((b) => b.hasta).sort().reverse()[0]! };
     setAgendas((p) => ({ ...p, [sel]: final }));
+    setDraft(final);
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
     toast.success("Horarios publicados en la web.");
   };
@@ -3708,6 +3720,14 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
         </div>
       )}
 
+      {cambios && propia && (
+        <div className="fixed inset-x-3 bottom-40 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/95 p-3 pl-4 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur animate-in slide-in-from-bottom-4 lg:inset-x-auto lg:bottom-6 lg:left-1/2 lg:w-[34rem] lg:-translate-x-1/2">
+          <span className="relative flex size-2.5"><span className="absolute inset-0 animate-ping rounded-full bg-amber-400" /><span className="relative size-2.5 rounded-full bg-amber-400" /></span>
+          <p className="min-w-0 flex-1 text-sm font-medium leading-tight">Tiene cambios sin publicar<span className="block text-[11px] font-normal text-white/60">Hasta que no los publique, no se ven en la web.</span></p>
+          <button onClick={() => setDraft(guardada)} className="rounded-xl px-3 py-2 text-xs font-semibold text-white/70 hover:text-white">Descartar</button>
+          <button onClick={guardar} className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-emerald-400"><Check className="mr-1 inline size-4" />Publicar</button>
+        </div>
+      )}
       {propia && sel === user.id && (
         <button onClick={() => abrirIA()} className="pn-up group flex w-full items-center gap-4 overflow-hidden rounded-[1.4rem] bg-gradient-to-r from-indigo-600 via-violet-700 to-fuchsia-700 p-4 text-left text-white shadow-[0_20px_40px_-24px_rgba(124,58,237,.9)] transition hover:-translate-y-0.5">
           <span className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><span className="absolute inset-0 animate-ping rounded-2xl bg-white/10" /><Mic className="relative size-5" /></span>
