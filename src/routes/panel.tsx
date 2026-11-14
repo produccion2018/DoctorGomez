@@ -4023,7 +4023,7 @@ function waPaciente(tel: string, texto: string) {
 
 function mensajeInvitacion(p: PacientePortal) {
   const url = typeof window !== "undefined" ? `${window.location.origin}/portal` : "/portal";
-  return `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO. Le habilitamos el Portal del paciente para que saque sus citas y gestiones sus autorizaciones.\n\nIngresa en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
+  return `Hola ${p.nombre.split(" ")[0]}, le escribimos del Centro HEGO. Le habilitamos el Portal del paciente para que saque sus citas y gestione sus autorizaciones.\n\nIngrese en: ${url}\nCédula: ${p.dni}\nCódigo de acceso: ${p.codigo}`;
 }
 
 const ESTADO_ACCESO: Record<EstadoAcceso, string> = {

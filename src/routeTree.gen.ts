@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ClinicaRouteImport } from './routes/clinica'
+import { Route as ConfirmarRouteImport } from './routes/confirmar'
 import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const ClinicaRoute = ClinicaRouteImport.update({
   id: '/clinica',
   path: '/clinica',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfirmarRoute = ConfirmarRouteImport.update({
+  id: '/confirmar',
+  path: '/confirmar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactoRoute = ContactoRouteImport.update({
@@ -98,6 +104,7 @@ const EspecialistasIdRoute = EspecialistasIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/clinica': typeof ClinicaRoute
+  '/confirmar': typeof ConfirmarRoute
   '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/clinica': typeof ClinicaRoute
+  '/confirmar': typeof ConfirmarRoute
   '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/clinica': typeof ClinicaRoute
+  '/confirmar': typeof ConfirmarRoute
   '/contacto': typeof ContactoRoute
   '/login': typeof LoginRoute
   '/nosotros': typeof NosotrosRoute
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/clinica'
+    | '/confirmar'
     | '/contacto'
     | '/login'
     | '/nosotros'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/clinica'
+    | '/confirmar'
     | '/contacto'
     | '/login'
     | '/nosotros'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/clinica'
+    | '/confirmar'
     | '/contacto'
     | '/login'
     | '/nosotros'
@@ -198,6 +210,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ClinicaRoute: typeof ClinicaRoute
+  ConfirmarRoute: typeof ConfirmarRoute
   ContactoRoute: typeof ContactoRoute
   LoginRoute: typeof LoginRoute
   NosotrosRoute: typeof NosotrosRoute
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/clinica'
       fullPath: '/clinica'
       preLoaderRoute: typeof ClinicaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confirmar': {
+      id: '/confirmar'
+      path: '/confirmar'
+      fullPath: '/confirmar'
+      preLoaderRoute: typeof ConfirmarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contacto': {
@@ -318,6 +338,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ClinicaRoute: ClinicaRoute,
+  ConfirmarRoute: ConfirmarRoute,
   ContactoRoute: ContactoRoute,
   LoginRoute: LoginRoute,
   NosotrosRoute: NosotrosRoute,

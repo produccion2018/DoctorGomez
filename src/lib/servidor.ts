@@ -517,6 +517,16 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
 /* ===================================================================== */
 
 const colecciones = () => import("./colecciones.server");
+const avisos = () => import("./avisos.server");
+/** Los avisos nunca rompen la operación: si un canal falla, se registra y se sigue. */
+const sinRomper = async <T,>(p: Promise<T>) => {
+  try {
+    return await p;
+  } catch (e) {
+    console.error("Aviso no enviado:", e);
+    return null;
+  }
+};
 
 type Quien = { tipo: "staff"; id: string; nombre: string; medico: boolean; area: string } | { tipo: "paciente"; id: string; nombre: string } | null;
 
@@ -625,6 +635,8 @@ export const aplicarCambios = createServerFn({ method: "POST" })
             return { ok: false, error: `Ese horario (${f["fecha"]} ${f["hora"]}) ya está ocupado para ${f["doctor"]}. Se recargó la agenda.` };
           const choque = await guardarCita(c, f);
           if (choque) return { ok: false, error: choque };
+          // Confirmada desde el panel: aviso automático al paciente
+          if (f["estado"] === "Confirmado" && previo?.["estado"] !== "Confirmado") await sinRomper((await avisos()).avisarCitaConfirmada(f));
         }
         await c.borrar(data.coleccion, data.borrar);
         return { ok: true };
@@ -664,6 +676,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         if (await c.horarioOcupado(String(t["doctor"]), String(t["fecha"]), String(t["hora"]))) return { ok: false, error: "Ese horario se acaba de ocupar. Elija otro." };
         const choque = await guardarCita(c, t);
         if (choque) return { ok: false, error: choque };
+        await sinRomper((await avisos()).avisarCitaNueva(t, "el Portal del paciente"));
         await (await acceso()).auditar(q.nombre, "Cita pedida desde el portal", `${t["fecha"]} ${t["hora"]} · ${t["doctor"]}`);
       }
       return { ok: true };
@@ -748,6 +761,7 @@ export const reservarTurnoPublico = createServerFn({ method: "POST" })
     const choque = await guardarCita(c, servicio ? { ...t, servicio } : t);
     if (choque) return { ok: false, error: choque };
     await (await acceso()).auditar("Web", "Cita solicitada desde la web", `${t.paciente} · ${t.fecha} ${t.hora} · ${t.doctor}`);
+    await sinRomper((await avisos()).avisarCitaNueva(t, "la página web"));
     return { ok: true, id: t.id };
   });
 
@@ -819,4 +833,40 @@ export const ejecutarIA = createServerFn({ method: "POST" })
     if (!u) return { ok: false as const, error: "Su sesión venció. Vuelva a ingresar." };
     if (u.rol !== "medico" && u.area !== "Dirección general") return { ok: false as const, error: "No autorizado." };
     return (await import("./ia.server")).ejecutarAcciones(u, data.acciones ?? []);
+  });
+
+
+/* ===================================================================== */
+/* Confirmar una cita con el link del correo                               */
+/* ===================================================================== */
+type CitaLink = { paciente: string; fecha: string; hora: string; doctor: string; motivo: string; estado: string; telefono: string; mensaje: string };
+
+/** Muestra la cita del link (sin cambiar nada: los lectores de correo abren los links solos). */
+export const verCitaLink = createServerFn({ method: "GET" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ cita: CitaLink }>> => {
+    const av = await avisos();
+    const id = av.idDeToken(String(data.token ?? ""));
+    if (!id) return { ok: false, error: "El link no es válido." };
+    const t = await (await colecciones()).uno("gb_turnos", id);
+    if (!t) return { ok: false, error: "Esa cita ya no existe." };
+    return { ok: true, cita: { paciente: String(t["paciente"]), fecha: String(t["fecha"]), hora: String(t["hora"]), doctor: String(t["doctor"]), motivo: String(t["motivo"] ?? ""), estado: String(t["estado"]), telefono: String(t["telefono"] ?? ""), mensaje: av.textoConfirmacion(t) } };
+  });
+
+/** Confirma la cita (botón del correo) y avisa al paciente. */
+export const confirmarCitaLink = createServerFn({ method: "POST" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ correo: boolean; whatsapp: boolean }>> => {
+    const av = await avisos();
+    const id = av.idDeToken(String(data.token ?? ""));
+    if (!id) return { ok: false, error: "El link no es válido." };
+    const c = await colecciones();
+    const t = await c.uno("gb_turnos", id);
+    if (!t) return { ok: false, error: "Esa cita ya no existe." };
+    if (t["estado"] === "Cancelado") return { ok: false, error: "Esa cita fue cancelada." };
+    if (t["estado"] === "Confirmado" || t["estado"] === "Atendido") return { ok: true, correo: false, whatsapp: false };
+    await c.guardar("gb_turnos", { ...t, estado: "Confirmado" });
+    await (await acceso()).auditar("Correo", "Cita confirmada desde el correo", `${t["paciente"]} · ${t["fecha"]} ${t["hora"]} · ${t["doctor"]}`);
+    const r = (await sinRomper(av.avisarCitaConfirmada(t))) ?? { correo: false, whatsapp: false };
+    return { ok: true, ...r };
   });
