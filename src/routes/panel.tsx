@@ -9,6 +9,7 @@ import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
   QrCode,
+  SlidersHorizontal,
   Mic,
   Square,
   Sparkles,
@@ -3623,6 +3624,14 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
     setSel(ADMINS[0]!.id);
   };
 
+  /** Guarda y publica en la web en el momento (lo usan el horario simple, las vacaciones y el editor avanzado). */
+  const publicarAgenda = (base: AgendaDoctor, lista: BloqueAgenda[], aviso = "Listo. Ya se ve en la web.") => {
+    const final = { ...base, ...(prof.admin ? {} : { nombre: prof.nombre, especialidad: prof.especialidad }), bloques: lista, dias: [...new Set(lista.map((b) => b.dia))].sort(), duracion: lista[0]?.duracion ?? base.duracion, pausa: false, desde: lista.map((b) => b.desde).sort()[0] ?? base.desde, hasta: lista.map((b) => b.hasta).sort().reverse()[0] ?? base.hasta };
+    setAgendas((p) => ({ ...p, [sel]: final }));
+    setDraft(final);
+    log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(final)}`);
+    toast.success(aviso);
+  };
   const guardar = () => {
     if (!propia) {
       toast.error("No puede modificar estos horarios.");
@@ -3643,11 +3652,32 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
       toast.error(`${NOMBRES_DIA[cruce.dia]}: dos horarios se pisan. Revise las horas de ese día.`);
       return;
     }
-    const final = { ...draft, ...(prof.admin ? {} : { nombre: prof.nombre, especialidad: prof.especialidad }), bloques: lista, dias: [...new Set(lista.map((b) => b.dia))].sort(), duracion: lista[0]!.duracion, pausa: false, desde: lista.map((b) => b.desde).sort()[0]!, hasta: lista.map((b) => b.hasta).sort().reverse()[0]! };
-    setAgendas((p) => ({ ...p, [sel]: final }));
-    setDraft(final);
-    log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(draft)}`);
-    toast.success("Horarios publicados en la web.");
+    publicarAgenda(draft, lista, "Horarios publicados en la web.");
+  };
+
+  /* ----- Horario simple (como una obra social): días + de/a + cada cuánto + almuerzo ----- */
+  const deBloques = (() => {
+    const bs = bloquesDe(guardada).map(conServicio);
+    const dias = [...new Set(bs.map((b) => b.dia))].sort();
+    const ref = bs.filter((b) => b.dia === dias[0]).sort((x, y) => x.desde.localeCompare(y.desde));
+    const forma = (d: number) => bs.filter((b) => b.dia === d).sort((x, y) => x.desde.localeCompare(y.desde)).map((b) => `${b.desde}-${b.hasta}-${b.duracion}-${b.servicio}`).join("|");
+    const uniforme = dias.length > 0 && ref.length <= 2 && dias.every((d) => forma(d) === forma(dias[0]!)) && (ref.length < 2 || (ref[0]!.duracion === ref[1]!.duracion && ref[0]!.servicio === ref[1]!.servicio));
+    if (!uniforme) return { personalizado: bs.length > 0, v: { dias: [1, 2, 3, 4, 5], desde: "08:00", hasta: "18:00", cada: 20, almuerzo: true, almDesde: "12:00", almHasta: "13:00", servicio: servicioPrincipal } };
+    return { personalizado: false, v: { dias, desde: ref[0]!.desde, hasta: ref[ref.length - 1]!.hasta, cada: ref[0]!.duracion, almuerzo: ref.length === 2, almDesde: ref.length === 2 ? ref[0]!.hasta : "12:00", almHasta: ref.length === 2 ? ref[1]!.desde : "13:00", servicio: ref[0]!.servicio } };
+  })();
+  const [rap, setRap] = useState(deBloques.v);
+  useEffect(() => setRap(deBloques.v), [sel, firma]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bloquesRapido = (): BloqueAgenda[] =>
+    rap.dias.flatMap((dia) =>
+      (rap.almuerzo ? [[rap.desde, rap.almDesde], [rap.almHasta, rap.hasta]] : [[rap.desde, rap.hasta]]).map(([a, b]) => ({ id: uid(), dia, desde: a!, hasta: b!, servicio: rap.servicio, duracion: rap.cada })),
+    );
+  const citasPorDia = bloquesRapido().filter((b) => b.dia === rap.dias[0]).reduce((n, b) => n + horasDeBloque(b).length, 0);
+  const guardarRapido = () => {
+    if (!propia) return toast.error("No puede modificar estos horarios.");
+    if (rap.dias.length === 0) return toast.error("Elija los días que atiende.");
+    if (rap.desde >= rap.hasta) return toast.error("La hora de inicio tiene que ser antes que la de fin.");
+    if (rap.almuerzo && !(rap.desde < rap.almDesde && rap.almDesde < rap.almHasta && rap.almHasta < rap.hasta)) return toast.error("El almuerzo tiene que quedar dentro del horario de atención.");
+    publicarAgenda({ ...draft, activo: true }, bloquesRapido(), "¡Listo! Su horario ya se ve en la web para sacar citas.");
   };
 
   const agregarBloqueo = (e: FormEvent) => {
@@ -3656,7 +3686,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
       toast.error("La fecha de fin no puede ser anterior a la de inicio.");
       return;
     }
-    set({ bloqueos: [...draft.bloqueos, { id: uid(), ...bloq, motivo: bloq.motivo.trim() || "No atiende" }] });
+    publicarAgenda({ ...guardada, bloqueos: [...guardada.bloqueos, { id: uid(), ...bloq, motivo: bloq.motivo.trim() || "No atiende" }] }, bloquesDe(guardada).map(conServicio), "Listo. Esos días ya no se pueden reservar.");
     setBloq({ desde: hoy(), hasta: hoy(), motivo: "" });
   };
 
@@ -3741,6 +3771,69 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
       <fieldset disabled={!propia} className={`min-w-0 border-0 p-0 ${propia ? "" : "opacity-75"}`}>
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="min-w-0 space-y-6 xl:col-span-3">
+          <Seccion icon={Clock} titulo={propia ? "Mi horario de atención" : "Horario de atención"} sub="Complete y toque Guardar: se publica al instante en la web">
+            {deBloques.personalizado && (
+              <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200">Hoy tiene horarios personalizados (distintos por día o especialidad). Si guarda aquí, se reemplazan por este horario. Para mantenerlos, use «Horarios distintos por día o especialidad» más abajo.</p>
+            )}
+            <div className="space-y-5">
+              <div>
+                <p className="mb-2 text-sm font-semibold">1. ¿Qué días atiende?</p>
+                <div className="grid grid-cols-7 gap-1.5">
+                  {ORDEN_DIAS.map((d) => {
+                    const on = rap.dias.includes(d);
+                    return <button key={d} type="button" onClick={() => setRap({ ...rap, dias: on ? rap.dias.filter((x) => x !== d) : [...rap.dias, d].sort() })} className={`rounded-xl py-2.5 text-sm font-bold transition ${on ? "pn-acc-tile text-white shadow-md" : "bg-secondary text-muted-foreground"}`}>{NOMBRES_DIA[d]!.slice(0, 3)}</button>;
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold">2. ¿En qué horario?</p>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <SelectorHora value={rap.desde} onChange={(v) => setRap({ ...rap, desde: v })} label="Atiende desde" />
+                  <span className="text-sm text-muted-foreground">a</span>
+                  <SelectorHora value={rap.hasta} onChange={(v) => setRap({ ...rap, hasta: v })} label="Atiende hasta" />
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-semibold">3. Una cita cada…</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[10, 15, 20, 30, 40, 60].map((m) => <button key={m} type="button" onClick={() => setRap({ ...rap, cada: m })} className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${rap.cada === m ? "pn-acc-tile text-white shadow-md" : "bg-secondary text-muted-foreground"}`}>{m} min</button>)}
+                </div>
+              </div>
+              <div>
+                <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm font-semibold">
+                  <input type="checkbox" checked={rap.almuerzo} onChange={(e) => setRap({ ...rap, almuerzo: e.target.checked })} className="size-4 accent-[rgb(var(--acc))]" /> 4. Hora de almuerzo
+                </label>
+                {rap.almuerzo && (
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <SelectorHora value={rap.almDesde} onChange={(v) => setRap({ ...rap, almDesde: v })} label="Almuerzo desde" />
+                    <span className="text-sm text-muted-foreground">a</span>
+                    <SelectorHora value={rap.almHasta} onChange={(v) => setRap({ ...rap, almHasta: v })} label="Almuerzo hasta" />
+                  </div>
+                )}
+              </div>
+              {opcionesServicio.length > 1 && (
+                <div>
+                  <p className="mb-2 text-sm font-semibold">5. ¿Qué atiende en este horario?</p>
+                  <select value={rap.servicio} onChange={(e) => setRap({ ...rap, servicio: e.target.value })} className={inp + " h-11 cursor-pointer font-semibold"}>
+                    {opcionesServicio.map((x) => <option key={x} value={x}>{x}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/20">
+                <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                  {rap.dias.length ? <><b>{rap.dias.map((d) => NOMBRES_DIA[d]!.slice(0, 3)).join(", ")}</b> de <b>{hora12(rap.desde)}</b> a <b>{hora12(rap.hasta)}</b>{rap.almuerzo ? <> · almuerzo {hora12(rap.almDesde)} a {hora12(rap.almHasta)}</> : null} · una cita cada {rap.cada} min</> : "Elija al menos un día."}
+                </p>
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">≈ <b>{citasPorDia}</b> citas por día · {rap.servicio}</p>
+              </div>
+              <Button type="button" onClick={guardarRapido} className="h-12 w-full rounded-xl text-base"><Check className="size-5" /> Guardar mi horario</Button>
+            </div>
+          </Seccion>
+
+          <details className="group rounded-[1.4rem] ring-1 ring-border open:bg-transparent">
+            <summary className="flex cursor-pointer list-none items-center gap-3 rounded-[1.4rem] bg-card px-5 py-4 text-sm font-semibold hover:bg-secondary/50">
+              <SlidersHorizontal className="size-4 text-muted-foreground" /> Horarios distintos por día o por especialidad <span className="ml-auto text-xs font-normal text-muted-foreground group-open:hidden">Avanzado</span>
+            </summary>
+            <div className="pt-4">
           <Seccion icon={CalendarDays} titulo={propia ? "Sus días y horarios de consulta" : "Días y horarios de consulta"} sub={`${admin.nombre} · se publican en su perfil y en «Solicitar cita»`}
             acciones={<Interruptor on={draft.activo} onChange={(v) => set({ activo: v })} label={draft.activo ? "Agenda abierta" : "Agenda pausada"} />}>
             <p className="mb-3 text-sm text-muted-foreground">Arme su semana con <b>bloques</b>: cada bloque dice <b>de qué hora a qué hora</b>, <b>qué atiende</b> (Cardiología, Medicina Interna, un estudio…) y <b>cuánto dura cada cita</b>. En la web el paciente elige la especialidad y ve solo esas horas.</p>
@@ -3816,6 +3909,8 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
             </details>
           </Seccion>
 
+            </div>
+          </details>
           {afectadas.length > 0 && (
             <div className="pn-up rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
               <p className="flex items-center gap-2 font-semibold text-amber-900 dark:text-amber-200"><AlertTriangle className="size-4" /> {afectadas.length} {afectadas.length === 1 ? "cita queda" : "citas quedan"} fuera de este horario</p>
@@ -3835,16 +3930,19 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
             <form onSubmit={agregarBloqueo} className="grid gap-3 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
               <Campo label="Desde"><input type="date" required value={bloq.desde} onChange={(e) => setBloq({ ...bloq, desde: e.target.value })} className={inp} /></Campo>
               <Campo label="Hasta"><input type="date" required value={bloq.hasta} onChange={(e) => setBloq({ ...bloq, hasta: e.target.value })} className={inp} /></Campo>
-              <Campo label="Motivo"><input placeholder="Ej: vacaciones, trámite personal" value={bloq.motivo} onChange={(e) => setBloq({ ...bloq, motivo: e.target.value })} className={inp} /></Campo>
-              <div className="flex items-end"><Button type="submit" variant="outline" className="h-11 w-full rounded-xl"><Plus className="size-4" /> Agregar</Button></div>
+              <Campo label="Motivo">
+                <input placeholder="Ej: vacaciones, diligencia" value={bloq.motivo} onChange={(e) => setBloq({ ...bloq, motivo: e.target.value })} className={inp} />
+                <span className="mt-1.5 flex flex-wrap gap-1">{["Vacaciones", "Diligencia", "Descanso", "Congreso"].map((m) => <button key={m} type="button" onClick={() => setBloq({ ...bloq, motivo: m })} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${bloq.motivo === m ? "pn-acc-tile text-white ring-transparent" : "ring-border text-muted-foreground"}`}>{m}</button>)}</span>
+              </Campo>
+              <div className="flex items-start pt-6"><Button type="submit" className="h-11 w-full rounded-xl"><Ban className="size-4" /> Bloquear días</Button></div>
             </form>
             <div className="mt-4 space-y-2">
-              {draft.bloqueos.length === 0 && <p className="text-sm text-muted-foreground">No hay días bloqueados.</p>}
-              {draft.bloqueos.map((b) => (
+              {guardada.bloqueos.length === 0 && <p className="text-sm text-muted-foreground">No hay días bloqueados.</p>}
+              {guardada.bloqueos.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 ring-1 ring-rose-100">
                   <Ban className="size-4 text-rose-600" />
                   <span className="flex-1 text-sm"><b>{fechaCorta(b.desde)}{b.hasta !== b.desde ? ` al ${fechaCorta(b.hasta)}` : ""}</b> · {b.motivo}</span>
-                  <button onClick={() => set({ bloqueos: draft.bloqueos.filter((x) => x.id !== b.id) })} aria-label="Quitar" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"><Trash2 className="size-4" /></button>
+                  <button onClick={() => publicarAgenda({ ...guardada, bloqueos: guardada.bloqueos.filter((x) => x.id !== b.id) }, bloquesDe(guardada).map(conServicio), "Listo. Esos días se pueden reservar otra vez.")} aria-label="Quitar" className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-100"><Trash2 className="size-4" /></button>
                 </div>
               ))}
             </div>
