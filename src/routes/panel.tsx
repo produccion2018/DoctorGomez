@@ -129,6 +129,7 @@ import {
   validarSesion,
   refrescarTodo,
   refrescarAgendaYCitas,
+  guardarYConfirmar,
   hora12,
   bloquesDe,
   horasDeBloque,
@@ -3625,12 +3626,24 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
   };
 
   /** Guarda y publica en la web en el momento (lo usan el horario simple, las vacaciones y el editor avanzado). */
-  const publicarAgenda = (base: AgendaDoctor, lista: BloqueAgenda[], aviso = "Listo. Ya se ve en la web.") => {
+  const [publicando, setPublicando] = useState(false);
+  const publicarAgenda = async (base: AgendaDoctor, lista: BloqueAgenda[], aviso = "Listo. Ya se ve en la web.") => {
     const final = { ...base, ...(prof.admin ? {} : { nombre: prof.nombre, especialidad: prof.especialidad }), bloques: lista, dias: [...new Set(lista.map((b) => b.dia))].sort(), duracion: lista[0]?.duracion ?? base.duracion, pausa: false, desde: lista.map((b) => b.desde).sort()[0] ?? base.desde, hasta: lista.map((b) => b.hasta).sort().reverse()[0] ?? base.hasta };
-    setAgendas((p) => ({ ...p, [sel]: final }));
     setDraft(final);
+    setPublicando(true);
+    const r = await guardarYConfirmar<Agendas>(KEY_AGENDA, { ...leerDato<Agendas>(KEY_AGENDA, {}), [sel]: final });
+    setPublicando(false);
+    if (!r.ok) {
+      toast.error(`No se pudo publicar: ${r.error}`, { duration: 9000 });
+      return;
+    }
+    const quedo = r.remoto[sel] as AgendaDoctor | undefined;
+    if (!quedo || canonico(quedo.bloques ?? []) !== canonico(final.bloques)) {
+      toast.error("El servidor no aceptó el cambio. Revise que haya ingresado con su propio usuario de médico.", { duration: 9000 });
+      return;
+    }
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(final)}`);
-    toast.success(aviso);
+    toast.success(aviso, { description: "Guardado en el servidor ✓", duration: 6000 });
   };
   const guardar = () => {
     if (!propia) {
@@ -3825,7 +3838,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
                 </p>
                 <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">≈ <b>{citasPorDia}</b> citas por día · {rap.servicio}</p>
               </div>
-              <Button type="button" onClick={guardarRapido} className="h-12 w-full rounded-xl text-base"><Check className="size-5" /> Guardar mi horario</Button>
+              <Button type="button" onClick={guardarRapido} disabled={publicando} className="h-12 w-full rounded-xl text-base">{publicando ? <><Loader2 className="size-5 animate-spin" /> Guardando…</> : <><Check className="size-5" /> Guardar mi horario</>}</Button>
             </div>
           </Seccion>
 

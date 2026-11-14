@@ -487,6 +487,24 @@ export async function salirPortal() {
   if (modoServidor()) await salirPacienteServidor().catch(() => undefined);
 }
 
+/**
+ * Guarda un dato sincronizado y CONFIRMA que quedó en el servidor (lo vuelve a leer).
+ * Devuelve lo que quedó guardado de verdad, para mostrarle al usuario si se publicó o no.
+ */
+export async function guardarYConfirmar<T>(key: string, val: T): Promise<{ ok: true; remoto: T } | { ok: false; error: string }> {
+  guardarDato(key, val);
+  if (!(await iniciarBackend())) return { ok: false, error: "No hay conexión con el servidor: quedó guardado solo en este dispositivo." };
+  const r = await guardarDatoServidor({ data: { clave: key, valor: JSON.stringify(val) } }).catch((e: Error) => ({ ok: false as const, error: e.message || "Sin conexión" }));
+  if (!r.ok) return { ok: false, error: r.error };
+  const l = await leerDatos({ data: { claves: [key] } }).catch(() => ({}) as Record<string, string>);
+  const remoto = l[key] ? (JSON.parse(l[key]) as T) : val;
+  if (l[key]) {
+    localStorage.setItem(key, l[key]);
+    window.dispatchEvent(new CustomEvent(EVT, { detail: key }));
+  }
+  return { ok: true, remoto };
+}
+
 async function subirAlServidor(key: string, val: unknown) {
   if (!(await iniciarBackend())) return;
   const r = await guardarDatoServidor({ data: { clave: key, valor: JSON.stringify(val) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
