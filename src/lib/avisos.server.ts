@@ -8,6 +8,8 @@
  *  CORREO_AVISOS       correo(s) de la administración que reciben las citas nuevas (separados por coma)
  *  URL_PUBLICA         dirección del sitio (por defecto https://doctor-gomez.vercel.app)
  *  WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_PLANTILLA   WhatsApp Business (Meta Cloud API)
+ *  WHATSAPP_PLANTILLA_RECORDATORIO   plantilla aprobada para los recordatorios (opcional)
+ *  CRON_SECRET         clave que Vercel manda al correr los recordatorios diarios (opcional)
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
@@ -62,10 +64,9 @@ export function telefonoCO(t: unknown): string | null {
 }
 
 /** WhatsApp automático con plantilla aprobada por Meta. Devuelve false si no está configurado. */
-export async function enviarWhatsApp(telefono: unknown, parametros: string[]): Promise<boolean> {
+export async function enviarWhatsApp(telefono: unknown, parametros: string[], plantilla = env("WHATSAPP_PLANTILLA")): Promise<boolean> {
   const token = env("WHATSAPP_TOKEN");
   const phoneId = env("WHATSAPP_PHONE_ID");
-  const plantilla = env("WHATSAPP_PLANTILLA");
   const to = telefonoCO(telefono);
   if (!token || !phoneId || !plantilla || !to) return false;
   const r = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
@@ -142,3 +143,69 @@ export async function avisarCitaConfirmada(t: Cita) {
 export function textoConfirmacion(t: Cita) {
   return `Hola ${String(t["paciente"]).split(" ")[0]}, le escribimos del Centro HEGO. Su cita quedó CONFIRMADA para el ${fechaLarga(t["fecha"])} a las ${h12(t["hora"])} con ${String(t["doctor"])}. Si no puede asistir, avísenos con anticipación. ¡Lo esperamos!`;
 }
+
+/* ---------- recordatorios automáticos (2 días antes y 1 día antes) ---------- */
+const soloDig = (x: unknown) => String(x ?? "").replace(/\D/g, "").slice(-10);
+const normal = (x: unknown) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+const diaColombia = (sumar: number) => new Date(Date.now() - 5 * 3600000 + sumar * 86400000).toISOString().slice(0, 10);
+
+/** Correo de recordatorio para el paciente, con lo que tiene que llevar o cómo prepararse. */
+async function correoRecordatorio(t: Cita, para: string, faltan: 1 | 2) {
+  const { indicacionesCita } = await import("./auth-local");
+  const ind = indicacionesCita(String(t["motivo"] ?? ""));
+  const cuando = faltan === 1 ? "mañana" : "pasado mañana";
+  return enviarCorreo(
+    [para],
+    `Recordatorio: su cita es ${cuando} · ${fechaLarga(t["fecha"])} ${h12(t["hora"])}`,
+    marco(
+      `Su cita es ${cuando}`,
+      `<p style="margin:0 0 8px">Hola ${esc(String(t["paciente"]).split(" ")[0])}, le recordamos su cita en el Centro HEGO:</p>${fichaCita({ ...t, telefono: "", email: "" })}
+       <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:14px 16px;margin:6px 0 14px">
+         <div style="font-weight:bold;margin-bottom:6px">${ind.estudio ? `Cómo prepararse para su ${esc(ind.titulo)}` : "Para su consulta tenga en cuenta"}</div>
+         <ul style="margin:0;padding-left:18px">${ind.items.map((x) => `<li style="margin:3px 0">${esc(x)}</li>`).join("")}</ul>
+       </div>
+       <p style="font-size:13px;color:#64748b">Si no puede asistir, avísenos con anticipación para darle el espacio a otro paciente. Puede ver sus citas en el Portal del paciente: ${esc(base())}/portal</p>`,
+    ),
+  );
+}
+
+/**
+ * Lo corre Vercel todos los días (8:00 a. m. de Colombia). Busca las citas de mañana y de pasado mañana
+ * que no estén canceladas, avisa al paciente por correo (y WhatsApp si está configurado) una sola vez por cita,
+ * y le manda a la administración el resumen con quién no tiene correo para llamarlo o escribirle.
+ */
+export async function enviarRecordatorios() {
+  const col = await import("./colecciones.server");
+  const [turnos, pacientes] = await Promise.all([col.leer("gb_turnos"), col.leer("gb_pacientes").catch(() => [])]);
+  const correoDe = (t: Cita) => {
+    if (t["email"]) return String(t["email"]);
+    const p = pacientes.find((x) => (t["pacienteId"] && x.id === t["pacienteId"]) || (soloDig(x["telefono"]) && soloDig(x["telefono"]) === soloDig(t["telefono"])) || normal(x["nombre"]) === normal(t["paciente"]));
+    return p?.["email"] ? String(p["email"]) : "";
+  };
+  const resumen: { t: Cita; faltan: 1 | 2; correo: boolean; whatsapp: boolean }[] = [];
+  for (const faltan of [1, 2] as const) {
+    const fecha = diaColombia(faltan);
+    const marca = faltan === 1 ? "recordado1" : "recordado2";
+    for (const t of turnos as Cita[]) {
+      if (t["fecha"] !== fecha || t[marca] || ["Cancelado", "Atendido"].includes(String(t["estado"]))) continue;
+      const email = correoDe(t);
+      const correo = email ? await correoRecordatorio(t, email, faltan).catch(() => false) : false;
+      const plantilla = env("WHATSAPP_PLANTILLA_RECORDATORIO");
+      const whatsapp = plantilla
+        ? await enviarWhatsApp(t["telefono"], [String(t["paciente"]).split(" ")[0] ?? "", fechaLarga(t["fecha"]), h12(t["hora"]), String(t["doctor"] ?? "")], plantilla).catch(() => false)
+        : false;
+      await col.guardar("gb_turnos", { ...t, [marca]: new Date().toISOString(), [`${marca}Canal`]: [correo && "correo", whatsapp && "whatsapp"].filter(Boolean).join(" y ") || "sin envío" });
+      resumen.push({ t, faltan, correo, whatsapp });
+    }
+  }
+  if (resumen.length) {
+    const fila = (r: (typeof resumen)[number]) => `<tr><td style="padding:6px 8px 6px 0;white-space:nowrap">${esc(h12(r.t["hora"]))}</td><td style="padding:6px 8px 6px 0"><b>${esc(r.t["paciente"])}</b><br><span style="color:#64748b;font-size:12px">${esc(r.t["motivo"] ?? "")} · ${esc(r.t["doctor"] ?? "")}</span></td><td style="padding:6px 0;font-size:12px">${r.correo || r.whatsapp ? `<span style="color:#059669">✓ ${[r.correo && "correo", r.whatsapp && "WhatsApp"].filter(Boolean).join(" y ")}</span>` : `<span style="color:#b45309">Avisar a mano${r.t["telefono"] ? ` · ${esc(r.t["telefono"])}` : ""}</span>`}</td></tr>`;
+    const bloque = (faltan: 1 | 2) => {
+      const rs = resumen.filter((r) => r.faltan === faltan);
+      return rs.length ? `<p style="margin:14px 0 4px;font-weight:bold">${faltan === 1 ? "Mañana" : "Pasado mañana"} · ${esc(fechaLarga(diaColombia(faltan)))}</p><table style="width:100%;border-collapse:collapse;font-size:14px">${rs.map(fila).join("")}</table>` : "";
+    };
+    await enviarCorreo(env("CORREO_AVISOS").split(","), `Recordatorios de citas · ${resumen.length} paciente${resumen.length === 1 ? "" : "s"}`, marco("Recordatorios enviados hoy", `${bloque(1)}${bloque(2)}<p style="font-size:13px;color:#64748b;margin-top:16px">Los que dicen "Avisar a mano" no tienen correo cargado. Puede escribirles desde el panel, en Automatizaciones o en la tarjeta "Mañana".</p>`)).catch(() => false);
+  }
+  return { ok: true, enviados: resumen.length };
+}
+

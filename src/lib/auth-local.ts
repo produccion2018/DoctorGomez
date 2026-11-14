@@ -1184,3 +1184,32 @@ export async function restablecer2fa(id: string) {
   if (!(await iniciarBackend())) return sinServidor;
   return restablecer2faServidor({ data: { id } }).catch(err);
 }
+
+/* ---------- Indicaciones para el paciente según el tipo de cita (recordatorios) ---------- */
+export type Indicaciones = { estudio: boolean; titulo: string; items: string[] };
+/** Qué llevar y cómo prepararse, según el motivo/servicio de la cita. Siempre aclara que mandan las indicaciones del médico. */
+export function indicacionesCita(motivo: string | undefined | null): Indicaciones {
+  const m = (motivo ?? "").toLowerCase();
+  const comunes = [
+    "Documento de identidad.",
+    "Orden médica y autorización de su EPS, si aplica.",
+    "Exámenes, estudios e informes anteriores (laboratorios, electros, ecos, epicrisis).",
+    "Lista de los medicamentos que toma, con la dosis.",
+    "Llegar 15 minutos antes.",
+  ];
+  const prep = (titulo: string, extra: string[]): Indicaciones => ({ estudio: true, titulo, items: [...extra, "Documento de identidad y orden médica / autorización de su EPS.", "Llegar 15 minutos antes.", "Si su médico le dio otras indicaciones, siga esas."] });
+  if (/holter/.test(m)) return prep("Holter de 24 horas", ["Báñese antes de venir: durante las 24 horas con el equipo no se puede mojar.", "Venga con ropa cómoda de dos piezas (camisa o blusa abierta adelante).", "No se aplique cremas ni aceites en el pecho.", "Tome sus medicamentos como siempre, salvo que el médico le indique otra cosa."]);
+  if (/mapa|monitoreo/.test(m)) return prep("MAPA (monitoreo de presión de 24 horas)", ["Venga con camisa o blusa de manga holgada.", "Báñese antes: durante las 24 horas no se puede mojar el equipo.", "Tome sus medicamentos como siempre, salvo que el médico le indique otra cosa."]);
+  if (/ergom|esfuerzo/.test(m)) return prep("Prueba de esfuerzo", ["Ropa y zapatos deportivos cómodos.", "Coma algo liviano 2 a 3 horas antes; no venga en ayunas ni recién almorzado.", "Ese día no fume ni tome café o bebidas energizantes.", "Pregúntele a su médico si debe suspender algún medicamento antes."]);
+  if (/eco|doppler|ecograf/.test(m)) return prep(/renal|ri[ñn]/.test(m) ? "Ecografía renal" : "Ecocardiograma", /renal|ri[ñn]/.test(m) ? ["Tome 4 a 6 vasos de agua una hora antes y no orine hasta el estudio (vejiga llena)."] : ["Venga con ropa cómoda de dos piezas.", "No necesita ayuno.", "Traiga su ecocardiograma anterior, si tiene."]);
+  if (/electro/.test(m)) return prep("Electrocardiograma", ["Ropa cómoda de dos piezas.", "No se aplique cremas ni aceites en el pecho."]);
+  if (/estudio|procedim|biopsia|punci|infiltra/.test(m)) return prep("Estudio o procedimiento", ["Siga la preparación que le indicó su médico (ayuno, suspender medicamentos, etc.).", "Venga acompañado si se lo indicaron."]);
+  if (/nefro/.test(m)) return { estudio: false, titulo: "Consulta de Nefrología", items: [...comunes.slice(0, 2), "Sus últimos laboratorios: creatinina, parcial de orina, ionograma y ecografía renal, si los tiene.", ...comunes.slice(3)] };
+  if (/cardio/.test(m)) return { estudio: false, titulo: "Consulta de Cardiología", items: [...comunes.slice(0, 2), "Electrocardiogramas, ecocardiogramas, Holter y laboratorios anteriores.", "Si se controla la presión en casa, traiga los registros.", ...comunes.slice(3)] };
+  return { estudio: false, titulo: "Consulta", items: comunes };
+}
+/** Las indicaciones en texto para WhatsApp. */
+export const indicacionesTexto = (motivo: string | undefined | null) => {
+  const i = indicacionesCita(motivo);
+  return `${i.estudio ? `Para su ${i.titulo}:` : "Para su consulta tenga en cuenta:"}\n${i.items.map((x) => `• ${x}`).join("\n")}`;
+};

@@ -153,6 +153,7 @@ import {
   TIPOS_AUT,
   TIPOS_ESTUDIO,
   KEY_ESTUDIOS,
+  indicacionesTexto,
   KEY_CONTROLES,
   clasificarPresion,
   clasificarFevi,
@@ -251,7 +252,7 @@ export const Route = createFileRoute("/panel")({
 
 /* ---------- Tipos y datos de ejemplo ---------- */
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
-type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string };
+type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion" | "ministerio";
 type LogFn = (accion: string, detalle?: string) => void;
@@ -1467,9 +1468,9 @@ function ManianaCard({ turnos, abrirTurnos }: { turnos: Turno[]; abrirTurnos: ()
                 {estudios.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm ring-1 ring-border">
                     <span className="w-20 shrink-0 font-semibold tabular-nums">{hora12(t.hora)}</span>
-                    <span className="min-w-0 flex-1"><b>{t.paciente}</b> · {servicio(t)} <span className="text-muted-foreground">· {nombreCorto(t.doctor)}</span></span>
+                    <span className="min-w-0 flex-1"><b>{t.paciente}</b> · {servicio(t)} <span className="text-muted-foreground">· {nombreCorto(t.doctor)}</span>{t.recordado1 && t.recordado1Canal !== "sin envío" && <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">✓ Recordado por {t.recordado1Canal}</span>}</span>
                     {t.telefono && (
-                      <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO para recordarle su ${servicio(t)} mañana ${diaTxt} a las ${hora12(t.hora)} con ${t.doctor}. Si le dieron indicaciones de preparación, por favor sígalas. Ante cualquier duda, escríbanos.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Recordar</a>
+                      <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO para recordarle su ${servicio(t)} mañana ${diaTxt} a las ${hora12(t.hora)} con ${t.doctor}.\n\n${indicacionesTexto(t.motivo)}\n\nAnte cualquier duda, escríbanos.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Recordar</a>
                     )}
                   </li>
                 ))}
@@ -7031,7 +7032,8 @@ const GRUPOS_AUTO: { id: string; letra: string; titulo: string; icon: LucideIcon
   {
     id: "agenda", letra: "A", titulo: "Agenda y citas", icon: CalendarDays, grad: "from-sky-500 to-blue-700",
     items: [
-      { id: "recordatorio24", nombre: "Recordatorio 24 h antes de la cita", desc: "Mensaje al paciente el día anterior con día, hora y doctor.", canal: "WhatsApp", motor: true },
+      { id: "recordatorio48", nombre: "Recordatorio 2 días antes de la cita", desc: "Aviso al paciente con día, hora, doctor y qué debe traer o cómo prepararse para el estudio. Por correo sale solo todos los días a las 8:00 a. m.", canal: "WhatsApp", motor: true },
+      { id: "recordatorio24", nombre: "Recordatorio 1 día antes de la cita", desc: "Aviso el día anterior con día, hora, doctor y la preparación del estudio (Holter, MAPA, eco, prueba de esfuerzo…). Por correo sale solo a las 8:00 a. m.", canal: "WhatsApp", motor: true },
       { id: "confirmar", nombre: "Pedir confirmación de citas pendientes", desc: "Le pide al paciente que confirme o reprograme.", canal: "WhatsApp", motor: true },
       { id: "ausentes", nombre: "Recuperar citas canceladas", desc: "Ofrece un nuevo horario a quien canceló en las últimas 2 semanas.", canal: "WhatsApp", motor: true },
       { id: "encuesta", nombre: "Encuesta después de la consulta", desc: "Pregunta cómo fue la atención al día siguiente.", canal: "WhatsApp", motor: true },
@@ -7097,11 +7099,15 @@ function calcularAcciones(activas: Record<string, boolean>, d: {
   const on = (id: string) => activas[id] ?? false;
   const nom = (n: string) => n.split(" ")[0];
 
-  if (on("recordatorio24"))
-    d.turnos.filter((t) => t.fecha === man && t.estado !== "Cancelado").forEach((t) => {
+  const pasado = isoDe(new Date(Date.now() + 2 * 86400000));
+  for (const [id, fecha, cuando, marca] of [["recordatorio48", pasado, "pasado mañana", "recordado2"], ["recordatorio24", man, "mañana", "recordado1"]] as const) {
+    if (!on(id)) continue;
+    d.turnos.filter((t) => t.fecha === fecha && t.estado !== "Cancelado" && t.estado !== "Atendido").forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
-      if (tl) out.push({ key: `rec24-${t.id}`, auto: "recordatorio24", titulo: `Recordatorio a ${t.paciente}`, detalle: `Mañana ${hora12(t.hora)} · ${t.doctor}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, le recordamos su cita de mañana a las ${hora12(t.hora)} con ${t.doctor} en el Centro HEGO. Si no puede venir, avísenos por aquí.` });
+      const ya = t[marca] ? ` · correo enviado` : "";
+      if (tl) out.push({ key: `${id}-${t.id}`, auto: id, titulo: `Recordatorio a ${t.paciente}`, detalle: `${cuando === "mañana" ? "Mañana" : "Pasado mañana"} ${hora12(t.hora)} · ${t.motivo || "Consulta"}${ya}`, tipo: "wa", tel: tl, msg: `Hola ${nom(t.paciente)}, le recordamos su cita de ${cuando} (${fechaCorta(t.fecha)}) a las ${hora12(t.hora)} con ${t.doctor} en el Centro HEGO.\n\n${indicacionesTexto(t.motivo)}\n\nSi no puede venir, avísenos por aquí.` });
     });
+  }
   if (on("confirmar"))
     d.turnos.filter((t) => t.estado === "Pendiente" && t.fecha >= hoy).forEach((t) => {
       const tl = tel(t.paciente, t.telefono);
@@ -7200,7 +7206,8 @@ type VistaAuto = "bandeja" | "catalogo" | "flujos";
 
 function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]; irA: (t: Tab) => void }) {
   const pacientes = usePacientesClinica(turnos);
-  const [activas, setActivas] = useDato<Record<string, boolean>>(KEY_AUTOS, {});
+  const [guardadas, setActivas] = useDato<Record<string, boolean>>(KEY_AUTOS, {});
+  const activas: Record<string, boolean> = { recordatorio48: true, recordatorio24: true, ...guardadas };
   const [hechas, setHechas] = useDato<Record<string, string>>(KEY_AUTOS_HECHAS, {});
   const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
@@ -7226,7 +7233,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
   };
 
   const FLUJOS: { t: string; pasos: { icon: LucideIcon; l: string; auto?: string }[] }[] = [
-    { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pida confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 24 h", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
+    { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pida confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 2 días antes", auto: "recordatorio48" }, { icon: Bell, l: "Recordatorio 1 día antes", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
     { t: "Control renal", pasos: [{ icon: FlaskConical, l: "Resultado de laboratorio" }, { icon: AlertTriangle, l: "Potasio alto", auto: "potasio" }, { icon: TrendingDown, l: "Caída del filtrado", auto: "egfrCae" }, { icon: Bell, l: "Alerta al nefrólogo" }, { icon: Send, l: "Aviso al paciente", auto: "labListo" }] },
     { t: "Paciente hipertenso", pasos: [{ icon: Activity, l: "Presión registrada" }, { icon: AlertTriangle, l: "TA en crisis", auto: "crisisTA" }, { icon: Bell, l: "Alerta al cardiólogo" }, { icon: Send, l: "Control semanal", auto: "controlTA" }] },
     { t: "Receta crónica", pasos: [{ icon: Pill, l: "Receta firmada" }, { icon: Send, l: "Envío al paciente", auto: "recetaLista" }, { icon: Clock, l: "Esperar 25 días" }, { icon: Send, l: "Renovación", auto: "renovacion" }] },

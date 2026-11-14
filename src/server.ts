@@ -46,6 +46,8 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const ruta = new URL(request.url).pathname;
+    if (ruta === "/api/recordatorios") return recordatorios(request);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
@@ -59,3 +61,18 @@ export default {
     }
   },
 };
+
+/** Recordatorios diarios de citas. Lo llama el cron de Vercel (ver nitro.config.ts). */
+async function recordatorios(request: Request): Promise<Response> {
+  const secreto = process.env["CRON_SECRET"]?.trim();
+  const auth = request.headers.get("authorization") ?? "";
+  const esCron = (request.headers.get("user-agent") ?? "").startsWith("vercel-cron");
+  if (secreto ? auth !== `Bearer ${secreto}` : !esCron) return new Response("No autorizado", { status: 401 });
+  try {
+    const { enviarRecordatorios } = await import("./lib/avisos.server");
+    return Response.json(await enviarRecordatorios());
+  } catch (error) {
+    console.error("Recordatorios:", error);
+    return Response.json({ ok: false }, { status: 500 });
+  }
+}
