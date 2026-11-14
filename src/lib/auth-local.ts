@@ -366,8 +366,8 @@ export function guardarDato<T>(key: string, val: T) {
 }
 
 /** Datos que viven en el servidor y se ven en la web pública. */
-const SINCRONIZADOS = ["gb_sitio", "gb_agenda", "gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos"];
-const INTERNOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos"];
+const SINCRONIZADOS = ["gb_sitio", "gb_agenda", "gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop"];
+const INTERNOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop"];
 const traidos = new Map<string, Promise<void>>();
 
 function traerDelServidor(key: string): Promise<void> {
@@ -832,6 +832,8 @@ export type PacienteClinica = {
   dni: string;
   nacimiento?: string;
   sexo?: "F" | "M" | "X";
+  /** Tipo de documento (Colombia). Si falta, se toma como cédula. */
+  tipoDoc?: string;
   telefono?: string;
   email?: string;
   domicilio?: string;
@@ -844,6 +846,11 @@ export type PacienteClinica = {
   creado: string;
 };
 export const KEY_PADRON = "gb_padron";
+export const TIPOS_DOC: [string, string][] = [["CC", "Cédula de ciudadanía"], ["TI", "Tarjeta de identidad"], ["RC", "Registro civil"], ["CE", "Cédula de extranjería"], ["PA", "Pasaporte"], ["PPT", "Permiso por protección temporal"]];
+
+/** Datos del prestador para conectarse con el Ministerio de Salud (RDA / MIPRES). */
+export type Interop = { tipo?: "IPS" | "Profesional independiente"; nit?: string; habilitacion?: string; delegado?: string; llaves?: "Sin solicitar" | "Solicitadas" | "Recibidas"; actualizado?: string; por?: string };
+export const KEY_INTEROP = "gb_interop";
 
 /* ---------- Receta digital ---------- */
 export type ItemReceta = { droga: string; presentacion: string; cantidad: string; posologia: string };

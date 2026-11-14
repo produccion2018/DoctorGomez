@@ -13,7 +13,7 @@ const PUBLICOS = ["gb_sitio", "gb_agenda"] as const;
 /** Datos internos: los lee y guarda cualquier persona del equipo con sesión. */
 const PRIVADOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas"] as const;
 /** Datos internos que solo los médicos pueden modificar. */
-const PRIVADOS_MEDICOS = ["gb_permisos"] as const;
+const PRIVADOS_MEDICOS = ["gb_permisos", "gb_interop"] as const;
 /** Datos que solo los médicos administradores pueden modificar. */
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];

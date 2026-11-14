@@ -8,6 +8,8 @@ import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
   QrCode,
+  ListChecks,
+  Landmark,
   Globe,
   Music2,
   Upload,
@@ -146,6 +148,9 @@ import {
   KEY_LAB,
   KEY_FACTURAS,
   siglaComp,
+  KEY_INTEROP,
+  TIPOS_DOC,
+  type Interop,
   KEY_AUTOS,
   KEY_AUTOS_HECHAS,
   type PacienteClinica,
@@ -233,7 +238,7 @@ export const Route = createFileRoute("/panel")({
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
 type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
-type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion";
+type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion" | "ministerio";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
@@ -447,6 +452,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
   {
     grupo: "Sistema",
     items: [
+      { id: "ministerio", label: "Ministerio de Salud", icon: Landmark, tono: "text-amber-300" },
       { id: "sitio", label: "Sitio web", icon: Globe, tono: "text-sky-300" },
       { id: "permisos", label: "Permisos y accesos", icon: KeyRound, tono: "text-violet-300" },
       { id: "auditoria", label: "Auditoría", icon: ClipboardList, tono: "text-slate-300" },
@@ -465,6 +471,7 @@ const TITULOS: Record<Tab, [string, string]> = {
   analitica: ["Analítica y reportes", "Indicadores de la clínica, clínicos y reportes para descargar."],
   automatizaciones: ["Automatizaciones", "Recordatorios, alertas clínicas y avisos que se preparan solos."],
   historia: ["Historia Clínica", "Historia clínica general: evoluciones, signos vitales, diagnósticos CIE-10 e indicaciones."],
+  ministerio: ["Ministerio de Salud", "Conexión con MIPRES y con la historia clínica interoperable (RDA)."],
   comunicacion: ["Comunicación interna", "Chat del equipo: avisos, novedades y coordinación del día."],
   horarios: ["Mis horarios", "Días, horarios y vacaciones de cada doctor: se publican en la web."],
   pacientes: ["Portal del paciente", "Accesos de pacientes y autorizaciones."],
@@ -558,7 +565,7 @@ function Panel() {
   const areaUsuario = user.area ?? "Enfermería";
   const nivelEnf = (m: string) => nivelDe(permisos, areaUsuario, m);
   const TABS_ENF: Tab[] = [
-    ...(areaUsuario === "Dirección general" ? (["resumen"] as Tab[]) : []),
+    ...(areaUsuario === "Dirección general" ? (["resumen", "ministerio"] as Tab[]) : []),
     ...Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!),
     "comunicacion" as Tab,
   ];
@@ -973,6 +980,7 @@ function Panel() {
         {tabVisible === "auditoria" && <AuditoriaTab audit={audit} log={log} />}
         {tabVisible === "sitio" && <SitioTab log={log} />}
         {tabVisible === "comunicacion" && <ComunicacionTab user={user} log={log} />}
+        {tabVisible === "ministerio" && <MinisterioTab user={user} log={log} turnos={turnos} abrirPaciente={(id) => abrirPaciente("padron", id)} />}
         {seguridad && <MiSeguridad user={user} onCerrar={() => setSeguridad(false)} />}
       </main>
     </div>
@@ -1124,6 +1132,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   auditoria: { a: "79,70,229", b: "56,132,246", c: "100,116,139" },
   sitio: { a: "14,165,233", b: "56,132,246", c: "236,72,153" },
   comunicacion: { a: "14,165,233", b: "139,92,246", c: "16,185,129" },
+  ministerio: { a: "245,158,11", b: "234,88,12", c: "59,130,246" },
 };
 
 function FondoModulo({ tab }: { tab: Tab }) {
@@ -5301,7 +5310,12 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Campo label="Nombre y apellido" className="sm:col-span-2"><input required value={editando.nombre} onChange={set("nombre")} className={inp} /></Campo>
-            <Campo label="Cédula"><input required inputMode="numeric" value={editando.dni} onChange={set("dni")} className={inp} /></Campo>
+            <Campo label="Tipo de documento">
+              <select value={editando.tipoDoc ?? "CC"} onChange={set("tipoDoc")} className={inp}>
+                {TIPOS_DOC.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Número de documento"><input required inputMode="numeric" value={editando.dni} onChange={set("dni")} className={inp} /></Campo>
             <Campo label="Fecha de nacimiento"><input type="date" value={editando.nacimiento ?? ""} onChange={set("nacimiento")} className={inp} /></Campo>
             <Campo label="Sexo">
               <select value={editando.sexo ?? ""} onChange={set("sexo")} className={inp}>
@@ -5311,7 +5325,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <Campo label="WhatsApp / teléfono"><input type="tel" value={editando.telefono ?? ""} onChange={set("telefono")} className={inp} /></Campo>
             <Campo label="Email"><input type="email" value={editando.email ?? ""} onChange={set("email")} className={inp} /></Campo>
             <Campo label="Domicilio"><input value={editando.domicilio ?? ""} onChange={set("domicilio")} className={inp} /></Campo>
-            <Campo label="EPS / medicina prepagada"><input value={editando.obraSocial ?? ""} onChange={set("obraSocial")} placeholder="Particular, OSDE, PAMI…" className={inp} /></Campo>
+            <Campo label="EPS / medicina prepagada"><input value={editando.obraSocial ?? ""} onChange={set("obraSocial")} placeholder="Particular, Sura, Sanitas, Nueva EPS…" className={inp} /></Campo>
             <Campo label="N° de afiliado"><input value={editando.afiliado ?? ""} onChange={set("afiliado")} className={inp} /></Campo>
             <Campo label="Médico de cabecera">
               <select value={editando.medicoCabecera ?? ""} onChange={set("medicoCabecera")} className={inp}>
@@ -5785,6 +5799,17 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
               </div>
             </div>
           </Seccion>
+          <div className="pn-card pn-up relative overflow-hidden p-5">
+            <span className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-amber-400/20 blur-2xl" />
+            <div className="relative flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 text-white shadow-md"><Landmark className="size-[18px]" /></span>
+              <div className="min-w-0">
+                <p className="font-semibold">¿Medicamento no PBS?</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">Lo que no cubre el Plan de Beneficios (no financiado con la UPC) se prescribe en MIPRES, la plataforma del Ministerio. Lo demás se receta aquí.</p>
+                <a href={MIPRES_URL} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-3.5 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_-12px_rgba(234,88,12,.9)] transition hover:-translate-y-0.5">Abrir MIPRES <ArrowRight className="size-3.5" /></a>
+              </div>
+            </div>
+          </div>
           <Seccion icon={PenLine} titulo="Firma y sello" sub={firma ? "Registrados · se usan en cada receta" : "Dibuje su firma una sola vez"} delay={0.05}>
             <form
               className="mb-4 flex items-end gap-2"
@@ -9190,5 +9215,168 @@ function RegistrarEnHC({ p, user, log, turnos, pacientes, puede }: { p: Paciente
       {signos && <VentanaSignos user={user} log={log} turnos={turnos} soloLectura={false} inicial={p.id} onCerrar={() => setSignos(false)} />}
       {accion && <VentanaRegistroEnf accion={accion} user={user} log={log} turnos={turnos} pacientes={pacientes} inicial={p.id} onCerrar={() => setAccion(null)} />}
     </section>
+  );
+}
+
+/* ---------- Ministerio de Salud: MIPRES y RDA ---------- */
+const MIPRES_URL = "https://mipres.sispro.gov.co/MIPRESNOPBS";
+const LINKS_MINSALUD = [
+  { t: "MIPRES (prescripción no PBS)", u: MIPRES_URL },
+  { t: "Mi Seguridad Social (registro de usuarios)", u: "https://www.miseguridadsocial.gov.co/" },
+  { t: "SISPRO · registro de usuarios", u: "https://hercules.sispro.gov.co/SecurityWeb2/ALCANCE_USER_ESQ2/RegistrarUsuario.aspx" },
+  { t: "Interoperabilidad de la historia clínica (IHCE)", u: "https://www.minsalud.gov.co/ihce/Paginas/Normatividad.aspx" },
+];
+
+function MinisterioTab({ user, log, turnos, abrirPaciente }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrirPaciente: (id: string) => void }) {
+  const [interop, setInterop] = useDato<Interop>(KEY_INTEROP, {});
+  const [f, setF] = useState<Interop>(interop);
+  useEffect(() => setF(interop), [interop]);
+  const [padron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const pacientes = usePacientesClinica(turnos);
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const puede = user.rol === "medico" || user.area === "Dirección general";
+
+  // Calidad de datos para el RDA
+  const porId = new Map(padron.map((p) => [p.id, p]));
+  const faltan = pacientes
+    .map((p) => {
+      const pd = porId.get(p.id);
+      const f: string[] = [];
+      if (!p.dni) f.push("documento");
+      if (!p.ficha?.nacimiento || edadDe(p.ficha.nacimiento) === null) f.push("fecha de nacimiento");
+      if (!pd?.sexo) f.push("sexo");
+      return { p, f };
+    })
+    .filter((x) => x.f.length > 0);
+  const sinCie = evols.filter((e) => !(e.cie10 ?? []).some((c) => c.codigo));
+  const rmFaltan = ADMINS.filter((a) => !firmas[`rm:${a.id}`]?.trim());
+
+  const pasos: { t: string; d: string; ok: boolean }[] = [
+    { t: "Inscripción en el REPS", d: "HEGO (o cada médico) debe figurar como prestador habilitado.", ok: !!f.habilitacion },
+    { t: "NIT del prestador", d: "El NIT de la clínica o el documento del profesional independiente.", ok: !!f.nit },
+    { t: "Delegado administrativo", d: "La persona que pide las llaves en SISPRO a nombre del prestador.", ok: !!f.delegado },
+    { t: "Llaves de interoperabilidad (IHCE)", d: "Las da el Ministerio. Se cargan en el servidor como dato secreto, no aquí.", ok: f.llaves === "Recibidas" },
+    { t: "Registro médico de cada doctor", d: "Se carga en Receta digital → Firma y sello.", ok: rmFaltan.length === 0 },
+    { t: "Datos completos de los pacientes", d: "Documento, fecha de nacimiento y sexo.", ok: faltan.length === 0 },
+    { t: "Diagnóstico CIE-10 en cada consulta", d: "El RDA exige el diagnóstico codificado.", ok: sinCie.length === 0 },
+  ];
+  const hechos = pasos.filter((p) => p.ok).length;
+
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    const limpio: Interop = { ...f, nit: f.nit?.trim() ?? "", habilitacion: f.habilitacion?.trim() ?? "", delegado: f.delegado?.trim() ?? "", actualizado: new Date().toISOString(), por: user.nombre };
+    setInterop(() => limpio);
+    log("Datos del prestador actualizados", [limpio.nit, limpio.habilitacion].filter(Boolean).join(" · "));
+    toast.success("Datos guardados");
+  };
+
+  return (
+    <div className="space-y-5">
+      <section className="pn-up relative overflow-hidden rounded-[1.6rem] gradient-deep p-6 text-white shadow-[0_30px_60px_-35px_rgba(10,25,70,.9)]">
+        <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+        <span className="pn-orb pointer-events-none absolute -right-16 -top-24 size-64 rounded-full bg-amber-400/30 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-5">
+          <span className="flex size-16 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/25 backdrop-blur"><Landmark className="size-8" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Colombia · Ministerio de Salud</p>
+            <h3 className="font-display text-2xl font-semibold tracking-tight">Conexión con el Ministerio</h3>
+            <p className="mt-1 max-w-2xl text-sm text-white/75">Desde abril de 2026 cada consulta debe generar un Resumen Digital de Atención (RDA) y enviarse al Ministerio. El panel ya guarda la historia clínica; falta que la clínica obtenga las llaves para activar el envío.</p>
+          </div>
+          <div className="text-right">
+            <p className="font-display text-4xl font-semibold">{hechos}/{pasos.length}</p>
+            <p className="text-[11px] uppercase tracking-[0.16em] text-white/60">pasos listos</p>
+          </div>
+        </div>
+        <div className="relative mt-5 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-emerald-400 transition-all" style={{ width: `${(hechos / pasos.length) * 100}%` }} /></div>
+        <div className="relative mt-4 flex flex-wrap gap-2 text-[11px] font-semibold">
+          <span className={`rounded-full px-3 py-1 ring-1 ${f.llaves === "Recibidas" ? "bg-emerald-400/20 text-emerald-100 ring-emerald-300/30" : "bg-amber-400/20 text-amber-100 ring-amber-300/30"}`}>RDA: {f.llaves === "Recibidas" ? "listo para activar el envío" : "esperando llaves del Ministerio"}</span>
+          <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-emerald-100 ring-1 ring-emerald-300/30">MIPRES: se usa desde la web del Ministerio</span>
+          <span className="rounded-full bg-emerald-400/20 px-3 py-1 text-emerald-100 ring-1 ring-emerald-300/30">Recetas comunes: listas (firma, sello y R.M.)</span>
+        </div>
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+        <Seccion icon={ListChecks} titulo="Qué falta" sub="Se actualiza solo a medida que completan los datos">
+          <ol className="space-y-2">
+            {pasos.map((p, i) => (
+              <li key={p.t} className={`flex items-start gap-3 rounded-xl px-3 py-2.5 ring-1 ${p.ok ? "bg-emerald-50/70 ring-emerald-200 dark:bg-emerald-500/5 dark:ring-emerald-500/20" : "bg-card ring-border"}`}>
+                <span className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${p.ok ? "bg-emerald-500 text-white" : "bg-secondary text-muted-foreground"}`}>{p.ok ? <Check className="size-3.5" /> : i + 1}</span>
+                <div className="min-w-0"><p className="text-sm font-semibold">{p.t}</p><p className="text-xs text-muted-foreground">{p.d}</p></div>
+              </li>
+            ))}
+          </ol>
+        </Seccion>
+
+        <div className="space-y-5">
+          <Seccion icon={Building2} titulo="Datos del prestador" sub={interop.actualizado ? `Actualizado por ${interop.por} · ${fechaHora(interop.actualizado)}` : "Los pide el Ministerio para habilitar la conexión"}>
+            <form onSubmit={guardar} className="grid gap-3 sm:grid-cols-2">
+              <Campo label="Tipo de prestador">
+                <select disabled={!puede} value={f.tipo ?? "IPS"} onChange={(e) => setF({ ...f, tipo: e.target.value as NonNullable<Interop["tipo"]> })} className={inp}>
+                  <option value="IPS">IPS (la clínica)</option><option value="Profesional independiente">Profesional independiente</option>
+                </select>
+              </Campo>
+              <Campo label="NIT"><input disabled={!puede} value={f.nit ?? ""} onChange={(e) => setF({ ...f, nit: e.target.value })} placeholder="900.000.000-0" className={inp} /></Campo>
+              <Campo label="Código de habilitación (REPS)"><input disabled={!puede} value={f.habilitacion ?? ""} onChange={(e) => setF({ ...f, habilitacion: e.target.value })} placeholder="Ej.: 080010000001" className={inp} /></Campo>
+              <Campo label="Delegado administrativo"><input disabled={!puede} value={f.delegado ?? ""} onChange={(e) => setF({ ...f, delegado: e.target.value })} placeholder="Nombre de quien hace el trámite" className={inp} /></Campo>
+              <Campo label="Llaves de interoperabilidad" className="sm:col-span-2">
+                <select disabled={!puede} value={f.llaves ?? "Sin solicitar"} onChange={(e) => setF({ ...f, llaves: e.target.value as NonNullable<Interop["llaves"]> })} className={inp}>
+                  <option>Sin solicitar</option><option>Solicitadas</option><option>Recibidas</option>
+                </select>
+              </Campo>
+              {puede && <div className="sm:col-span-2"><Button type="submit" className="rounded-xl"><Check className="size-4" /> Guardar datos</Button></div>}
+            </form>
+            {f.llaves === "Recibidas" && (
+              <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200">Avísenle al desarrollador: la llave se carga como variable secreta del servidor y ahí se activa el envío automático del RDA. No la escriban en el panel ni por chat.</p>
+            )}
+          </Seccion>
+
+          <Seccion icon={Globe} titulo="Accesos del Ministerio" sub="Se abren en una pestaña nueva">
+            <div className="grid gap-2">
+              {LINKS_MINSALUD.map((l) => (
+                <a key={l.u} href={l.u} target="_blank" rel="noreferrer" className="group flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 ring-border transition hover:bg-secondary">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-600 text-white"><Landmark className="size-4" /></span>
+                  <span className="flex-1 text-sm font-medium">{l.t}</span>
+                  <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5" />
+                </a>
+              ))}
+            </div>
+          </Seccion>
+        </div>
+      </div>
+
+      <Seccion icon={ClipboardList} titulo="Datos que faltan para el RDA" sub="Complételos para que cada consulta se pueda enviar al Ministerio">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="rounded-2xl p-4 ring-1 ring-border">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Pacientes incompletos</p>
+            <p className="mt-1 font-display text-3xl font-semibold">{faltan.length}</p>
+            <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+              {faltan.slice(0, 30).map(({ p, f: fx }) => (
+                <li key={p.id}><button onClick={() => abrirPaciente(p.id)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary"><b>{p.nombre}</b><span className="block text-muted-foreground">Falta: {fx.join(", ")}</span></button></li>
+              ))}
+              {faltan.length === 0 && <li className="text-xs text-emerald-600">Todos completos.</li>}
+            </ul>
+          </div>
+          <div className="rounded-2xl p-4 ring-1 ring-border">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Consultas sin CIE-10</p>
+            <p className="mt-1 font-display text-3xl font-semibold">{sinCie.length}</p>
+            <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+              {sinCie.slice(0, 30).map((e) => (
+                <li key={e.id}><button onClick={() => abrirPaciente(e.pacienteId)} className="w-full rounded-lg px-2 py-1.5 text-left text-xs hover:bg-secondary"><b>{e.paciente}</b><span className="block text-muted-foreground">{fechaDe(e.fecha)} · {e.doctor}</span></button></li>
+              ))}
+              {sinCie.length === 0 && <li className="text-xs text-emerald-600">Todas con diagnóstico codificado.</li>}
+            </ul>
+          </div>
+          <div className="rounded-2xl p-4 ring-1 ring-border">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Médicos sin registro (R.M.)</p>
+            <p className="mt-1 font-display text-3xl font-semibold">{rmFaltan.length}</p>
+            <ul className="mt-2 space-y-1">
+              {rmFaltan.map((a) => <li key={a.id} className="rounded-lg px-2 py-1.5 text-xs"><b>{a.nombre}</b><span className="block text-muted-foreground">Cargarlo en Receta digital → Firma y sello</span></li>)}
+              {rmFaltan.length === 0 && <li className="text-xs text-emerald-600">Todos cargados.</li>}
+            </ul>
+          </div>
+        </div>
+      </Seccion>
+    </div>
   );
 }
