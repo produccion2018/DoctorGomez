@@ -633,7 +633,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
           const mismoLugar = !!previo && previo["estado"] !== "Cancelado" && previo["doctor"] === f["doctor"] && previo["fecha"] === f["fecha"] && previo["hora"] === f["hora"];
           if (f["estado"] !== "Cancelado" && !mismoLugar && (await c.horarioOcupado(String(f["doctor"]), String(f["fecha"]), String(f["hora"]), f.id)))
             return { ok: false, error: `Ese horario (${f["fecha"]} ${f["hora"]}) ya está ocupado para ${f["doctor"]}. Se recargó la agenda.` };
-          const choque = await guardarCita(c, f);
+          const choque = await guardarCita(c, f, !mismoLugar);
           if (choque) return { ok: false, error: choque };
           // Confirmada desde el panel: aviso automático al paciente
           if (f["estado"] === "Confirmado" && previo?.["estado"] !== "Confirmado") await sinRomper((await avisos()).avisarCitaConfirmada(f));
@@ -716,9 +716,11 @@ async function validarHorario(doctor: string, fecha: string, hora: string, servi
 }
 
 /** Guarda una cita y traduce el choque con el índice único en un mensaje claro. */
-async function guardarCita(c: Awaited<ReturnType<typeof colecciones>>, t: Record<string, unknown> & { id: string }) {
+async function guardarCita(c: Awaited<ReturnType<typeof colecciones>>, t: Record<string, unknown> & { id: string }, verificar = true) {
   try {
-    await c.guardar("gb_turnos", t);
+    if (verificar && t["estado"] !== "Cancelado") {
+      if (!(await c.guardarCitaUnica(t))) return "Ese horario se acaba de ocupar. Elija otro.";
+    } else await c.guardar("gb_turnos", t);
     return null;
   } catch (e) {
     if (/turnos_unico|duplicate key/i.test((e as Error).message)) return "Ese horario se acaba de ocupar. Elija otro.";

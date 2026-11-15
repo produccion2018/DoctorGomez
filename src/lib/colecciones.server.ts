@@ -41,6 +41,31 @@ export async function guardar(col: Coleccion, fila: Fila) {
     ON CONFLICT (coleccion, id) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now()`;
 }
 
+/**
+ * Guarda una cita activa solo si ese profesional, día y hora están libres.
+ * Bloquea el horario dentro de una transacción: si dos personas reservan a la vez, la segunda espera,
+ * ve que ya está tomado y no se guarda. Devuelve false si el horario estaba ocupado.
+ */
+export async function guardarCitaUnica(fila: Fila): Promise<boolean> {
+  const sql = await db();
+  const doctor = String(fila["doctor"] ?? "");
+  const fecha = String(fila["fecha"] ?? "");
+  const hora = String(fila["hora"] ?? "");
+  const llave = `cita|${doctor}|${fecha}|${hora}`;
+  const [, filas] = (await sql.transaction([
+    sql`SELECT pg_advisory_xact_lock(hashtext(${llave}))`,
+    sql`INSERT INTO registros (coleccion, id, valor, actualizado)
+      SELECT 'gb_turnos', ${fila.id}, ${JSON.stringify(fila)}::jsonb, now()
+      WHERE NOT EXISTS (
+        SELECT 1 FROM registros WHERE coleccion = 'gb_turnos' AND id <> ${fila.id}
+          AND valor->>'doctor' = ${doctor} AND valor->>'fecha' = ${fecha} AND valor->>'hora' = ${hora}
+          AND coalesce(valor->>'estado','') <> 'Cancelado')
+      ON CONFLICT (coleccion, id) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now()
+      RETURNING id`,
+  ])) as [unknown, unknown[]];
+  return filas.length > 0;
+}
+
 export async function borrar(col: Coleccion, ids: string[]) {
   if (!ids.length) return;
   const sql = await db();

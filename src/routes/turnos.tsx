@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -106,6 +106,26 @@ function Turnos() {
     if (r) setOcupados(r.map((x, i) => ({ id: `o${i}`, ...x, paciente: "", motivo: "", estado: "Pendiente" as const })));
   };
 
+  // Mientras elige día y hora, los horarios que otros van tomando desaparecen solos
+  useEffect(() => {
+    if (paso < 2 || listo) return;
+    const id = window.setInterval(() => void refrescarOcupados(), 15000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paso, listo]);
+  useEffect(() => {
+    if (fecha) void refrescarOcupados();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fecha]);
+  // Si el horario elegido lo tomó otra persona, se libera la selección
+  useEffect(() => {
+    if (hora && fecha && doc && ocupados.some((t) => t.fecha === fecha && t.hora === hora && t.estado !== "Cancelado" && t.doctor === todosRef.current.find((d) => d.id === doc)?.panel)) {
+      setHora(null);
+      toast.error("Ese horario lo acaba de tomar otra persona. Elija otro, por favor.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocupados]);
+
   const especialidad = ESPECIALIDADES.find((e) => e.slug === esp);
   // Profesionales: los dos médicos y los que la secretaría agregó a la agenda
   const todos: Prof[] = useMemo(
@@ -117,6 +137,8 @@ function Turnos() {
     ],
     [agendas],
   );
+  const todosRef = useRef(todos);
+  todosRef.current = todos;
   const doctor = todos.find((d) => d.id === doc);
   const sinTilde = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const doctoresDisp = especialidad

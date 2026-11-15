@@ -320,7 +320,8 @@ export async function ejecutarAcciones(u: UsuarioServidor, acciones: AccionIA[])
         if (!d) throw new Error("Profesional desconocido.");
         const malo = await validarCita(d.nombre, d.id, x.fecha, x.hora, x.sobreturno);
         if (malo) throw new Error(malo);
-        await c.guardar("gb_turnos", { id: uid(), fecha: x.fecha, hora: x.hora, paciente: x.paciente.slice(0, 120), doctor: d.nombre, motivo: (x.motivo || "Consulta").slice(0, 200), estado: "Confirmado", origen: "panel", ...(x.telefono ? { telefono: x.telefono.slice(0, 40) } : {}) });
+        if (!(await c.guardarCitaUnica({ id: uid(), fecha: x.fecha, hora: x.hora, paciente: x.paciente.slice(0, 120), doctor: d.nombre, motivo: (x.motivo || "Consulta").slice(0, 200), estado: "Confirmado", origen: "panel", ...(x.telefono ? { telefono: x.telefono.slice(0, 40) } : {}) })))
+          throw new Error("Ese horario se acaba de ocupar.");
       } else if (x.tipo === "estadoCita") {
         const t = await c.uno("gb_turnos", x.id);
         if (!t) throw new Error("La cita ya no existe.");
@@ -331,7 +332,7 @@ export async function ejecutarAcciones(u: UsuarioServidor, acciones: AccionIA[])
         const d = lista.find((p) => p.nombre === t["doctor"]);
         const malo = await validarCita(String(t["doctor"]), d?.id ?? "", x.fecha, x.hora, false, x.id);
         if (malo) throw new Error(malo);
-        await c.guardar("gb_turnos", { ...t, fecha: x.fecha, hora: x.hora });
+        if (!(await c.guardarCitaUnica({ ...t, fecha: x.fecha, hora: x.hora }))) throw new Error("Ese horario se acaba de ocupar.");
       }
       hechas.push(x.descripcion);
       await a.auditar(u.nombre, "Cambio hecho con la IA", x.descripcion.slice(0, 160));

@@ -879,6 +879,14 @@ function Turnos({ ctx }: { ctx: Ctx }) {
   }, [propios.length]);
   const todos = useMemo(() => [...propios, ...ajenos], [propios, ajenos]);
   const [pidiendo, setPidiendo] = useState(false);
+  // Mientras pide la cita, los horarios que otros van tomando desaparecen solos
+  useEffect(() => {
+    if (!pidiendo) return;
+    const traer = () => void ocupadosServidor(isoDe(new Date())).then((r) => r && setAjenos(r.map((x, i) => ({ id: `o${i}`, ...x, paciente: "", motivo: "", estado: "Pendiente" as const }))));
+    traer();
+    const id = window.setInterval(traer, 15000);
+    return () => window.clearInterval(id);
+  }, [pidiendo]);
   const [esp, setEsp] = useState("");
   const [doc, setDoc] = useState("");
   const [fecha, setFecha] = useState("");
