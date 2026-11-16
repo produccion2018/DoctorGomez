@@ -813,6 +813,7 @@ function Panel() {
         @keyframes pn-dot { 0%,80%,100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
         @keyframes pn-bar { from { width: 0; } }
         @keyframes pn-shine { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+        .pn-root { --acc: 14,165,233; }
         .pn-up { animation: pn-up .55s ease-out both; }
         .pn-orb { animation: pn-orb 12s ease-in-out infinite; }
         .pn-online::after { content: ""; position: absolute; inset: 0; border-radius: 9999px; background: inherit; animation: pn-ring 2s ease-out infinite; }
@@ -5193,6 +5194,8 @@ function FichaHC({
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios">("todo");
   const [notasTodas, setNotasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const [labTodosHC] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const labsHC = labTodosHC.filter((l) => l.pacienteId === p.id || l.pacienteId === p.portalId);
   const notasEnfP = notasTodas.filter((n) => !n.anulada && (n.pacienteId === p.id || n.pacienteId === p.portalId));
   const [selNotas, setSelNotas] = useState<Set<string>>(() => new Set());
   const [editNota, setEditNota] = useState<{ id: string; texto: string } | null>(null);
@@ -5349,6 +5352,8 @@ function FichaHC({
       )}
 
       {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
+
+      {labsHC.some((l) => Object.keys(l.resultados ?? {}).length) && <SeguimientoLab labs={labsHC} />}
 
       <RegistrarEnHC p={p} user={user} log={log} turnos={turnosHC} pacientes={pacientesHC.length ? pacientesHC : [p]} puede={notasEnf || user.rol === "medico" || user.area === "Dirección general"} />
 
@@ -6827,6 +6832,7 @@ const PANELES_LAB: { id: string; nombre: string; esp: "Nefrología" | "Cardiolog
       { id: "hemoglobina", nombre: "Hemoglobina", unidad: "g/dl", min: 12, max: 16 },
       { id: "hematocrito", nombre: "Hematocrito", unidad: "%", min: 36, max: 48 },
       { id: "plaquetas", nombre: "Plaquetas", unidad: "x10³/µl", min: 150, max: 450 },
+      { id: "leucocitos", nombre: "Leucocitos", unidad: "x10³/µl", min: 4.5, max: 11 },
     ],
   },
   {
@@ -6834,6 +6840,39 @@ const PANELES_LAB: { id: string; nombre: string; esp: "Nefrología" | "Cardiolog
     nombre: "Tiroides",
     esp: "General",
     det: [{ id: "tsh", nombre: "TSH", unidad: "µUI/ml", min: 0.4, max: 4.5 }],
+  },
+  {
+    id: "hepatico",
+    nombre: "Perfil hepático",
+    esp: "General",
+    det: [
+      { id: "ast", nombre: "AST (TGO)", unidad: "U/l", max: 40 },
+      { id: "alt", nombre: "ALT (TGP)", unidad: "U/l", max: 41 },
+      { id: "bilirrubina", nombre: "Bilirrubina total", unidad: "mg/dl", max: 1.2 },
+      { id: "fosfatasa", nombre: "Fosfatasa alcalina", unidad: "U/l", min: 40, max: 130 },
+      { id: "albumina", nombre: "Albúmina", unidad: "g/dl", min: 3.5, max: 5 },
+    ],
+  },
+  {
+    id: "hierro",
+    nombre: "Hierro y vitaminas",
+    esp: "General",
+    det: [
+      { id: "ferritina", nombre: "Ferritina", unidad: "ng/ml", min: 30, max: 300 },
+      { id: "hierro_serico", nombre: "Hierro sérico", unidad: "µg/dl", min: 60, max: 170 },
+      { id: "vitd", nombre: "Vitamina D", unidad: "ng/ml", min: 30, max: 100 },
+      { id: "b12", nombre: "Vitamina B12", unidad: "pg/ml", min: 200, max: 900 },
+    ],
+  },
+  {
+    id: "inflamacion",
+    nombre: "Inflamación y coagulación",
+    esp: "General",
+    det: [
+      { id: "pcr", nombre: "Proteína C reactiva (PCR)", unidad: "mg/l", max: 5 },
+      { id: "vsg", nombre: "VSG", unidad: "mm/h", max: 20 },
+      { id: "inr", nombre: "INR", unidad: "", min: 0.8, max: 1.2 },
+    ],
   },
 ];
 const DET_TODAS = PANELES_LAB.flatMap((p) => p.det);
@@ -6853,6 +6892,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
     pts: conRes.filter((l) => typeof l.resultados[d.id] === "number").map((l) => ({ f: l.fechaResultado ?? l.fecha, v: l.resultados[d.id]! })),
   })).filter((x) => x.pts.length > 0);
   const [elegido, setElegido] = useState<string | null>(null);
+  const [vista, setVista] = useState<"tabla" | "grafico">("tabla");
   if (!series.length) {
     return (
       <div className="mb-5 flex items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground dark:border-white/10">
@@ -6874,9 +6914,59 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
     <div className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm dark:border-white/10">
       <div className="relative overflow-hidden bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#be123c] px-4 py-3.5 text-white">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
-        <p className="relative flex items-center gap-2 font-display text-lg font-semibold"><Activity className="size-4" /> Seguimiento de laboratorio</p>
-        <p className="relative text-xs text-white/75">{conRes.length} resultado{conRes.length === 1 ? "" : "s"} cargado{conRes.length === 1 ? "" : "s"} · toque un valor para ver su evolución</p>
+        <p className="relative flex items-center gap-2 pr-40 font-display text-lg font-semibold"><Activity className="size-4" /> Seguimiento de laboratorio</p>
+        <p className="relative text-xs text-white/75">{conRes.length} análisis cargado{conRes.length === 1 ? "" : "s"} · cómo vino cada valor en cada control</p>
+        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 rounded-xl bg-white/15 p-1 ring-1 ring-white/25">
+          {([["tabla", "Tabla"], ["grafico", "Gráficos"]] as const).map(([v, l]) => (
+            <button key={v} type="button" onClick={() => setVista(v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${vista === v ? "bg-white text-[#0b2a6b] shadow" : "text-white/80 hover:text-white"}`}>{l}</button>
+          ))}
+        </div>
       </div>
+      {vista === "tabla" && (() => {
+        const fechas = conRes.slice(-6);
+        return (
+          <div className="overflow-x-auto p-3">
+            <table className="w-full min-w-[560px] border-separate border-spacing-0 text-sm">
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</th>
+                  {fechas.map((l, i) => (
+                    <th key={l.id} className={`px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider ${i === fechas.length - 1 ? "rounded-t-xl bg-[rgba(var(--acc),.08)] text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
+                      {(() => { const d = new Date(l.fechaResultado ?? l.fecha); return <><span className="block whitespace-nowrap text-xs normal-case tracking-normal">{d.getDate()} {d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span><span className="block text-[10px] font-medium tracking-normal opacity-70">{d.getFullYear()}{i === fechas.length - 1 ? " · último" : ""}</span></>; })()}
+                    </th>
+                  ))}
+                  <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Normal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {series.map(({ d }) => (
+                  <tr key={d.id} className="group cursor-pointer" onClick={() => { setElegido(d.id); setVista("grafico"); }}>
+                    <td className="sticky left-0 z-10 border-t border-border/60 bg-card px-3 py-2.5 font-medium group-hover:text-[rgb(var(--acc))] dark:border-white/10">{d.nombre}</td>
+                    {fechas.map((l, i) => {
+                      const v = l.resultados[d.id];
+                      const prev = fechas.slice(0, i).reverse().find((x) => typeof x.resultados[d.id] === "number")?.resultados[d.id];
+                      const f = typeof v === "number" ? flagDe(d, v) : "ok";
+                      return (
+                        <td key={l.id} className={`border-t border-border/60 px-3 py-2.5 text-center tabular-nums dark:border-white/10 ${i === fechas.length - 1 ? "bg-[rgba(var(--acc),.05)]" : ""}`}>
+                          {typeof v === "number" ? (
+                            <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 font-semibold ${f === "ok" ? "" : f === "alto" ? "bg-red-50 text-red-600 dark:bg-red-500/10" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10"}`}>
+                              {v}
+                              {typeof prev === "number" && prev !== v && <span className={`text-[10px] ${f === "ok" ? "text-emerald-600" : "text-red-500"}`}>{v > prev ? "▲" : "▼"}</span>}
+                            </span>
+                          ) : <span className="text-muted-foreground/40">—</span>}
+                        </td>
+                      );
+                    })}
+                    <td className="border-t border-border/60 px-3 py-2.5 text-[11px] text-muted-foreground dark:border-white/10">{rangoTxt(d).replace("Normal ", "")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-2 px-1 text-[11px] text-muted-foreground"><span className="font-semibold text-red-600">Rojo</span> = alto · <span className="font-semibold text-amber-700">ámbar</span> = bajo · ▲▼ subió o bajó respecto al control anterior · toque una fila para ver su gráfico.</p>
+          </div>
+        );
+      })()}
+      {vista === "grafico" && <>
       <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
         {series.map(({ d, pts }) => {
           const ult = pts[pts.length - 1]!;
@@ -6928,6 +7018,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
         </svg>
         {sel.pts.length === 1 && <p className="mt-1 text-center text-xs text-muted-foreground">Hay un solo resultado. Con el próximo análisis se dibuja la línea de evolución.</p>}
       </div>
+      </>}
     </div>
   );
 }
@@ -8721,8 +8812,8 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
           <div className="relative flex items-center gap-3">
             <span className="flex size-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25"><Syringe className="size-5" /></span>
             <div>
-              <h2 className="text-lg font-semibold">Toma de signos vitales</h2>
-              <p className="text-xs text-white/70">{user.nombre} · {new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</p>
+              <h2 className="font-display text-xl font-semibold">Toma de signos vitales</h2>
+              <p className="text-xs text-white/75"><span className="inline-block first-letter:uppercase">{new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span> · {nombreCorto(user.nombre)}</p>
             </div>
           </div>
           <button onClick={onCerrar} aria-label="Cerrar" className="relative flex size-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"><X className="size-5" /></button>
@@ -8730,8 +8821,8 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
 
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden">
           {/* Pacientes de hoy */}
-          <aside className="flex min-h-0 flex-col border-b border-border/60 bg-secondary/30 p-4 lg:border-b-0 lg:border-r">
-            <p className="px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Citas de hoy · {turnosHoy.length}</p>
+          <aside className="dark flex min-h-0 flex-col border-b border-white/10 bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] p-4 text-foreground lg:border-b-0 lg:border-r">
+            <p className="flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Citas de hoy <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tracking-normal text-white">{turnosHoy.length}</span></p>
             <ul className="pn-noscroll mt-2 max-h-64 space-y-1.5 overflow-y-auto lg:max-h-none lg:flex-1">
               {turnosHoy.map((t) => {
                 const p = pacDeTurno(t);
@@ -8742,12 +8833,12 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
                     <button
                       disabled={!p}
                       onClick={() => p && elegir(p.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-card shadow-sm ring-1 ring-[rgba(var(--acc),.4)]" : "hover:bg-card"}`}
+                      className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-white/12 shadow-lg ring-1 ring-sky-400/60" : "hover:bg-white/[0.06]"}`}
                     >
                       <HoraMini hora={t.hora} activo={on} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{t.paciente}</span>
-                        <span className="block truncate text-[11px] text-muted-foreground">{nombreCorto(t.doctor)} · {t.motivo || "Consulta"}</span>
+                        <span className="block truncate text-sm font-semibold text-white">{nombreCorto(t.paciente)}</span>
+                        <span className="block truncate text-[11px] text-white/55">{(t.motivo || "Consulta").split(" · ")[0]} · {nombreCorto(t.doctor).replace(/^Dr\. Carlos /, "Dr. ")}</span>
                       </span>
                       {tr ? (
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${tr.evolucionId ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-emerald-100 text-emerald-800 ring-emerald-200"}`}>{tr.evolucionId ? "Atendido" : "Tomados"}</span>
@@ -8760,8 +8851,8 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
               })}
               {turnosHoy.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted-foreground">No hay citas para hoy.</li>}
             </ul>
-            <div className="mt-3 border-t border-border/60 pt-3">
-              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Otro paciente</p>
+            <div className="mt-3 border-t border-white/10 pt-3">
+              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Otro paciente</p>
               <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={elegir} arriba />
             </div>
           </aside>
