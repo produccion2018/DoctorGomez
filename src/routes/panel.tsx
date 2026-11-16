@@ -1383,6 +1383,27 @@ function Kpi({
 }
 
 /** Hora en formato Colombia, siempre en un renglón: "8:15" grande y "a. m." pequeño. */
+/** Listas largas: muestra unos pocos y una flecha "Ver más" (en vez de crecer hacia abajo sin fin). */
+function useVerMas<T>(lista: T[], inicial = 5) {
+  const [n, setN] = useState(inicial);
+  const items = lista.slice(0, n);
+  const resto = lista.length - items.length;
+  const boton =
+    lista.length > inicial ? (
+      <div className="flex justify-center pt-3">
+        <button
+          type="button"
+          onClick={() => (resto > 0 ? setN((x) => x + inicial * 2) : setN(inicial))}
+          className="group inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 text-xs font-semibold text-[rgb(var(--acc))] shadow-sm ring-1 ring-border/70 transition hover:-translate-y-0.5 hover:shadow-md dark:ring-white/10"
+        >
+          {resto > 0 ? `Ver más (${resto})` : "Ver menos"}
+          <span className="grid size-5 place-items-center rounded-full bg-[rgba(var(--acc),.12)]"><ChevronDown className={`size-3.5 transition-transform ${resto > 0 ? "group-hover:translate-y-0.5" : "rotate-180"}`} /></span>
+        </button>
+      </div>
+    ) : null;
+  return { items, boton };
+}
+
 /** Arregla textos viejos: "a. m.." → "a. m.", "hemograma , a las" → "hemograma, a las". */
 const limpiarTextoNota = (t: string) => t.replace(/([ap]\. m\.)\.(?=\s|$)/g, "$1").replace(/\s+,/g, ",");
 
@@ -4370,9 +4391,11 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
   const [respuesta, setRespuesta] = useState<Record<string, string>>({});
 
   const lista = pacientes.filter((p) => norm(`${p.nombre} ${p.dni} ${p.email}`).includes(norm(q)));
+  const vmPort = useVerMas(lista, 5);
   const autsLista = auts
     .filter((a) => (verAut === "pendientes" ? a.estado === "Pendiente" : a.estado !== "Pendiente"))
     .sort((x, y) => Number(y.origen === "Paciente") - Number(x.origen === "Paciente") || y.fecha.localeCompare(x.fecha));
+  const vmAut = useVerMas(autsLista, 5);
 
   const invitar = (e: FormEvent) => {
     e.preventDefault();
@@ -4542,7 +4565,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
           acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar por nombre o cédula" value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
           {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitó pacientes" texto="Cree un acceso y mándele el código por WhatsApp o correo. Con eso entra al portal y agenda sus citas." />}
           <div className="space-y-3">
-            {lista.map((p) => {
+            {vmPort.items.map((p) => {
               const n = turnos.filter((t) => t.pacienteId === p.id).length;
               const revocado = p.estado === "Revocado";
               return (
@@ -4594,6 +4617,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                 </div>
               );
             })}
+            {vmPort.boton}
           </div>
         </Seccion>
       </div>
@@ -4628,7 +4652,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
           }>
           {autsLista.length === 0 && <Vacio icon={ShieldCheck} titulo={verAut === "pendientes" ? "Nada pendiente" : "Sin historial"} texto="Las autorizaciones que pida o que pidan los pacientes aparecen aquí." />}
           <div className="space-y-3">
-            {autsLista.map((a) => (
+            {vmAut.items.map((a) => (
               <div key={a.id} className="rounded-2xl border border-border/70 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
@@ -4652,6 +4676,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                 {a.estado === "Pendiente" && a.origen === "Clínica" && <p className="mt-2 text-xs text-amber-700">Esperando respuesta del paciente en su portal.</p>}
               </div>
             ))}
+            {vmAut.boton}
           </div>
         </Seccion>
       </div>
@@ -4664,6 +4689,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
 function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
   const [q, setQ] = useState("");
   const lista = audit.filter((e) => norm(`${e.usuario} ${e.accion} ${e.detalle}`).includes(norm(q)));
+  const vmAud = useVerMas(lista, 15);
 
   const exportar = () => {
     const filas = [
@@ -4704,7 +4730,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
         }>
         {lista.length === 0 && <Vacio icon={ClipboardList} texto="No hay eventos." />}
         <ol className="relative space-y-1 before:absolute before:bottom-4 before:left-[19px] before:top-4 before:w-px before:bg-border">
-          {lista.map((e) => {
+          {vmAud.items.map((e) => {
             const { icon: I, clase } = iconoEvento(e.accion);
             return (
               <li key={e.id} className="relative flex gap-4 rounded-xl p-2 transition-colors hover:bg-secondary/40">
@@ -4722,6 +4748,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
               </li>
             );
           })}
+          {vmAud.boton && <li className="list-none">{vmAud.boton}</li>}
         </ol>
       </Seccion>
     </div>
@@ -5134,6 +5161,7 @@ function FichaHC({
     ...(ver === "todo" || ver === "enfermeria" ? notasEnfP.map((e) => ({ tipo: "enf" as const, f: e.fecha, e })) : []),
     ...(ver === "todo" || ver === "estudios" ? estudios.map((e) => ({ tipo: "estudio" as const, f: e.fecha, e })) : []),
   ].sort((a, b) => b.f.localeCompare(a.f));
+  const vmLinea = useVerMas(linea, 8);
   const diaTxt = (iso: string) => {
     const d = new Date(iso);
     const h = new Date();
@@ -5272,8 +5300,8 @@ function FichaHC({
               </div>
             )}
             <ol className="hc-linea relative space-y-4">
-              {linea.map((it, i) => {
-                const nuevoDia = i === 0 || new Date(linea[i - 1]!.f).toDateString() !== new Date(it.f).toDateString();
+              {vmLinea.items.map((it, i) => {
+                const nuevoDia = i === 0 || new Date(vmLinea.items[i - 1]!.f).toDateString() !== new Date(it.f).toDateString();
                 const separador = nuevoDia ? (
                   <li key={`dia-${it.f}`} className="relative flex items-center gap-3 pl-[52px] pt-1">
                     <span className="rounded-full bg-gradient-to-r from-[rgb(var(--acc))] to-[rgba(var(--acc),.7)] px-3 py-1 text-[11px] inline-block font-bold text-white first-letter:uppercase shadow-md">{diaTxt(it.f)}</span>
@@ -5459,6 +5487,7 @@ function FichaHC({
                 return <Fragment key={`g-${i}`}>{separador}{cuerpo}</Fragment>;
               })}
             </ol>
+            {vmLinea.boton}
             </>
           )}
         </Seccion>
@@ -5786,6 +5815,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
     if (filtro === "sinportal") return !p.portal;
     return true;
   });
+  const vmPad = useVerMas(visibles, 10);
 
   const editar = (p: PacienteHC) => {
     if (p.origen !== "padron") {
@@ -6086,7 +6116,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
           <Vacio icon={Users} titulo="No hay pacientes" texto="Cargue el primero con Nuevo paciente. También aparecen los del portal y los que piden cita." />
         ) : (
           <ul className="divide-y divide-border/60">
-            {visibles.map((p) => {
+            {vmPad.items.map((p) => {
               const edad = edadDe(p.ficha?.nacimiento);
               const ant = p.ficha?.antecedentes ?? [];
               const abierto = abiertoId === p.id;
@@ -6148,6 +6178,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                 </li>
               );
             })}
+            {vmPad.boton && <li className="list-none">{vmPad.boton}</li>}
           </ul>
         )}
       </Seccion>
@@ -6810,6 +6841,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
 
   const fuera = pedidos.filter((p) => p.estado === "Resultado" && Object.entries(p.resultados).some(([k, v]) => { const d = DET_TODAS.find((x) => x.id === k); return d && flagDe(d, v) !== "ok"; })).length;
   const lista = pedidos.filter((p) => verEstado === "todos" || p.estado === verEstado);
+  const vmLab = useVerMas(lista, 6);
   const anterior = (p: PedidoLab, det: string) =>
     pedidos.filter((x) => x.pacienteId === p.pacienteId && x.id !== p.id && x.estado === "Resultado" && x.resultados[det] !== undefined && (x.fechaResultado ?? "") < (p.fechaResultado ?? "")).sort((a, b) => (b.fechaResultado ?? "").localeCompare(a.fechaResultado ?? ""))[0]?.resultados[det];
 
@@ -6916,7 +6948,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
           <Vacio icon={FlaskConical} texto="Cree un pedido, imprima la orden y después cargue los resultados: se guardan en la historia clínica." />
         ) : (
           <ul className="space-y-3">
-            {lista.map((p) => (
+            {vmLab.items.map((p) => (
               <li key={p.id} className="rounded-2xl border border-border/70 bg-card p-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <Avatar nombre={p.paciente} size="size-9" />
@@ -6960,6 +6992,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                 )}
               </li>
             ))}
+            {vmLab.boton && <li className="list-none">{vmLab.boton}</li>}
           </ul>
         )}
       </Seccion>
@@ -7062,6 +7095,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
   const mes = isoDe(new Date()).slice(0, 7);
   const delMes = facturas.filter((f) => f.estado !== "Anulada" && f.fecha.slice(0, 7) === mes);
   const sinFacturar = cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada"));
+  const vmPf = useVerMas(sinFacturar, 8);
   const pendOS = facturas.filter((f) => f.estado === "Emitida" && f.cobertura !== "Particular");
   const porOS = Object.entries(
     facturas.filter((f) => f.estado !== "Anulada" && f.cobertura !== "Particular").reduce<Record<string, { total: number; pend: number; n: number }>>((acc, f) => {
@@ -7074,6 +7108,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
     }, {}),
   ).sort((a, b) => b[1].pend - a[1].pend);
   const lista = facturas.filter((f) => !q || norm(`${f.receptor} ${f.numero} ${f.cobertura}`).includes(norm(q)));
+  const vmComp = useVerMas(lista, 8);
 
   return (
     <div className="space-y-6">
@@ -7172,7 +7207,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
             <Vacio icon={Receipt} texto="Todavía no emitió comprobantes. Puede facturar los cobros de pacientes desde Por facturar." />
           ) : (
             <ul className="divide-y divide-border/60">
-              {lista.map((f) => (
+              {vmComp.items.map((f) => (
                 <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo.startsWith("Factura") ? "from-emerald-400 to-teal-600" : f.tipo.startsWith("Cuenta") ? "from-sky-500 to-blue-700" : "from-violet-500 to-indigo-700"}`}>{siglaComp(f.tipo)}</span>
@@ -7193,6 +7228,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                   </div>
                 </li>
               ))}
+              {vmComp.boton && <li className="list-none">{vmComp.boton}</li>}
             </ul>
           )}
         </Seccion>
@@ -7204,7 +7240,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
             <Vacio icon={Check} titulo="Todo facturado" texto="Cada cobro de Pagos y caja ya tiene su comprobante." />
           ) : (
             <ul className="divide-y divide-border/60">
-              {sinFacturar.map((c) => (
+              {vmPf.items.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-3 py-3.5">
                   <Avatar nombre={c.paciente} size="size-9" />
                   <div className="min-w-0 flex-1">
@@ -7224,6 +7260,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                   </Button>
                 </li>
               ))}
+              {vmPf.boton && <li className="list-none">{vmPf.boton}</li>}
             </ul>
           )}
         </Seccion>
@@ -8728,6 +8765,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
   };
   const origen = typeof window === "undefined" ? "" : window.location.origin;
   const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
+  const vmPer = useVerMas(visibles, 5);
 
   const mensaje = (p: Personal) =>
     `Hola ${p.nombre.replace(/^(Enf\.|Lic\.|Sr\.|Sra\.)\s*/i, "").split(" ")[0]}, le damos acceso al panel del Centro HEGO como ${areaDe(p)}.\n\nEntre a este link y cree su contraseña:\n${linkInvitacion(p, origen)}`;
@@ -8794,7 +8832,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
         <Vacio icon={UserCog} texto="Todavía no hay personal con acceso. Dele acceso arriba y envíele el link de invitación." />
       ) : (
         <ul className="divide-y divide-border/60">
-          {visibles.map((n) => {
+          {vmPer.items.map((n) => {
             const conClave = tieneClave(n.id);
             const estado = !n.activo ? "Bloqueado" : conClave ? "Activo" : "Invitación pendiente";
             return (
@@ -8890,6 +8928,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
               </li>
             );
           })}
+          {vmPer.boton && <li className="list-none">{vmPer.boton}</li>}
         </ul>
       )}
       <p className="mt-4 text-[11px] text-muted-foreground">{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Cada persona tiene los permisos de su departamento. Con el botón Permisos puede ver y cambiar los de una persona en particular."}</p>
