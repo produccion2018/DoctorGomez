@@ -69,7 +69,7 @@ function Confirmar() {
             <>
               <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-200">
                 <p className="text-lg font-semibold">{cita.paciente}</p>
-                <p className="mt-1 text-sm capitalize text-slate-600">{fecha} · {hora12(cita.hora)}</p>
+                <p className="mt-1 text-sm text-slate-600 first-letter:uppercase">{fecha} · {hora12(cita.hora)}</p>
                 <p className="text-sm text-slate-600">{cita.doctor}{cita.motivo ? ` · ${cita.motivo}` : ""}</p>
               </div>
               {estado === "hecho" ? (
