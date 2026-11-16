@@ -770,7 +770,7 @@ function Panel() {
           <div className="flex items-center justify-between rounded-xl bg-white/[0.06] px-3 py-2.5 ring-1 ring-white/10 [@media(max-height:720px)]:hidden">
             <div className="leading-tight">
               <p className="font-display text-lg font-semibold tabular-nums">{hora}</p>
-              <p className="text-[11px] capitalize text-white/55">{fechaLarga}</p>
+              <p className="text-[11px] text-white/55 first-letter:uppercase">{fechaLarga}</p>
             </div>
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold text-emerald-300">
               <span className="size-1.5 rounded-full bg-emerald-400" /> En línea
@@ -934,7 +934,7 @@ function Panel() {
             <div className="flex items-center gap-4">
               {foto && <img src={foto} alt="" className="hidden size-16 rounded-2xl object-cover object-top ring-2 ring-white/30 sm:block" />}
               <div>
-                <p className="text-sm capitalize text-deep-foreground/70">{fechaLarga}</p>
+                <p className="text-sm text-deep-foreground/70 first-letter:uppercase">{fechaLarga}</p>
                 <h1 className="text-2xl font-semibold sm:text-3xl">
                   {saludo(ahora)}, {corto}
                 </h1>
@@ -1764,53 +1764,98 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
   return (
     <section className="pn-card pn-up overflow-hidden">
       {/* Encabezado con navegación de días */}
-      <div className="border-b border-border/60 p-6 pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="pn-acc-tile flex size-11 items-center justify-center rounded-2xl text-white"><CalendarDays className="size-5" /></span>
+      <div className="relative overflow-hidden border-b border-border/60 p-5 pb-5 sm:p-6">
+        <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[rgba(var(--acc),.08)] blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <span className="pn-acc-tile relative flex size-12 flex-col items-center justify-center rounded-2xl text-white shadow-lg">
+              <span className="text-[9px] font-bold uppercase leading-none tracking-wider text-white/80">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
+              <span className="font-display text-xl font-semibold leading-none">{new Date(dia + "T12:00:00").getDate()}</span>
+            </span>
             <div>
-              <h3 className="text-lg font-semibold tracking-tight">Agenda del día</h3>
-              <p className="text-sm capitalize text-muted-foreground">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}{esHoy ? " · hoy" : ""}</p>
+              <h3 className="flex items-center gap-2 text-lg font-semibold tracking-tight">Agenda del día {esHoy && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 ring-1 ring-emerald-500/20 dark:text-emerald-400"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Hoy</span>}</h3>
+              <p className="text-sm text-muted-foreground first-letter:uppercase">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="icon" className="rounded-xl" onClick={() => mover(-1)} aria-label="Día anterior"><ChevronDown className="size-4 rotate-90" /></Button>
-            {!esHoy && <Button variant="outline" className="rounded-xl" onClick={() => setDia(hoy())}>Hoy</Button>}
-            <input type="date" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} className="h-9 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:border-primary" />
-            <Button variant="outline" size="icon" className="rounded-xl" onClick={() => mover(1)} aria-label="Día siguiente"><ChevronDown className="size-4 -rotate-90" /></Button>
-            <Button onClick={onCargaManual} className="rounded-xl"><Plus className="size-4" /> Cargar cita</Button>
+            <div className="flex items-center rounded-2xl bg-secondary/70 p-1 ring-1 ring-border/60 dark:bg-white/5 dark:ring-white/10">
+              <button onClick={() => mover(-1)} aria-label="Día anterior" className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-background hover:text-foreground hover:shadow-sm"><ChevronLeft className="size-4" /></button>
+              <label className="relative flex h-9 cursor-pointer items-center gap-2 rounded-xl px-3 text-sm font-semibold transition hover:bg-background hover:shadow-sm">
+                <CalendarDays className="size-4 text-[rgb(var(--acc))]" />
+                <span className="tabular-nums">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" }).replace(".", "")}</span>
+                <input type="date" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" aria-label="Elegir fecha" />
+              </label>
+              <button onClick={() => mover(1)} aria-label="Día siguiente" className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-background hover:text-foreground hover:shadow-sm"><ChevronDown className="size-4 -rotate-90" /></button>
+            </div>
+            {!esHoy && <Button variant="outline" className="h-11 rounded-2xl" onClick={() => setDia(hoy())}>Ir a hoy</Button>}
+            <Button onClick={onCargaManual} className="h-11 rounded-2xl px-5 shadow-md"><Plus className="size-4" /> Cargar cita</Button>
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-7 gap-1.5">
+        <div className="relative mt-5 grid grid-cols-7 gap-1.5 sm:gap-2">
           {semana.map((d) => {
             const f = new Date(d + "T12:00:00");
             const n = turnos.filter((t) => t.fecha === d && t.estado !== "Cancelado").length;
             const on = d === dia;
+            const esHoyD = d === hoy();
+            const trabaja = columnas.some((c) => atiendeEl(c.ag, d));
             return (
-              <button key={d} onClick={() => { setDia(d); setAsignando(null); }} className={`flex flex-col items-center rounded-xl py-2 transition-all ${on ? "pn-acc-tile text-white" : "hover:bg-secondary"}`}>
-                <span className={`text-[10px] font-semibold uppercase ${on ? "text-white/80" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
-                <span className="font-display text-lg font-semibold leading-tight">{f.getDate()}</span>
-                <span className={`mt-0.5 h-4 min-w-4 rounded-full px-1 text-[10px] font-bold leading-4 ${n ? (on ? "bg-white/25" : "bg-[rgba(var(--acc),.15)] text-[rgb(var(--acc))]") : "opacity-0"}`}>{n}</span>
+              <button
+                key={d}
+                onClick={() => { setDia(d); setAsignando(null); }}
+                className={`group relative flex flex-col items-center rounded-2xl px-1 pb-2 pt-2.5 transition-all duration-200 ${
+                  on ? "pn-acc-tile -translate-y-0.5 text-white shadow-lg" : `ring-1 ring-transparent hover:-translate-y-0.5 hover:bg-card hover:shadow-md hover:ring-border/70 dark:hover:ring-white/10 ${trabaja ? "" : "opacity-50"}`
+                }`}
+              >
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${on ? "text-white/80" : esHoyD ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
+                <span className="font-display text-xl font-semibold leading-tight tabular-nums sm:text-2xl">{f.getDate()}</span>
+                <span className="mt-1 flex h-4 items-center">
+                  {n ? (
+                    <span className={`rounded-full px-1.5 text-[10px] font-bold leading-4 ${on ? "bg-white/25 text-white" : "bg-[rgba(var(--acc),.14)] text-[rgb(var(--acc))]"}`}>{n} {n === 1 ? "cita" : "citas"}</span>
+                  ) : (
+                    <span className={`text-[9px] font-medium ${on ? "text-white/70" : "text-muted-foreground/70"}`}>{trabaja ? "Libre" : "—"}</span>
+                  )}
+                </span>
+                {esHoyD && !on && <span className="absolute right-2 top-2 size-1.5 rounded-full bg-[rgb(var(--acc))]" />}
               </button>
             );
           })}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
-          {[
-            { l: "Citas", v: ocupados, c: "text-foreground" },
-            { l: "Confirmadas", v: confirmados, c: "text-sky-700" },
-            { l: "Pendientes", v: pendientes, c: "text-amber-700" },
-            { l: "Atendidas", v: atendidos, c: "text-emerald-700" },
-            { l: "Libres", v: Math.max(0, totalSlots - columnas.reduce((acc, c) => acc + c.suyos.filter((t) => c.slots.includes(t.hora)).length, 0)), c: "text-muted-foreground" },
-          ].map((x) => (
-            <div key={x.l} className="rounded-xl bg-secondary/50 px-3 py-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{x.l}</p>
-              <p className={`font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</p>
+        {(() => {
+          const libres = Math.max(0, totalSlots - columnas.reduce((acc, c) => acc + c.suyos.filter((t) => c.slots.includes(t.hora)).length, 0));
+          const pct = totalSlots ? Math.round(((totalSlots - libres) / totalSlots) * 100) : 0;
+          const tiles = [
+            { l: "Citas", v: ocupados, icon: CalendarDays, tono: "from-slate-500/15 to-slate-500/5 text-slate-700 dark:text-slate-200", ic: "bg-slate-500/15 text-slate-600 dark:text-slate-300" },
+            { l: "Confirmadas", v: confirmados, icon: CalendarCheck, tono: "from-sky-500/15 to-sky-500/5 text-sky-800 dark:text-sky-200", ic: "bg-sky-500/15 text-sky-600 dark:text-sky-300" },
+            { l: "Pendientes", v: pendientes, icon: Clock, tono: "from-amber-500/15 to-amber-500/5 text-amber-800 dark:text-amber-200", ic: "bg-amber-500/15 text-amber-600 dark:text-amber-300" },
+            { l: "Atendidas", v: atendidos, icon: Check, tono: "from-emerald-500/15 to-emerald-500/5 text-emerald-800 dark:text-emerald-200", ic: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" },
+          ];
+          return (
+            <div className="relative mt-5 grid grid-cols-2 gap-2.5 md:grid-cols-4 2xl:grid-cols-5">
+              {tiles.map((x) => {
+                const Icono = x.icon;
+                return (
+                  <div key={x.l} className={`flex items-center gap-3 rounded-2xl bg-gradient-to-br px-3.5 py-3 ring-1 ring-black/[0.04] dark:ring-white/10 ${x.tono}`}>
+                    <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${x.ic}`}><Icono className="size-4" /></span>
+                    <div className="min-w-0">
+                      <p className="font-display text-2xl font-semibold leading-none tabular-nums">{x.v}</p>
+                      <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-wide opacity-70">{x.l}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="col-span-2 rounded-2xl bg-card px-3.5 py-3 ring-1 ring-border/70 md:col-span-4 2xl:col-span-1 dark:ring-white/10">
+                <div className="flex items-baseline justify-between">
+                  <p className="font-display text-2xl font-semibold leading-none tabular-nums">{libres} <span className="text-xs font-medium text-muted-foreground">libres</span></p>
+                  <span className="text-xs font-bold tabular-nums text-[rgb(var(--acc))]">{pct}%</span>
+                </div>
+                <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-secondary dark:bg-white/10"><div className="pn-acc-tile h-full rounded-full transition-all duration-700" style={{ width: `${pct}%` }} /></div>
+                <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ocupación del día</p>
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </div>
 
       {/* Columnas por doctor */}
@@ -2141,7 +2186,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
                 </div>
               </div>
               <div className="space-y-3 rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
-                <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="capitalize">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span></p>
+                <p className="flex items-center gap-3 text-sm"><CalendarDays className="size-4 text-sky-300" /> <span className="inline-block first-letter:uppercase">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span></p>
                 <p className="flex items-center gap-3 text-sm"><Clock className="size-4 text-sky-300" /> {f.hora ? hora12(f.hora) : <span className="text-white/50">Elija un horario</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
@@ -3769,10 +3814,11 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
         </div>
       )}
 
+      {cambios && propia && <div aria-hidden className="h-24 lg:h-16" />}
       {cambios && propia && (
-        <div className="fixed inset-x-3 bottom-40 z-40 flex items-center gap-3 rounded-2xl bg-slate-900/95 p-3 pl-4 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur animate-in slide-in-from-bottom-4 lg:inset-x-auto lg:bottom-6 lg:left-1/2 lg:w-[34rem] lg:-translate-x-1/2">
+        <div className="fixed inset-x-3 bottom-[5.5rem] z-[45] flex items-center gap-3 rounded-2xl bg-slate-900/95 p-3 pl-4 text-white shadow-2xl ring-1 ring-white/10 backdrop-blur animate-in slide-in-from-bottom-4 lg:inset-x-auto lg:bottom-6 lg:left-[calc(50%+9rem)] lg:w-[32rem] lg:-translate-x-1/2">
           <span className="relative flex size-2.5"><span className="absolute inset-0 animate-ping rounded-full bg-amber-400" /><span className="relative size-2.5 rounded-full bg-amber-400" /></span>
-          <p className="min-w-0 flex-1 text-sm font-medium leading-tight">Tiene cambios sin publicar<span className="block text-[11px] font-normal text-white/60">Hasta que no los publique, no se ven en la web.</span></p>
+          <p className="min-w-0 flex-1 text-sm font-medium leading-tight">Tiene cambios sin publicar<span className="block text-[11px] font-normal text-white/60">Toque Publicar para que se vean en la web.</span></p>
           <button onClick={() => setDraft(guardada)} className="rounded-xl px-3 py-2 text-xs font-semibold text-white/70 hover:text-white">Descartar</button>
           <button onClick={guardar} className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-emerald-400"><Check className="mr-1 inline size-4" />Publicar</button>
         </div>
