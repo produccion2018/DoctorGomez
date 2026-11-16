@@ -48,7 +48,7 @@ export async function enviarCorreo(para: string[], asunto: string, html: string)
 }
 
 /** Igual que enviarCorreo, pero explica por qué no salió (para mostrarlo en el panel). */
-export async function enviarCorreoDetalle(para: string[], asunto: string, html: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function enviarCorreoDetalle(para: string[], asunto: string, html: string): Promise<{ ok: true; redirigidoA?: string } | { ok: false; error: string }> {
   const clave = env("RESEND_API_KEY");
   const to = para.map((x) => x.trim()).filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
   if (!clave) return { ok: false, error: "Falta configurar el correo (RESEND_API_KEY en Vercel)." };
@@ -61,8 +61,22 @@ export async function enviarCorreoDetalle(para: string[], asunto: string, html: 
   if (r?.ok) return { ok: true };
   const texto = r ? await r.text().catch(() => "") : "";
   console.error("Correo no enviado:", r?.status, texto);
-  if (/testing emails|verify a domain|own email/i.test(texto))
+  if (/testing emails|verify a domain|own email/i.test(texto)) {
+    // Modo prueba de Resend (sin dominio propio): el correo se manda a la cuenta de Resend,
+    // con un aviso de a quién iba dirigido, para poder ver cómo funciona.
+    const cuenta = texto.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] || env("CORREO_PRUEBA") || env("CORREO_AVISOS").split(",")[0]?.trim() || "";
+    if (cuenta && !to.includes(cuenta)) {
+      const aviso = `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:10px 14px;margin:0 0 16px;font:13px system-ui,sans-serif"><b>Correo de prueba.</b> Este mensaje iba para <b>${esc(to.join(", "))}</b>. Mientras no haya un dominio propio verificado en Resend, los correos llegan a esta cuenta.</div>`;
+      const r2 = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from: env("RESEND_FROM") || "HEGO <onboarding@resend.dev>", to: [cuenta], subject: `[Prueba · para ${to[0]}] ${asunto}`, html: html.replace(/<body([^>]*)>/i, (m) => `${m}${aviso}`).replace(/^(?![\s\S]*<body)/, aviso) }),
+      }).catch(() => null);
+      if (r2?.ok) return { ok: true, redirigidoA: cuenta };
+      console.error("Correo de prueba no enviado:", r2?.status, await r2?.text().catch(() => ""));
+    }
     return { ok: false, error: "Resend está en modo de prueba: por ahora solo envía al correo de su cuenta de Resend. Para enviar a cualquier paciente hay que verificar un dominio propio." };
+  }
   if (r?.status === 401 || r?.status === 403) return { ok: false, error: "Resend rechazó la clave. Revise RESEND_API_KEY en Vercel." };
   return { ok: false, error: "No se pudo enviar el correo. Intente de nuevo en un momento." };
 }

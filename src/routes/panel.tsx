@@ -3148,7 +3148,8 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
     const r = await enviarReciboPorCorreo(enviando.id, enviando.para.trim());
     setMandando(false);
     if (!r.ok) { toast.error(r.error); return; }
-    toast.success(`Recibo enviado a ${r.para}.`);
+    if (r.prueba) toast.success(`Modo de prueba: el recibo para ${r.para} llegó a ${r.prueba}.`, { duration: 7000 });
+    else toast.success(`Recibo enviado a ${r.para}.`);
     setEnviando(null);
   };
   const [anulando, setAnulando] = useState<string | null>(null);

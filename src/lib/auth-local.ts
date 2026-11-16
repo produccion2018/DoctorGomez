@@ -494,7 +494,7 @@ export async function invitarPortalPorCorreo(id: string): Promise<{ ok: true; pa
 }
 
 /** Envía el recibo de un cobro por correo. Reintenta unos segundos por si el cobro recién creado todavía se está guardando. */
-export async function enviarReciboPorCorreo(id: string, para: string): Promise<{ ok: true; para: string } | { ok: false; error: string }> {
+export async function enviarReciboPorCorreo(id: string, para: string): Promise<{ ok: true; para: string; prueba?: string } | { ok: false; error: string }> {
   if (!(await iniciarBackend())) return { ok: false, error: "El envío de correos funciona con el servidor (en la página publicada)." };
   for (let i = 0; i < 4; i++) {
     const r = await enviarReciboCorreo({ data: { id, para } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
