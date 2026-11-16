@@ -109,7 +109,10 @@ import {
   MessageCircle,
   FileSpreadsheet,
   Paperclip,
+  Gift,
+  Monitor,
 } from "lucide-react";
+import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
 import { confirmar as preguntar } from "@/components/confirmar";
 import { Button } from "@/components/ui/button";
@@ -1194,7 +1197,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   laboratorio: { a: "5,150,105", b: "14,165,233", c: "20,184,166" },
   facturacion: { a: "13,148,136", b: "16,185,129", c: "14,165,233" },
   analitica: { a: "14,116,144", b: "11,42,107", c: "56,132,246" },
-  automatizaciones: { a: "234,88,12", b: "225,29,72", c: "139,92,246" },
+  automatizaciones: { a: "11,42,107", b: "14,116,144", c: "56,132,246" },
   historia: { a: "14,116,144", b: "11,42,107", c: "56,132,246" },
   horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
   pacientes: { a: "29,78,216", b: "11,42,107", c: "14,116,144" },
@@ -8765,7 +8768,11 @@ type VistaAuto = "bandeja" | "catalogo" | "flujos";
 function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]; irA: (t: Tab) => void }) {
   const pacientes = usePacientesClinica(turnos);
   const [guardadas, setActivas] = useDato<Record<string, boolean>>(KEY_AUTOS, {});
-  const activas: Record<string, boolean> = { recordatorio48: true, recordatorio24: true, ...guardadas };
+  const activas: Record<string, boolean> = { ...ACTIVAS_POR_DEFECTO, ...guardadas };
+  const [qN, setQN] = useState("");
+  const [canalF, setCanalF] = useState<"Todos" | CanalNotif>("Todos");
+  const [paraF, setParaF] = useState<"Todos" | ParaNotif>("Todos");
+  const [soloActivas, setSoloActivas] = useState(false);
   const [hechas, setHechas] = useDato<Record<string, string>>(KEY_AUTOS_HECHAS, {});
   const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
@@ -8779,7 +8786,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
 
   const acciones = calcularAcciones(activas, { turnos, pacientes, evols, estudios, controles, recetas, labs, cobros, facturas });
   const pendientes = acciones.filter((a) => !hechas[a.key]);
-  const nActivas = AUTOS_TODAS.filter((a) => activas[a.id]).length;
+  const nActivas = NOTIFICACIONES.filter((a) => activas[a.id]).length;
   const nHechas = Object.keys(hechas).length;
   const marcar = (a: AccionAuto) => {
     setHechas((p) => ({ ...p, [a.key]: new Date().toISOString() }));
@@ -8787,8 +8794,18 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
   };
   const alternar = (id: string, v: boolean) => {
     setActivas((p) => ({ ...p, [id]: v }));
-    log(v ? "Automatización activada" : "Automatización pausada", AUTOS_TODAS.find((x) => x.id === id)?.nombre ?? id);
+    log(v ? "Notificación activada" : "Notificación pausada", NOTIFICACIONES.find((x) => x.id === id)?.nombre ?? id);
   };
+  const alternarVarias = (ids: string[], v: boolean) => {
+    setActivas((p) => ({ ...p, ...Object.fromEntries(ids.map((i) => [i, v])) }));
+    log(v ? "Notificaciones activadas" : "Notificaciones pausadas", `${ids.length} notificaciones`);
+  };
+  const ICONO_GRUPO: Record<string, LucideIcon> = { calendar: CalendarDays, clipboard: ClipboardList, stethoscope: Stethoscope, heart: HeartPulse, droplets: Droplets, activity: Activity, flask: FlaskConical, pill: Pill, user: UserRound, wallet: Wallet, receipt: Receipt, gift: Gift, users: Users };
+  const ICONO_CANAL: Record<CanalNotif, LucideIcon> = { WhatsApp: MessageCircle, Correo: Mail, SMS: Smartphone, Panel: Monitor };
+  const coincide = (n: (typeof NOTIFICACIONES)[number]) =>
+    (canalF === "Todos" || n.canales.includes(canalF)) && (paraF === "Todos" || n.para === paraF) && (!soloActivas || activas[n.id]) && (!qN || norm(`${n.nombre} ${n.cuando} ${n.grupo}`).includes(norm(qN)));
+  const visiblesN = NOTIFICACIONES.filter(coincide);
+  const porCanal = (["WhatsApp", "Correo", "SMS", "Panel"] as CanalNotif[]).map((c) => ({ c, n: NOTIFICACIONES.filter((x) => activas[x.id] && x.canales.includes(c)).length }));
 
   const FLUJOS: { t: string; pasos: { icon: LucideIcon; l: string; auto?: string }[] }[] = [
     { t: "Ciclo de la cita", pasos: [{ icon: CalendarCheck, l: "Cita reservada" }, { icon: Send, l: "Pida confirmación", auto: "confirmar" }, { icon: Bell, l: "Recordatorio 2 días antes", auto: "recordatorio48" }, { icon: Bell, l: "Recordatorio 1 día antes", auto: "recordatorio24" }, { icon: Stethoscope, l: "Consulta" }, { icon: Send, l: "Encuesta", auto: "encuesta" }] },
@@ -8805,15 +8822,15 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
         <div className="relative flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Zap className="size-3.5" /> Automatizaciones</span>
-            <h2 className="mt-3 text-3xl font-semibold">La clínica trabaja sola</h2>
+            <h2 className="mt-3 text-3xl font-semibold">Notificaciones de la clínica</h2>
             <p className="mt-2 text-sm text-white/70">
-              Cuando pasa algo —una cita, un resultado, una receta— la automatización prepara el aviso o la alerta. Los mensajes quedan listos para enviar por WhatsApp con un toque; el envío 100% automático se activa al conectar la API de WhatsApp en el backend.
+              {NOTIFICACIONES.length} notificaciones para pacientes, médicos y equipo: citas, recordatorios, resultados, recetas, pagos, EPS, cumpleaños y más. Active las que la clínica quiere usar; las activas quedan habilitadas para el envío automático por WhatsApp, correo, SMS o aviso en el panel.
             </p>
           </div>
         </div>
         <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { l: "Activas", v: `${nActivas}/${AUTOS_TODAS.length}`, i: Zap },
+            { l: "Activas", v: `${nActivas}/${NOTIFICACIONES.length}`, i: Zap },
             { l: "Para hacer ahora", v: String(pendientes.length), i: Bell },
             { l: "Ejecutadas", v: String(nHechas), i: Check },
             { l: "Tiempo ahorrado", v: `${((nHechas * 4) / 60).toFixed(1).replace(".", ",")} h`, i: Clock },
@@ -8830,7 +8847,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
       </section>
 
       <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
-        {([["bandeja", `Para hacer (${pendientes.length})`, Bell], ["catalogo", "Catálogo", ClipboardList], ["flujos", "Flujos", Workflow]] as [VistaAuto, string, LucideIcon][]).map(([id, l, Ic]) => (
+        {([["bandeja", `Para hacer (${pendientes.length})`, Bell], ["catalogo", `Notificaciones (${nActivas}/${NOTIFICACIONES.length})`, ClipboardList], ["flujos", "Flujos", Workflow]] as [VistaAuto, string, LucideIcon][]).map(([id, l, Ic]) => (
           <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             <Ic className="size-4" /> {l}
           </button>
@@ -8871,36 +8888,66 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
       )}
 
       {vista === "catalogo" && (
-        <div className="space-y-3">
-          {GRUPOS_AUTO.map((g) => {
-            const abierto = grupoAbierto === g.id;
+        <div className="space-y-4">
+          <div className="pn-card space-y-3 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input value={qN} onChange={(e) => setQN(e.target.value)} placeholder="Buscar notificación: cumpleaños, recordatorio, glosa…" className={inp + " h-10 pl-9"} />
+              </div>
+              <div className="w-full sm:w-52"><select value={paraF} onChange={(e) => setParaF(e.target.value as typeof paraF)} className={inp + " h-10"} aria-label="Para quién">
+                {["Todos", "Paciente", "Médico", "Enfermería", "Recepción", "Administración", "Dirección"].map((x) => <option key={x} value={x}>{x === "Todos" ? "Para todos" : `Para: ${x}`}</option>)}
+              </select></div>
+              <button type="button" onClick={() => setSoloActivas((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${soloActivas ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><Check className="size-3.5" /> Solo activas</button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(["Todos", "WhatsApp", "Correo", "SMS", "Panel"] as const).map((c) => {
+                const Ic = c === "Todos" ? Bell : ICONO_CANAL[c];
+                return (
+                  <button key={c} type="button" onClick={() => setCanalF(c)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${canalF === c ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>
+                    <Ic className="size-3.5" /> {c === "Todos" ? "Todos los canales" : c}{c !== "Todos" && <span className="opacity-70">· {porCanal.find((x) => x.c === c)?.n ?? 0} activas</span>}
+                  </button>
+                );
+              })}
+              <div className="ml-auto flex gap-1.5">
+                <button type="button" onClick={() => alternarVarias(visiblesN.map((n) => n.id), true)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Activar las {visiblesN.length} que se ven</button>
+                <button type="button" onClick={() => alternarVarias(visiblesN.map((n) => n.id), false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10">Pausar</button>
+              </div>
+            </div>
+          </div>
+          {GRUPOS_NOTIF.map((g) => {
+            const items = g.items.filter((i) => coincide({ ...i, grupo: g.titulo }));
+            if (!items.length) return null;
+            const filtrando = !!qN || canalF !== "Todos" || paraF !== "Todos" || soloActivas;
+            const abierto = filtrando || grupoAbierto === g.id;
             const act = g.items.filter((i) => activas[i.id]).length;
+            const Ic = ICONO_GRUPO[g.icono] ?? Bell;
             return (
-              <section key={g.id} className="pn-card pn-up overflow-hidden">
-                <button onClick={() => setGrupoAbierto(abierto ? "" : g.id)} className="flex w-full items-center gap-4 p-5 text-left">
-                  <span className={`flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br ${g.grad} text-white shadow-md`}><g.icon className="size-5" /></span>
+              <section key={g.id} className="pn-card overflow-hidden">
+                <button onClick={() => setGrupoAbierto(grupoAbierto === g.id ? "" : g.id)} className="flex w-full items-center gap-4 p-4 text-left sm:p-5">
+                  <span className="grid size-11 place-items-center rounded-2xl bg-[#0b2a6b] text-white shadow-sm"><Ic className="size-5" /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Grupo {g.letra}</p>
                     <p className="font-semibold">{g.titulo}</p>
+                    <div className="mt-1.5 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-[#0e7490] transition-all" style={{ width: `${(act / g.items.length) * 100}%` }} /></div>
                   </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold">{act}/{g.items.length} activas</span>
+                  <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200">{act}/{g.items.length} activas</span>
                   <ChevronDown className={`size-4 text-muted-foreground transition-transform ${abierto ? "rotate-180" : ""}`} />
                 </button>
                 {abierto && (
-                  <div className="border-t border-border/60 px-5 pb-5 pt-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div className="mb-2 flex justify-end">
-                      <button onClick={() => g.items.forEach((i) => alternar(i.id, act < g.items.length))} className="text-xs font-semibold text-primary">{act < g.items.length ? "Activar todas" : "Pausar todas"}</button>
+                  <div className="border-t border-slate-100 px-4 pb-4 pt-2 dark:border-white/10 sm:px-5">
+                    <div className="mb-1 flex justify-end">
+                      <button onClick={() => alternarVarias(g.items.map((i) => i.id), act < g.items.length)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">{act < g.items.length ? "Activar todo el grupo" : "Pausar todo el grupo"}</button>
                     </div>
-                    <ul className="divide-y divide-border/60">
-                      {g.items.map((i) => (
-                        <li key={i.id} className="flex items-center gap-4 py-3">
+                    <ul className="divide-y divide-slate-100 dark:divide-white/5">
+                      {items.map((i) => (
+                        <li key={i.id} className={`flex items-center gap-4 py-3 transition ${activas[i.id] ? "" : "opacity-75"}`}>
                           <div className="min-w-0 flex-1">
-                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                              {i.nombre}
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${i.canal === "WhatsApp" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : i.canal === "Email" ? "bg-sky-100 text-sky-800 ring-sky-200" : "bg-violet-100 text-violet-700 ring-violet-200"}`}>{i.canal}</span>
-                              {!i.motor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">Con el backend</span>}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{i.desc}</p>
+                            <p className="text-sm font-semibold">{i.nombre}</p>
+                            <p className="text-xs text-muted-foreground">{i.cuando}</p>
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-md bg-[#0b2a6b]/[.06] px-2 py-0.5 text-[10px] font-semibold text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200">Para: {i.para}</span>
+                              {i.canales.map((c) => { const Ci = ICONO_CANAL[c]; return <span key={c} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/5 dark:text-slate-300"><Ci className="size-3" /> {c}</span>; })}
+                            </div>
                           </div>
                           <Interruptor on={!!activas[i.id]} onChange={(v) => alternar(i.id, v)} label="" />
                         </li>
@@ -8911,6 +8958,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
               </section>
             );
           })}
+          {visiblesN.length === 0 && <Vacio icon={Search} titulo="Sin resultados" texto="Ninguna notificación coincide con la búsqueda o los filtros." />}
         </div>
       )}
 

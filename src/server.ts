@@ -48,6 +48,7 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const ruta = new URL(request.url).pathname;
     if (ruta === "/api/recordatorios") return recordatorios(request);
+    if (ruta === "/api/notificaciones") return notificaciones(request);
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
@@ -73,6 +74,28 @@ async function recordatorios(request: Request): Promise<Response> {
     return Response.json(await enviarRecordatorios());
   } catch (error) {
     console.error("Recordatorios:", error);
+    return Response.json({ ok: false }, { status: 500 });
+  }
+}
+
+/**
+ * Notificaciones habilitadas en el panel, para el motor interno de automatizaciones.
+ * GET con "Authorization: Bearer <AUTOMATIZACIONES_TOKEN>". Devuelve el catálogo con "activa" en cada una.
+ */
+async function notificaciones(request: Request): Promise<Response> {
+  const clave = process.env["AUTOMATIZACIONES_TOKEN"]?.trim();
+  if (!clave) return Response.json({ ok: false, error: "AUTOMATIZACIONES_TOKEN no está configurado." }, { status: 503 });
+  if ((request.headers.get("authorization") ?? "") !== `Bearer ${clave}`) return new Response("No autorizado", { status: 401 });
+  try {
+    const { db } = await import("./lib/db.server");
+    const { NOTIFICACIONES, ACTIVAS_POR_DEFECTO } = await import("./lib/notificaciones");
+    const sql = await db();
+    const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_automatizaciones'`) as { valor: Record<string, boolean> | null }[];
+    const elegidas = { ...ACTIVAS_POR_DEFECTO, ...(filas[0]?.valor ?? {}) };
+    const lista = NOTIFICACIONES.map((n) => ({ ...n, activa: !!elegidas[n.id] }));
+    return Response.json({ ok: true, total: lista.length, activas: lista.filter((n) => n.activa).length, notificaciones: lista });
+  } catch (error) {
+    console.error("Notificaciones:", error);
     return Response.json({ ok: false }, { status: 500 });
   }
 }
