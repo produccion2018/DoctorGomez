@@ -171,6 +171,13 @@ import {
   KEY_LAB,
   KEY_FACTURAS,
   siglaComp,
+  KEY_FACT_CONFIG,
+  KEY_TARIFAS,
+  prefijoDe,
+  enLetras,
+  numeroComprobante,
+  type ConfigFactura,
+  type Tarifa,
   KEY_INTEROP,
   TIPOS_DOC,
   type Interop,
@@ -460,6 +467,8 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
           { id: "comprobantes", label: "Comprobantes" },
           { id: "porfacturar", label: "Por facturar" },
           { id: "obras", label: "EPS" },
+          { id: "tarifas", label: "Tarifas" },
+          { id: "datos", label: "Datos de facturación" },
         ],
       },
     ],
@@ -4689,7 +4698,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
                     <p className="text-xs tabular-nums text-muted-foreground">{fechaHora(e.fecha)}</p>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground/80">{e.usuario}</span>
+                    <span className="font-medium text-foreground/80">{nombreCorto(e.usuario)}</span>
                     {e.detalle ? ` · ${e.detalle}` : ""}
                   </p>
                 </div>
@@ -6843,52 +6852,95 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
 }
 
 /* ═══════════════════════ PAGOS Y FACTURACIÓN ═══════════════════════ */
-type VistaFact = "comprobantes" | "porfacturar" | "obras";
+type VistaFact = "comprobantes" | "porfacturar" | "obras" | "tarifas" | "datos";
 const ESTADO_FACT: Record<Factura["estado"], string> = {
   Emitida: "bg-amber-100 text-amber-800 ring-amber-200",
   Cobrada: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   Anulada: "bg-red-100 text-red-700 ring-red-200",
 };
 
-function htmlFactura(f: Factura) {
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${f.tipo} ${f.numero}</title>
-<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:760px;margin:auto}.cab{display:flex;justify-content:space-between;border:1px solid #cbd5e1;border-radius:12px;padding:18px}
-.letra{font-size:34px;font-weight:800;border:2px solid #0f172a;border-radius:8px;width:56px;height:56px;display:flex;align-items:center;justify-content:center}
-h1{margin:0;font-size:20px}.m{color:#64748b;font-size:12px;margin:3px 0}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border-bottom:1px solid #e2e8f0;padding:9px;font-size:13px;text-align:left}
-.tot{text-align:right;font-size:20px;font-weight:800;margin-top:14px}.nota{margin-top:26px;font-size:11px;color:#64748b;border-top:1px dashed #cbd5e1;padding-top:10px}</style></head><body>
-<div class="cab"><div><h1>HEGO · Centro de especialidades médicas</h1><p class="m">Dirección médica: Dres. Gómez Bolaño</p></div><div class="letra">${siglaComp(f.tipo)}</div>
-<div style="text-align:right"><b>${f.tipo}</b><p class="m">N° ${f.numero}</p><p class="m">${fechaDe(f.fecha)}</p></div></div>
-<p style="margin-top:16px;font-size:14px"><b>Receptor:</b> ${f.receptor}${f.docReceptor ? ` · ${f.docReceptor}` : ""}<br><b>Cobertura:</b> ${f.cobertura}</p>
-<table><thead><tr><th>Descripción</th><th>Cant.</th><th>Precio</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>
-${f.items.map((i) => `<tr><td>${i.desc}</td><td>${i.cant}</td><td>${dinero(i.precio)}</td><td style="text-align:right">${dinero(i.cant * i.precio)}</td></tr>`).join("")}</tbody></table>
-<p class="tot">Total ${dinero(f.total)}</p>${f.estado === "Anulada" ? `<p style="color:#dc2626;font-weight:800">COMPROBANTE ANULADO</p>` : ""}
-<p class="nota">Comprobante interno de la clínica. La factura electrónica (con CUFE) se emite al conectar la facturación electrónica de la DIAN.</p><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+function htmlFactura(f: Factura, c: ConfigFactura = {}) {
+  const logo = `${location.origin}${logoClinica}`;
+  const esc = (x: unknown) => String(x ?? "").replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch]!);
+  const filas = f.items.map((i, n) => `<tr><td class="c">${n + 1}</td><td>${esc(i.desc)}</td><td class="c">${i.cant}</td><td class="r">${dinero(i.precio)}</td><td class="r b">${dinero(i.cant * i.precio)}</td></tr>`).join("");
+  const datos = [c.nit && `NIT ${esc(c.nit)}`, c.habilitacion && `Cód. habilitación ${esc(c.habilitacion)}`, c.direccion && esc(c.direccion), c.ciudad && esc(c.ciudad), c.telefono && `Tel. ${esc(c.telefono)}`, c.correo && esc(c.correo)].filter(Boolean).join(" · ");
+  const resol = f.tipo.startsWith("Factura") && c.resolucion
+    ? `Autorización de numeración de facturación DIAN N.º ${esc(c.resolucion)}${c.fechaResolucion ? ` del ${esc(fechaDe(c.fechaResolucion))}` : ""}${c.prefijo ? `, prefijo ${esc(c.prefijo)}` : ""}${c.desde && c.hasta ? `, del ${c.desde} al ${c.hasta}` : ""}${c.vigenciaHasta ? `, vigente hasta ${esc(fechaDe(c.vigenciaHasta))}` : ""}.`
+    : "";
+  return `<!doctype html><html lang="es-CO"><head><meta charset="utf-8"><title>${esc(f.tipo)} ${esc(f.numero)}</title>
+<style>
+*{box-sizing:border-box}body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:radial-gradient(circle at 20% 0%,#e0e7ff,#f1f5f9 50%)}
+.hoja{position:relative;max-width:800px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px -35px rgba(15,23,42,.55)}
+.top{position:relative;background:linear-gradient(130deg,#071a46 0%,#0b2a6b 45%,#1d4ed8 100%);color:#fff;padding:26px 32px;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,#e11d48,#7c3aed,#0ea5e9)}
+.marca{display:flex;gap:14px;align-items:center}.marca img{width:58px;height:58px;border-radius:16px;background:#fff;padding:4px}
+.marca h1{margin:0;font-size:20px;letter-spacing:.5px}.marca p{margin:3px 0 0;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;opacity:.75}
+.doc{text-align:right}.doc .t{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;opacity:.75}.doc .n{font-size:24px;font-weight:800;margin-top:2px}.doc .f{font-size:12px;opacity:.8;margin-top:2px}
+.datos{padding:12px 32px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11.5px;color:#475569}
+.cuerpo{padding:24px 32px}
+.cajas{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}.caja{border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px}.caja .l{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:4px}.caja .v{font-size:15px;font-weight:700}.caja .s{font-size:12px;color:#475569;margin-top:2px}
+table{width:100%;border-collapse:separate;border-spacing:0;margin-top:20px;font-size:13px}thead th{background:#0b2a6b;color:#fff;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:10px;text-align:left}thead th:first-child{border-radius:10px 0 0 10px}thead th:last-child{border-radius:0 10px 10px 0}
+td{padding:11px 10px;border-bottom:1px solid #eef2f7}.c{text-align:center}.r{text-align:right}.b{font-weight:700}
+.tot{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:18px}.letras{font-size:12px;color:#475569;max-width:58%}.letras b{color:#0f172a;display:inline-block}.letras b::first-letter{text-transform:uppercase}
+.suma{min-width:260px;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0}.suma div{display:flex;justify-content:space-between;padding:8px 14px;font-size:13px}.suma .g{background:linear-gradient(130deg,#0b2a6b,#1d4ed8);color:#fff;font-size:18px;font-weight:800;padding:12px 14px}
+.nota{margin-top:22px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:10.5px;color:#64748b;line-height:1.55}
+.anulada{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);font-size:84px;font-weight:900;color:rgba(220,38,38,.16);letter-spacing:8px;pointer-events:none}
+@media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
+</style></head><body><div class="hoja">
+${f.estado === "Anulada" ? '<div class="anulada">ANULADA</div>' : ""}
+<div class="top"><div class="marca"><img src="${logo}" alt=""><div><h1>${esc(c.razonSocial || "HEGO")}</h1><p>Centro de especialidades médicas</p></div></div>
+<div class="doc"><div class="t">${esc(f.tipo)}</div><div class="n">N.º ${esc(f.numero)}</div><div class="f">${esc(fechaDe(f.fecha))}</div></div></div>
+${datos ? `<div class="datos">${datos}</div>` : ""}
+<div class="cuerpo">
+<div class="cajas"><div class="caja"><div class="l">${f.cobertura === "Particular" ? "Paciente" : "Paciente / adquiriente"}</div><div class="v">${esc(f.receptor)}</div><div class="s">${esc(f.docReceptor || "")}</div></div>
+<div class="caja"><div class="l">Cobertura</div><div class="v">${esc(f.cobertura)}</div><div class="s">Atendió: ${esc(f.emitidaPor)}</div></div></div>
+<table><thead><tr><th class="c">#</th><th>Servicio</th><th class="c">Cant.</th><th class="r">Valor unitario</th><th class="r">Total</th></tr></thead><tbody>${filas}</tbody></table>
+<div class="tot"><p class="letras">Son: <b>${esc(enLetras(f.total))}</b></p>
+<div class="suma"><div><span>Subtotal</span><span>${dinero(f.total)}</span></div><div><span>IVA</span><span>Excluido</span></div><div class="g"><span>Total</span><span>${dinero(f.total)}</span></div></div></div>
+<p class="nota">${resol ? `${resol}<br>` : ""}${esc(c.responsabilidadIva || "Servicios de salud excluidos de IVA (art. 476, num. 1, del Estatuto Tributario).")}<br>${f.tipo.startsWith("Factura") ? "Representación interna del comprobante. La factura electrónica de venta (con CUFE) se emite al conectar el proveedor de facturación electrónica autorizado por la DIAN." : "Documento interno de la clínica."}${c.pie ? `<br>${esc(c.pie)}` : ""}</p>
+</div></div><script>setTimeout(()=>window.print(),400)</script></body></html>`;
 }
 
 function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionUser; log: LogFn; turnos: Turno[]; vista: VistaFact; setVista: (v: VistaFact) => void }) {
   const pacientes = usePacientesClinica(turnos);
   const [facturas, setFacturas] = useDato<Factura[]>(KEY_FACTURAS, []);
+  const [config, setConfig] = useDato<ConfigFactura>(KEY_FACT_CONFIG, {});
+  const [tarifasG, setTarifas] = useDato<Tarifa[]>(KEY_TARIFAS, []);
+  const tarifas: Tarifa[] = tarifasG.length ? tarifasG : SERVICIOS.map((x) => ({ id: x.id, nombre: x.nombre, valor: x.precio, activo: true }));
+  const activas = tarifas.filter((t) => t.activo);
+  const [emitiendo, setEmitiendo] = useState(false);
+  const puedeConfig = user.rol === "medico" || user.area === "Dirección general";
   const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
   const [form, setForm] = useState<Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total"> | null>(null);
   const [q, setQ] = useState("");
 
+  /** Sin servidor (modo local): numera con el prefijo y el siguiente número. */
   const proximoNumero = (tipo: TipoComprobante) => {
-    const n = facturas.filter((f) => f.tipo === tipo).length + 1;
-    return `0001-${String(n).padStart(8, "0")}`;
+    const pre = prefijoDe(tipo, config);
+    const n = facturas.filter((f) => f.tipo === tipo).length + (tipo.startsWith("Factura") && config.desde ? Number(config.desde) : 1);
+    return `${pre ? `${pre}-` : ""}${n}`;
   };
   const nuevo = (base?: Partial<Factura>) =>
-    setForm({ tipo: "Factura de venta", fecha: new Date().toISOString(), receptor: "", cobertura: "Particular", items: [{ desc: SERVICIOS[0]?.nombre ?? "Consulta", cant: 1, precio: SERVICIOS[0]?.precio ?? 0 }], ...base } as Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total">);
+    setForm({ tipo: "Factura de venta", fecha: new Date().toISOString(), receptor: "", cobertura: "Particular", items: [{ desc: activas[0]?.nombre ?? "Consulta", cant: 1, precio: activas[0]?.valor ?? 0 }], ...base } as Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total">);
 
-  const emitir = (e: FormEvent) => {
+  const emitir = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form || !form.receptor.trim()) { toast.error("Complete el receptor"); return; }
+    if (!form || !form.receptor.trim()) { toast.error("Escriba el nombre del paciente o de la entidad."); return; }
+    if (!form.docReceptor?.trim()) { toast.error("La cédula o el NIT es obligatorio."); return; }
+    if (form.tipo === "Factura de venta" && !config.nit) toast.message("Falta cargar el NIT de la clínica", { description: "Puede hacerlo en Facturación → Datos de facturación." });
     const total = form.items.reduce((a, i) => a + i.cant * i.precio, 0);
-    const f = JSON.parse(JSON.stringify({ ...form, id: nuevoId(), numero: proximoNumero(form.tipo), estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
+    if (total <= 0) { toast.error("El total tiene que ser mayor a cero."); return; }
+    setEmitiendo(true);
+    const r = await numeroComprobante(form.tipo);
+    setEmitiendo(false);
+    if (r && !r.ok) { toast.error(r.error); return; }
+    const numero = r ? r.numero : proximoNumero(form.tipo);
+    const f = JSON.parse(JSON.stringify({ ...form, receptor: nombrePropio(form.receptor).trim(), id: nuevoId(), numero, estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
     setFacturas((prev) => [f, ...prev]);
     log("Comprobante emitido", `${f.tipo} ${f.numero} · ${f.receptor} · ${dinero(total)}`);
-    toast.success(`${f.tipo} ${f.numero} emitida`);
+    toast.success(`${f.tipo} N.º ${f.numero} emitida`);
     setForm(null);
-    imprimirHtml(htmlFactura(f));
+    imprimirHtml(htmlFactura(f, config));
   };
 
   const mes = isoDe(new Date()).slice(0, 7);
@@ -6918,7 +6970,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
-          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "EPS", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
+          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "EPS", Building2], ["tarifas", "Tarifas", Wallet], ["datos", "Datos de facturación", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
             <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
               <Ic className="size-4" /> {l}
             </button>
@@ -6932,7 +6984,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           <div className="flex items-center justify-between border-b border-border/60 pb-4">
             <div>
               <h3 className="text-[15px] font-semibold">Nuevo comprobante</h3>
-              <p className="text-xs text-muted-foreground">N° {proximoNumero(form.tipo)}</p>
+              <p className="text-xs text-muted-foreground">{prefijoDe(form.tipo, config) ? `Prefijo ${prefijoDe(form.tipo, config)} · ` : ""}el número lo asigna el sistema al emitir</p>
             </div>
             <button type="button" onClick={() => setForm(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
           </div>
@@ -6948,16 +7000,16 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                 value={form.receptor}
                 onChange={(e) => {
                   const p = pacientes.find((x) => x.nombre === e.target.value);
-                  setForm({ ...form, receptor: e.target.value, ...(p ? { docReceptor: p.dni ? `C.C. ${p.dni}` : undefined, cobertura: p.ficha?.obraSocial || form.cobertura } : {}) } as typeof form);
+                  setForm({ ...form, receptor: nombrePropio(e.target.value), ...(p ? { docReceptor: p.dni ? `C.C. ${p.dni}` : undefined, cobertura: p.ficha?.obraSocial || form.cobertura } : {}) } as typeof form);
                 }}
                 className={inp}
               />
               <datalist id="fact-pacientes">{pacientes.map((p) => <option key={p.id} value={p.nombre} />)}</datalist>
             </Campo>
-            <Campo label="Cédula / NIT"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
+            <Campo label="Cédula / NIT *"><input value={form.docReceptor ?? ""} onChange={(e) => setForm({ ...form, docReceptor: e.target.value })} className={inp} /></Campo>
             <Campo label="Cobertura"><input value={form.cobertura} onChange={(e) => setForm({ ...form, cobertura: e.target.value })} placeholder="Particular u EPS" className={inp} /></Campo>
           </div>
-          <datalist id="fact-servicios">{SERVICIOS.map((s) => <option key={s.id} value={s.nombre} />)}</datalist>
+          <datalist id="fact-servicios">{activas.map((t) => <option key={t.id} value={t.nombre} />)}</datalist>
           <div className="space-y-2">
             {form.items.map((it, i) => (
               <div key={i} className="grid gap-2 sm:grid-cols-[1fr_90px_160px_40px]">
@@ -6965,8 +7017,8 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                   list="fact-servicios"
                   value={it.desc}
                   onChange={(e) => {
-                    const s = SERVICIOS.find((x) => x.nombre === e.target.value);
-                    setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, desc: e.target.value, ...(s ? { precio: s.precio } : {}) } : x)) });
+                    const t = activas.find((x) => x.nombre === e.target.value);
+                    setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, desc: e.target.value, ...(t ? { precio: t.valor } : {}) } : x)) });
                   }}
                   placeholder="Descripción"
                   className={inp}
@@ -6980,7 +7032,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <p className="font-display text-2xl font-semibold">Total {dinero(form.items.reduce((a, i) => a + i.cant * i.precio, 0))}</p>
-            <Button type="submit" className="rounded-xl px-6"><Receipt className="size-4" /> Emitir e imprimir</Button>
+            <Button type="submit" disabled={emitiendo} className="rounded-xl px-6">{emitiendo ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />} Emitir e imprimir</Button>
           </div>
         </form>
       )}
@@ -7007,15 +7059,15 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
               {lista.map((f) => (
                 <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-sm font-bold text-white">{siglaComp(f.tipo)}</span>
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo.startsWith("Factura") ? "from-emerald-400 to-teal-600" : f.tipo.startsWith("Cuenta") ? "from-sky-500 to-blue-700" : "from-violet-500 to-indigo-700"}`}>{siglaComp(f.tipo)}</span>
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span></p>
-                      <p className="text-xs text-muted-foreground">{f.tipo} {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}</p>
+                      <p className="text-xs text-muted-foreground">{f.tipo} N.º {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}</p>
                     </div>
                   </div>
                   <p className="font-display text-xl font-semibold tabular-nums lg:w-36 lg:text-right">{dinero(f.total)}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <button onClick={() => imprimirHtml(htmlFactura(f))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Imprimir</button>
+                    <button onClick={() => imprimirHtml(htmlFactura(f, config))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Imprimir</button>
                     {f.estado === "Emitida" && (
                       <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Marcar cobrada</button>
                     )}
@@ -7092,8 +7144,101 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           )}
         </Seccion>
       )}
-      <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos. La factura electrónica (con CUFE) se emite al conectar la facturación electrónica de la DIAN.</p>
+      {vista === "tarifas" && <TarifasFact tarifas={tarifas} setTarifas={(v) => setTarifas(() => v)} puede={puedeConfig} log={log} />}
+      {vista === "datos" && <DatosFact config={config} setConfig={(v) => setConfig(() => v)} puede={puedeConfig} log={log} />}
+
+      <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos con numeración del sistema. La factura electrónica (con CUFE) y los RIPS se emiten al conectar un proveedor de facturación electrónica autorizado por la DIAN.</p>
     </div>
+  );
+}
+
+function TarifasFact({ tarifas, setTarifas, puede, log }: { tarifas: Tarifa[]; setTarifas: (v: Tarifa[]) => void; puede: boolean; log: LogFn }) {
+  const [lista, setLista] = useState<Tarifa[]>(tarifas);
+  const firma = JSON.stringify(tarifas);
+  useEffect(() => setLista(tarifas), [firma]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cambios = JSON.stringify(lista) !== firma;
+  const cambiar = (id: string, patch: Partial<Tarifa>) => setLista((l) => l.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const guardar = () => {
+    const limpias = lista.filter((t) => t.nombre.trim()).map((t) => ({ ...t, nombre: t.nombre.trim(), valor: Math.max(0, Math.round(t.valor)) }));
+    setTarifas(limpias);
+    log("Tarifas actualizadas", `${limpias.length} servicios`);
+    toast.success("Tarifas guardadas. Ya se usan al facturar.");
+  };
+  return (
+    <Seccion icon={Wallet} titulo="Tarifas de los servicios" sub="Valor particular de cada servicio. Se completa solo al facturar."
+      acciones={puede ? <div className="flex gap-2"><Button variant="outline" className="h-9 rounded-lg" onClick={() => setLista((l) => [...l, { id: nuevoId(), nombre: "", valor: 0, activo: true }])}><Plus className="size-4" /> Agregar servicio</Button>{cambios && <Button className="h-9 rounded-lg" onClick={guardar}><Check className="size-4" /> Guardar</Button>}</div> : undefined}>
+      {!puede && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">Solo los médicos administradores o Dirección pueden cambiar las tarifas.</p>}
+      <div className="overflow-x-auto rounded-2xl border border-border/70 dark:border-white/10">
+        <table className="w-full min-w-[620px] text-sm">
+          <thead className="bg-secondary/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground dark:bg-white/5">
+            <tr><th className="px-4 py-3">Servicio</th><th className="px-4 py-3">Código CUPS</th><th className="px-4 py-3 text-right">Valor particular</th><th className="px-4 py-3 text-center">Activo</th><th className="w-10" /></tr>
+          </thead>
+          <tbody className="divide-y divide-border/60 dark:divide-white/5">
+            {lista.map((t) => (
+              <tr key={t.id} className={t.activo ? "" : "opacity-50"}>
+                <td className="px-3 py-2"><input disabled={!puede} value={t.nombre} onChange={(e) => cambiar(t.id, { nombre: e.target.value })} placeholder="Ej.: Consulta de Cardiología" className={inp + " h-10"} /></td>
+                <td className="px-3 py-2"><input disabled={!puede} value={t.cups ?? ""} onChange={(e) => cambiar(t.id, { cups: e.target.value.replace(/[^\d]/g, "").slice(0, 8) })} placeholder="Opcional" className={inp + " h-10 w-32 tabular-nums"} /></td>
+                <td className="px-3 py-2 text-right"><div className="relative ml-auto w-40"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span><input disabled={!puede} inputMode="numeric" value={t.valor ? t.valor.toLocaleString("es-CO") : ""} onChange={(e) => cambiar(t.id, { valor: Number(e.target.value.replace(/\D/g, "")) || 0 })} placeholder="0" className={inp + " h-10 pl-7 text-right tabular-nums"} /></div></td>
+                <td className="px-3 py-2 text-center"><input type="checkbox" disabled={!puede} checked={t.activo} onChange={(e) => cambiar(t.id, { activo: e.target.checked })} className="size-4 accent-[var(--primary)]" /></td>
+                <td className="px-2">{puede && <button onClick={() => setLista((l) => l.filter((x) => x.id !== t.id))} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Quitar"><Trash2 className="size-4" /></button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">Los valores que había eran de ejemplo: cargue las tarifas reales de la clínica. Las tarifas con cada EPS dependen de su contrato y se ajustan al facturar.</p>
+    </Seccion>
+  );
+}
+
+function DatosFact({ config, setConfig, puede, log }: { config: ConfigFactura; setConfig: (v: ConfigFactura) => void; puede: boolean; log: LogFn }) {
+  const [d, setD] = useState<ConfigFactura>(config);
+  const firma = JSON.stringify(config);
+  useEffect(() => setD(config), [firma]); // eslint-disable-line react-hooks/exhaustive-deps
+  const campo = (k: keyof ConfigFactura, label: string, ph = "", tipo = "text") => (
+    <Campo label={label}>
+      <input disabled={!puede} type={tipo} value={(d[k] as string | number | undefined) ?? ""} placeholder={ph}
+        onChange={(e) => setD({ ...d, [k]: tipo === "number" ? (e.target.value ? Number(e.target.value) : undefined) : e.target.value })} className={inp} />
+    </Campo>
+  );
+  const faltan = [!d.nit && "NIT", !d.direccion && "dirección", !d.resolucion && "resolución DIAN", !d.prefijo && "prefijo"].filter(Boolean) as string[];
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    if (d.desde && d.hasta && d.desde > d.hasta) return toast.error("El rango autorizado está al revés: 'desde' tiene que ser menor que 'hasta'.");
+    setConfig(JSON.parse(JSON.stringify(d)) as ConfigFactura);
+    log("Datos de facturación actualizados", d.nit ? `NIT ${d.nit}` : "");
+    toast.success("Datos de facturación guardados.");
+  };
+  return (
+    <form onSubmit={guardar} className="grid gap-6 xl:grid-cols-2">
+      <Seccion icon={Building2} titulo="Datos del prestador" sub="Salen en el encabezado de cada comprobante">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {campo("razonSocial", "Razón social", "HEGO Centro de Especialidades Médicas S.A.S.")}
+          {campo("nit", "NIT (con dígito de verificación)", "900.123.456-7")}
+          {campo("habilitacion", "Código de habilitación (REPS)", "200010000001")}
+          {campo("telefono", "Teléfono", "300 123 4567")}
+          {campo("direccion", "Dirección", "Calle 16 # 10-20, consultorio 302")}
+          {campo("ciudad", "Ciudad", "Valledupar, Cesar")}
+          {campo("correo", "Correo de facturación", "facturacion@hego.com.co", "email")}
+          {campo("responsabilidadIva", "Leyenda de IVA", "Servicios de salud excluidos de IVA (art. 476, num. 1, E.T.)")}
+        </div>
+      </Seccion>
+      <Seccion icon={Receipt} titulo="Resolución de facturación DIAN" sub="Numeración autorizada para las facturas de venta">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {campo("resolucion", "N.º de resolución", "18764000000000")}
+          {campo("fechaResolucion", "Fecha de la resolución", "", "date")}
+          {campo("prefijo", "Prefijo de facturas", "HEGO")}
+          {campo("vigenciaHasta", "Vigente hasta", "", "date")}
+          {campo("desde", "Rango desde", "1", "number")}
+          {campo("hasta", "Rango hasta", "5000", "number")}
+          {campo("prefijoCuenta", "Prefijo de cuentas de cobro", "CC")}
+          {campo("prefijoRecibo", "Prefijo de recibos de caja", "RC")}
+        </div>
+        <div className="mt-4">{campo("pie", "Texto al pie (opcional)", "Gracias por confiar en nosotros.")}</div>
+        {faltan.length > 0 && <p className="mt-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-200">Falta: {faltan.join(", ")}. Hasta que se carguen, los comprobantes salen sin esos datos.</p>}
+        {puede ? <Button type="submit" className="mt-5 h-11 w-full rounded-xl"><Check className="size-4" /> Guardar datos de facturación</Button> : <p className="mt-4 text-sm text-muted-foreground">Solo los médicos administradores o Dirección pueden cambiar estos datos.</p>}
+      </Seccion>
+    </form>
   );
 }
 
@@ -8484,7 +8629,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
       sub={areaFija ? "Alta del equipo y link para que cada persona cree su contraseña" : "Cada persona entra con los permisos de su departamento"}
     >
       <form onSubmit={agregar} className={`mb-5 grid gap-3 ${areaFija ? "sm:grid-cols-[1fr_200px_auto]" : "sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]"}`}>
-        <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellido" className={inp} />
+        <input value={nombre} onChange={(e) => setNombre(nombrePropio(e.target.value))} placeholder="Nombre y apellido" className={inp} />
         <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp} />
         {!areaFija && (
           <select value={area} onChange={(e) => setArea(e.target.value)} className={inp} aria-label="Departamento">

@@ -26,6 +26,7 @@ import {
   aplicarCambios,
   horariosOcupados,
   invitarPortalCorreo,
+  siguienteComprobante,
   reservarTurnoPublico,
   ingresarPacienteServidor,
   salirPacienteServidor,
@@ -367,8 +368,8 @@ export function guardarDato<T>(key: string, val: T) {
 }
 
 /** Datos que viven en el servidor y se ven en la web pública. */
-const SINCRONIZADOS = ["gb_sitio", "gb_agenda", "gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop"];
-const INTERNOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop"];
+const SINCRONIZADOS = ["gb_sitio", "gb_agenda", "gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop", "gb_facturacion", "gb_tarifas"];
+const INTERNOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas", "gb_permisos", "gb_interop", "gb_facturacion", "gb_tarifas"];
 const traidos = new Map<string, Promise<void>>();
 
 function traerDelServidor(key: string): Promise<void> {
@@ -486,6 +487,12 @@ export async function invitarPortalPorCorreo(id: string): Promise<{ ok: true; pa
     await new Promise((res) => setTimeout(res, 1500));
   }
   return { ok: false, error: "No se pudo enviar." };
+}
+
+/** Número del próximo comprobante (consecutivo del servidor). Sin servidor: null y el panel numera localmente. */
+export async function numeroComprobante(tipo: string): Promise<{ ok: true; numero: string } | { ok: false; error: string } | null> {
+  if (!(await iniciarBackend())) return null;
+  return siguienteComprobante({ data: { tipo } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
 }
 
 /** Reserva desde la web pública: con backend va al servidor. */
@@ -980,6 +987,56 @@ export type Factura = {
   emitidaPor: string;
 };
 export const KEY_FACTURAS = "gb_facturas";
+
+/** Datos del prestador para los comprobantes (Colombia). Los cargan los médicos administradores. */
+export type ConfigFactura = {
+  razonSocial?: string;
+  nit?: string;
+  direccion?: string;
+  ciudad?: string;
+  telefono?: string;
+  correo?: string;
+  habilitacion?: string;
+  responsabilidadIva?: string;
+  resolucion?: string;
+  fechaResolucion?: string;
+  prefijo?: string;
+  desde?: number;
+  hasta?: number;
+  vigenciaHasta?: string;
+  prefijoCuenta?: string;
+  prefijoRecibo?: string;
+  pie?: string;
+};
+export const KEY_FACT_CONFIG = "gb_facturacion";
+/** Tarifas de los servicios: valor particular y, si se quiere, código CUPS. */
+export type Tarifa = { id: string; nombre: string; cups?: string; valor: number; activo: boolean };
+export const KEY_TARIFAS = "gb_tarifas";
+/** Prefijo que usa cada tipo de comprobante. */
+export const prefijoDe = (tipo: string, c: ConfigFactura) =>
+  (tipo.startsWith("Factura") ? c.prefijo : tipo.startsWith("Cuenta") ? c.prefijoCuenta || "CC" : c.prefijoRecibo || "RC")?.trim().toUpperCase() || "";
+/** Valor en letras para el comprobante: 125000 → "ciento veinticinco mil pesos m/cte". */
+export function enLetras(n: number): string {
+  const u = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiún", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+  const d = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+  const c = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+  const cien = (x: number): string => {
+    if (x === 100) return "cien";
+    const a = Math.floor(x / 100), r = x % 100;
+    const dec = r < 30 ? u[r]! : `${d[Math.floor(r / 10)]}${r % 10 ? ` y ${u[r % 10]}` : ""}`;
+    return [c[a], dec].filter(Boolean).join(" ");
+  };
+  const v = Math.round(Math.abs(n));
+  if (v === 0) return "cero pesos m/cte";
+  if (v === 1) return "un peso m/cte";
+  const mill = Math.floor(v / 1e6), miles = Math.floor((v % 1e6) / 1000), resto = v % 1000;
+  const partes = [
+    mill ? (mill === 1 ? "un millón" : `${mill >= 1000 ? enLetras(mill).replace(/ pesos m\/cte$/, "") : cien(mill)} millones`) : "",
+    miles ? (miles === 1 ? "mil" : `${cien(miles)} mil`) : "",
+    resto ? cien(resto) : "",
+  ].filter(Boolean);
+  return `${partes.join(" ")}${!miles && !resto && mill ? " de" : ""} pesos m/cte`;
+}
 
 /* ---------- Automatizaciones ---------- */
 export const KEY_AUTOS = "gb_automatizaciones";

@@ -13,7 +13,7 @@ const PUBLICOS = ["gb_sitio", "gb_agenda"] as const;
 /** Datos internos: los lee y guarda cualquier persona del equipo con sesión. */
 const PRIVADOS = ["gb_firmas", "gb_automatizaciones", "gb_automatizaciones_hechas"] as const;
 /** Datos internos que solo los médicos pueden modificar. */
-const PRIVADOS_MEDICOS = ["gb_permisos", "gb_interop"] as const;
+const PRIVADOS_MEDICOS = ["gb_permisos", "gb_interop", "gb_facturacion", "gb_tarifas"] as const;
 /** Datos que solo los médicos administradores pueden modificar. */
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
@@ -415,12 +415,13 @@ export const listarPersonalServidor = createServerFn({ method: "GET" }).handler(
   const filas = (await sql`SELECT id, nombre, area, documento, activo, invitacion, creado, creado_por, (hash IS NOT NULL) AS con_clave FROM usuarios WHERE rol <> 'medico' ORDER BY creado`) as {
     id: string; nombre: string; area: string | null; documento: string | null; activo: boolean; invitacion: string | null; creado: string; creado_por: string | null; con_clave: boolean;
   }[];
+  const { nombrePropio } = await import("./auth-local");
   return {
     ok: true,
     conClave: filas.filter((f) => f.con_clave).map((f) => f.id),
     personal: filas.map((f) => ({
       id: f.id,
-      nombre: f.nombre,
+      nombre: nombrePropio(f.nombre).trim(),
       activo: f.activo,
       creado: new Date(f.creado).toISOString(),
       creadoPor: f.creado_por ?? "",
@@ -443,8 +444,10 @@ export const guardarPersonalServidor = createServerFn({ method: "POST" })
       return { ok: false, error: (e as Error).message };
     }
     const sql = await db();
+    const { nombrePropio } = await import("./auth-local");
     for (const p of data.personal) {
       if (ADMINS_IDS.includes(p.id)) continue;
+      p.nombre = nombrePropio(String(p.nombre ?? "")).trim();
       const area = p.area ?? "Enfermería";
       const rol = area === "Enfermería" ? "enfermeria" : "personal";
       await sql`INSERT INTO usuarios (id, nombre, rol, area, documento, activo, invitacion, creado, creado_por)
@@ -586,7 +589,7 @@ export const leerColeccion = createServerFn({ method: "GET" })
 
 /** Nombres de pacientes siempre con mayúscula inicial ("maría pérez" → "María Pérez"), vengan de donde vengan. */
 async function nombresBienEscritos<T extends Record<string, unknown>>(coleccion: string, filas: T[]): Promise<T[]> {
-  const campo = coleccion === "gb_turnos" ? "paciente" : coleccion === "gb_padron" || coleccion === "gb_pacientes" ? "nombre" : null;
+  const campo = coleccion === "gb_turnos" ? "paciente" : coleccion === "gb_padron" || coleccion === "gb_pacientes" ? "nombre" : coleccion === "gb_audit" ? "usuario" : null;
   if (!campo) return filas;
   const { nombrePropio } = await import("./auth-local");
   return filas.map((f) => (typeof f[campo] === "string" ? { ...f, [campo]: nombrePropio(f[campo] as string).trim() } : f));
@@ -850,6 +853,31 @@ export const ejecutarIA = createServerFn({ method: "POST" })
     return (await import("./ia.server")).ejecutarAcciones(u, data.acciones ?? []);
   });
 
+
+/** Número del próximo comprobante: lo da el servidor, así nunca se repite aunque dos personas facturen a la vez. */
+export const siguienteComprobante = createServerFn({ method: "POST" })
+  .validator((d: { tipo: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ numero: string }>> => {
+    const u = await (await acceso()).usuarioActual();
+    if (!u) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    const { db } = await modulo();
+    const sql = await db();
+    const filas = (await sql`SELECT valor FROM datos WHERE clave = 'gb_facturacion'`) as { valor: Record<string, unknown> }[];
+    const cfg = (filas[0]?.valor ?? {}) as import("./auth-local").ConfigFactura;
+    const { prefijoDe } = await import("./auth-local");
+    const tipo = String(data.tipo ?? "Factura de venta");
+    const prefijo = prefijoDe(tipo, cfg);
+    const esFactura = tipo.startsWith("Factura");
+    const inicio = esFactura && cfg.desde ? Number(cfg.desde) : 1;
+    const r = (await sql`INSERT INTO consecutivos (clave, valor) VALUES (${`${tipo}|${prefijo}`}, ${inicio})
+      ON CONFLICT (clave) DO UPDATE SET valor = GREATEST(consecutivos.valor + 1, ${inicio}) RETURNING valor`) as { valor: number }[];
+    const n = Number(r[0]?.valor ?? inicio);
+    if (esFactura && cfg.hasta && n > Number(cfg.hasta)) {
+      await sql`UPDATE consecutivos SET valor = valor - 1 WHERE clave = ${`${tipo}|${prefijo}`}`;
+      return { ok: false, error: `Se terminó el rango autorizado por la DIAN (hasta ${cfg.hasta}). Hay que pedir una nueva resolución de numeración.` };
+    }
+    return { ok: true, numero: `${prefijo ? `${prefijo}-` : ""}${n}` };
+  });
 
 /** Envía por correo (Resend) la invitación al Portal del paciente. Solo personal del panel. */
 export const invitarPortalCorreo = createServerFn({ method: "POST" })

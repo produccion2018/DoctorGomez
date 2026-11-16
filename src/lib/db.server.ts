@@ -72,6 +72,7 @@ export async function db(): Promise<Sql> {
       } catch (e) {
         console.error("No se pudo crear el índice de citas únicas (¿hay citas duplicadas?):", (e as Error).message);
       }
+      await sql`CREATE TABLE IF NOT EXISTS consecutivos (clave text PRIMARY KEY, valor bigint NOT NULL)`;
       await sql`CREATE TABLE IF NOT EXISTS desafios (
         token text PRIMARY KEY,
         usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
