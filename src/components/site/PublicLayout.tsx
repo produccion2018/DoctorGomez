@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode, Fragment, isValidElement } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus, ChevronLeft, ChevronRight, Sun, Sunset, Moon, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -483,6 +483,77 @@ export function CalendarioMes({ disponibles, valor, onElegir, compacto = false }
         <span className="flex items-center gap-1.5"><span className="size-3 rounded bg-sky-100 ring-1 ring-sky-300" /> Disponible</span>
         <span className="flex items-center gap-1.5"><span className="gradient-deep size-3 rounded" /> Elegido</span>
         <span className="flex items-center gap-1.5"><span className="size-3 rounded border border-border" /> No atiende</span>
+      </div>
+    </div>
+  );
+}
+
+/** Horarios del día agrupados en Mañana / Tarde / Noche, con los ocupados apagados. */
+export function SelectorHorarios({ titulo, horarios, valor, onElegir, formato, compacto = false }: { titulo: string; horarios: { h: string; libre: boolean }[]; valor: string | null; onElegir: (h: string) => void; formato: (h: string) => string; compacto?: boolean }) {
+  const libres = horarios.filter((x) => x.libre).length;
+  const grupos = [
+    { id: "m", nombre: "Mañana", icono: Sun, tono: "text-amber-500", de: "00:00", a: "12:00" },
+    { id: "t", nombre: "Tarde", icono: Sunset, tono: "text-orange-500", de: "12:00", a: "18:00" },
+    { id: "n", nombre: "Noche", icono: Moon, tono: "text-indigo-400", de: "18:00", a: "24:00" },
+  ]
+    .map((g) => ({ ...g, items: horarios.filter((x) => x.h >= g.de && x.h < g.a) }))
+    .filter((g) => g.items.length);
+  return (
+    <div className={`rounded-3xl border border-border bg-card shadow-card dark:border-white/10 ${compacto ? "p-3" : "p-4 sm:p-6"}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-4 dark:border-white/10">
+        <div className="flex items-center gap-3">
+          <span className="gradient-deep grid size-10 place-items-center rounded-2xl text-white shadow-md"><Clock className="size-5" /></span>
+          <div>
+            <p className="font-display text-lg font-semibold leading-tight first-letter:uppercase">{titulo}</p>
+            <p className="text-xs text-muted-foreground">{libres ? `${libres} horario${libres === 1 ? "" : "s"} disponible${libres === 1 ? "" : "s"}` : "No quedan horarios libres este día"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-emerald-500" /> Libre</span>
+          <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-muted-foreground/30" /> Ocupado</span>
+        </div>
+      </div>
+      <div className="mt-4 space-y-5">
+        {grupos.map((g) => {
+          const Icono = g.icono;
+          const n = g.items.filter((x) => x.libre).length;
+          return (
+            <section key={g.id}>
+              <div className="mb-2.5 flex items-center gap-2">
+                <Icono className={`size-4 ${g.tono}`} />
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/80">{g.nombre}</p>
+                <span className="h-px flex-1 bg-border dark:bg-white/10" />
+                <span className="text-[11px] text-muted-foreground">{n} libre{n === 1 ? "" : "s"}</span>
+              </div>
+              <div className={`grid gap-2 ${compacto ? "grid-cols-3 sm:grid-cols-4" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-6"}`}>
+                {g.items.map(({ h, libre }) => {
+                  const on = valor === h;
+                  const [num, ...suf] = formato(h).split(" ");
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      disabled={!libre}
+                      onClick={() => onElegir(h)}
+                      aria-pressed={on}
+                      className={`group relative flex items-baseline justify-center gap-1 rounded-2xl px-2 py-2.5 tabular-nums transition-all duration-200 ${
+                        !libre
+                          ? "cursor-not-allowed bg-secondary/50 text-muted-foreground/35 dark:bg-white/[0.03]"
+                          : on
+                            ? "gradient-deep scale-[1.03] text-white shadow-lg ring-2 ring-sky-300/60"
+                            : "bg-background text-foreground ring-1 ring-border hover:-translate-y-0.5 hover:shadow-md hover:ring-primary/40 dark:bg-white/5 dark:ring-white/10"
+                      }`}
+                    >
+                      <span className={`text-[15px] font-semibold ${!libre ? "line-through decoration-1" : ""}`}>{num}</span>
+                      <span className={`text-[10px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{suf.join(" ")}</span>
+                      {on && <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-emerald-500 text-white shadow"><Check className="size-2.5" strokeWidth={3} /></span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { CalendarioMes, PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
+import { CalendarioMes, SelectorHorarios, PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import { ADMINS, KEY_AGENDA, hora12, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
@@ -375,26 +375,7 @@ function Turnos() {
                 {!fecha && fechas.length > 0 && <p className="mt-8 rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Seleccione un día para ver los horarios disponibles.</p>}
                 {fecha && (
                   <div className="mt-8">
-                    <p className="mb-3 text-sm font-semibold text-foreground first-letter:uppercase">{fechaTxt(fecha)}</p>
-                    <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
-                      {horarios.map(({ h, libre }) => (
-                        <button
-                          key={h}
-                          type="button"
-                          disabled={!libre}
-                          onClick={() => setHora(h)}
-                          className={`rounded-xl border py-3 text-sm font-semibold tabular-nums transition-all duration-200 ${
-                            !libre
-                              ? "cursor-not-allowed border-border bg-secondary/50 text-muted-foreground/40 line-through"
-                              : hora === h
-                                ? "scale-105 border-transparent gradient-deep text-white shadow-lg"
-                                : "border-border bg-card hover:border-primary/50 hover:text-primary"
-                          }`}
-                        >
-                          {hora12(h)}
-                        </button>
-                      ))}
-                    </div>
+                    <SelectorHorarios titulo={fechaTxt(fecha)} horarios={horarios} valor={hora} onElegir={setHora} formato={hora12} />
                   </div>
                 )}
               </div>

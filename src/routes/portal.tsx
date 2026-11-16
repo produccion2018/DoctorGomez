@@ -42,7 +42,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
-import { waLink, Electro, InstalarApp, CalendarioMes } from "@/components/site/PublicLayout";
+import { waLink, Electro, InstalarApp, CalendarioMes, SelectorHorarios } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import {
   ADMINS,
@@ -983,11 +983,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
               {agenda.nota && <p className={`mb-2 rounded-xl px-3 py-2 text-xs ring-1 ${TONO.ambar}`}>{agenda.nota}</p>}
               {dias.length === 0 ? <p className="text-sm text-muted-foreground">No hay días disponibles por ahora.</p> : <CalendarioMes compacto disponibles={dias} valor={fecha || null} onElegir={(f) => { setFecha(f); setHora(""); }} />}
               {fecha && (
-                <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-                  {libres.map(({ h, libre }) => (
-                    <button key={h} disabled={!libre} onClick={() => setHora(h)} className={`rounded-xl border py-2.5 text-sm font-semibold tabular-nums transition-all ${!libre ? "border-border bg-secondary/40 text-muted-foreground/40 line-through dark:border-white/5 dark:bg-white/[0.02]" : hora === h ? "border-transparent gradient-deep text-white shadow-md" : "border-border hover:border-primary/50 dark:border-white/10"}`}>{hora12(h)}</button>
-                  ))}
-                </div>
+                <div className="mt-3"><SelectorHorarios compacto titulo={fechaTxt(fecha)} horarios={libres} valor={hora || null} onElegir={setHora} formato={hora12} /></div>
               )}
             </>
           )}
