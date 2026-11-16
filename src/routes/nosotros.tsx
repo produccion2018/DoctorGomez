@@ -71,7 +71,7 @@ function Nosotros() {
         <div data-reveal>
           <span className="section-kicker">Nuestra historia</span>
           <h2 className="mt-4 text-4xl leading-[1.1] sm:text-5xl">
-            Dos hermanos, una vocación: <span className="text-gradient-clinic italic">cuidar de ti</span>
+            Dos hermanos, una vocación: <span className="text-gradient-clinic inline-block pr-2 italic">cuidar de ti</span>
           </h2>
           <div className="mt-6 space-y-4 leading-relaxed text-muted-foreground">
             <p className="text-lg">
@@ -113,13 +113,6 @@ function Nosotros() {
             <img src={heroDoctors} alt="Los doctores Gómez Bolaño" loading="lazy" className="aspect-[4/5] w-full object-cover object-top transition-transform duration-[1500ms] group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.15_0.05_262/0.8)] via-transparent to-transparent" />
             <p className="absolute bottom-6 right-6 text-right text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Dirección médica</p>
-          </div>
-          <div className="glass absolute right-4 top-6 flex items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-xl">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-red-700"><HeartHandshake className="size-4" /></span>
-            <div className="text-xs leading-tight">
-              <p className="font-semibold">Atención personalizada</p>
-              <p className="text-white/70">con tiempo y escucha</p>
-            </div>
           </div>
         </div>
       </section>
