@@ -1148,7 +1148,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
                     <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${TONO_N[n.tono]}`}><n.icon className="size-4" /></span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-sm font-semibold">{n.titulo}{nueva && <span className="size-2 rounded-full bg-sky-500" />}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{n.texto}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{limpiarTextoNota(n.texto)}</span>
                       <span className="block text-[10px] text-muted-foreground/70">{fechaHora(n.fecha.length > 16 ? n.fecha : n.fecha + ":00")}</span>
                     </span>
                   </button>
@@ -1402,6 +1402,86 @@ function useVerMas<T>(lista: T[], inicial = 5) {
       </div>
     ) : null;
   return { items, boton };
+}
+
+/** Exámenes de sangre más pedidos (para sugerir mientras se escribe). */
+const EXAMENES_SANGRE: { n: string; a?: string }[] = [
+  { n: "Hemograma completo", a: "cuadro hematico ch" }, { n: "Hemoglobina", a: "hb" }, { n: "Hemoglobina glicosilada (HbA1c)", a: "hba1c a1c glicada" }, { n: "Hematocrito", a: "hto" },
+  { n: "Plaquetas" }, { n: "Reticulocitos" }, { n: "Velocidad de sedimentación (VSG)", a: "vsg eritrosedimentacion" }, { n: "Grupo sanguíneo y Rh", a: "rh hemoclasificacion" },
+  { n: "Glucosa en ayunas", a: "glicemia basal" }, { n: "Glucosa posprandial", a: "glicemia pospandrial" }, { n: "Curva de tolerancia a la glucosa", a: "ptog" }, { n: "Insulina" }, { n: "Péptido C" },
+  { n: "Creatinina", a: "tfg filtrado" }, { n: "Nitrógeno ureico (BUN)", a: "bun" }, { n: "Urea" }, { n: "Ácido úrico" }, { n: "Cistatina C" },
+  { n: "Ionograma", a: "electrolitos" }, { n: "Sodio", a: "na" }, { n: "Potasio", a: "k" }, { n: "Cloro", a: "cl" }, { n: "Calcio", a: "ca" }, { n: "Fósforo" }, { n: "Magnesio", a: "mg" },
+  { n: "Perfil lipídico", a: "lipidos" }, { n: "Colesterol total" }, { n: "Colesterol HDL", a: "hdl" }, { n: "Colesterol LDL", a: "ldl" }, { n: "Triglicéridos", a: "tg" },
+  { n: "Transaminasas (AST/TGO, ALT/TGP)", a: "tgo tgp ast alt" }, { n: "Bilirrubinas", a: "bilirrubina" }, { n: "Fosfatasa alcalina" }, { n: "Gamma GT (GGT)", a: "ggt" }, { n: "Albúmina" }, { n: "Proteínas totales" },
+  { n: "Troponina", a: "tnt tni" }, { n: "CK-MB", a: "ckmb" }, { n: "CPK total", a: "ck" }, { n: "NT-proBNP", a: "bnp peptido natriuretico" }, { n: "Dímero D", a: "dimero" },
+  { n: "Tiempo de protrombina (TP/INR)", a: "tp inr" }, { n: "Tiempo parcial de tromboplastina (TPT)", a: "tpt ptt" }, { n: "Fibrinógeno" },
+  { n: "Proteína C reactiva (PCR)", a: "pcr" }, { n: "Procalcitonina" }, { n: "Ferritina" }, { n: "Hierro sérico", a: "fe" }, { n: "Transferrina" }, { n: "Vitamina B12", a: "b12" }, { n: "Ácido fólico", a: "folato" }, { n: "Vitamina D", a: "25 oh" },
+  { n: "TSH", a: "tiroides" }, { n: "T4 libre", a: "t4" }, { n: "T3", a: "t3" }, { n: "Hormona paratiroidea (PTH)", a: "pth paratohormona" }, { n: "Cortisol" }, { n: "Prolactina" }, { n: "Antígeno prostático (PSA)", a: "psa" },
+  { n: "Amilasa" }, { n: "Lipasa" }, { n: "Gases arteriales", a: "gasometria" }, { n: "Lactato" },
+  { n: "VIH", a: "elisa hiv" }, { n: "Hepatitis B (HBsAg)", a: "hbsag" }, { n: "Hepatitis C", a: "vhc" }, { n: "VDRL", a: "sifilis serologia" }, { n: "Hemocultivo" },
+];
+const normEx = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+/** Campo de exámenes: al escribir "h" sugiere Hemograma, Hemoglobina…; se pueden poner varios separados por coma. */
+function ExamenesSangre({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
+  const [foco, setFoco] = useState(false);
+  const partes = valor.split(",");
+  const actual = normEx(partes[partes.length - 1] ?? "");
+  const elegidos = new Set(partes.slice(0, -1).map((x) => normEx(x)));
+  const sugeridos = actual
+    ? EXAMENES_SANGRE.filter((e) => !elegidos.has(normEx(e.n)) && (normEx(e.n).split(/[\s(/-]+/).some((w) => w.startsWith(actual)) || normEx(e.n).startsWith(actual) || (e.a ?? "").split(" ").some((w) => w.startsWith(actual))))
+        .sort((x, y) => Number(!normEx(x.n).startsWith(actual)) - Number(!normEx(y.n).startsWith(actual)))
+        .slice(0, 8)
+    : [];
+  const elegir = (n: string) => {
+    const previos = partes.slice(0, -1).map((x) => x.trim()).filter(Boolean);
+    onChange([...previos, n].join(", ") + ", ");
+  };
+  const quitar = (n: string) => onChange(partes.map((x) => x.trim()).filter((x) => x && normEx(x) !== normEx(n)).join(", "));
+  const lista = partes.slice(0, -1).map((x) => x.trim()).filter(Boolean);
+  return (
+    <div className="relative">
+      {lista.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {lista.map((x) => (
+            <span key={x} className="inline-flex items-center gap-1 rounded-full bg-rose-50 py-1 pl-2.5 pr-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300">
+              <Droplets className="size-3" /> {x}
+              <button type="button" onClick={() => quitar(x)} aria-label={`Quitar ${x}`} className="grid size-4 place-items-center rounded-full hover:bg-rose-200/60"><X className="size-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        value={partes[partes.length - 1]?.trimStart() ?? ""}
+        onChange={(e) => onChange([...partes.slice(0, -1).map((x) => x.trim()), e.target.value].filter((x, i, arr) => x || i === arr.length - 1).join(", "))}
+        onFocus={() => setFoco(true)}
+        onBlur={() => setTimeout(() => setFoco(false), 150)}
+        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === "Tab") && sugeridos[0] && actual) { e.preventDefault(); elegir(sugeridos[0].n); } }}
+        placeholder={lista.length ? "Agregar otro examen…" : "Escriba la primera letra: h → Hemograma, c → Creatinina…"}
+        className={inp}
+        autoComplete="off"
+      />
+      {foco && sugeridos.length > 0 && (
+        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl dark:border-white/10">
+          {sugeridos.map((e) => (
+            <li key={e.n}>
+              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); elegir(e.n); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-red-600 text-white"><Droplets className="size-3.5" /></span>
+                <span className="font-medium">{e.n}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!actual && lista.length === 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {["Hemograma completo", "Creatinina", "Glucosa en ayunas", "Perfil lipídico", "Ionograma", "Hemoglobina glicosilada (HbA1c)", "TSH"].map((n) => (
+            <button key={n} type="button" onClick={() => elegir(n)} className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-rose-50 hover:text-rose-700">+ {n}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Arregla textos viejos: "a. m.." → "a. m.", "hemograma , a las" → "hemograma, a las". */
@@ -8136,7 +8216,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                           <span className={`rounded-full px-2 py-0.5 font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
                           <span className="ml-auto text-muted-foreground">{fechaHora(n.fecha)}</span>
                         </div>
-                        <p className="mt-1.5 line-clamp-2 text-sm">{n.texto}</p>
+                        <p className="mt-1.5 line-clamp-2 text-sm">{limpiarTextoNota(n.texto)}</p>
                       </li>
                     ))}
                   </ul>
@@ -9836,7 +9916,7 @@ const ACCIONES_ENF: AccionEnf[] = [
   { id: "signos", t: "Signos vitales", d: "Presión arterial, pulso, temperatura, saturación, peso y talla", icon: HeartPulse, c: "#0ea5e9" },
   { id: "Glucometría", t: "Glucometría", d: "Glucosa capilar en mg/dL", icon: Droplets, c: "#f97316" },
   { id: "Electrocardiograma", t: "Electrocardiograma", d: "Toma del ECG de 12 derivaciones", icon: Activity, c: "#ef4444" },
-  { id: "Toma de muestra", t: "Toma de muestra", d: "Sangre, orina u otra muestra para laboratorio", icon: FlaskConical, c: "#eab308" },
+  { id: "Toma de muestra", t: "Toma de muestra", d: "Muestra de sangre para laboratorio", icon: FlaskConical, c: "#eab308" },
   { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10b981" },
   { id: "Holter / MAPA", t: "Holter / MAPA", d: "Colocación o retiro del equipo", icon: Clock, c: "#6366f1" },
   { id: "Curación", t: "Curación", d: "Curaciones y procedimientos menores", icon: Syringe, c: "#ec4899" },
@@ -9921,7 +10001,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
               <p className="pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos registros de enfermería</p>
               {ultNotas.length ? (
                 <ul className="space-y-1">
-                  {ultNotas.map((n) => <li key={n.id} className="text-xs"><span className={`mr-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>{n.texto}</li>)}
+                  {ultNotas.map((n) => <li key={n.id} className="text-xs"><span className={`mr-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>{limpiarTextoNota(n.texto)}</li>)}
                 </ul>
               ) : <p className="text-xs text-muted-foreground">Sin registros.</p>}
             </div>
@@ -9966,7 +10046,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
   const [pacId, setPacId] = useState(inicial);
   const hora = () => new Date().toTimeString().slice(0, 5);
   type CamposEnf = { hora: string; valor?: string; momento?: string; obs?: string; entregado?: string; muestra?: string; examenes?: string; med?: string; dosis?: string; via?: string; indica?: string; tipo?: string; zona?: string; desc?: string };
-  const [f, setF] = useState<CamposEnf>({ hora: hora() });
+  const [f, setF] = useState<CamposEnf>(accion.id === "Toma de muestra" ? { hora: hora(), muestra: "Sangre venosa" } : { hora: hora() });
   const set = (k: keyof CamposEnf) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const pac = pacientes.find((p) => p.id === pacId);
   const hoyIso = isoDe(new Date());
@@ -9978,7 +10058,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
   const Chips = ({ k, ops }: { k: keyof CamposEnf; ops: string[] }) => (
     <div className="flex flex-wrap gap-1.5">
       {ops.map((o) => (
-        <button key={o} type="button" onClick={() => setF((x) => ({ ...x, [k]: o }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${f[k] === o ? "bg-[rgb(var(--acc))] text-white ring-transparent" : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{o}</button>
+        <button key={o} type="button" onClick={() => setF((x) => ({ ...x, [k]: o }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${f[k] === o ? "bg-[#0b2a6b] text-white shadow-md ring-transparent" : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{o}</button>
       ))}
     </div>
   );
@@ -9993,7 +10073,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
         return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora).replace(/\.$/, "")}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
       case "Toma de muestra":
         if (!f.muestra) return null;
-        return `Toma de muestra: ${f.muestra.trim()}${f.examenes?.trim() ? ` para ${f.examenes.trim()}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
+        return `Toma de muestra: ${f.muestra.trim()}${f.examenes?.replace(/[,\s]+$/, "").trim() ? ` para ${f.examenes.replace(/[,\s]+$/, "").trim()}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
         return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora).replace(/\.$/, "")}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
@@ -10066,8 +10146,8 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
           )}
           {accion.id === "Toma de muestra" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">{campo("Tipo de muestra", <Chips k="muestra" ops={["Sangre venosa", "Orina", "Orina de 24 horas", "Otra"]} />, true)}</div>
-              {campo("Exámenes", <input value={f.examenes ?? ""} onChange={set("examenes")} placeholder="Ej.: creatinina, potasio, hemograma" className={inp} />)}
+              <div className="sm:col-span-2">{campo("Tipo de muestra (sangre)", <Chips k="muestra" ops={["Sangre venosa", "Sangre capilar", "Sangre arterial"]} />, true)}</div>
+              <div className="sm:col-span-2">{campo("Exámenes", <ExamenesSangre valor={f.examenes ?? ""} onChange={(v) => setF((x) => ({ ...x, examenes: v }))} />)}</div>
               {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
             </div>
           )}
@@ -10129,7 +10209,7 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria }: { pacientes: Pa
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
                     {al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> {al}</span>}
                   </p>
-                  <p className="mt-1 text-sm">{n.texto}</p>
+                  <p className="mt-1 text-sm">{limpiarTextoNota(n.texto)}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">{horaDeIso(n.fecha)} · {n.enfermera}</p>
                 </div>
                 {esMedico && <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(n.pacienteId)}><FileText className="size-3.5" /> Ver historia</Button>}
