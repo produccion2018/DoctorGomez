@@ -420,7 +420,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                   const n = badge(s.id);
                   return (
                     <button key={s.id} onClick={() => { ctx.ir(s.id); setMenu(false); }}
-                      className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${on ? "gradient-deep text-white shadow-[0_10px_24px_-10px_rgba(20,50,120,.8)]" : "text-muted-foreground hover:bg-secondary hover:text-foreground dark:hover:bg-white/5"}`}>
+                      className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${on ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-[0_10px_24px_-10px_rgba(14,165,233,.8)]" : "text-muted-foreground hover:bg-secondary hover:text-foreground dark:hover:bg-white/5"}`}>
                       <s.icon className={`size-[18px] ${on ? "" : "transition-transform group-hover:scale-110"}`} />
                       <span className="flex-1 text-left">{s.label}</span>
                       {n > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${on ? "bg-white/25" : "bg-amber-400 text-amber-950"}`}>{s.id === "pagos" ? "!" : n}</span>}
@@ -459,7 +459,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
 
       <div className="relative lg:grid lg:grid-cols-[272px_1fr]">
         {/* Sidebar (escritorio) */}
-        <aside className={`hidden border-r border-border/60 bg-card/70 backdrop-blur-xl lg:sticky lg:flex lg:h-screen lg:flex-col dark:bg-white/[0.03] ${vista ? "lg:top-10 lg:h-[calc(100vh-2.5rem)]" : "lg:top-0"}`}>
+        <aside className={`dark hidden border-r border-white/10 bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] text-foreground lg:sticky lg:flex lg:h-screen lg:flex-col dark:bg-white/[0.03] ${vista ? "lg:top-10 lg:h-[calc(100vh-2.5rem)]" : "lg:top-0"}`}>
           {interiorSidebar}
         </aside>
 
@@ -467,7 +467,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
         {menu && (
           <div className="fixed inset-0 z-[80] lg:hidden">
             <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setMenu(false)} />
-            <aside className="absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-y-auto bg-background shadow-2xl animate-in slide-in-from-left duration-300 dark:bg-[#0b1324]">
+            <aside className="dark absolute inset-y-0 left-0 flex w-[86%] max-w-[320px] flex-col overflow-y-auto bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] text-foreground shadow-2xl animate-in slide-in-from-left duration-300 dark:bg-[#0b1324]">
               {interiorSidebar}
             </aside>
           </div>
@@ -577,23 +577,29 @@ function useAvisos(ctx: Ctx) {
 
 function Tarjeta({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`relative rounded-3xl border border-border/70 bg-card/85 p-6 shadow-[0_1px_2px_rgba(15,23,42,.04),0_18px_40px_-22px_rgba(15,35,80,.25)] backdrop-blur-xl dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none ${className}`}>
-      {children}
+    <div className={`relative overflow-hidden rounded-3xl border border-white/70 bg-[linear-gradient(165deg,rgba(255,255,255,.97),rgba(244,248,255,.9))] p-6 shadow-[inset_0_1px_0_#fff,0_2px_6px_rgba(15,23,42,.05),0_24px_50px_-24px_rgba(15,35,80,.35)] ring-1 ring-sky-100/80 backdrop-blur-xl dark:border-white/10 dark:bg-none dark:bg-white/[0.04] dark:shadow-none dark:ring-white/10 ${className}`}>
+      <span className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-sky-400/10 blur-3xl" />
+      <div className="relative">{children}</div>
     </div>
   );
 }
 
 function Titulo({ icon: Icon, titulo, sub, accion }: { icon: LucideIcon; titulo: string; sub?: string; accion?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div className="flex items-center gap-4">
-        <span className="flex size-12 items-center justify-center rounded-2xl gradient-deep text-white shadow-[0_12px_24px_-12px_rgba(20,50,120,.9)]"><Icon className="size-5" /></span>
-        <div>
-          <h1 className="text-3xl leading-tight">{titulo}</h1>
-          {sub && <p className="text-sm text-muted-foreground">{sub}</p>}
+    <div className="relative mb-6 overflow-hidden rounded-[1.75rem] gradient-deep p-6 text-white shadow-[0_30px_60px_-30px_rgba(10,30,80,.8)] sm:p-7">
+      <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+      <div className="pointer-events-none absolute -right-12 -top-16 size-56 rounded-full bg-white/15 blur-3xl" />
+      <Electro latidos={2} grilla={false} className="pointer-events-none absolute inset-x-0 bottom-1 h-9 w-full opacity-60" />
+      <div className="relative flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-white/15 text-white ring-1 ring-white/30 backdrop-blur"><Icon className="size-5" /></span>
+          <div>
+            <h1 className="text-3xl leading-tight text-white">{titulo}</h1>
+            {sub && <p className="text-sm text-white/75">{sub}</p>}
+          </div>
         </div>
+        {accion && <div className="[&_a]:!bg-white [&_a]:!text-[#0b2a6b] [&_a]:shadow-lg [&_button]:!bg-white [&_button]:!text-[#0b2a6b] [&_button]:shadow-lg">{accion}</div>}
       </div>
-      {accion}
     </div>
   );
 }
