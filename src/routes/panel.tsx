@@ -246,7 +246,9 @@ import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
 import logoClinica from "@/assets/logo.png";
-import { MODULOS, SEED_PERMISOS, nivelDe, mk, type Nivel, type Permisos } from "@/lib/permisos";
+import { MODULOS, SEED_PERMISOS, nivelDe, mk, AREAS_MEDICAS, type Nivel, type Permisos } from "@/lib/permisos";
+/** Especialidades para marcar en la ficha del paciente. */
+const ESPECIALIDADES_PACIENTE = Array.from(new Set(["Cardiología", "Nefrología", "Medicina Interna", ...AREAS_MEDICAS.map((a) => a.replace(/\s*\(médicos\)\s*$/, ""))]));
 export const Route = createFileRoute("/panel")({
   head: () => ({
     meta: [
@@ -3294,6 +3296,14 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
 
   return (
     <div className="space-y-6">
+      <div className="pn-up flex items-start gap-4 rounded-[1.25rem] bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#1d4ed8] p-5 text-white shadow-lg">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Users className="size-5" /></span>
+        <div className="text-sm">
+          <p className="font-display text-lg font-semibold">Pacientes por especialidad</p>
+          <p className="mt-1 text-white/80">Los <b>médicos invitados</b> (Medicina Interna, Cardiología, Nefrología, Endocrinología…) solo ven a los pacientes de <b>su especialidad</b>: los que tienen cita de esa especialidad o con ellos, consultas suyas o la especialidad marcada en la ficha.</p>
+          <p className="mt-1 text-white/80">Los <b>dueños</b> (Dr. Carlos Alonso, Dr. Carlos Alberto) y <b>Dirección general</b> ven a todos. Recepción, Secretaría, Enfermería y Facturación también ven a todos para poder dar citas, tomar signos y cobrar.</p>
+        </div>
+      </div>
       <PersonalEquipo user={user} log={log} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Kpi icon={Building2} label="Departamentos" value={String(TODAS_AREAS.length)} hint={`${ESPECIALIDADES_MED.length} especialidades médicas y ${AREAS.length} áreas`} tono="azul" delay={0.05} />
@@ -5995,6 +6005,22 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
               </select>
             </Campo>
             <Campo label="Alergias"><input value={editando.alergias ?? ""} onChange={set("alergias")} placeholder="Ninguna conocida" className={inp} /></Campo>
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-muted-foreground">Especialidades que lo atienden</p>
+            <p className="mb-2 text-[11px] text-muted-foreground">Los médicos invitados solo ven a los pacientes de su especialidad. También se suman solos al sacar una cita de esa especialidad.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ESPECIALIDADES_PACIENTE.map((e) => {
+                const lista = editando.especialidades ?? [];
+                const on = lista.includes(e);
+                return (
+                  <button type="button" key={e} onClick={() => setEditando({ ...editando, especialidades: on ? lista.filter((x) => x !== e) : [...lista, e] })}
+                    className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${on ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
+                    {on && <Check className="size-3" />} {e}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <p className="mb-2 text-xs font-medium text-muted-foreground">Antecedentes</p>

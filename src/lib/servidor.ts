@@ -555,6 +555,46 @@ async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: stri
   return permiteColeccion(await permisosGuardados(), q.area, coleccion, accion);
 }
 
+/** Colecciones que tienen datos de un paciente (se filtran por especialidad para los médicos invitados). */
+const COLECCIONES_CON_PACIENTE = ["gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros"];
+
+/**
+ * Qué pacientes le corresponden a un médico invitado: los de su especialidad.
+ * Un paciente es de la especialidad si tiene una cita de esa especialidad o con ese médico, una consulta suya,
+ * si en su ficha está marcada esa especialidad, o si lo cargó él.
+ */
+async function ambitoEspecialidad(c: Awaited<ReturnType<typeof colecciones>>, q: Extract<Quien, { tipo: "staff" }>) {
+  const n = (x: unknown) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  const dig = (x: unknown) => String(x ?? "").replace(/[^\dA-Za-z]/g, "").toUpperCase();
+  const esp = n(q.area.replace(/\s*\(médicos\)\s*$/i, ""));
+  const yo = n(q.nombre);
+  const [turnos, evols, padron, portal] = await Promise.all([c.leer("gb_turnos"), c.leer("gb_evoluciones"), c.leer("gb_padron"), c.leer("gb_pacientes")]);
+  const ids = new Set<string>();
+  const docs = new Set<string>();
+  const nombres = new Set<string>();
+  const sumar = (id: unknown, dni: unknown, nombre: unknown) => {
+    if (id) ids.add(String(id));
+    if (dig(dni).length >= 5) docs.add(dig(dni));
+    if (n(nombre)) nombres.add(n(nombre));
+  };
+  const turnoMio = (t: Record<string, unknown>) => n(t["doctor"]) === yo || n(t["servicio"] ?? String(t["motivo"] ?? "").split(" · ")[0]) === esp;
+  for (const t of turnos) if (turnoMio(t)) sumar(t["pacienteId"], t["dni"], t["paciente"]);
+  for (const e of evols) if (n(e["doctor"]) === yo || n(e["especialidad"]) === esp) sumar(e["pacienteId"], null, e["paciente"]);
+  for (const p of padron) {
+    const marcadas = Array.isArray(p["especialidades"]) ? (p["especialidades"] as unknown[]).map(n) : [];
+    if (marcadas.includes(esp) || n(p["medicoCabecera"]) === yo) sumar(p.id, p["dni"], p["nombre"]);
+  }
+  // Une las distintas formas de identificar al mismo paciente (padrón, portal, cédula, nombre)
+  for (const p of [...padron, ...portal]) {
+    if (ids.has(p.id) || docs.has(dig(p["dni"])) || nombres.has(n(p["nombre"]))) sumar(p.id, p["dni"], p["nombre"]);
+  }
+  return (f: Record<string, unknown> & { id: string }, coleccion: string) => {
+    if (coleccion === "gb_turnos") return turnoMio(f) || (f["pacienteId"] ? ids.has(String(f["pacienteId"])) : false) || docs.has(dig(f["dni"]));
+    if (coleccion === "gb_padron" || coleccion === "gb_pacientes") return ids.has(f.id) || docs.has(dig(f["dni"])) || nombres.has(n(f["nombre"]));
+    return ids.has(String(f["pacienteId"] ?? "")) || docs.has(dig(f["dni"])) || nombres.has(n(f["paciente"]));
+  };
+}
+
 /** Lee una colección. Los médicos ven todo, el personal según su área y el paciente solo lo suyo. */
 export const leerColeccion = createServerFn({ method: "GET" })
   .validator((d: { coleccion: string }) => d)
@@ -579,6 +619,11 @@ export const leerColeccion = createServerFn({ method: "GET" })
     }
     if (q.tipo === "staff" && !(await areaPermite(q, data.coleccion, "ver"))) return { ok: true, json: "[]" };
     let filas = await c.leer(data.coleccion);
+    // Médicos invitados: solo los pacientes de su especialidad (los dueños y Dirección ven todo)
+    if (q.tipo === "staff" && !q.medico && AREAS_MEDICAS.includes(q.area) && COLECCIONES_CON_PACIENTE.includes(data.coleccion)) {
+      const ambito = await ambitoEspecialidad(c, q);
+      filas = filas.filter((f) => ambito(f, data.coleccion));
+    }
     if (q.tipo === "paciente") {
       if (data.coleccion === "gb_pacientes") filas = filas.filter((p) => p.id === q.id);
       else if (c.DEL_PACIENTE.includes(data.coleccion)) filas = filas.filter((t) => t["pacienteId"] === q.id);

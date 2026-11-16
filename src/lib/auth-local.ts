@@ -915,6 +915,8 @@ export type PacienteClinica = {
   alergias?: string;
   antecedentes: string[];
   medicoCabecera?: string;
+  /** Especialidades que atienden al paciente (los médicos invitados solo ven los de la suya). */
+  especialidades?: string[];
   notas?: string;
   creado: string;
 };
