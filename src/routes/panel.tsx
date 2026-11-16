@@ -1193,7 +1193,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   recetas: { a: "124,58,237", b: "99,102,241", c: "56,132,246" },
   laboratorio: { a: "5,150,105", b: "14,165,233", c: "20,184,166" },
   facturacion: { a: "13,148,136", b: "16,185,129", c: "14,165,233" },
-  analitica: { a: "217,119,6", b: "56,132,246", c: "16,185,129" },
+  analitica: { a: "14,116,144", b: "11,42,107", c: "56,132,246" },
   automatizaciones: { a: "234,88,12", b: "225,29,72", c: "139,92,246" },
   historia: { a: "14,116,144", b: "11,42,107", c: "56,132,246" },
   horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
@@ -8147,40 +8147,105 @@ function DatosFact({ config, setConfig, puede, log }: { config: ConfigFactura; s
 }
 
 /* ═══════════════════════ ANALÍTICA Y REPORTES ═══════════════════════ */
-function BarrasV({ datos, color = "#3b82f6", fmt = (n: number) => String(n) }: { datos: { l: string; v: number }[]; color?: string; fmt?: (n: number) => string }) {
+const PALETA = ["#0b2a6b", "#0e7490", "#1d4ed8", "#0f766e", "#475569", "#155e75", "#3b5b9a", "#64748b"];
+
+function BarrasV({ datos, color = "#0b2a6b", fmt = (n: number) => String(n), alto = "h-48" }: { datos: { l: string; v: number }[]; color?: string; fmt?: (n: number) => string; alto?: string }) {
   const max = Math.max(1, ...datos.map((d) => d.v));
   return (
-    <div className="flex h-48 items-end gap-2">
+    <div className={`flex ${alto} items-end gap-2`}>
       {datos.map((d, i) => (
-        <div key={d.l} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
-          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground opacity-0 transition group-hover:opacity-100">{fmt(d.v)}</span>
-          <div className="w-full max-w-[44px] rounded-t-lg transition-all duration-700" style={{ height: `${Math.max(3, (d.v / max) * 100)}%`, background: `linear-gradient(180deg, ${color}, ${color}99)`, animation: `pn-up .6s ease-out ${i * 0.05}s both`, boxShadow: `0 10px 20px -12px ${color}` }} />
-          <span className="w-full truncate text-center text-[10px] capitalize text-muted-foreground">{d.l}</span>
+        <div key={d.l + i} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
+          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">{d.v ? fmt(d.v) : ""}</span>
+          <div className="w-full max-w-[44px] rounded-t-md transition-all duration-700 group-hover:opacity-90" style={{ height: `${Math.max(2, (d.v / max) * 100)}%`, background: `linear-gradient(180deg, ${color}, ${color}cc)`, animation: `pn-up .6s ease-out ${i * 0.04}s both` }} />
+          <span className="w-full truncate text-center text-[10px] text-muted-foreground">{d.l}</span>
         </div>
       ))}
     </div>
   );
 }
-function BarrasH({ datos, colores }: { datos: { l: string; v: number }[]; colores: string[] }) {
-  const max = Math.max(1, ...datos.map((d) => d.v));
+function BarrasH({ datos, colores = PALETA, fmt = (n: number) => String(n), max: maxN }: { datos: { l: string; v: number }[]; colores?: string[]; fmt?: (n: number) => string; max?: number }) {
+  const lista = maxN ? datos.slice(0, maxN) : datos;
+  const max = Math.max(1, ...lista.map((d) => d.v));
   const total = datos.reduce((a, d) => a + d.v, 0);
   return (
     <ul className="space-y-3">
-      {datos.map((d, i) => (
+      {lista.map((d, i) => (
         <li key={d.l}>
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="font-medium">{d.l}</span>
-            <span className="tabular-nums text-muted-foreground">{d.v}{total ? ` · ${Math.round((d.v / total) * 100)}%` : ""}</span>
+          <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+            <span className="truncate font-medium">{d.l}</span>
+            <span className="shrink-0 tabular-nums text-muted-foreground"><b className="font-semibold text-foreground">{fmt(d.v)}</b>{total ? ` · ${Math.round((d.v / total) * 100)}%` : ""}</span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
-            <div className="pn-bar h-full rounded-full" style={{ width: `${(d.v / max) * 100}%`, background: colores[i % colores.length], animationDelay: `${i * 0.08}s` }} />
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+            <div className="pn-bar h-full rounded-full" style={{ width: `${(d.v / max) * 100}%`, background: colores[i % colores.length], animationDelay: `${i * 0.06}s` }} />
           </div>
         </li>
       ))}
-      {datos.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">Sin datos en el período.</li>}
+      {lista.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">Sin datos en el período.</li>}
     </ul>
   );
 }
+/** Dos series en barras agrupadas (ej.: ingresos vs egresos). */
+function BarrasDobles({ datos, a, b, fmt }: { datos: { l: string; a: number; b: number }[]; a: string; b: string; fmt: (n: number) => string }) {
+  const max = Math.max(1, ...datos.flatMap((d) => [d.a, d.b]));
+  return (
+    <div>
+      <div className="mb-3 flex gap-4 text-[11px] text-muted-foreground"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#0b2a6b]" />{a}</span><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#94a3b8]" />{b}</span></div>
+      <div className="flex h-44 items-end gap-3">
+        {datos.map((d, i) => (
+          <div key={d.l + i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5" title={`${a}: ${fmt(d.a)} · ${b}: ${fmt(d.b)}`}>
+            <div className="flex h-full w-full items-end justify-center gap-1">
+              <div className="w-1/2 max-w-[18px] rounded-t-sm bg-[#0b2a6b]" style={{ height: `${Math.max(2, (d.a / max) * 100)}%` }} />
+              <div className="w-1/2 max-w-[18px] rounded-t-sm bg-[#94a3b8]" style={{ height: `${Math.max(2, (d.b / max) * 100)}%` }} />
+            </div>
+            <span className="w-full truncate text-center text-[10px] text-muted-foreground">{d.l}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function DonaPct({ pct, etiqueta, sub, color = "#0b2a6b" }: { pct: number; etiqueta: string; sub: string; color?: string }) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className="relative size-32">
+        <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeOpacity=".08" strokeWidth="3" />
+          <circle className="pn-donut" cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3" strokeLinecap={pct ? "round" : "butt"} strokeDasharray={`${Math.min(100, pct)} 100`} />
+        </svg>
+        <p className="absolute inset-0 flex flex-col items-center justify-center font-display text-3xl font-semibold">{Math.round(pct)}%</p>
+      </div>
+      <p className="mt-2 text-sm font-semibold">{etiqueta}</p>
+      <p className="text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+function Dato({ l, v, s, icon: Icon }: { l: string; v: string; s?: string; icon: LucideIcon }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-card p-4 dark:border-white/10">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><Icon className="size-4.5" /></span>
+      <div className="min-w-0">
+        <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{l}</p>
+        <p className="font-display text-xl font-semibold tabular-nums">{v}</p>
+        {s && <p className="truncate text-[11px] text-muted-foreground">{s}</p>}
+      </div>
+    </div>
+  );
+}
+
+async function descargarExcel(nombre: string, hojas: { nombre: string; filas: Record<string, unknown>[] }[]) {
+  const XLSX = await import("@e965/xlsx");
+  const wb = XLSX.utils.book_new();
+  for (const h of hojas) {
+    const ws = XLSX.utils.json_to_sheet(h.filas.length ? h.filas : [{ "": "Sin datos en el período" }]);
+    const cols = Object.keys(h.filas[0] ?? { "": "" });
+    ws["!cols"] = cols.map((k) => ({ wch: Math.min(48, Math.max(k.length + 2, ...h.filas.slice(0, 300).map((f) => String(f[k] ?? "").length + 2))) }));
+    XLSX.utils.book_append_sheet(wb, ws, h.nombre.slice(0, 31));
+  }
+  XLSX.writeFile(wb, `${nombre}.xlsx`);
+}
+
+const DIAS_SEM = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const FRANJAS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 
 function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
   const pacientes = usePacientesClinica(turnos);
@@ -8191,32 +8256,95 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
   const [labs] = useDato<PedidoLab[]>(KEY_LAB, []);
   const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [controles] = useDato<Control[]>(KEY_CONTROLES, []);
-  const [dias, setDias] = useState(90);
+  const [movs] = useDato<Mov[]>("gb_movs", []);
+  const [dias, setDias] = useState(30);
+  const [doc, setDoc] = useState("Todos");
+  const [excel, setExcel] = useState(false);
 
+  const hoyIso = isoDe(new Date());
+  const todo = dias >= 9999;
   const desde = isoDe(new Date(Date.now() - dias * 86400000));
-  const enRango = (iso: string) => dias >= 9999 || iso.slice(0, 10) >= desde;
-  const ts = turnos.filter((t) => enRango(t.fecha));
+  const desdeAnt = isoDe(new Date(Date.now() - 2 * dias * 86400000));
+  const enRango = (iso: string) => todo || (iso.slice(0, 10) >= desde && iso.slice(0, 10) <= hoyIso);
+  const enAnterior = (iso: string) => !todo && iso.slice(0, 10) >= desdeAnt && iso.slice(0, 10) < desde;
+  const esDoc = (nombre: string | undefined, d: string) => !!nombre && (nombre === d || norm(nombre).includes(norm(d.replace(/^Dra?\.\s*/, "").split(" ").slice(0, 2).join(" "))));
+  const delDoc = (nombre?: string) => doc === "Todos" || esDoc(nombre, doc);
+  const corto$ = (n: number) => (n >= 1e9 ? `$ ${(n / 1e9).toFixed(1).replace(".", ",")} mil M` : n >= 1e6 ? `$ ${(n / 1e6).toFixed(1).replace(".", ",")} M` : dinero(n));
+  const periodoTxt = todo ? "Todo el historial" : dias === 7 ? "Últimos 7 días" : dias === 30 ? "Últimos 30 días" : dias === 90 ? "Últimos 3 meses" : "Últimos 12 meses";
+
+  const tDoc = turnos.filter((t) => delDoc(t.doctor));
+  const ts = tDoc.filter((t) => enRango(t.fecha));
+  const tsAnt = tDoc.filter((t) => enAnterior(t.fecha));
   const atendidos = ts.filter((t) => t.estado === "Atendido").length;
   const cancelados = ts.filter((t) => t.estado === "Cancelado").length;
-  const pagos = cobros.filter((c) => !c.anulado).flatMap((c) => c.pagos.map((p) => ({ ...p, c })));
-  const pagosR = pagos.filter((p) => enRango(p.fecha));
-  const ingresos = pagosR.reduce((a, p) => a + p.monto, 0);
-  const nuevos = pacientes.filter((p) => p.creado && enRango(p.creado)).length;
+  const sinMarcar = ts.filter((t) => t.fecha < hoyIso && (t.estado === "Pendiente" || t.estado === "Confirmado")).length;
+  const pasadas = ts.filter((t) => t.fecha < hoyIso && t.estado !== "Cancelado").length;
+  const asistencia = pasadas ? (ts.filter((t) => t.fecha < hoyIso && t.estado === "Atendido").length / pasadas) * 100 : 0;
 
-  // Últimos 6 meses
-  const meses = Array.from({ length: 6 }, (_, i) => {
+  const cobrosDoc = cobros.filter((c) => !c.anulado && delDoc(c.profesional));
+  const pagos = cobrosDoc.flatMap((c) => c.pagos.map((p) => ({ ...p, c })));
+  const pagosR = pagos.filter((p) => enRango(diaLocal(p.fecha)));
+  const ingresos = pagosR.reduce((a, p) => a + p.monto, 0);
+  const ingresosAnt = pagos.filter((p) => enAnterior(diaLocal(p.fecha))).reduce((a, p) => a + p.monto, 0);
+  const atencionesR = cobrosDoc.filter((c) => enRango(diaLocal(c.fecha)));
+  const ticket = atencionesR.length ? Math.round(atencionesR.reduce((a, c) => a + pagadoDe(c), 0) / atencionesR.length) : 0;
+  const nuevos = pacientes.filter((p) => p.creado && enRango(p.creado)).length;
+  const nuevosAnt = pacientes.filter((p) => p.creado && enAnterior(p.creado)).length;
+
+  const delta = (a: number, b: number) => {
+    if (todo) return "";
+    if (!b) return a ? " · nuevo vs. período anterior" : "";
+    const d = Math.round(((a - b) / b) * 100);
+    return ` · ${d >= 0 ? "▲" : "▼"} ${Math.abs(d)}% vs. anterior`;
+  };
+
+  // Tendencia: 12 meses
+  const meses = Array.from({ length: 12 }, (_, i) => {
     const d = new Date();
     d.setDate(1);
-    d.setMonth(d.getMonth() - (5 - i));
-    return { k: isoDe(d).slice(0, 7), l: d.toLocaleDateString("es-CO", { month: "short" }) };
+    d.setMonth(d.getMonth() - (11 - i));
+    const m = d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "");
+    return { k: isoDe(d).slice(0, 7), l: m.charAt(0).toUpperCase() + m.slice(1) };
   });
-  const turnosMes = meses.map((m) => ({ l: m.l, v: turnos.filter((t) => t.fecha.slice(0, 7) === m.k && t.estado !== "Cancelado").length }));
+  const turnosMes = meses.map((m) => ({ l: m.l, v: tDoc.filter((t) => t.fecha.slice(0, 7) === m.k && t.estado !== "Cancelado").length }));
   const ingresosMes = meses.map((m) => ({ l: m.l, v: pagos.filter((p) => diaLocal(p.fecha).slice(0, 7) === m.k).reduce((a, p) => a + p.monto, 0) }));
-  const porDoctor = ADMINS.map((a) => ({ l: nombreCorto(a.nombre), v: ts.filter((t) => t.doctor === a.nombre || norm(t.doctor).includes(norm(a.nombre.split(" ")[1] ?? ""))).length }));
-  const porMetodo = Object.entries(pagosR.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.metodo]: (acc[p.metodo] ?? 0) + p.monto }), {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
-  const porEstado = (["Pendiente", "Confirmado", "Atendido", "Cancelado"] as Estado[]).map((e) => ({ l: e, v: ts.filter((t) => t.estado === e).length }));
+  const egresosMes = meses.map((m) => movs.filter((x) => x.tipo === "Egreso" && x.fecha.slice(0, 7) === m.k).reduce((a, x) => a + x.monto, 0));
+  const balanceMes = meses.slice(-6).map((m, i) => ({ l: m.l, a: ingresosMes[i + 6]!.v + movs.filter((x) => x.tipo === "Ingreso" && x.fecha.slice(0, 7) === m.k).reduce((a, x) => a + x.monto, 0), b: egresosMes[i + 6]! }));
 
-  // Indicadores clínicos: último valor por paciente
+  // Cuándo piden citas: día de la semana × hora
+  const mapa = DIAS_SEM.map((_, di) => FRANJAS.map((h) => ts.filter((t) => { const d = new Date(`${t.fecha}T12:00:00`).getDay(); return d === di + 1 && Number(t.hora.slice(0, 2)) === h && t.estado !== "Cancelado"; }).length));
+  const maxMapa = Math.max(1, ...mapa.flat());
+  const pico = (() => { let m = { d: -1, h: -1, v: 0 }; mapa.forEach((f, d) => f.forEach((v, h) => { if (v > m.v) m = { d, h, v }; })); return m; })();
+
+  const porDoctor = ADMINS.map((a) => ({ l: a.nombre, v: ts.filter((t) => esDoc(t.doctor, a.nombre)).length })).filter((x) => x.v > 0 || doc === "Todos");
+  const porEstado = (["Atendido", "Confirmado", "Pendiente", "Cancelado"] as Estado[]).map((e) => ({ l: e, v: ts.filter((t) => t.estado === e).length }));
+  const ORIGEN: Record<string, string> = { web: "Página web", portal: "Portal del paciente", panel: "Panel (secretaría)" };
+  const porOrigen = Object.entries(ts.reduce<Record<string, number>>((acc, t) => { const k = ORIGEN[t.origen ?? "panel"] ?? "Panel (secretaría)"; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const porMotivo = Object.entries(ts.reduce<Record<string, number>>((acc, t) => { const k = (t.motivo || "Sin motivo").split(" · ")[0]!.trim(); acc[k] = (acc[k] ?? 0) + 1; return acc; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+
+  // Pacientes
+  const pacIdsPeriodo = new Set(ts.filter((t) => t.estado !== "Cancelado").map((t) => t.pacienteId || norm(t.paciente)));
+  const recurrentes = [...pacIdsPeriodo].filter((id) => tDoc.some((t) => (t.pacienteId || norm(t.paciente)) === id && !enRango(t.fecha) && t.fecha < desde)).length;
+  const porEps = Object.entries(pacientes.reduce<Record<string, number>>((acc, p) => { const k = p.ficha?.obraSocial?.trim() || "Particular"; acc[k] = (acc[k] ?? 0) + 1; return acc; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const grupos = [["0–17", 0, 17], ["18–39", 18, 39], ["40–59", 40, 59], ["60–74", 60, 74], ["75 o más", 75, 200]] as const;
+  const conEdad = pacientes.map((p) => edadDe(p.ficha?.nacimiento)).filter((x): x is number => x !== null);
+  const porEdad = grupos.map(([l, a, b]) => ({ l, v: conEdad.filter((e) => e >= a && e <= b).length }));
+
+  // Finanzas
+  const porServicio = Object.entries(pagosR.reduce<Record<string, number>>((acc, p) => ({ ...acc, [p.c.concepto]: (acc[p.c.concepto] ?? 0) + p.monto }), {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const porMetodo = Object.entries(pagosR.reduce<Record<string, number>>((acc, p) => { const k = metodoTxt(p.metodo); return { ...acc, [k]: (acc[k] ?? 0) + p.monto }; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const factR = facturas.filter((f) => f.estado !== "Anulada" && f.tipo !== "Nota crédito" && enRango(diaLocal(f.fecha)));
+  const facturado = factR.reduce((a, f) => a + f.total, 0);
+  const cuentasEps = facturas.filter((f) => f.estado !== "Anulada" && f.tipo !== "Nota crédito" && f.cobertura !== "Particular");
+  const carteraEps = Object.entries(cuentasEps.reduce<Record<string, number>>((acc, f) => { const s = saldoFactura(f); if (s > 0) acc[f.cobertura] = (acc[f.cobertura] ?? 0) + s; return acc; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const carteraTotal = carteraEps.reduce((a, x) => a + x.v, 0);
+  const vencida = cuentasEps.filter((f) => saldoFactura(f) > 0 && f.radicacion && (Date.now() - new Date(`${f.radicacion.fecha}T12:00:00`).getTime()) / 86400000 > 60);
+  const saldoPacientes = cobrosDoc.reduce((a, c) => a + saldoDe(c), 0);
+  const egresosR = movs.filter((m) => m.tipo === "Egreso" && enRango(m.fecha)).reduce((a, m) => a + m.monto, 0);
+
+  // Clínico
+  const evR = evols.filter((e) => enRango(e.fecha) && delDoc(e.doctor));
+  const topDx = Object.entries(evR.flatMap((e) => dxDe(e)).reduce<Record<string, number>>((acc, d) => { const k = d.codigo ? `${d.codigo} · ${d.descripcion}` : d.descripcion; if (k.trim()) acc[k] = (acc[k] ?? 0) + 1; return acc; }, {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
   const ultimoEgfr = new Map<string, { f: string; v: number }>();
   [...estudios.filter((e) => e.valores.egfr).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.valores.egfr! })), ...evols.filter((e) => e.nefro?.egfr).map((e) => ({ id: e.pacienteId, f: e.fecha, v: e.nefro!.egfr! }))].forEach((x) => {
     const y = ultimoEgfr.get(x.id);
@@ -8231,92 +8359,224 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
   const conTA = [...ultimaTA.values()];
   const controlados = conTA.filter((x) => x.s < 140 && x.d < 90).length;
   const feviRed = evols.filter((e) => e.cardio?.fevi && e.cardio.fevi < 41).length;
-  const porProf = ADMINS.map((a) => ({ l: nombreCorto(a.nombre), v: evols.filter((x) => x.doctor === a.nombre && enRango(x.fecha)).length }));
+  const recetasR = recetas.filter((r) => enRango(r.fecha) && delDoc(r.doctor)).length;
+  const labsR = labs.filter((l) => enRango(l.fecha) && delDoc(l.doctor)).length;
 
-  const reportes: { t: string; d: string; icon: LucideIcon; run: () => void }[] = [
-    { t: "Citas", d: `${turnos.length} registros`, icon: CalendarDays, run: () => exportarCSV("turnos", [["Fecha", "Hora", "Paciente", "Doctor", "Motivo", "Estado", "Origen"], ...turnos.map((t) => [t.fecha, t.hora, t.paciente, t.doctor, t.motivo, t.estado, t.origen])]) },
-    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, run: () => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "EPS", "Antecedentes"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.ficha?.obraSocial, (p.ficha?.antecedentes ?? []).join(" | ")])]) },
-    { t: "Cobros", d: `${pagos.length} pagos`, icon: Wallet, run: () => exportarCSV("cobros", [["Fecha", "Paciente", "Concepto", "Medio", "Cobró", "Monto"], ...pagos.map((p) => [fechaHora(p.fecha), p.c.paciente, p.c.concepto, p.metodo, p.cobradoPor, p.monto])]) },
-    { t: "Facturación", d: `${facturas.length} comprobantes`, icon: Receipt, run: () => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.cobertura, f.total, f.estado])]) },
-    { t: "Evoluciones", d: `${evols.length} consultas`, icon: FileText, run: () => exportarCSV("evoluciones", [["Fecha", "Paciente", "Especialidad", "Doctor", "Motivo", "TA", "Diagnósticos"], ...evols.map((e) => [fechaHora(e.fecha), e.paciente, e.especialidad, e.doctor, e.motivo, e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", e.diagnosticos.join(" | ")])]) },
-    { t: "Recetas", d: `${recetas.length} recetas`, icon: Pill, run: () => exportarCSV("recetas", [["N°", "Fecha", "Paciente", "Doctor", "Medicamentos", "Estado"], ...recetas.map((r) => [r.numero, fechaHora(r.fecha), r.paciente, r.doctor, r.items.map((i) => i.droga).join(" | "), r.anulada ? "Anulada" : "Vigente"])]) },
-    { t: "Laboratorio", d: `${labs.length} pedidos`, icon: FlaskConical, run: () => exportarCSV("laboratorio", [["Fecha", "Paciente", "Doctor", "Paneles", "Estado", "Resultados"], ...labs.map((l) => [fechaHora(l.fecha), l.paciente, l.doctor, l.paneles.join(" | "), l.estado, Object.entries(l.resultados).map(([k, v]) => `${k}=${v}`).join(" | ")])]) },
+  // Alertas automáticas
+  const alertas: { t: string; d: string }[] = [];
+  if (sinMarcar) alertas.push({ t: `${sinMarcar} cita${sinMarcar === 1 ? "" : "s"} pasada${sinMarcar === 1 ? "" : "s"} sin marcar como atendida o cancelada`, d: "Márquelas en Agenda para que la asistencia y los cobros salgan bien." });
+  if (ts.length >= 5 && cancelados / ts.length > 0.15) alertas.push({ t: `Las cancelaciones están en ${Math.round((cancelados / ts.length) * 100)}%`, d: "Revise que los recordatorios de 2 días y 1 día antes estén activos." });
+  if (!todo && ingresosAnt && ingresos < ingresosAnt * 0.85) alertas.push({ t: `Los ingresos bajaron ${Math.round((1 - ingresos / ingresosAnt) * 100)}% frente al período anterior`, d: `${dinero(ingresos)} contra ${dinero(ingresosAnt)}.` });
+  if (vencida.length) alertas.push({ t: `${vencida.length} cuenta${vencida.length === 1 ? "" : "s"} con EPS radicada${vencida.length === 1 ? "" : "s"} hace más de 60 días sin pagar`, d: `Saldo ${dinero(vencida.reduce((a, f) => a + saldoFactura(f), 0))}. Vea Facturación → EPS.` });
+  const sinFacturarEps = cobros.filter((c) => !c.anulado && (c.aCargoEps ?? 0) > 0 && !facturas.some((f) => f.estado !== "Anulada" && f.cobrosEps?.includes(c.id)));
+  if (sinFacturarEps.length) alertas.push({ t: `${dinero(sinFacturarEps.reduce((a, c) => a + (c.aCargoEps ?? 0), 0))} a cargo de EPS sin cuenta de cobro`, d: "Genérelas en Facturación → Por facturar." });
+  if (saldoPacientes) alertas.push({ t: `${dinero(saldoPacientes)} de saldos de pacientes por cobrar`, d: "Vea Pagos y caja → Cobros a pacientes." });
+
+  const kpis = [
+    { l: "Citas", v: String(ts.length), s: `${atendidos} atendidas${delta(ts.length, tsAnt.length)}` },
+    { l: "Asistencia", v: `${Math.round(asistencia)}%`, s: `${cancelados} canceladas${sinMarcar ? ` · ${sinMarcar} sin marcar` : ""}` },
+    { l: "Ingresos", v: corto$(ingresos), s: `Ticket promedio ${dinero(ticket)}${delta(ingresos, ingresosAnt)}` },
+    { l: "Pacientes nuevos", v: String(nuevos), s: `${pacientes.length} en total${delta(nuevos, nuevosAnt)}` },
   ];
+
+  const filasCitas = () => ts.map((t) => ({ Fecha: fechaDe(t.fecha), Hora: hora12(t.hora), Paciente: t.paciente, "Cédula": t.dni ?? "", Doctor: t.doctor, Motivo: t.motivo, Estado: t.estado, Origen: ORIGEN[t.origen ?? "panel"] ?? "" }));
+  const filasPagos = () => pagosR.map((p) => ({ Fecha: fechaHora(p.fecha), Paciente: p.c.paciente, "Cédula": p.c.dni ?? "", Servicio: p.c.concepto, Profesional: p.c.profesional, Cobertura: p.c.obraSocial || "Particular", "Medio de pago": metodoTxt(p.metodo), "Cobró": p.cobradoPor, Monto: p.monto }));
+  const filasFact = () => facturas.filter((f) => enRango(diaLocal(f.fecha))).map((f) => ({ Tipo: f.tipo, "Número": f.numero, Fecha: fechaDe(diaLocal(f.fecha)), "Paciente o entidad": f.receptor, Cobertura: f.cobertura, Total: f.tipo === "Nota crédito" ? -f.total : f.total, Estado: f.estado, Saldo: saldoFactura(f) }));
+  const filasEvol = () => evR.map((e) => ({ Fecha: fechaHora(e.fecha), Paciente: e.paciente, Especialidad: e.especialidad ?? "", Doctor: e.doctor, Motivo: e.motivo, "Presión arterial": e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", "Diagnósticos": dxDe(e).map((d) => (d.codigo ? `${d.codigo} ${d.descripcion}` : d.descripcion)).join(" | ") }));
+  const filasPac = () => pacientes.map((p) => ({ Nombre: p.nombre, "Cédula": p.dni ?? "", "Teléfono": p.telefono ?? "", Correo: p.email ?? "", EPS: p.ficha?.obraSocial || "Particular", Edad: edadDe(p.ficha?.nacimiento) ?? "", Antecedentes: (p.ficha?.antecedentes ?? []).join(" | "), Portal: p.portal ? "Sí" : "No" }));
+  const filasRec = () => recetas.filter((r) => enRango(r.fecha) && delDoc(r.doctor)).map((r) => ({ "N.º": r.numero, Fecha: fechaHora(r.fecha), Paciente: r.paciente, Doctor: r.doctor, Medicamentos: r.items.map((i) => i.droga).join(" | "), Estado: r.anulada ? "Anulada" : "Vigente" }));
+  const filasLab = () => labs.filter((l) => enRango(l.fecha) && delDoc(l.doctor)).map((l) => ({ Fecha: fechaHora(l.fecha), Paciente: l.paciente, Doctor: l.doctor, "Exámenes": l.paneles.join(" | "), Estado: l.estado, Resultados: Object.entries(l.resultados).map(([k, v]) => `${k}=${v}`).join(" | ") }));
+  const resumenFilas = () => [
+    { Indicador: "Período", Valor: periodoTxt }, { Indicador: "Profesional", Valor: doc },
+    ...kpis.map((k) => ({ Indicador: k.l, Valor: k.v })),
+    { Indicador: "Facturado", Valor: dinero(facturado) }, { Indicador: "Egresos", Valor: dinero(egresosR) }, { Indicador: "Cartera con EPS", Valor: dinero(carteraTotal) },
+    { Indicador: "Saldos de pacientes", Valor: dinero(saldoPacientes) }, { Indicador: "Pacientes recurrentes en el período", Valor: String(recurrentes) },
+    { Indicador: "Recetas", Valor: String(recetasR) }, { Indicador: "Laboratorios", Valor: String(labsR) },
+    { Indicador: "Presión controlada (< 140/90)", Valor: conTA.length ? `${Math.round((controlados / conTA.length) * 100)}%` : "—" },
+  ];
+  const nombreArchivo = (q: string) => `HEGO ${q} ${hoyIso}`;
+  const reportes: { t: string; d: string; icon: LucideIcon; hojas: () => { nombre: string; filas: Record<string, unknown>[] }[] }[] = [
+    { t: "Citas", d: `${ts.length} en el período`, icon: CalendarDays, hojas: () => [{ nombre: "Citas", filas: filasCitas() }] },
+    { t: "Pacientes", d: `${pacientes.length} pacientes`, icon: Users, hojas: () => [{ nombre: "Pacientes", filas: filasPac() }] },
+    { t: "Pagos", d: `${pagosR.length} pagos`, icon: Wallet, hojas: () => [{ nombre: "Pagos", filas: filasPagos() }] },
+    { t: "Facturación", d: `${factR.length} comprobantes`, icon: Receipt, hojas: () => [{ nombre: "Comprobantes", filas: filasFact() }] },
+    { t: "Consultas", d: `${evR.length} evoluciones`, icon: FileText, hojas: () => [{ nombre: "Consultas", filas: filasEvol() }, { nombre: "Diagnósticos", filas: topDx.map((x) => ({ "Diagnóstico": x.l, Casos: x.v })) }] },
+    { t: "Recetas", d: `${recetasR} recetas`, icon: Pill, hojas: () => [{ nombre: "Recetas", filas: filasRec() }] },
+    { t: "Laboratorio", d: `${labsR} pedidos`, icon: FlaskConical, hojas: () => [{ nombre: "Laboratorio", filas: filasLab() }] },
+  ];
+  const excelCompleto = async () => {
+    setExcel(true);
+    try {
+      await descargarExcel(nombreArchivo("reporte completo"), [{ nombre: "Resumen", filas: resumenFilas() }, ...reportes.flatMap((r) => r.hojas())]);
+      log("Reporte completo exportado", `${periodoTxt} · ${doc}`);
+      toast.success("Excel descargado.");
+    } catch { toast.error("No se pudo generar el Excel."); }
+    setExcel(false);
+  };
+  const informePdf = () => {
+    const esc = (x: unknown) => String(x ?? "").replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch]!);
+    const tabla = (titulo: string, filas: { l: string; v: number }[], fmt = (n: number) => String(n)) => {
+      const tot = filas.reduce((a, x) => a + x.v, 0);
+      return `<h2>${esc(titulo)}</h2>${filas.length ? `<table>${filas.slice(0, 10).map((x) => `<tr><td>${esc(x.l)}</td><td class="r">${esc(fmt(x.v))}</td><td class="r m">${tot ? Math.round((x.v / tot) * 100) : 0}%</td></tr>`).join("")}</table>` : '<p class="m">Sin datos en el período.</p>'}`;
+    };
+    imprimirHtml(`<!doctype html><html lang="es-CO"><head><meta charset="utf-8"><title>Informe de gestión HEGO</title><style>
+      body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:860px;margin:auto}h1{margin:0;color:#0b2a6b;font-size:24px}h2{font-size:14px;color:#0b2a6b;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:1px}
+      .m{color:#64748b;font-size:12px}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.k div{border:1px solid #e2e8f0;border-radius:12px;padding:12px}.k b{display:block;font-size:20px;color:#0b2a6b;margin:4px 0}
+      table{width:100%;border-collapse:collapse;font-size:12.5px}td{padding:6px 4px;border-bottom:1px solid #f1f5f9}.r{text-align:right}.cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}li{font-size:12.5px;margin:4px 0}
+    </style></head><body>
+      <h1>Informe de gestión · HEGO</h1><p class="m">${esc(periodoTxt)}${todo ? "" : ` (${esc(fechaDe(desde))} al ${esc(fechaDe(hoyIso))})`} · Profesional: ${esc(doc)} · Generado el ${esc(fechaHora(new Date().toISOString()))}</p>
+      <div class="k">${kpis.map((k) => `<div><span class="m">${esc(k.l)}</span><b>${esc(k.v)}</b><span class="m">${esc(k.s)}</span></div>`).join("")}</div>
+      <div class="k">${[["Facturado", dinero(facturado)], ["Egresos", dinero(egresosR)], ["Cartera EPS", dinero(carteraTotal)], ["Saldos de pacientes", dinero(saldoPacientes)]].map(([l, v]) => `<div><span class="m">${l}</span><b>${v}</b></div>`).join("")}</div>
+      ${alertas.length ? `<h2>Para atender</h2><ul>${alertas.map((a) => `<li><b>${esc(a.t)}</b> — ${esc(a.d)}</li>`).join("")}</ul>` : ""}
+      <div class="cols"><div>${tabla("Citas por doctor", porDoctor)}${tabla("Motivos de consulta", porMotivo)}${tabla("Origen de las citas", porOrigen)}</div>
+      <div>${tabla("Ingresos por servicio", porServicio, dinero)}${tabla("Medios de pago", porMetodo, dinero)}${tabla("Cartera por EPS", carteraEps, dinero)}</div></div>
+      <div class="cols"><div>${tabla("Diagnósticos más frecuentes", topDx)}</div><div>${tabla("Pacientes por EPS", porEps)}${tabla("Pacientes por edad", porEdad)}</div></div>
+      <p class="m" style="margin-top:28px">Documento interno de gestión. Los datos clínicos son confidenciales.</p>
+    </body></html>`);
+    log("Informe de gestión impreso", `${periodoTxt} · ${doc}`);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
-          {[[30, "30 días"], [90, "3 meses"], [365, "12 meses"], [99999, "Todo"]].map(([d, l]) => (
-            <button key={d} onClick={() => setDias(d as number)} className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${dias === d ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>{l}</button>
+      {/* Barra de filtros */}
+      <div className="pn-card flex flex-wrap items-center gap-3 p-3">
+        <div className="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5">
+          {[[7, "7 días"], [30, "30 días"], [90, "3 meses"], [365, "12 meses"], [99999, "Todo"]].map(([d, l]) => (
+            <button key={d} onClick={() => setDias(d as number)} className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${dias === d ? "bg-[#0b2a6b] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>{l}</button>
           ))}
         </div>
-        <Button variant="outline" className="h-10 rounded-xl" onClick={() => { log("Reporte impreso", `Analítica · ${dias} días`); window.print(); }}><FileText className="size-4" /> Imprimir reporte</Button>
+        <div className="w-full sm:w-[290px]"><select value={doc} onChange={(e) => setDoc(e.target.value)} className={inp + " h-10"} aria-label="Profesional">
+          <option value="Todos">Todos los profesionales</option>
+          {ADMINS.map((a) => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
+        </select></div>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <button type="button" onClick={informePdf} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><Printer className="size-4" /> Informe PDF</button>
+          <button type="button" onClick={() => void excelCompleto()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0b2a6b] px-4 text-sm font-semibold text-white hover:bg-[#0a2459]">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel completo</button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={CalendarDays} label="Citas" value={String(ts.length)} hint={`${atendidos} atendidas`} />
-        <Kpi icon={Ban} label="Ausentismo" value={ts.length ? `${Math.round((cancelados / ts.length) * 100)}%` : "0%"} hint={`${cancelados} cancelados`} tono="ambar" delay={0.05} />
-        <Kpi icon={Wallet} label="Ingresos" value={dinero(ingresos)} hint={pagosR.length ? `Ticket promedio ${dinero(Math.round(ingresos / pagosR.length))}` : "Sin cobros"} tono="verde" delay={0.1} />
-        <Kpi icon={Users} label="Pacientes nuevos" value={String(nuevos)} hint={`${pacientes.length} en total`} tono="violeta" delay={0.15} />
+        <Kpi icon={CalendarDays} label="Citas" value={kpis[0]!.v} hint={kpis[0]!.s} />
+        <Kpi icon={CalendarCheck} label="Asistencia" value={kpis[1]!.v} hint={kpis[1]!.s} tono="violeta" delay={0.05} />
+        <Kpi icon={Wallet} label="Ingresos" value={kpis[2]!.v} hint={kpis[2]!.s} tono="verde" delay={0.1} />
+        <Kpi icon={Users} label="Pacientes nuevos" value={kpis[3]!.v} hint={kpis[3]!.s} tono="azul" delay={0.15} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Dato icon={Receipt} l="Facturado" v={dinero(facturado)} s={`${factR.length} comprobantes`} />
+        <Dato icon={TrendingUp} l="Balance" v={dinero(ingresos - egresosR)} s={`Egresos ${dinero(egresosR)}`} />
+        <Dato icon={Building2} l="Cartera con EPS" v={dinero(carteraTotal)} s={vencida.length ? `${vencida.length} con más de 60 días` : "Al día"} />
+        <Dato icon={Clock} l="Saldos de pacientes" v={dinero(saldoPacientes)} s="Por cobrar en caja" />
       </div>
 
+      {alertas.length > 0 && (
+        <Seccion icon={AlertTriangle} titulo="Para atender" sub="Lo que el sistema detectó en los datos">
+          <ul className="grid gap-2.5 lg:grid-cols-2">
+            {alertas.map((a) => (
+              <li key={a.t} className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-white/10 dark:bg-white/5">
+                <span className="mt-1 size-2 shrink-0 rounded-full bg-[#0e7490]" />
+                <div><p className="text-sm font-semibold">{a.t}</p><p className="text-xs text-muted-foreground">{a.d}</p></div>
+              </li>
+            ))}
+          </ul>
+        </Seccion>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-2">
-        <Seccion icon={CalendarDays} titulo="Citas por mes" sub="Últimos 6 meses (sin cancelados)"><BarrasV datos={turnosMes} color="#3b82f6" /></Seccion>
-        <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes" delay={0.05}><BarrasV datos={ingresosMes} color="#10b981" fmt={dinero} /></Seccion>
-        <Seccion icon={Stethoscope} titulo="Citas por doctor" sub="En el período" delay={0.1}><BarrasH datos={porDoctor} colores={["linear-gradient(90deg,#0ea5e9,#1d4ed8)", "linear-gradient(90deg,#f43f5e,#be123c)"]} /></Seccion>
-        <Seccion icon={ClipboardList} titulo="Estado de las citas" sub="En el período" delay={0.15}><BarrasH datos={porEstado} colores={["#f59e0b", "#0ea5e9", "#10b981", "#ef4444"]} /></Seccion>
-        <Seccion icon={Receipt} titulo="Medios de pago" sub="Monto cobrado por medio" delay={0.2}><BarrasH datos={porMetodo} colores={["#10b981", "#0ea5e9", "#8b5cf6", "#f59e0b", "#06b6d4", "#64748b"]} /></Seccion>
-        <Seccion icon={FileText} titulo="Consultas por profesional" sub="Evoluciones de historia clínica en el período" delay={0.25}><BarrasH datos={porProf} colores={["#0ea5e9", "#8b5cf6", "#f43f5e"]} /></Seccion>
+        <Seccion icon={CalendarDays} titulo="Citas por mes" sub="Últimos 12 meses, sin canceladas"><BarrasV datos={turnosMes} color="#0b2a6b" /></Seccion>
+        <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes · últimos 12 meses" delay={0.05}><BarrasV datos={ingresosMes} color="#0e7490" fmt={(n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : n >= 1e3 ? `${Math.round(n / 1e3)} mil` : String(n))} /></Seccion>
+      </div>
+
+      <Seccion icon={Clock} titulo="Cuándo piden citas" sub={pico.v ? `Hora pico: ${DIAS_SEM[pico.d]} a las ${hora12(`${String(FRANJAS[pico.h]).padStart(2, "0")}:00`)} · útil para organizar horarios y personal` : "Días y horas con más citas en el período"}>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] border-separate border-spacing-1 text-[11px]">
+            <thead><tr><th />{FRANJAS.map((h) => <th key={h} className="font-medium text-muted-foreground">{h > 12 ? h - 12 : h}{h >= 12 ? " p. m." : " a. m."}</th>)}</tr></thead>
+            <tbody>
+              {mapa.map((fila, d) => (
+                <tr key={d}>
+                  <td className="pr-2 text-right font-semibold text-muted-foreground">{DIAS_SEM[d]}</td>
+                  {fila.map((v, h) => (
+                    <td key={h} title={`${DIAS_SEM[d]} ${FRANJAS[h]}:00 · ${v} cita${v === 1 ? "" : "s"}`} className="h-9 rounded-md text-center font-semibold tabular-nums" style={{ background: v ? `rgba(11,42,107,${0.12 + (v / maxMapa) * 0.78})` : "rgba(148,163,184,.12)", color: v / maxMapa > 0.45 ? "#fff" : "#0b2a6b" }}>{v || ""}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Seccion>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Seccion icon={Stethoscope} titulo="Citas por doctor" sub="En el período"><BarrasH datos={porDoctor} /></Seccion>
+        <Seccion icon={ClipboardList} titulo="Estado de las citas" sub="En el período" delay={0.05}><BarrasH datos={porEstado} colores={["#0b2a6b", "#0e7490", "#94a3b8", "#cbd5e1"]} /></Seccion>
+        <Seccion icon={Globe} titulo="Por dónde llegan" sub="Origen de las citas" delay={0.1}><BarrasH datos={porOrigen} /></Seccion>
+        <Seccion icon={Activity} titulo="Motivos de consulta" sub="Los más frecuentes" delay={0.15}><BarrasH datos={porMotivo} max={6} /></Seccion>
+        <Seccion icon={Receipt} titulo="Ingresos por servicio" sub="Lo que más ingresa" delay={0.2}><BarrasH datos={porServicio} fmt={dinero} max={6} /></Seccion>
+        <Seccion icon={Wallet} titulo="Medios de pago" sub="Monto cobrado por medio" delay={0.25}><BarrasH datos={porMetodo} fmt={dinero} /></Seccion>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Seccion icon={TrendingUp} titulo="Ingresos y egresos" sub="Últimos 6 meses" className="xl:col-span-2"><BarrasDobles datos={balanceMes} a="Ingresos" b="Egresos" fmt={dinero} /></Seccion>
+        <Seccion icon={Building2} titulo="Cartera por EPS" sub="Saldo que deben las EPS" delay={0.05}><BarrasH datos={carteraEps} fmt={dinero} max={6} /></Seccion>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Seccion icon={Users} titulo="Pacientes" sub="Nuevos y recurrentes en el período">
+          <div className="grid grid-cols-2 gap-4">
+            <DonaPct pct={pacIdsPeriodo.size ? (recurrentes / pacIdsPeriodo.size) * 100 : 0} etiqueta="Recurrentes" sub={`${recurrentes} de ${pacIdsPeriodo.size} atendidos`} />
+            <DonaPct pct={pacIdsPeriodo.size ? ((pacIdsPeriodo.size - recurrentes) / pacIdsPeriodo.size) * 100 : 0} etiqueta="Primera vez" sub={`${pacIdsPeriodo.size - recurrentes} pacientes`} color="#0e7490" />
+          </div>
+        </Seccion>
+        <Seccion icon={ShieldCheck} titulo="Pacientes por EPS" sub="Todos los pacientes" delay={0.05}><BarrasH datos={porEps} max={6} /></Seccion>
+        <Seccion icon={Users} titulo="Pacientes por edad" sub={`${conEdad.length} con fecha de nacimiento`} delay={0.1}><BarrasV datos={porEdad} color="#0e7490" alto="h-40" /></Seccion>
       </div>
 
       <Seccion icon={Activity} titulo="Indicadores clínicos" sub="Último valor registrado de cada paciente">
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div>
-            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-sky-700"><Droplets className="size-3.5" /> Estadios de ERC (KDIGO)</p>
-            <BarrasV datos={estadios} color="#0ea5e9" />
+        <div className="grid gap-6 lg:grid-cols-4">
+          <div className="lg:col-span-1">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[#0e7490]"><Droplets className="size-3.5" /> Estadios de ERC (KDIGO)</p>
+            <BarrasV datos={estadios} color="#0e7490" alto="h-40" />
           </div>
-          <div className="flex flex-col items-center justify-center rounded-2xl bg-secondary/40 p-6 text-center">
-            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-rose-700"><HeartPulse className="size-3.5" /> Presión controlada</p>
-            <div className="relative size-36">
-              <svg viewBox="0 0 36 36" className="size-full -rotate-90">
-                <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" strokeOpacity=".1" strokeWidth="3.2" />
-                <circle className="pn-donut" cx="18" cy="18" r="15.9" fill="none" stroke="#f43f5e" strokeWidth="3.2" strokeLinecap={controlados ? "round" : "butt"} strokeDasharray={`${conTA.length ? (controlados / conTA.length) * 100 : 0} 100`} />
-              </svg>
-              <p className="absolute inset-0 flex flex-col items-center justify-center font-display text-3xl font-semibold">{conTA.length ? Math.round((controlados / conTA.length) * 100) : 0}%<span className="font-sans text-[10px] font-normal text-muted-foreground">&lt; 140/90</span></p>
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">{controlados} de {conTA.length} pacientes con registros</p>
+          <div className="flex items-center justify-center rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+            <DonaPct pct={conTA.length ? (controlados / conTA.length) * 100 : 0} etiqueta="Presión controlada" sub={`${controlados} de ${conTA.length} · < 140/90`} />
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2 lg:col-span-2">
             {[
-              { l: "Pacientes con función renal medida", v: ultimoEgfr.size, c: "text-sky-700" },
-              { l: "ERC estadio 3 o más (eGFR < 60)", v: [...ultimoEgfr.values()].filter((x) => x.v < 60).length, c: "text-amber-700" },
-              { l: "Para evaluar derivación (eGFR < 30)", v: [...ultimoEgfr.values()].filter((x) => x.v < 30).length, c: "text-red-700" },
-              { l: "Registros con FEVI reducida (< 41%)", v: feviRed, c: "text-rose-700" },
-              { l: "Recetas emitidas en el período", v: recetas.filter((r) => enRango(r.fecha)).length, c: "text-violet-700" },
-              { l: "Laboratorios en el período", v: labs.filter((l) => enRango(l.fecha)).length, c: "text-emerald-700" },
+              { l: "Pacientes con función renal medida", v: ultimoEgfr.size },
+              { l: "ERC estadio 3 o más (eGFR < 60)", v: [...ultimoEgfr.values()].filter((x) => x.v < 60).length },
+              { l: "Para evaluar remisión (eGFR < 30)", v: [...ultimoEgfr.values()].filter((x) => x.v < 30).length },
+              { l: "Registros con FEVI reducida (< 41%)", v: feviRed },
+              { l: "Recetas emitidas en el período", v: recetasR },
+              { l: "Laboratorios en el período", v: labsR },
             ].map((x) => (
-              <div key={x.l} className="flex items-center justify-between rounded-xl bg-secondary/40 px-4 py-2.5">
+              <div key={x.l} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5 dark:border-white/10">
                 <span className="text-sm">{x.l}</span>
-                <span className={`font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</span>
+                <span className="font-display text-xl font-semibold tabular-nums text-[#0b2a6b] dark:text-sky-200">{x.v}</span>
               </div>
             ))}
           </div>
         </div>
+        <div className="mt-6">
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#0b2a6b] dark:text-sky-200">Diagnósticos más frecuentes en el período</p>
+          <BarrasH datos={topDx} max={8} />
+        </div>
       </Seccion>
 
-      <Seccion icon={Download} titulo="Reportes para descargar" sub="Planillas CSV que se abren en Excel o Google Sheets">
+      <Seccion icon={Download} titulo="Reportes para descargar" sub={`Excel del período elegido (${periodoTxt.toLowerCase()}${doc !== "Todos" ? ` · ${nombreCorto(doc)}` : ""})`}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {reportes.map((r) => (
-            <button key={r.t} onClick={() => { r.run(); log("Reporte exportado", r.t); }} className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg">
-              <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white"><r.icon className="size-4" /></span>
+            <button key={r.t} onClick={async () => { try { await descargarExcel(nombreArchivo(r.t.toLowerCase()), r.hojas()); log("Reporte exportado", `${r.t} · ${periodoTxt}`); } catch { toast.error("No se pudo generar el Excel."); } }} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-card p-4 text-left transition hover:-translate-y-0.5 hover:border-[#0b2a6b]/30 hover:shadow-md dark:border-white/10">
+              <span className="grid size-10 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><r.icon className="size-4" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{r.t}</span>
                 <span className="block text-xs text-muted-foreground">{r.d}</span>
               </span>
-              <Download className="size-4 text-muted-foreground transition group-hover:text-foreground" />
+              <FileSpreadsheet className="size-4 text-muted-foreground transition group-hover:text-[#0b2a6b]" />
             </button>
           ))}
+          <button onClick={() => void excelCompleto()} className="group flex items-center gap-3 rounded-2xl bg-[#0b2a6b] p-4 text-left text-white transition hover:-translate-y-0.5 hover:shadow-md">
+            <span className="grid size-10 place-items-center rounded-xl bg-white/15"><FileSpreadsheet className="size-4" /></span>
+            <span className="min-w-0 flex-1"><span className="block font-semibold">Todo en un Excel</span><span className="block text-xs text-white/75">Resumen + todas las hojas</span></span>
+            <Download className="size-4" />
+          </button>
         </div>
       </Seccion>
     </div>
