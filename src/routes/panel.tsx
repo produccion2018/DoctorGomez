@@ -1381,6 +1381,9 @@ function Kpi({
 }
 
 /** Hora en formato Colombia, siempre en un renglón: "8:15" grande y "a. m." pequeño. */
+/** Arregla textos viejos: "a. m.." → "a. m.", "hemograma , a las" → "hemograma, a las". */
+const limpiarTextoNota = (t: string) => t.replace(/([ap]\. m\.)\.(?=\s|$)/g, "$1").replace(/\s+,/g, ",");
+
 /** Hora de una fecha ISO en formato Colombia: "11:43 a. m." */
 function horaDeIso(iso: string) {
   const d = new Date(iso);
@@ -5276,15 +5279,15 @@ function FichaHC({
                       <div className={`hc-card min-w-0 flex-1 rounded-2xl border p-4 transition-all ${selNotas.has(n.id) ? "border-[rgb(var(--acc))] ring-2 ring-[rgba(var(--acc),.25)]" : "border-emerald-200/70 dark:border-emerald-500/20"} bg-gradient-to-br from-emerald-50/80 to-card dark:from-emerald-500/5`}>
                         <div className="flex flex-wrap items-center gap-2">
                           {puedeNotas && (
-                            <button type="button" onClick={() => alternarSel(n.id)} aria-label="Seleccionar" className={`grid size-5 place-items-center rounded-md border-2 transition ${selNotas.has(n.id) ? "border-[rgb(var(--acc))] bg-[rgb(var(--acc))] text-white" : "border-slate-300 bg-white hover:border-[rgb(var(--acc))] dark:border-white/20 dark:bg-transparent"}`}>
-                              {selNotas.has(n.id) && <Check className="size-3.5" strokeWidth={3} />}
+                            <button type="button" onClick={() => alternarSel(n.id)} aria-label="Seleccionar" aria-pressed={selNotas.has(n.id)} className={`grid size-6 place-items-center rounded-[7px] transition-all duration-200 ${selNotas.has(n.id) ? "scale-105 bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-[0_6px_14px_-6px_rgba(16,185,129,.9)]" : "bg-white text-transparent shadow-[inset_0_0_0_1.5px_rgb(203,213,225),0_1px_2px_rgba(15,23,42,.08)] hover:text-emerald-400 hover:shadow-[inset_0_0_0_1.5px_rgb(52,211,153)] dark:bg-white/5"}`}>
+                              <Check className="size-3.5" strokeWidth={3.2} />
                             </button>
                           )}
                           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
                           {n.estado === "Confirmado" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm"><Check className="size-3" strokeWidth={3} /> Confirmado</span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 py-0.5 pl-1 pr-2.5 text-[11px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(16,185,129,.8)]"><span className="grid size-4 place-items-center rounded-full bg-white/25"><Check className="size-2.5" strokeWidth={3.5} /></span> Confirmado</span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-200"><Clock className="size-3" /> Pendiente</span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 py-0.5 pl-1.5 pr-2.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200"><span className="relative flex size-2"><span className="absolute inset-0 animate-ping rounded-full bg-amber-400/70" /><span className="relative size-2 rounded-full bg-amber-500" /></span> Pendiente</span>
                           )}
                           {n.editadoPor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300" title={`Texto original: ${n.textoOriginal ?? ""}`}>Corregido por {nombreCorto(n.editadoPor)}</span>}
                           <span className="ml-auto text-xs text-muted-foreground">{horaDeIso(n.fecha)} · {nombreCorto(n.enfermera)}</span>
@@ -5298,18 +5301,26 @@ function FichaHC({
                             </div>
                           </div>
                         ) : (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.texto}</p>
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{limpiarTextoNota(n.texto)}</p>
                         )}
                         {n.estado === "Confirmado" && n.confirmadoPor && <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">✓ Confirmado por {nombreCorto(n.confirmadoPor)}{n.confirmadoEl ? ` · ${horaDeIso(n.confirmadoEl)}` : ""}</p>}
                         {puedeNotas && editNota?.id !== n.id && (
-                          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-emerald-200/60 pt-3 dark:border-white/10">
+                          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-emerald-200/60 pt-3 dark:border-white/10">
                             {n.estado === "Confirmado" ? (
-                              <button type="button" onClick={() => pendienteNotas([n.id])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 transition hover:bg-amber-100"><Clock className="size-3.5" /> Marcar pendiente</button>
+                              <button type="button" onClick={() => pendienteNotas([n.id])} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-amber-800 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-amber-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-white/5">
+                                <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow-sm transition-transform group-hover/b:rotate-[-20deg]"><Clock className="size-3.5" /></span> Marcar pendiente
+                              </button>
                             ) : (
-                              <button type="button" onClick={() => confirmarNotas([n.id])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600"><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                              <button type="button" onClick={() => confirmarNotas([n.id])} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 py-1 pl-1 pr-4 text-xs font-bold text-white shadow-[0_8px_18px_-8px_rgba(16,185,129,.9)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-8px_rgba(16,185,129,.9)]">
+                                <span className="grid size-7 place-items-center rounded-full bg-white/25 ring-1 ring-white/40 transition-transform group-hover/b:scale-110"><Check className="size-3.5" strokeWidth={3.2} /></span> Confirmar
+                              </button>
                             )}
-                            <button type="button" onClick={() => setEditNota({ id: n.id, texto: n.texto })} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-500/10"><Pencil className="size-3.5" /> Editar</button>
-                            <button type="button" onClick={() => borrarNotas([n.id])} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="size-3.5" /> Eliminar</button>
+                            <button type="button" onClick={() => setEditNota({ id: n.id, texto: n.texto })} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-sky-700 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-sky-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-white/5 dark:text-sky-300 dark:ring-sky-500/30">
+                              <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sm transition-transform group-hover/b:rotate-12"><Pencil className="size-3.5" /></span> Editar
+                            </button>
+                            <button type="button" onClick={() => borrarNotas([n.id])} aria-label="Eliminar" title="Eliminar" className="group/b ml-auto inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-rose-600 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-rose-200 transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md dark:bg-white/5 dark:ring-rose-500/30">
+                              <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-rose-400 to-red-600 text-white shadow-sm transition-transform group-hover/b:-rotate-12"><Trash2 className="size-3.5" /></span> Eliminar
+                            </button>
                           </div>
                         )}
                       </div>
@@ -9846,7 +9857,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
         return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora).replace(/\.$/, "")}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
       case "Toma de muestra":
         if (!f.muestra) return null;
-        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
+        return `Toma de muestra: ${f.muestra.trim()}${f.examenes?.trim() ? ` para ${f.examenes.trim()}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
         return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora).replace(/\.$/, "")}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
