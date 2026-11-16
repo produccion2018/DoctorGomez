@@ -382,12 +382,9 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 const SEED_TURNOS: Turno[] = [];
 const IDS_EJEMPLO = ["t1", "t2", "t3", "t4"];
 
-const SEED_MOVS: Mov[] = [
-  { id: "m1", fecha: hoy(), concepto: "Consultas de la mañana", tipo: "Ingreso", monto: 185000 },
-  { id: "m2", fecha: hoy(), concepto: "Estudios de ecocardiografía", tipo: "Ingreso", monto: 120000 },
-  { id: "m3", fecha: hoy(), concepto: "Insumos médicos", tipo: "Egreso", monto: 48000 },
-  { id: "m4", fecha: hoy(), concepto: "Servicios del consultorio", tipo: "Egreso", monto: 32000 },
-];
+/** Los movimientos de ejemplo que traía la primera versión: se ocultan siempre. */
+const EJEMPLO_MOVS: Record<string, string> = { m1: "Consultas de la mañana", m2: "Estudios de ecocardiografía", m3: "Insumos médicos", m4: "Servicios del consultorio" };
+const esEjemploMov = (m: Mov) => EJEMPLO_MOVS[m.id] === m.concepto;
 
 
 /* ---------- Persistencia local (se reemplaza por el backend) ---------- */
@@ -529,8 +526,9 @@ function Panel() {
   const [focoTurnos, setFocoTurnos] = useState<FocoTurnos>(null);
   const [turnos, setTurnosDato] = useDato<Turno[]>("gb_turnos", SEED_TURNOS);
   const setTurnos = useCallback((v: SetStateAction<Turno[]>) => setTurnosDato((p) => (typeof v === "function" ? (v as (x: Turno[]) => Turno[])(p) : v)), [setTurnosDato]);
-  const [movs, setMovsDato] = useDato<Mov[]>("gb_movs", SEED_MOVS);
-  const setMovs = useCallback((v: SetStateAction<Mov[]>) => setMovsDato((p) => (typeof v === "function" ? (v as (x: Mov[]) => Mov[])(p) : v)), [setMovsDato]);
+  const [movsTodos, setMovsDato] = useDato<Mov[]>("gb_movs", []);
+  const movs = useMemo(() => movsTodos.filter((m) => !esEjemploMov(m)), [movsTodos]);
+  const setMovs = useCallback((v: SetStateAction<Mov[]>) => setMovsDato((p) => (typeof v === "function" ? (v as (x: Mov[]) => Mov[])(p.filter((m) => !esEjemploMov(m))) : v)), [setMovsDato]);
   const [permisos, setPermisosDato] = useDato<Permisos>("gb_permisos", SEED_PERMISOS);
   const setPermisos = useCallback((v: SetStateAction<Permisos>) => setPermisosDato((p) => (typeof v === "function" ? (v as (x: Permisos) => Permisos)(p) : v)), [setPermisosDato]);
   const [auditGuardada] = useDato<Evento[]>("gb_audit", []);
@@ -1060,7 +1058,7 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
     // Lo que registra enfermería le llega al médico
     ...(esMedicoN
       ? notasEnfN
-          .filter((n) => ahora - new Date(n.fecha).getTime() < 86400000)
+          .filter((n) => !n.anulada && ahora - new Date(n.fecha).getTime() < 86400000)
           .map((n) => ({ id: `enf-${n.id}`, titulo: `Enfermería · ${n.tipo}`, texto: `${n.paciente} · ${n.texto.slice(0, 70)}`, icon: Syringe, tono: "verde" as Tono, tab: "triage" as Tab, fecha: n.fecha }))
       : []),
     ...(esMedicoN
@@ -1383,6 +1381,12 @@ function Kpi({
 }
 
 /** Hora en formato Colombia, siempre en un renglón: "8:15" grande y "a. m." pequeño. */
+/** Hora de una fecha ISO en formato Colombia: "11:43 a. m." */
+function horaDeIso(iso: string) {
+  const d = new Date(iso);
+  return hora12(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+}
+
 function HoraChip({ hora, className = "" }: { hora: string; className?: string }) {
   const [num, ...suf] = hora12(hora).split(" ");
   return (
@@ -5057,8 +5061,32 @@ function FichaHC({
   nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean; turnosHC?: Turno[]; pacientesHC?: PacienteHC[];
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios">("todo");
-  const [notasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
-  const notasEnfP = notasTodas.filter((n) => n.pacienteId === p.id || n.pacienteId === p.portalId);
+  const [notasTodas, setNotasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const notasEnfP = notasTodas.filter((n) => !n.anulada && (n.pacienteId === p.id || n.pacienteId === p.portalId));
+  const [selNotas, setSelNotas] = useState<Set<string>>(() => new Set());
+  const [editNota, setEditNota] = useState<{ id: string; texto: string } | null>(null);
+  const puedeNotas = !soloLectura && (user.rol === "medico" || user.area === "Dirección general" || notasEnf);
+  const ahoraIso = () => new Date().toISOString();
+  const cambiarNotas = (ids: string[], patch: (n: NotaEnfermeria) => Partial<NotaEnfermeria>, accion: string) => {
+    setNotasTodas((l) => l.map((n) => (ids.includes(n.id) ? { ...n, ...patch(n) } : n)));
+    log(accion, `${p.nombre} · ${ids.length} registro${ids.length === 1 ? "" : "s"} de enfermería`);
+    setSelNotas(new Set());
+  };
+  const confirmarNotas = (ids: string[]) => cambiarNotas(ids, () => ({ estado: "Confirmado", confirmadoPor: user.nombre, confirmadoEl: ahoraIso() }), "Registro de enfermería confirmado");
+  const pendienteNotas = (ids: string[]) => cambiarNotas(ids, () => ({ estado: "Pendiente" }), "Registro de enfermería marcado pendiente");
+  const borrarNotas = (ids: string[]) => {
+    if (!window.confirm(ids.length === 1 ? "¿Eliminar este registro? Queda guardado en la auditoría, pero ya no se muestra." : `¿Eliminar ${ids.length} registros? Quedan guardados en la auditoría, pero ya no se muestran.`)) return;
+    cambiarNotas(ids, () => ({ anulada: true, anuladaPor: user.nombre, anuladaEl: ahoraIso() }), "Registro de enfermería eliminado");
+    toast.success(ids.length === 1 ? "Registro eliminado." : `${ids.length} registros eliminados.`);
+  };
+  const guardarEdicion = () => {
+    if (!editNota || !editNota.texto.trim()) return;
+    const id = editNota.id;
+    cambiarNotas([id], (n) => ({ texto: editNota.texto.trim(), textoOriginal: n.textoOriginal ?? n.texto, editadoPor: user.nombre, editadoEl: ahoraIso() }), "Registro de enfermería corregido");
+    setEditNota(null);
+    toast.success("Registro corregido. El texto original queda guardado.");
+  };
+  const alternarSel = (id: string) => setSelNotas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
   const [ventSignos, setVentSignos] = useState(false);
   const puedeSignos = notasEnf || user.rol === "medico" || user.area === "Dirección general";
@@ -5213,6 +5241,23 @@ function FichaHC({
           {linea.length === 0 ? (
             <Vacio icon={NotebookPen} titulo="Sin registros" texto={soloLectura ? "Todavía no hay consultas ni registros de enfermería para este paciente." : "Registre la primera consulta con Nueva evolución."} />
           ) : (
+            <>
+            {puedeNotas && notasEnfP.length > 0 && (ver === "todo" || ver === "enfermeria") && (
+              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary/60 p-2.5 dark:bg-white/5">
+                <button type="button" onClick={() => setSelNotas(selNotas.size === notasEnfP.length ? new Set() : new Set(notasEnfP.map((n) => n.id)))} className="inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-xs font-semibold hover:bg-card">
+                  <span className={`grid size-5 place-items-center rounded-md border-2 ${selNotas.size && selNotas.size === notasEnfP.length ? "border-[rgb(var(--acc))] bg-[rgb(var(--acc))] text-white" : "border-slate-300 bg-white dark:border-white/20 dark:bg-transparent"}`}>{selNotas.size > 0 && <Check className="size-3.5" strokeWidth={3} />}</span>
+                  {selNotas.size ? `${selNotas.size} seleccionado${selNotas.size === 1 ? "" : "s"}` : "Seleccionar registros de enfermería"}
+                </button>
+                {selNotas.size > 0 && (
+                  <>
+                    <button type="button" onClick={() => confirmarNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                    <button type="button" onClick={() => pendienteNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"><Clock className="size-3.5" /> Pendiente</button>
+                    <button type="button" onClick={() => borrarNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="size-3.5" /> Eliminar</button>
+                  </>
+                )}
+                <span className="ml-auto pr-2 text-[11px] text-muted-foreground">{(() => { const k = notasEnfP.filter((n) => n.estado !== "Confirmado").length; return k === 0 ? "Todo confirmado ✓" : `${k} ${k === 1 ? "pendiente" : "pendientes"} de confirmar`; })()}</span>
+              </div>
+            )}
             <ol className="hc-linea relative space-y-4">
               {linea.map((it, i) => {
                 const nuevoDia = i === 0 || new Date(linea[i - 1]!.f).toDateString() !== new Date(it.f).toDateString();
@@ -5228,12 +5273,45 @@ function FichaHC({
                   return (
                     <li key={`en-${n.id}`} className="hc-item relative flex gap-4" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
                       <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-[0_10px_20px_-8px_rgba(16,185,129,.9)] ring-4 ring-card"><Syringe className="size-4" /></span>
-                      <div className="hc-card min-w-0 flex-1 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 to-card p-4 dark:border-emerald-500/20 dark:from-emerald-500/5">
+                      <div className={`hc-card min-w-0 flex-1 rounded-2xl border p-4 transition-all ${selNotas.has(n.id) ? "border-[rgb(var(--acc))] ring-2 ring-[rgba(var(--acc),.25)]" : "border-emerald-200/70 dark:border-emerald-500/20"} bg-gradient-to-br from-emerald-50/80 to-card dark:from-emerald-500/5`}>
                         <div className="flex flex-wrap items-center gap-2">
+                          {puedeNotas && (
+                            <button type="button" onClick={() => alternarSel(n.id)} aria-label="Seleccionar" className={`grid size-5 place-items-center rounded-md border-2 transition ${selNotas.has(n.id) ? "border-[rgb(var(--acc))] bg-[rgb(var(--acc))] text-white" : "border-slate-300 bg-white hover:border-[rgb(var(--acc))] dark:border-white/20 dark:bg-transparent"}`}>
+                              {selNotas.has(n.id) && <Check className="size-3.5" strokeWidth={3} />}
+                            </button>
+                          )}
                           <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">{new Date(n.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {n.enfermera}</span>
+                          {n.estado === "Confirmado" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm"><Check className="size-3" strokeWidth={3} /> Confirmado</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-200"><Clock className="size-3" /> Pendiente</span>
+                          )}
+                          {n.editadoPor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300" title={`Texto original: ${n.textoOriginal ?? ""}`}>Corregido por {nombreCorto(n.editadoPor)}</span>}
+                          <span className="ml-auto text-xs text-muted-foreground">{horaDeIso(n.fecha)} · {nombreCorto(n.enfermera)}</span>
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.texto}</p>
+                        {editNota?.id === n.id ? (
+                          <div className="mt-3 space-y-2">
+                            <textarea autoFocus rows={3} value={editNota.texto} onChange={(e) => setEditNota({ id: n.id, texto: e.target.value })} className={inp + " h-auto py-2.5"} />
+                            <div className="flex justify-end gap-2">
+                              <Button type="button" variant="ghost" size="sm" className="rounded-lg" onClick={() => setEditNota(null)}>Cancelar</Button>
+                              <Button type="button" size="sm" className="rounded-lg" onClick={guardarEdicion}><Check className="size-4" /> Guardar corrección</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{n.texto}</p>
+                        )}
+                        {n.estado === "Confirmado" && n.confirmadoPor && <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">✓ Confirmado por {nombreCorto(n.confirmadoPor)}{n.confirmadoEl ? ` · ${horaDeIso(n.confirmadoEl)}` : ""}</p>}
+                        {puedeNotas && editNota?.id !== n.id && (
+                          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-emerald-200/60 pt-3 dark:border-white/10">
+                            {n.estado === "Confirmado" ? (
+                              <button type="button" onClick={() => pendienteNotas([n.id])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 transition hover:bg-amber-100"><Clock className="size-3.5" /> Marcar pendiente</button>
+                            ) : (
+                              <button type="button" onClick={() => confirmarNotas([n.id])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-600"><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                            )}
+                            <button type="button" onClick={() => setEditNota({ id: n.id, texto: n.texto })} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-500/10"><Pencil className="size-3.5" /> Editar</button>
+                            <button type="button" onClick={() => borrarNotas([n.id])} className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="size-3.5" /> Eliminar</button>
+                          </div>
+                        )}
                       </div>
                     </li>
                   );
@@ -5288,7 +5366,7 @@ function FichaHC({
                     <article className="hc-card min-w-0 flex-1 overflow-hidden rounded-2xl border border-indigo-200/60 bg-card dark:border-indigo-500/20">
                       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-indigo-100 bg-gradient-to-r from-indigo-50/90 via-violet-50/60 to-transparent px-4 py-2.5 dark:border-indigo-500/20 dark:from-indigo-500/10">
                         <p className="text-sm font-semibold">{new Date(e.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}</p>
-                        <span className="text-xs text-muted-foreground">{new Date(e.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {e.doctor}</span>
+                        <span className="text-xs text-muted-foreground">{horaDeIso(e.fecha)} · {e.doctor}</span>
                         <div className="ml-auto flex items-center gap-1">
                           <button onClick={() => imprimirHtml(htmlEvolucion(p, e))} className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground">Imprimir</button>
                           {e.doctor === user.nombre && (
@@ -5360,6 +5438,7 @@ function FichaHC({
                 return <Fragment key={`g-${i}`}>{separador}{cuerpo}</Fragment>;
               })}
             </ol>
+            </>
           )}
         </Seccion>
 
@@ -7847,7 +7926,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
   const imcP = conPesoP ? calcularImc(conPesoP.signos.peso, conPesoP.signos.talla ?? evols.find((e) => e.signos.talla)?.signos.talla) : null;
 
   const [notasEnfC] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
-  const enfP = notasEnfC.filter((n) => n.pacienteId === p.id || n.pacienteId === p.portalId).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
+  const enfP = notasEnfC.filter((n) => !n.anulada && (n.pacienteId === p.id || n.pacienteId === p.portalId)).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 4);
   const Indicador = ({ icon: Ic, l, v, d, ir, tono }: { icon: LucideIcon; l: string; v: string; d: string; ir: SecCarpeta; tono: string }) => (
     <button onClick={() => setSec(ir)} className="group relative overflow-hidden rounded-[1.4rem] border border-border/60 bg-card p-4 text-left shadow-[0_1px_0_rgba(255,255,255,.6)_inset] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_48px_-30px_rgba(15,23,42,.5)]">
       <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${tono}`} />
@@ -8559,7 +8638,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
                   <Avatar nombre={t.paciente} size="size-10" />
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 truncate font-semibold">{t.paciente}{(() => { const al = pacientes.find((x) => esDe(x, t.pacienteId))?.ficha?.alergias; return al ? <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span> : null; })()}</p>
-                    <p className="text-[11px] text-muted-foreground">{new Date(t.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {t.enfermera}</p>
+                    <p className="text-[11px] text-muted-foreground">{horaDeIso(t.fecha)} · {t.enfermera}</p>
                   </div>
                   {t.evolucionId ? (
                     <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Atendido · {nombreCorto(t.atendidoPor ?? "")}</span>
@@ -9519,7 +9598,7 @@ function NotasEnfermeria({ ids, paciente, user, log, puede }: { ids: string[]; p
   const [tipo, setTipo] = useState<string>(TIPOS_NOTA_ENF[0]);
   const [texto, setTexto] = useState("");
   const [abierto, setAbierto] = useState(false);
-  const mias = notas.filter((n) => ids.includes(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const mias = notas.filter((n) => !n.anulada && ids.includes(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha));
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (!texto.trim()) return;
@@ -9632,7 +9711,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
   const pac = pacientes.find((p) => p.id === pacSel);
   const esDeP = (id: string) => !!pac && (id === pac.id || id === pac.portalId);
   const ultSignos = pac ? triages.filter((t) => esDeP(t.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha))[0] : undefined;
-  const ultNotas = pac ? notas.filter((n) => esDeP(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3) : [];
+  const ultNotas = pac ? notas.filter((n) => !n.anulada && esDeP(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3) : [];
   return (
     <section className="pn-card pn-up overflow-hidden p-5 sm:p-6">
       <div className="pn-sec-top dark relative -mx-5 -mt-5 flex flex-wrap items-end justify-between gap-3 overflow-hidden px-5 py-6 text-foreground sm:-mx-6 sm:-mt-6 sm:px-6">
@@ -9762,21 +9841,21 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
     switch (accion.id) {
       case "Glucometría":
         if (!f.valor) return null;
-        return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${hora12(f.hora)}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
+        return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${hora12(f.hora).replace(/\.$/, "")}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
       case "Electrocardiograma":
-        return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora)}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
+        return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora).replace(/\.$/, "")}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
       case "Toma de muestra":
         if (!f.muestra) return null;
-        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${hora12(f.hora)}.${obs}`;
+        return `Toma de muestra: ${f.muestra}${f.examenes ? ` para ${f.examenes}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
-        return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora)}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
+        return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora).replace(/\.$/, "")}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
       case "Holter / MAPA":
         if (!f.tipo) return null;
-        return `${f.tipo} a las ${hora12(f.hora)}.${obs}`;
+        return `${f.tipo} a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
       case "Curación":
         if (!f.zona) return null;
-        return `Curación en ${f.zona} a las ${hora12(f.hora)}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
+        return `Curación en ${f.zona} a las ${hora12(f.hora).replace(/\.$/, "")}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
       default:
         return f.obs?.trim() ? f.obs.trim() : null;
     }
@@ -9885,7 +9964,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
 function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria }: { pacientes: PacienteHC[]; esMedico: boolean; abrirHistoria: (id: string) => void }) {
   const [notas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const hoyIso = isoDe(new Date());
-  const deHoy = notas.filter((n) => diaLocal(n.fecha) === hoyIso).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const deHoy = notas.filter((n) => !n.anulada && diaLocal(n.fecha) === hoyIso).sort((a, b) => b.fecha.localeCompare(a.fecha));
   return (
     <Seccion icon={NotebookPen} titulo="Registros de enfermería de hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · glucometrías, medicamentos, muestras, procedimientos y notas`}>
       {deHoy.length === 0 ? (
@@ -9904,7 +9983,7 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria }: { pacientes: Pa
                     {al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> {al}</span>}
                   </p>
                   <p className="mt-1 text-sm">{n.texto}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{new Date(n.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })} hs · {n.enfermera}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">{horaDeIso(n.fecha)} · {n.enfermera}</p>
                 </div>
                 {esMedico && <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(n.pacienteId)}><FileText className="size-3.5" /> Ver historia</Button>}
               </li>
@@ -9931,12 +10010,12 @@ function RegistrarEnHC({ p, user, log, turnos, pacientes, puede }: { p: Paciente
           <p className="text-xs text-muted-foreground">Toque lo que va a registrar. Se guarda en el historial de abajo y lo ven los médicos.</p>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] gap-2">
         {ACCIONES_ENF.map((a) => (
           <button key={a.id} type="button" onClick={() => (a.id === "signos" ? setSignos(true) : setAccion(a))}
             className="group flex items-center gap-2.5 rounded-xl border border-border/70 bg-card p-2.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white transition-transform group-hover:scale-110" style={{ background: `linear-gradient(140deg, ${a.c}, ${a.c}b3)` }}><a.icon className="size-4" /></span>
-            <span className="min-w-0 text-[13px] font-semibold leading-tight [overflow-wrap:anywhere]">{a.t}</span>
+            <span className="min-w-0 text-[13px] font-semibold leading-tight [hyphens:auto]" lang="es">{a.t}</span>
           </button>
         ))}
       </div>

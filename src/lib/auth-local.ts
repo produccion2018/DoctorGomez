@@ -1062,7 +1062,15 @@ export type Triage = {
 export const KEY_TRIAGE = "gb_triage";
 /** Notas de enfermería (registro de enfermería en la historia clínica). */
 export const KEY_NOTAS_ENF = "gb_notas_enf";
-export type NotaEnfermeria = { id: string; pacienteId: string; paciente: string; fecha: string; enfermeraId: string; enfermera: string; tipo: string; texto: string; turnoId?: string };
+export type NotaEnfermeria = {
+  id: string; pacienteId: string; paciente: string; fecha: string; enfermeraId: string; enfermera: string; tipo: string; texto: string; turnoId?: string;
+  /** Revisada por el médico (✓) o todavía pendiente. */
+  estado?: "Pendiente" | "Confirmado"; confirmadoPor?: string; confirmadoEl?: string;
+  /** Si se corrigió: se guarda el texto original (la historia clínica no se pierde). */
+  textoOriginal?: string; editadoPor?: string; editadoEl?: string;
+  /** Eliminada: queda guardada para auditoría, pero no se muestra. */
+  anulada?: boolean; anuladaPor?: string; anuladaEl?: string;
+};
 
 /* ---------- Historia clínica (evoluciones de cada consulta) ---------- */
 export const ESPECIALIDADES_HC = ["Cardiología", "Nefrología", "Medicina Interna"] as const;

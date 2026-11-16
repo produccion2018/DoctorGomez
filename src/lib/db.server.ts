@@ -73,6 +73,10 @@ export async function db(): Promise<Sql> {
         console.error("No se pudo crear el índice de citas únicas (¿hay citas duplicadas?):", (e as Error).message);
       }
       await sql`CREATE TABLE IF NOT EXISTS consecutivos (clave text PRIMARY KEY, valor bigint NOT NULL)`;
+      // Borra los 4 movimientos de ejemplo de la primera versión ($305.000 / $80.000), si quedaron guardados
+      await sql`DELETE FROM registros WHERE coleccion = 'gb_movs' AND (
+        (id = 'm1' AND valor->>'concepto' = 'Consultas de la mañana') OR (id = 'm2' AND valor->>'concepto' = 'Estudios de ecocardiografía') OR
+        (id = 'm3' AND valor->>'concepto' = 'Insumos médicos') OR (id = 'm4' AND valor->>'concepto' = 'Servicios del consultorio'))`;
       await sql`CREATE TABLE IF NOT EXISTS desafios (
         token text PRIMARY KEY,
         usuario_id text NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
