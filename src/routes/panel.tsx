@@ -6831,6 +6831,83 @@ function flagDe(d: Determinacion, v: number): "alto" | "bajo" | "ok" {
   if (d.min !== undefined && v < d.min) return "bajo";
   return "ok";
 }
+/** Seguimiento del paciente: cómo evolucionó cada valor de laboratorio en el tiempo, con su rango normal. */
+function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
+  const conRes = labs.filter((l) => Object.keys(l.resultados ?? {}).length).sort((a, b) => (a.fechaResultado ?? a.fecha).localeCompare(b.fechaResultado ?? b.fecha));
+  const series = DET_TODAS.map((d) => ({
+    d,
+    pts: conRes.filter((l) => typeof l.resultados[d.id] === "number").map((l) => ({ f: l.fechaResultado ?? l.fecha, v: l.resultados[d.id]! })),
+  })).filter((x) => x.pts.length > 0);
+  const [elegido, setElegido] = useState<string | null>(null);
+  if (!series.length) {
+    return (
+      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground dark:border-white/10">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-rose-500 to-red-600 text-white"><Activity className="size-5" /></span>
+        Cuando se carguen resultados de laboratorio, aquí va a ver el seguimiento del paciente: cómo sube o baja cada valor con el tiempo.
+      </div>
+    );
+  }
+  const sel = series.find((x) => x.d.id === elegido) ?? series.find((x) => x.pts.some((p) => flagDe(x.d, p.v) !== "ok")) ?? series[0]!;
+  const W = 600, H = 190, PX = 36, PY = 22;
+  const vals = sel.pts.map((p) => p.v);
+  const lo = Math.min(...vals, sel.d.min ?? Infinity) * 0.9;
+  const hi = Math.max(...vals, sel.d.max ?? -Infinity) * 1.1 || 1;
+  const y = (v: number) => H - PY - ((v - lo) / (hi - lo || 1)) * (H - PY * 2);
+  const x = (i: number) => (sel.pts.length === 1 ? W / 2 : PX + (i * (W - PX * 2)) / (sel.pts.length - 1));
+  const linea = sel.pts.map((p, i) => `${i ? "L" : "M"} ${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
+  const color = (v: number) => (flagDe(sel.d, v) === "ok" ? "#10b981" : flagDe(sel.d, v) === "alto" ? "#ef4444" : "#f59e0b");
+  return (
+    <div className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm dark:border-white/10">
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#be123c] px-4 py-3.5 text-white">
+        <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+        <p className="relative flex items-center gap-2 font-display text-lg font-semibold"><Activity className="size-4" /> Seguimiento de laboratorio</p>
+        <p className="relative text-xs text-white/75">{conRes.length} resultado{conRes.length === 1 ? "" : "s"} cargado{conRes.length === 1 ? "" : "s"} · toque un valor para ver su evolución</p>
+      </div>
+      <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
+        {series.map(({ d, pts }) => {
+          const ult = pts[pts.length - 1]!;
+          const ant = pts[pts.length - 2];
+          const f = flagDe(d, ult.v);
+          const dif = ant ? ult.v - ant.v : 0;
+          const on = sel.d.id === d.id;
+          return (
+            <button key={d.id} type="button" onClick={() => setElegido(d.id)} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${on ? "bg-[rgba(var(--acc),.1)] ring-2 ring-[rgba(var(--acc),.45)]" : "bg-secondary/40 hover:bg-secondary dark:bg-white/5"}`}>
+              <span className={`size-2.5 shrink-0 rounded-full ${f === "ok" ? "bg-emerald-500" : f === "alto" ? "bg-red-500" : "bg-amber-500"}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold">{d.nombre}</span>
+                <span className="block text-[10px] text-muted-foreground">{d.min !== undefined ? d.min : "—"}{d.max !== undefined ? `–${d.max}` : "+"} {d.unidad}</span>
+              </span>
+              <span className="text-right">
+                <span className={`block font-display text-lg font-semibold tabular-nums ${f === "ok" ? "" : f === "alto" ? "text-red-600" : "text-amber-600"}`}>{ult.v}</span>
+                {ant && <span className={`block text-[10px] font-semibold ${dif === 0 ? "text-muted-foreground" : flagDe(d, ult.v) === "ok" ? "text-emerald-600" : "text-red-500"}`}>{dif === 0 ? "= igual" : `${dif > 0 ? "▲" : "▼"} ${Math.abs(Math.round(dif * 100) / 100)}`}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="border-t border-border/60 p-4 dark:border-white/10">
+        <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-sm font-semibold">{sel.d.nombre} <span className="font-normal text-muted-foreground">({sel.d.unidad})</span></p>
+          <p className="text-[11px] text-muted-foreground"><span className="mr-1 inline-block size-2.5 rounded-sm bg-emerald-500/20 align-middle ring-1 ring-emerald-500/40" /> Rango normal{sel.d.min !== undefined ? ` desde ${sel.d.min}` : ""}{sel.d.max !== undefined ? ` hasta ${sel.d.max}` : ""}</p>
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full" role="img" aria-label={`Evolución de ${sel.d.nombre}`}>
+          {(sel.d.min !== undefined || sel.d.max !== undefined) && (
+            <rect x={PX - 10} width={W - PX * 2 + 20} y={y(Math.min(sel.d.max ?? hi, hi))} height={Math.max(0, y(Math.max(sel.d.min ?? lo, lo)) - y(Math.min(sel.d.max ?? hi, hi)))} rx="8" fill="#10b981" fillOpacity=".09" stroke="#10b981" strokeOpacity=".25" strokeDasharray="4 4" />
+          )}
+          {sel.pts.length > 1 && <path d={linea} fill="none" stroke="rgb(var(--acc))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
+          {sel.pts.map((p, i) => (
+            <g key={i}>
+              <circle cx={x(i)} cy={y(p.v)} r="7" fill="white" stroke={color(p.v)} strokeWidth="3" />
+              <text x={x(i)} y={y(p.v) - 13} textAnchor="middle" fontSize="12" fontWeight="700" fill={color(p.v)}>{p.v}</text>
+              <text x={x(i)} y={H - 4} textAnchor="middle" fontSize="11" fill="currentColor" opacity=".55">{new Date(p.f).toLocaleDateString("es-CO", { day: "numeric", month: "short" }).replace(".", "")}</text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 const ESTADO_LAB: Record<EstadoLab, string> = {
   Pedido: "bg-amber-100 text-amber-800 ring-amber-200",
   "En proceso": "bg-sky-100 text-sky-800 ring-sky-200",
@@ -8027,7 +8104,7 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
     titulo: "Gestión",
     items: [
       { id: "turnos", label: "Citas", icon: CalendarDays },
-      { id: "cuenta", label: "Cuenta corriente", icon: Wallet },
+      { id: "cuenta", label: "Estado de cuenta", icon: Wallet },
     ],
   },
 ];
@@ -8196,7 +8273,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                 <Indicador icon={CalendarDays} l="Próxima cita" v={proximo ? `${fechaCorta(proximo.fecha).slice(0, 5)} · ${hora12(proximo.hora)}` : "Sin cita"} d={proximo ? `${nombreCorto(proximo.doctor)} · ${proximo.motivo}` : "Agende el próximo control"} ir="turnos" tono="from-sky-500 to-blue-700" />
                 <Indicador icon={Activity} l="Presión arterial" v={ta ? `${ta.s}/${ta.d}` : "—"} d={ta ? clasificarPresion(ta.s, ta.d).nivel : "Sin registros"} ir="historia" tono="from-rose-500 to-red-600" />
                 <Indicador icon={Scale} l="Índice de masa corporal" v={imcP ? `${imcP.valor} kg/m²` : "—"} d={imcP ? imcP.texto : "Sin peso y talla"} ir="historia" tono="from-cyan-400 to-sky-600" />
-                <Indicador icon={Wallet} l="Cuenta corriente" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
+                <Indicador icon={Wallet} l="Estado de cuenta" v={saldo > 0 ? dinero(saldo) : "Al día"} d={saldo > 0 ? "Saldo pendiente" : `${cobros.length} cobros registrados`} ir="cuenta" tono={saldo > 0 ? "from-amber-400 to-orange-600" : "from-emerald-400 to-teal-600"} />
               </div>
 
               {enfP.length > 0 && (
@@ -8330,6 +8407,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
           {sec === "laboratorio" && (
             <>
+              <SeguimientoLab labs={labs} />
               <Cab t="Laboratorio" s="Pedidos y resultados con valores fuera de rango" accion={<Button size="sm" className="rounded-xl" onClick={() => abrir("laboratorio", p.id)}><Plus className="size-3.5" /> Nuevo pedido</Button>} />
               {labs.length === 0 ? <Vacio icon={FlaskConical} texto="Sin pedidos de laboratorio." /> : (
                 <ul className="space-y-3">
@@ -8433,7 +8511,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
           {sec === "cuenta" && (
             <>
-              <Cab t="Cuenta corriente" s="Cobros, pagos, saldo y comprobantes" accion={<Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrir("facturacion", p.id)}><Receipt className="size-3.5" /> Facturación</Button>} />
+              <Cab t="Estado de cuenta" s="Cobros, pagos, saldo y comprobantes" accion={<Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrir("facturacion", p.id)}><Receipt className="size-3.5" /> Facturación</Button>} />
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
                 {[
                   { l: "Total cobrado", v: dinero(cobros.reduce((a, c) => a + pagadoDe(c), 0)), c: "text-emerald-700" },
