@@ -795,7 +795,7 @@ function Panel() {
   );
 
   return (
-    <div className="pn-root isolate min-h-screen bg-[#f4f7fc] text-foreground lg:grid lg:grid-cols-[280px_1fr] dark:bg-[#070d1a]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
+    <div className="pn-root pn-bg isolate min-h-screen bg-[#eaf0f9] text-foreground lg:grid lg:grid-cols-[280px_1fr] dark:bg-[#070d1a]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
       <style>{`
         @keyframes pn-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pn-orb { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18px,-24px) scale(1.15); } }
@@ -815,13 +815,18 @@ function Panel() {
         .pn-sheen::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.18), transparent); transform: translateX(-100%); animation: pn-shine 6s ease-in-out infinite; pointer-events: none; }
         .pn-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
         .pn-noscroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
-        .pn-card { border: 1px solid transparent; background: linear-gradient(180deg, #ffffff, color-mix(in oklab, #ffffff 98.5%, rgb(var(--acc)))) padding-box, linear-gradient(160deg, rgba(var(--acc),.38), rgba(203,213,225,.85) 26%, rgba(226,232,240,.9) 74%, rgba(var(--acc),.22)) border-box; transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
+        .pn-card { border: 1px solid transparent; background: radial-gradient(120% 80% at 100% 0%, rgba(var(--acc),.10), transparent 55%) padding-box, radial-gradient(90% 70% at 0% 100%, rgba(30,64,175,.05), transparent 60%) padding-box, linear-gradient(165deg, rgba(255,255,255,.97), rgba(248,250,255,.9)) padding-box, linear-gradient(150deg, rgba(var(--acc),.65), rgba(var(--acc),.18) 22%, rgba(203,213,225,.7) 50%, rgba(var(--acc),.15) 80%, rgba(var(--acc),.5)) border-box; backdrop-filter: blur(16px) saturate(140%); transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
         .pn-card::before { content: ""; position: absolute; top: 0; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, transparent, rgba(var(--acc),.8), transparent); pointer-events: none; }
-        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 1px 2px rgba(15,23,42,.06), 0 4px 10px -2px rgba(15,23,42,.05), 0 18px 36px -14px rgba(15,23,42,.14), 0 34px 70px -34px rgba(var(--acc),.32); }
+        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,.5), 0 1px 2px rgba(15,23,42,.06), 0 8px 18px -6px rgba(15,23,42,.08), 0 26px 50px -20px rgba(15,35,80,.22), 0 40px 80px -40px rgba(var(--acc),.55); }
+        .pn-bg { background-image: radial-gradient(1100px 620px at 85% -8%, rgba(var(--acc),.22), transparent 60%), radial-gradient(900px 600px at -5% 25%, rgba(37,99,235,.14), transparent 60%), radial-gradient(800px 500px at 60% 110%, rgba(var(--acc),.12), transparent 60%), linear-gradient(180deg, #edf2fb 0%, #e3eaf6 100%); background-attachment: fixed; transition: background-image .6s; }
+        .dark .pn-bg { background-image: radial-gradient(1100px 620px at 85% -8%, rgba(var(--acc),.18), transparent 60%), radial-gradient(900px 600px at -5% 25%, rgba(37,99,235,.12), transparent 60%), linear-gradient(180deg, #070d1a, #050a14); }
+        .pn-sec-band { background: linear-gradient(100deg, rgba(var(--acc),.13), rgba(var(--acc),.05) 45%, transparent 80%); }
+        .dark .pn-sec-band { background: linear-gradient(100deg, rgba(var(--acc),.18), rgba(var(--acc),.05) 45%, transparent 80%); }
         .pn-sec-h { position: relative; }
         .pn-sec-h::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(var(--acc),.45), rgba(148,163,184,.25) 35%, rgba(148,163,184,.12)); }
         .dark .pn-sec-h::after { background: linear-gradient(90deg, rgba(var(--acc),.5), rgba(255,255,255,.08) 40%, transparent); }
-        .pn-field { background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.8); }
+        .pn-field { background: linear-gradient(180deg, #f6f8fc, #ffffff); box-shadow: inset 0 1px 2px rgba(15,23,42,.06), 0 1px 0 rgba(255,255,255,.9); }
+        .pn-field:focus { background: #fff; }
         .pn-field:hover { border-color: rgba(var(--acc),.45); }
         .dark .pn-field { background: rgba(255,255,255,.04); box-shadow: none; }
         @keyframes pn-pulse { from { stroke-dashoffset: 1180; } to { stroke-dashoffset: 0; } }
@@ -1268,14 +1273,14 @@ function Seccion({
 }) {
   return (
     <section className={`pn-card pn-up p-5 sm:p-6 ${className}`} style={{ animationDelay: `${delay}s` }}>
-      <div className="pn-sec-h mb-5 flex flex-wrap items-center justify-between gap-3 pb-5">
+      <div className="pn-sec-h pn-sec-band -mx-5 -mt-5 mb-5 rounded-t-[1.2rem] flex flex-wrap items-center justify-between gap-3 px-5 pb-5 pt-5 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6">
         <div className="flex min-w-0 items-center gap-3.5">
           <span className="pn-acc-tile relative flex size-11 shrink-0 items-center justify-center rounded-2xl text-white">
             <span className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/25 to-transparent" />
             <Icon className="relative size-5" />
           </span>
           <div className="min-w-0">
-            <h3 className="text-base font-semibold tracking-tight text-foreground">{titulo}</h3>
+            <h3 className="font-display text-lg font-semibold leading-tight tracking-tight text-foreground">{titulo}</h3>
             {sub && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{sub}</p>}
           </div>
         </div>
