@@ -1373,6 +1373,55 @@ function Kpi({
   );
 }
 
+/** Hora en formato Colombia, siempre en un renglón: "8:15" grande y "a. m." pequeño. */
+function HoraChip({ hora, className = "" }: { hora: string; className?: string }) {
+  const [num, ...suf] = hora12(hora).split(" ");
+  return (
+    <span className={`inline-flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] px-2 py-2 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)] ring-1 ring-white/10 ${className}`}>
+      <span className="font-display text-lg font-semibold leading-none tabular-nums">{num}</span>
+      <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
+    </span>
+  );
+}
+
+/** Selector de día elegante: ‹ fecha › con calendario al tocar la fecha. */
+function DiaNav({ dia, setDia }: { dia: string; setDia: (d: string) => void }) {
+  const mover = (n: number) => {
+    const d = new Date(dia + "T12:00:00");
+    d.setDate(d.getDate() + n);
+    setDia(fechaISO(d));
+  };
+  return (
+    <div className="flex items-center rounded-xl">
+      <button type="button" onClick={() => mover(-1)} aria-label="Día anterior" className="grid size-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"><ChevronLeft className="size-4" /></button>
+      <label className="relative flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2.5 text-sm font-semibold transition hover:bg-secondary">
+        <CalendarDays className="size-4 text-[rgb(var(--acc))]" />
+        <span className="whitespace-nowrap first-letter:uppercase">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "")}</span>
+        <input type="date" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} aria-label="Elegir fecha" className="absolute inset-0 cursor-pointer opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer" />
+      </label>
+      <button type="button" onClick={() => mover(1)} aria-label="Día siguiente" className="grid size-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"><ChevronDown className="size-4 -rotate-90" /></button>
+      {dia !== hoy() && <button type="button" onClick={() => setDia(hoy())} className="ml-1 rounded-lg bg-[rgba(var(--acc),.12)] px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.2)]">Hoy</button>}
+    </div>
+  );
+}
+
+/** Botones tipo pastilla para filtrar (reemplaza las listas desplegables). */
+function Pastillas<T extends string>({ valor, opciones, onChange }: { valor: T; opciones: { v: T; l: string; n?: number }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {opciones.map((o) => {
+        const on = o.v === valor;
+        return (
+          <button key={o.v} type="button" onClick={() => onChange(o.v)} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${on ? "pn-acc-tile text-white shadow-md" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            {o.l}
+            {o.n !== undefined && <span className={`rounded-full px-1.5 text-[10px] ${on ? "bg-white/25" : "bg-secondary"}`}>{o.n}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Estadito({ estado }: { estado: Estado }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${ESTADO_CLASE[estado]}`}>
@@ -4862,13 +4911,20 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf
 
       <div id="ficha-hc" className="grid scroll-mt-24 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
         {/* Lista de pacientes */}
-        <section className="pn-card pn-up flex max-h-[calc(100vh-10rem)] min-h-[420px] flex-col p-4 xl:sticky xl:top-6">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar paciente o cédula" className={inp + " pl-10"} />
+        <section className="pn-card pn-up flex max-h-[calc(100vh-10rem)] min-h-[420px] flex-col overflow-hidden xl:sticky xl:top-6">
+          <div className="pn-sec-top relative overflow-hidden px-4 pb-4 pt-5 text-white">
+            <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
+            <div className="pointer-events-none absolute -right-10 -top-14 size-40 rounded-full bg-white/15 blur-3xl" />
+            <div className="relative mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-2 font-display text-lg font-semibold"><Users className="size-4" /> Pacientes</p>
+              <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/25">{visibles.length}</span>
+            </div>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " pl-10 !bg-white text-foreground"} />
+            </div>
           </div>
-          <p className="mt-4 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{visibles.length} {visibles.length === 1 ? "paciente" : "pacientes"}</p>
-          <ul className="pn-noscroll mt-2 flex-1 space-y-1 overflow-y-auto">
+          <ul className="pn-noscroll flex-1 space-y-1.5 overflow-y-auto p-3">
             {visibles.map((p) => {
               const u = ultimaDe(p);
               const on = p.id === selId;
@@ -4876,14 +4932,15 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf
                 <li key={p.id}>
                   <button
                     onClick={() => { setSelId(p.id); setNueva(false); }}
-                    className={`group flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-[rgba(var(--acc),.12)] ring-1 ring-[rgba(var(--acc),.35)]" : "hover:translate-x-0.5 hover:bg-secondary"}`}
+                    className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 text-left transition-all ${on ? "bg-gradient-to-r from-[rgba(var(--acc),.16)] to-[rgba(var(--acc),.04)] shadow-sm ring-1 ring-[rgba(var(--acc),.4)]" : "hover:translate-x-0.5 hover:bg-secondary/80"}`}
                   >
-                    <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${on ? "pn-acc-tile text-white" : "bg-secondary text-foreground"}`}>{iniciales(p.nombre)}</span>
+                    {on && <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[rgb(var(--acc))]" />}
+                    <Avatar nombre={p.nombre} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{p.nombre}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{u ? `Última consulta ${fechaDe(u.fecha)}` : p.dni ? `C.C. ${p.dni}` : "Sin consultas"}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"} · {u ? `última consulta ${fechaDe(u.fecha)}` : "sin consultas"}</span>
                     </span>
-                    {p.ficha?.alergias && <AlertTriangle className="size-3.5 shrink-0 text-red-500" />}
+                    {p.ficha?.alergias ? <AlertTriangle className="size-3.5 shrink-0 text-red-500" /> : <ChevronDown className={`size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform ${on ? "text-[rgb(var(--acc))]" : "opacity-0 group-hover:translate-x-0.5 group-hover:opacity-100"}`} />}
                   </button>
                 </li>
               );
@@ -6695,10 +6752,8 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
         sub="Perfil renal, ionograma, lípidos, marcadores cardíacos y más"
         acciones={
           <div className="flex flex-wrap gap-2">
-            <select value={verEstado} onChange={(e) => setVerEstado(e.target.value as "todos" | EstadoLab)} className={inp + " h-10 w-40"}>
-              <option value="todos">Todos</option><option>Pedido</option><option>En proceso</option><option>Resultado</option>
-            </select>
-            <Button className="h-10 rounded-xl" onClick={() => { setNuevo(true); setCargando(null); }}><Plus className="size-4" /> Nuevo pedido</Button>
+            <Pastillas<"todos" | EstadoLab> valor={verEstado} onChange={setVerEstado} opciones={[{ v: "todos", l: "Todos" }, { v: "Pedido", l: "Pedidos" }, { v: "En proceso", l: "En proceso" }, { v: "Resultado", l: "Con resultado" }]} />
+            <Button className="h-9 rounded-lg" onClick={() => { setNuevo(true); setCargando(null); }}><Plus className="size-4" /> Nuevo pedido</Button>
           </div>
         }
       >
@@ -8489,19 +8544,20 @@ function TurnosLectura({ turnos }: { turnos: Turno[] }) {
       icon={CalendarDays}
       titulo="Agenda del día"
       sub="Solo lectura"
-      acciones={<input type="date" value={dia} onChange={(e) => setDia(e.target.value)} className={inp + " h-10 w-44"} />}
+      acciones={<DiaNav dia={dia} setDia={setDia} />}
     >
       {lista.length === 0 ? (
-        <Vacio icon={CalendarDays} texto="No hay citas para este día." />
+        <Vacio icon={CalendarDays} titulo="Día libre" texto="No hay citas para este día." />
       ) : (
-        <ul className="divide-y divide-border/60">
+        <ul className="space-y-2.5">
           {lista.map((t) => (
-            <li key={t.id} className="flex flex-wrap items-center gap-3 py-3">
-              <span className="w-14 font-display text-lg font-semibold tabular-nums">{hora12(t.hora)}</span>
-              <Avatar nombre={t.paciente} size="size-9" />
+            <li key={t.id} className={`group relative flex flex-wrap items-center gap-3.5 overflow-hidden rounded-2xl border border-border/70 bg-card p-3 pr-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 ${t.estado === "Cancelado" ? "opacity-60" : ""}`}>
+              <span className={`absolute inset-y-0 left-0 w-1 ${ESTADO_DOT[t.estado]}`} />
+              <HoraChip hora={t.hora} className="ml-1" />
+              <Avatar nombre={t.paciente} size="size-10" />
               <div className="min-w-0 flex-1">
-                <p className="font-medium">{t.paciente}</p>
-                <p className="text-xs text-muted-foreground">{t.motivo || "Consulta"} · {nombreCorto(t.doctor)}</p>
+                <p className="truncate font-semibold">{nombreCorto(t.paciente)}</p>
+                <p className="truncate text-xs text-muted-foreground"><span className="font-medium text-foreground/70">{(t.motivo || "Consulta").split(" · ")[0]}</span>{t.motivo?.includes(" · ") ? ` · ${t.motivo.split(" · ").slice(1).join(" · ")}` : ""} · {nombreCorto(t.doctor)}</p>
               </div>
               <Estadito estado={t.estado} />
             </li>
