@@ -838,6 +838,21 @@ export const ejecutarIA = createServerFn({ method: "POST" })
   });
 
 
+/** Envía por correo (Resend) la invitación al Portal del paciente. Solo personal del panel. */
+export const invitarPortalCorreo = createServerFn({ method: "POST" })
+  .validator((d: { id: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ para: string }>> => {
+    const u = await (await acceso()).usuarioActual();
+    if (!u) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    const p = await (await colecciones()).uno("gb_pacientes", String(data.id ?? ""));
+    if (!p) return { ok: false, error: "No se encontró el paciente. Recargue la página." };
+    if (!p["email"]) return { ok: false, error: "Este paciente no tiene correo cargado." };
+    const r = await (await avisos()).invitarPortalPorCorreo(p);
+    if (!r.ok) return r;
+    await (await acceso()).auditar(u.nombre, "Invitación al portal enviada por correo", `${p["nombre"]} · ${p["email"]}`);
+    return { ok: true, para: String(p["email"]) };
+  });
+
 /* ===================================================================== */
 /* Confirmar una cita con el link del correo                               */
 /* ===================================================================== */

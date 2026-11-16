@@ -482,7 +482,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                 <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-bold">{SECCIONES.find((x) => x.id === sec)?.label}</span><span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mi portal</span></span>
               </div>
               <p className="hidden text-sm text-muted-foreground lg:block">
-                <span className="capitalize">{new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span>
+                <span className="inline-block first-letter:uppercase">{new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span>
               </p>
               <div className="relative flex items-center gap-1">
                 <ThemeToggle />
@@ -537,7 +537,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             {sec === "autorizaciones" && <Autorizaciones ctx={ctx} />}
             {sec === "ficha" && <Ficha ctx={ctx} />}
             <p className="mt-12 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs text-muted-foreground">
-              <span>{CLINICA.nombre}</span>{sitioDe(leerDato(KEY_SITIO, {})).telefono && <span>{sitioDe(leerDato(KEY_SITIO, {})).telefono}</span>}<span>Ante una emergencia llama a la línea 123</span>
+              <span>{CLINICA.nombre}</span>{sitioDe(leerDato(KEY_SITIO, {})).telefono && <span>{sitioDe(leerDato(KEY_SITIO, {})).telefono}</span>}<span>Ante una emergencia, llame a la línea 123</span>
             </p>
           </main>
         </div>
@@ -653,7 +653,7 @@ function FilaTurno({ t, onCancelar }: { t: TurnoClinica; onCancelar?: () => void
             {d && <img src={fotoDoctor(d.foto)} alt="" className="size-5 rounded-full object-cover object-top" />}
             {d?.nombre ?? t.doctor}
           </p>
-          <p className="text-xs capitalize text-muted-foreground">{fechaTxt(t.fecha)}</p>
+          <p className="text-xs text-muted-foreground first-letter:uppercase">{fechaTxt(t.fecha)}</p>
         </div>
         <Pastilla tono={ESTADO_T[t.estado]}>{t.estado === "Pendiente" ? "A confirmar" : t.estado}</Pastilla>
         {onCancelar && (t.estado === "Pendiente" || t.estado === "Confirmado") && (
@@ -707,7 +707,8 @@ function Inicio({ ctx }: { ctx: Ctx }) {
         <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-center">
           <div>
             <p className="text-sm text-white/70">{hora < 12 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches"}</p>
-            <h1 className="text-3xl text-white sm:text-4xl">{ctx.paciente.nombre.split(" ")[0]}, ¿cómo se siente hoy?</h1>
+            <h1 className="text-3xl text-white sm:text-4xl"><span className="capitalize">{ctx.paciente.nombre.split(" ")[0]?.toLowerCase()}</span>, ¿cómo se siente hoy?</h1>
+            <p className="mt-2 max-w-md text-sm text-white/70">Aquí tiene sus citas, sus controles y sus resultados, siempre a mano.</p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Button onClick={() => ctx.ir("turnos")} className="rounded-full !bg-white px-5 text-[var(--deep)] hover:!bg-white/90"><CalendarPlus className="size-4" /> Sacar cita</Button>
               <Button onClick={() => ctx.ir("controles")} variant="outline" className="rounded-full !border-white/30 !bg-white/10 px-5 text-white hover:!bg-white/20 hover:text-white"><Gauge className="size-4" /> Registrar presión</Button>
@@ -720,12 +721,20 @@ function Inicio({ ctx }: { ctx: Ctx }) {
                 {d0 && <img src={fotoDoctor(d0.foto)} alt="" className="size-14 rounded-2xl object-cover object-top ring-2 ring-white/30" />}
                 <div className="min-w-0">
                   <p className="font-semibold">{p0.motivo.split(" · ")[0]}</p>
-                  <p className="text-sm capitalize text-white/80">{fechaTxt(p0.fecha)} · {hora12(p0.hora)}</p>
+                  <p className="text-sm text-white/80 first-letter:uppercase">{fechaTxt(p0.fecha)} · {hora12(p0.hora)}</p>
                   <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-100"><Clock className="size-3" /> {cuandoFalta(p0.fecha, p0.hora)}</p>
                 </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-white/80">No tiene citas agendadas.</p>
+              <div className="mt-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-3">
+                    {DOCTORS.slice(0, 2).map((d) => <img key={d.id} src={fotoDoctor(d.foto)} alt="" className="size-11 rounded-2xl object-cover object-top ring-2 ring-white/40" />)}
+                  </div>
+                  <p className="text-sm text-white/85">No tiene citas agendadas.<br /><span className="text-white/60">Elija el día y la hora que le queden mejor.</span></p>
+                </div>
+                <button onClick={() => ctx.ir("turnos")} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white/15 py-2.5 text-sm font-semibold text-white ring-1 ring-white/25 transition-colors hover:bg-white/25"><CalendarPlus className="size-4" /> Pedir mi cita</button>
+              </div>
             )}
           </div>
         </div>
@@ -756,10 +765,10 @@ function Inicio({ ctx }: { ctx: Ctx }) {
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pulso y peso</p>
               <span className="flex size-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400"><Scale className="size-4" /></span>
             </div>
-            <div className="mt-2 flex items-baseline gap-4">
+            {!pulso && !pesos.length ? <p className="mt-3 text-sm text-muted-foreground">Anote su pulso y su peso cuando se tome la presión.</p> : <div className="mt-2 flex items-baseline gap-4">
               <p className="font-display text-3xl font-semibold tabular-nums">{pulso?.pulso ?? "—"} <span className="text-sm font-normal text-muted-foreground">lpm</span></p>
               <p className="font-display text-xl font-semibold tabular-nums text-muted-foreground">{pesos.length ? `${pesos[pesos.length - 1]!.peso} kg` : ""}</p>
-            </div>
+            </div>}
             {pesos.length >= 2 && (() => {
               const dif = (pesos[pesos.length - 1]!.peso ?? 0) - (pesos[0]!.peso ?? 0);
               return <p className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold ${Math.abs(dif) >= 2 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{dif >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />} {dif > 0 ? "+" : ""}{dif.toFixed(1)} kg en sus registros</p>;
@@ -991,7 +1000,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
             <div className="mt-6 space-y-3 animate-in fade-in duration-300">
               <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Motivo o comentario (opcional)" className={inp} />
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-secondary/60 p-4 dark:bg-white/5">
-                <p className="text-sm"><b className="capitalize">{fechaTxt(fecha)}</b> a las <b>{hora ? hora12(hora) : ""}</b> con {doctor?.nombre}</p>
+                <p className="text-sm"><b className="inline-block first-letter:uppercase">{fechaTxt(fecha)}</b> a las <b>{hora ? hora12(hora) : ""}</b> con {doctor?.nombre}</p>
                 <Button onClick={confirmar} className="btn-glow rounded-xl"><Check className="size-4" /> Confirmar pedido</Button>
               </div>
             </div>

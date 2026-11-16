@@ -44,16 +44,27 @@ export const linkConfirmar = (id: string) => `${base()}/confirmar?c=${encodeURIC
 
 /* ---------- canales ---------- */
 export async function enviarCorreo(para: string[], asunto: string, html: string): Promise<boolean> {
+  return (await enviarCorreoDetalle(para, asunto, html)).ok;
+}
+
+/** Igual que enviarCorreo, pero explica por qué no salió (para mostrarlo en el panel). */
+export async function enviarCorreoDetalle(para: string[], asunto: string, html: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const clave = env("RESEND_API_KEY");
   const to = para.map((x) => x.trim()).filter((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
-  if (!clave || to.length === 0) return false;
+  if (!clave) return { ok: false, error: "Falta configurar el correo (RESEND_API_KEY en Vercel)." };
+  if (to.length === 0) return { ok: false, error: "El correo del paciente no es válido." };
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: env("RESEND_FROM") || "HEGO <onboarding@resend.dev>", to, subject: asunto, html }),
   }).catch(() => null);
-  if (!r?.ok) console.error("Correo no enviado:", r?.status, await r?.text().catch(() => ""));
-  return !!r?.ok;
+  if (r?.ok) return { ok: true };
+  const texto = r ? await r.text().catch(() => "") : "";
+  console.error("Correo no enviado:", r?.status, texto);
+  if (/testing emails|verify a domain|own email/i.test(texto))
+    return { ok: false, error: "Resend está en modo de prueba: por ahora solo envía al correo de su cuenta de Resend. Para enviar a cualquier paciente hay que verificar un dominio propio." };
+  if (r?.status === 401 || r?.status === 403) return { ok: false, error: "Resend rechazó la clave. Revise RESEND_API_KEY en Vercel." };
+  return { ok: false, error: "No se pudo enviar el correo. Intente de nuevo en un momento." };
 }
 
 /** Celular colombiano a formato internacional (57 + 10 dígitos). */
@@ -209,3 +220,30 @@ export async function enviarRecordatorios() {
   return { ok: true, enviados: resumen.length };
 }
 
+
+/* ---------- invitación al Portal del paciente ---------- */
+export async function invitarPortalPorCorreo(p: Record<string, unknown>) {
+  const url = `${base()}/portal`;
+  const nombre = String(p["nombre"] ?? "").split(" ")[0] ?? "";
+  const digitos = String(p["codigo"] ?? "").split("").map((d) => `<td style="width:44px;height:54px;background:#ffffff;border:1px solid #bae6fd;border-radius:10px;text-align:center;font-size:26px;font-weight:bold;color:#0b2a6b;font-family:'Courier New',monospace">${esc(d)}</td>`).join('<td style="width:6px"></td>');
+  return enviarCorreoDetalle(
+    [String(p["email"] ?? "")],
+    "Su acceso al Portal del paciente · HEGO",
+    marco(
+      "Bienvenido a su Portal del paciente",
+      `<p style="margin:0 0 12px">Hola ${esc(nombre)}, le habilitamos el <b>Portal del paciente</b> del Centro HEGO. Desde ahí puede pedir y cancelar sus citas, ver sus estudios y resultados, sus medicamentos y sus autorizaciones.</p>
+       <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:18px;margin:16px 0;text-align:center">
+         <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#0369a1;margin-bottom:10px">Su código de acceso</div>
+         <table style="margin:0 auto;border-collapse:separate"><tr>${digitos}</tr></table>
+         <div style="font-size:13px;color:#475569;margin-top:12px">Usuario: su cédula <b>${esc(p["dni"])}</b></div>
+       </div>
+       <div style="text-align:center;margin:20px 0 8px"><a href="${url}" style="display:inline-block;background:#0b2a6b;color:#fff;text-decoration:none;font-weight:bold;padding:13px 28px;border-radius:12px">Entrar al portal</a></div>
+       <ol style="font-size:14px;color:#334155;padding-left:18px;margin:18px 0 6px">
+         <li>Toque <b>Entrar al portal</b> o ingrese a ${esc(url)}</li>
+         <li>Escriba su cédula y el código de 6 números.</li>
+         <li>Listo: ya puede pedir su cita. Si quiere, puede crear su propia contraseña.</li>
+       </ol>
+       <p style="font-size:12px;color:#94a3b8;margin-top:16px">Este código es personal. No lo comparta. Si usted no pidió este acceso, ignore este correo.</p>`,
+    ),
+  );
+}

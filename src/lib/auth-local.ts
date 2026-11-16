@@ -25,6 +25,7 @@ import {
   leerColeccion,
   aplicarCambios,
   horariosOcupados,
+  invitarPortalCorreo,
   reservarTurnoPublico,
   ingresarPacienteServidor,
   salirPacienteServidor,
@@ -474,6 +475,17 @@ export function refrescoRapido(key: string, ms = 4000) {
 export async function ocupadosServidor(desde: string) {
   if (!(await iniciarBackend())) return null;
   return horariosOcupados({ data: { desde } }).catch(() => null);
+}
+
+/** Manda por correo (Resend) la invitación al portal. Reintenta unos segundos por si el paciente recién creado todavía se está guardando. */
+export async function invitarPortalPorCorreo(id: string): Promise<{ ok: true; para: string } | { ok: false; error: string }> {
+  if (!(await iniciarBackend())) return { ok: false, error: "El envío de correos funciona con el servidor (en la página publicada)." };
+  for (let i = 0; i < 4; i++) {
+    const r = await invitarPortalCorreo({ data: { id } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+    if (r.ok || !/No se encontró/.test(r.error) || i === 3) return r;
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  return { ok: false, error: "No se pudo enviar." };
 }
 
 /** Reserva desde la web pública: con backend va al servidor. */

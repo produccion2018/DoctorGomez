@@ -103,6 +103,9 @@ import {
   Megaphone,
   MessagesSquare,
   Wallet,
+  RefreshCw,
+  UserPlus,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -154,6 +157,7 @@ import {
   TIPOS_ESTUDIO,
   KEY_ESTUDIOS,
   indicacionesTexto,
+  invitarPortalPorCorreo,
   KEY_CONTROLES,
   clasificarPresion,
   clasificarFevi,
@@ -4148,15 +4152,12 @@ function verPortal(id: string) {
   window.open(`/portal?vista=${encodeURIComponent(id)}`, "_blank", "noopener");
 }
 
-function mailInvitacion(p: PacientePortal) {
-  return `mailto:${p.email}?subject=${encodeURIComponent("Su acceso al Portal del paciente · HEGO · Centro de especialidades médicas")}&body=${encodeURIComponent(mensajeInvitacion(p))}`;
-}
-
 function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; turnos: Turno[] }) {
   const [pacientes, setPacientes] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
   const [auts, setAuts] = useDato<Autorizacion[]>(KEY_AUT, []);
   const [f, setF] = useState({ nombre: "", dni: "", telefono: "", email: "" });
   const [recien, setRecien] = useState<PacientePortal | null>(null);
+  const [enviando, setEnviando] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [fa, setFa] = useState({ pacienteId: "", tipo: TIPOS_AUT[0] as string, titulo: "", detalle: "" });
   const [verAut, setVerAut] = useState<"pendientes" | "resueltas">("pendientes");
@@ -4193,6 +4194,23 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     log("Acceso al portal enviado", `${nuevo.nombre} · C.C. ${dni}`);
     setRecien(nuevo);
     setF({ nombre: "", dni: "", telefono: "", email: "" });
+    if (nuevo.email) void enviarCorreo(nuevo, true);
+  };
+
+  /** Invitación por correo con Resend (sale desde el servidor). */
+  const enviarCorreo = async (p: PacientePortal, silencioso = false) => {
+    if (!p.email) {
+      toast.error("Este paciente no tiene correo cargado.");
+      return;
+    }
+    setEnviando(p.id);
+    const r = await invitarPortalPorCorreo(p.id);
+    setEnviando(null);
+    if (r.ok) {
+      toast.success(`Invitación enviada a ${r.para}`);
+      log("Invitación enviada", `${p.nombre} · correo`);
+    } else if (!silencioso || !/modo de prueba/.test(r.error)) toast.error(r.error, { duration: 8000 });
+    else toast.message("El correo de invitación no salió", { description: r.error, duration: 8000 });
   };
 
   const cambiarPaciente = (id: string, patch: Partial<PacientePortal>, accion: string) => {
@@ -4269,72 +4287,102 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
       </div>
 
       <div className="grid gap-6 xl:grid-cols-5">
-        <Seccion icon={Send} titulo="Enviar acceso al portal" sub="El paciente recibe un código para entrar y sacar sus citas" className="xl:col-span-2" delay={0.1}>
+        <Seccion icon={UserPlus} titulo="Invitar al portal" sub="Cree el acceso y envíele el código por WhatsApp o correo" className="xl:col-span-2" delay={0.1}>
           {recien ? (
             <div className="space-y-4 animate-in fade-in zoom-in-95 duration-300">
-              <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100">
-                <p className="flex items-center gap-2 font-semibold text-emerald-800"><Check className="size-4" /> Acceso creado para {recien.nombre}</p>
-                <p className="mt-3 text-xs text-emerald-800/80">Código de acceso</p>
-                <p className="font-display text-4xl font-semibold tracking-[0.2em] text-emerald-900">{recien.codigo}</p>
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 p-5 text-white shadow-lg">
+                <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-white/10 blur-2xl" />
+                <p className="relative flex items-center gap-2 text-sm font-semibold"><span className="grid size-6 place-items-center rounded-full bg-white/20"><Check className="size-3.5" strokeWidth={3} /></span> Acceso creado para {recien.nombre}</p>
+                <p className="relative mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Código de acceso</p>
+                <div className="relative mt-2 flex items-center gap-1.5">
+                  {recien.codigo.split("").map((d, i) => (
+                    <span key={i} className="grid h-12 w-10 place-items-center rounded-xl bg-white/95 font-mono text-2xl font-bold text-emerald-800 shadow-sm">{d}</span>
+                  ))}
+                  <button onClick={() => copiar(recien.codigo)} className="ml-auto grid size-10 place-items-center rounded-xl bg-white/15 transition-colors hover:bg-white/25" aria-label="Copiar código"><Copy className="size-4" /></button>
+                </div>
+                <p className="relative mt-3 text-xs text-white/80">Usuario: cédula {recien.dni}</p>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <Button asChild className="rounded-xl !bg-[#25D366] text-white hover:!bg-[#1ebe5b]">
-                  <a href={waPaciente(recien.telefono, mensajeInvitacion(recien))} target="_blank" rel="noreferrer"><Send className="size-4" /> Enviar por WhatsApp</a>
+                <Button asChild className="h-11 rounded-xl !bg-[#25D366] text-white shadow-sm hover:!bg-[#1ebe5b]">
+                  <a href={waPaciente(recien.telefono, mensajeInvitacion(recien))} target="_blank" rel="noreferrer" onClick={() => log("Invitación enviada", `${recien.nombre} · WhatsApp`)}><MessageCircle className="size-4" /> WhatsApp</a>
                 </Button>
-                <Button variant="outline" className="rounded-xl" onClick={() => copiar(mensajeInvitacion(recien))}><ClipboardList className="size-4" /> Copiar mensaje</Button>
-                {recien.email && (
-                  <Button asChild variant="outline" className="rounded-xl"><a href={mailInvitacion(recien)}><Send className="size-4" /> Enviar por email</a></Button>
-                )}
-                <Button variant="outline" className="rounded-xl" onClick={() => verPortal(recien.id)}><Eye className="size-4" /> Ver su portal</Button>
+                <Button className="h-11 rounded-xl" disabled={!recien.email || enviando === recien.id} onClick={() => void enviarCorreo(recien)} title={recien.email ? recien.email : "Sin correo cargado"}>
+                  {enviando === recien.id ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />} {recien.email ? "Reenviar correo" : "Sin correo"}
+                </Button>
+                <Button variant="outline" className="h-10 rounded-xl" onClick={() => copiar(mensajeInvitacion(recien))}><Copy className="size-4" /> Copiar mensaje</Button>
+                <Button variant="outline" className="h-10 rounded-xl" onClick={() => verPortal(recien.id)}><Eye className="size-4" /> Ver su portal</Button>
               </div>
+              {recien.email && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Mail className="size-3.5" /> El correo con el código se envía solo a {recien.email}.</p>}
               <Button variant="ghost" className="w-full rounded-xl" onClick={() => setRecien(null)}><Plus className="size-4" /> Invitar a otro paciente</Button>
             </div>
           ) : (
             <form onSubmit={invitar} className="space-y-4">
-              <Campo label="Nombre y apellido"><input id="inv-nombre" required value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
+              <Campo label="Nombre y apellido"><input id="inv-nombre" required placeholder="Ej.: María Fernanda López" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
               <div className="grid grid-cols-2 gap-3">
-                <Campo label="Cédula"><input required inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
-                <Campo label="WhatsApp"><input required type="tel" placeholder="11 1234-5678" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
+                <Campo label="Cédula"><input required inputMode="numeric" placeholder="1002240625" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
+                <Campo label="Celular (WhatsApp)"><input required type="tel" placeholder="300 123 4567" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
               </div>
-              <Campo label="Email (opcional)"><input type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></Campo>
-              <Button type="submit" className="h-11 w-full rounded-xl"><Send className="size-4" /> Crear acceso y enviar invitación</Button>
+              <Campo label="Correo (recomendado)"><input type="email" placeholder="paciente@correo.com" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} className={inp} /></Campo>
+              <div className="rounded-2xl bg-secondary/60 p-3 text-xs text-muted-foreground dark:bg-white/5">
+                <p className="flex items-center gap-1.5 font-semibold text-foreground"><Sparkles className="size-3.5 text-primary" /> Qué pasa al crear el acceso</p>
+                <p className="mt-1">Se genera un código de 6 números. Si tiene correo, la invitación le llega sola; además puede mandársela por WhatsApp con un toque.</p>
+              </div>
+              <Button type="submit" className="h-11 w-full rounded-xl shadow-md"><Send className="size-4" /> Crear acceso y enviar invitación</Button>
             </form>
           )}
         </Seccion>
 
-        <Seccion icon={Users} titulo="Pacientes del portal" sub={`${pacientes.length} con acceso`} className="xl:col-span-3" delay={0.15}
-          acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-52"} /></div>}>
-          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitó pacientes" texto="Cree un acceso y mándele el código por WhatsApp. Con eso entra al portal y agenda sus citas." />}
-          <div className="space-y-2">
+        <Seccion icon={Users} titulo="Pacientes del portal" sub={`${pacientes.length} con acceso · ${activos} ya ingresaron`} className="xl:col-span-3" delay={0.15}
+          acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Buscar por nombre o cédula" value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
+          {pacientes.length === 0 && <Vacio icon={Users} titulo="Todavía no invitó pacientes" texto="Cree un acceso y mándele el código por WhatsApp o correo. Con eso entra al portal y agenda sus citas." />}
+          <div className="space-y-3">
             {lista.map((p) => {
               const n = turnos.filter((t) => t.pacienteId === p.id).length;
+              const revocado = p.estado === "Revocado";
               return (
-                <div key={p.id} className="group rounded-2xl border border-border/70 p-3 transition-colors hover:bg-secondary/40">
-                  <div className="flex flex-wrap items-center gap-3">
+                <div key={p.id} className={`group relative overflow-hidden rounded-2xl border bg-card p-4 shadow-sm transition-all hover:shadow-md dark:border-white/10 ${revocado ? "border-border opacity-70" : "border-border/70"}`}>
+                  <span className={`absolute inset-y-0 left-0 w-1 ${p.estado === "Activo" ? "bg-emerald-500" : p.estado === "Invitado" ? "bg-amber-400" : "bg-slate-300"}`} />
+                  <div className="flex flex-wrap items-start gap-3">
                     <Avatar nombre={p.nombre} />
                     <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 font-medium">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado}</span></p>
-                      <p className="text-xs text-muted-foreground">C.C. {p.dni} · {p.telefono}{n ? ` · ${n} cita${n === 1 ? "" : "s"}` : ""}{p.ultimoIngreso ? ` · último ingreso ${fechaHora(p.ultimoIngreso)}` : ""}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-semibold capitalize">{p.nombre} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado === "Invitado" ? "Invitado · aún no entra" : p.estado}</span></p>
+                      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><KeyRound className="size-3" /> C.C. {p.dni}</span>
+                        {p.telefono && <span className="flex items-center gap-1"><Phone className="size-3" /> {p.telefono}</span>}
+                        {p.email && <span className="flex min-w-0 items-center gap-1"><Mail className="size-3 shrink-0" /> <span className="truncate">{p.email}</span></span>}
+                        {n > 0 && <span className="flex items-center gap-1"><CalendarDays className="size-3" /> {n} cita{n === 1 ? "" : "s"}</span>}
+                        {p.ultimoIngreso && <span className="flex items-center gap-1"><Clock className="size-3" /> Último ingreso {fechaHora(p.ultimoIngreso)}</span>}
+                      </div>
                       {(p.ficha?.antecedentes?.length || p.ficha?.alergias || p.ficha?.obraSocial) ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">{p.ficha.obraSocial}</span>}
-                          {p.ficha?.alergias && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700">Alergia: {p.ficha.alergias}</span>}
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">EPS: {p.ficha.obraSocial}</span>}
+                          {p.ficha?.alergias && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">Alergia: {p.ficha.alergias}</span>}
                           {p.ficha?.antecedentes?.map((a) => <span key={a} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">{a}</span>)}
                         </div>
                       ) : null}
                     </div>
-                    <span className="rounded-lg bg-secondary px-2.5 py-1 font-mono text-sm tracking-widest">{p.codigo}</span>
+                    <button onClick={() => copiar(p.codigo)} title="Copiar código" className="flex items-center gap-2 rounded-xl bg-secondary/70 px-3 py-1.5 transition-colors hover:bg-secondary dark:bg-white/5">
+                      <span className="text-left leading-tight"><span className="block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Código</span><span className="font-mono text-sm font-bold tracking-[0.2em]">{p.codigo}</span></span>
+                      <Copy className="size-3.5 text-muted-foreground" />
+                    </button>
                   </div>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5 pl-[52px]">
-                    <a href={waPaciente(p.telefono, mensajeInvitacion(p))} target="_blank" rel="noreferrer" onClick={() => log("Invitación enviada", `${p.nombre} · WhatsApp`)} className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#1ebe5b]"><Send className="size-3" /> Enviar invitación</a>
-                    {p.email && <a href={mailInvitacion(p)} onClick={() => log("Invitación enviada", `${p.nombre} · email`)} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100">Email</a>}
-                    <button onClick={() => verPortal(p.id)} className="inline-flex items-center gap-1 rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700 hover:bg-violet-100"><Eye className="size-3" /> Ver su portal</button>
-                    <button onClick={() => copiar(mensajeInvitacion(p))} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Copiar</button>
-                    <button onClick={() => cambiarPaciente(p.id, { codigo: nuevoCodigo() }, "Nuevo código de portal")} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Nuevo código</button>
-                    {p.estado === "Revocado" ? (
-                      <button onClick={() => cambiarPaciente(p.id, { estado: "Invitado", codigo: nuevoCodigo() }, "Acceso al portal reactivado")} className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100">Reactivar</button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 dark:border-white/10">
+                    {!revocado && (
+                      <>
+                        <a href={waPaciente(p.telefono, mensajeInvitacion(p))} target="_blank" rel="noreferrer" onClick={() => log("Invitación enviada", `${p.nombre} · WhatsApp`)} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 text-xs font-semibold text-white shadow-sm hover:bg-[#1ebe5b]"><MessageCircle className="size-3.5" /> WhatsApp</a>
+                        <button disabled={!p.email || enviando === p.id} onClick={() => void enviarCorreo(p)} title={p.email ? `Enviar a ${p.email}` : "Sin correo cargado"} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40">
+                          {enviando === p.id ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />} Correo
+                        </button>
+                      </>
+                    )}
+                    <button onClick={() => verPortal(p.id)} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-500/10"><Eye className="size-3.5" /> Ver su portal</button>
+                    <button onClick={() => copiar(mensajeInvitacion(p))} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"><Copy className="size-3.5" /> Copiar mensaje</button>
+                    {!revocado && <button onClick={() => cambiarPaciente(p.id, { codigo: nuevoCodigo() }, "Nuevo código de portal")} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"><RefreshCw className="size-3.5" /> Nuevo código</button>}
+                    <span className="flex-1" />
+                    {revocado ? (
+                      <button onClick={() => cambiarPaciente(p.id, { estado: "Invitado", codigo: nuevoCodigo() }, "Acceso al portal reactivado")} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-50 px-3 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300">Reactivar acceso</button>
                     ) : (
-                      <button onClick={() => cambiarPaciente(p.id, { estado: "Revocado" }, "Acceso al portal quitado")} className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100">Quitar acceso</button>
+                      <button onClick={() => { if (window.confirm(`¿Quitarle el acceso al portal a ${p.nombre}?`)) cambiarPaciente(p.id, { estado: "Revocado" }, "Acceso al portal quitado"); }} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"><Ban className="size-3.5" /> Quitar acceso</button>
                     )}
                   </div>
                 </div>
