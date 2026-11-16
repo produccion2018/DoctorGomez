@@ -71,16 +71,32 @@ function Nosotros() {
         <div data-reveal>
           <span className="section-kicker">Nuestra historia</span>
           <h2 className="mt-4 text-4xl leading-[1.1] sm:text-5xl">
-            Medicina especializada, <span className="text-gradient-clinic italic">con trato humano</span>
+            Dos hermanos, una vocación: <span className="text-gradient-clinic italic">cuidar de ti</span>
           </h2>
-          <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-            <b className="font-semibold text-foreground">HEGO, Centro de especialidades médicas,</b> es un centro especializado en salud cardiovascular y medicina interna dedicado a la
-            prevención, diagnóstico y tratamiento de enfermedades del corazón y en general.
-          </p>
-          <p className="mt-4 leading-relaxed text-muted-foreground">
-            Nuestro compromiso es brindar atención integral, con calidad médica, tecnología adecuada y avanzada, con enfoque humano que garantice
-            bienestar y confianza a cada paciente.
-          </p>
+          <div className="mt-6 space-y-4 leading-relaxed text-muted-foreground">
+            <p className="text-lg">
+              <b className="font-semibold text-foreground">HEGO</b> nació del sueño de dos hermanos, <b className="font-semibold text-foreground">Carlos Alberto y Carlos Alonso Gómez</b>, quienes desde niños compartieron una misma vocación: dedicar sus vidas al cuidado de los demás.
+            </p>
+            <p>
+              Nuestra pasión por la medicina nos llevó a especializarnos en Medicina Interna, Nefrología, Cardiología, Ecocardiografía y Cardiología Crítica, convencidos de que la excelencia médica debe ir siempre acompañada de humanidad, empatía y calidez.
+            </p>
+            <p>
+              Así nació <b className="font-semibold text-foreground">HEGO – Centro de Especialidades Médicas</b>, un espacio en Valledupar donde cada paciente es mucho más que un diagnóstico: es una persona con una historia, sentimientos y una familia que merece tranquilidad, respeto y comprensión.
+            </p>
+            <p>
+              Queremos que, desde el primer momento, te sientas escuchado, comprendido y acompañado. Que encuentres no solo profesionales comprometidos con tu salud, sino también seres humanos dispuestos a cuidarte con cercanía y dedicación.
+            </p>
+            <p className="border-l-2 border-clinic/50 pl-4 font-medium text-foreground">
+              Nuestro compromiso es sencillo: cuidar de ti como cuidaríamos de nuestra propia familia.
+            </p>
+            <p>
+              Porque HEGO es más que un centro médico: es el sueño de dos hermanos convertido en una vocación de servicio, donde la ciencia y el corazón se unen para cuidar de ti y de quienes más amas.
+            </p>
+          </div>
+          <div className="mt-7 border-t border-border/70 pt-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">HEGO – Centro de Especialidades Médicas</p>
+            <p className="mt-1.5 font-display text-xl italic text-foreground">«Tu salud es única. Nuestra atención también.»</p>
+          </div>
 
           <div className="mt-9 flex flex-wrap gap-3">
             <Button asChild size="lg" className="btn-glow rounded-full px-7"><Link to="/turnos"><CalendarPlus className="size-4" /> Solicitar cita</Link></Button>
@@ -111,8 +127,8 @@ function Nosotros() {
       {/* ───────── CITA ───────── */}
       <section className="mx-auto max-w-5xl px-4 pb-24 text-center lg:px-8" data-reveal>
         <Quote className="mx-auto size-10 text-clinic/40" />
-        <blockquote className="mt-6 font-display text-2xl italic leading-snug sm:text-4xl">
-          “Más que tratar una enfermedad o revisar un estudio, cuidamos a cada persona y la acompañamos en el tiempo.”
+        <blockquote className="mt-6 font-display text-2xl italic leading-snug sm:text-[2.1rem]">
+          “Tu salud merece más que una consulta médica: merece tiempo, comprensión y manos expertas que te cuiden con el corazón. En HEGO, nunca estarás solo en el camino hacia tu bienestar.”
         </blockquote>
         <div className="mt-8 flex items-center justify-center gap-3">
           <div className="flex -space-x-3">
@@ -121,7 +137,8 @@ function Nosotros() {
           </div>
           <p className="text-left text-sm">
             <span className="block font-semibold">Dres. Gómez Bolaño</span>
-            <span className="text-muted-foreground">Directores médicos</span>
+            <span className="block text-muted-foreground">Fundadores y Directores Médicos</span>
+            <span className="block text-xs text-muted-foreground">HEGO – Centro de Especialidades Médicas</span>
           </p>
         </div>
       </section>
