@@ -106,6 +106,7 @@ import {
   RefreshCw,
   UserPlus,
   MessageCircle,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -5473,7 +5474,8 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
   const [estadoU, setEstadoU] = useState<"Todos" | EstadoAcceso>("Todos");
   const [portalUsuarios] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
   const pacientes = usePacientesClinica(turnos);
-  const [, setPadron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [padronLista, setPadron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [importando, setImportando] = useState(false);
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<FiltroPac>("todos");
   const [editando, setEditando] = useState<PacienteClinica | null>(null);
@@ -5738,10 +5740,24 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("pacientes", [["Nombre", "Cédula", "Teléfono", "Email", "EPS", "Afiliado", "Nacimiento", "Alergias", "Antecedentes", "Portal"], ...pacientes.map((p) => [p.nombre, p.dni, p.telefono, p.email, p.ficha?.obraSocial, p.ficha?.afiliado, p.ficha?.nacimiento, p.ficha?.alergias, (p.ficha?.antecedentes ?? []).join(" | "), p.portal ? "Sí" : "No"])])}>
               <Download className="size-4" /> Exportar
             </Button>
+            {!soloLectura && <Button variant="outline" className="h-10 rounded-xl" onClick={() => setImportando(true)}><FileSpreadsheet className="size-4" /> Cargar desde archivo</Button>}
             {!soloLectura && <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>}
           </div>
         }
       >
+        {importando && (
+          <ImportarPacientes
+            user={user}
+            log={log}
+            existentes={padronLista}
+            onCerrar={() => setImportando(false)}
+            onImportar={(lista) => setPadron((prev) => {
+              const porId = new Map(prev.map((x) => [x.id, x]));
+              for (const n of lista) porId.set(n.id, { ...(porId.get(n.id) ?? {}), ...n });
+              return [...porId.values()];
+            })}
+          />
+        )}
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -9987,5 +10003,346 @@ function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
         </div>
       )}
     </>
+  );
+}
+
+/* ===================================================================== */
+/* Carga masiva de pacientes (listados de EPS, convenios, empresas)       */
+/* ===================================================================== */
+
+type CampoImp = "nombre" | "apellido" | "tipoDoc" | "dni" | "eps" | "afiliado" | "telefono" | "email" | "nacimiento" | "sexo" | "domicilio";
+const CAMPOS_IMP: { id: CampoImp; label: string; obligatorio?: boolean; claves: string[] }[] = [
+  { id: "nombre", label: "Nombre(s) o nombre completo", obligatorio: true, claves: ["nombre completo", "nombres y apellidos", "apellidos y nombres", "nombre y apellido", "nombres", "nombre", "paciente", "afiliado nombre", "usuario", "beneficiario", "primer nombre"] },
+  { id: "apellido", label: "Apellido(s)", claves: ["apellidos", "apellido", "primer apellido"] },
+  { id: "tipoDoc", label: "Tipo de documento", claves: ["tipo documento", "tipo de documento", "tipo doc", "tipo id", "tipo identificacion", "tipodoc", "td"] },
+  { id: "dni", label: "Número de documento", obligatorio: true, claves: ["numero documento", "numero de documento", "no documento", "nro documento", "documento", "identificacion", "numero identificacion", "cedula", "cc", "id", "num doc", "nro doc"] },
+  { id: "eps", label: "EPS / aseguradora / convenio", claves: ["eps", "aseguradora", "entidad", "empresa", "convenio", "eapb", "administradora", "obra social", "prepagada", "plan"] },
+  { id: "afiliado", label: "Régimen o N.º de afiliación", claves: ["regimen", "tipo afiliado", "numero afiliacion", "afiliacion", "carnet", "no afiliado", "categoria", "nivel"] },
+  { id: "telefono", label: "Celular / teléfono", claves: ["celular", "telefono", "movil", "whatsapp", "tel", "contacto"] },
+  { id: "email", label: "Correo", claves: ["correo", "email", "e-mail", "correo electronico", "mail"] },
+  { id: "nacimiento", label: "Fecha de nacimiento", claves: ["fecha nacimiento", "fecha de nacimiento", "nacimiento", "f nacimiento", "fec nac", "fecha nac"] },
+  { id: "sexo", label: "Sexo", claves: ["sexo", "genero", "género"] },
+  { id: "domicilio", label: "Dirección", claves: ["direccion", "dirección", "domicilio", "residencia", "barrio", "municipio", "ciudad"] },
+];
+const normCol = (x: unknown) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+
+/** Adivina qué columna del archivo corresponde a cada dato. */
+function adivinarColumnas(encabezados: string[]): Partial<Record<CampoImp, number>> {
+  const out: Partial<Record<CampoImp, number>> = {};
+  const usados = new Set<number>();
+  const hs = encabezados.map(normCol);
+  for (const c of CAMPOS_IMP) {
+    for (const clave of c.claves) {
+      const k = normCol(clave);
+      const i = hs.findIndex((h, j) => !usados.has(j) && (h === k || (k.length > 3 && h.includes(k))));
+      if (i >= 0) {
+        out[c.id] = i;
+        usados.add(i);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+const tipoDocDe = (x: string) => {
+  const v = normCol(x).replace(/ /g, "");
+  if (!v) return undefined;
+  if (/^(cc|cedula|cedulaciudadania|cedulade ciudadania)/.test(v) || v === "cedulaciudadania") return "CC";
+  if (/^(ti|tarjeta)/.test(v)) return "TI";
+  if (/^(rc|registro)/.test(v)) return "RC";
+  if (/^(ce|cedulaextranjeria|extranjeria)/.test(v)) return "CE";
+  if (/^(pa|pasaporte)/.test(v)) return "PA";
+  if (/^(ppt|pep|permiso)/.test(v)) return "PPT";
+  return TIPOS_DOC.some(([k]) => k === x.trim().toUpperCase()) ? x.trim().toUpperCase() : "CC";
+};
+const sexoDe = (x: string): PacienteClinica["sexo"] => {
+  const v = normCol(x);
+  if (/^(f|fem|mujer)/.test(v)) return "F";
+  if (/^(m|masc|hombre|varon)/.test(v)) return "M";
+  return v ? "X" : undefined;
+};
+const fechaImp = (x: unknown): string | undefined => {
+  if (x instanceof Date && !Number.isNaN(x.getTime())) return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  const t = String(x ?? "").trim();
+  let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2]!.padStart(2, "0")}-${m[3]!.padStart(2, "0")}`;
+  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (m) return `${m[3]}-${m[2]!.padStart(2, "0")}-${m[1]!.padStart(2, "0")}`;
+  return undefined;
+};
+const tituloNombre = (x: string) => x.toLowerCase().replace(/\s+/g, " ").trim().replace(/(^|\s)(\p{L})/gu, (_, a: string, b: string) => a + b.toUpperCase());
+
+type FilaImp = { fila: number; p: PacienteClinica | null; error?: string; existe?: boolean };
+
+function ImportarPacientes({ user, log, existentes, onCerrar, onImportar }: { user: SessionUser; log: LogFn; existentes: PacienteClinica[]; onCerrar: () => void; onImportar: (nuevos: PacienteClinica[], actualizar: boolean) => void }) {
+  const [archivo, setArchivo] = useState<string>("");
+  const [hojas, setHojas] = useState<{ nombre: string; filas: unknown[][] }[]>([]);
+  const [hoja, setHoja] = useState(0);
+  const [inicio, setInicio] = useState(0);
+  const [mapa, setMapa] = useState<Partial<Record<CampoImp, number>>>({});
+  const [epsTodos, setEpsTodos] = useState("");
+  const [actualizar, setActualizar] = useState(true);
+  const [leyendo, setLeyendo] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filas = hojas[hoja]?.filas ?? [];
+  const encabezados = (filas[inicio] ?? []).map((x) => String(x ?? "").trim());
+
+  /** Busca la fila de títulos (a veces el archivo trae logos o títulos arriba). */
+  const elegirHoja = (lista: { nombre: string; filas: unknown[][] }[], i: number) => {
+    const fs = lista[i]?.filas ?? [];
+    let mejor = 0;
+    let puntos = -1;
+    fs.slice(0, 15).forEach((f, j) => {
+      const n = Object.keys(adivinarColumnas(f.map((x) => String(x ?? "")))).length;
+      if (n > puntos) {
+        puntos = n;
+        mejor = j;
+      }
+    });
+    setHoja(i);
+    setInicio(mejor);
+    setMapa(adivinarColumnas((fs[mejor] ?? []).map((x) => String(x ?? ""))));
+  };
+
+  const leer = async (f: File) => {
+    setLeyendo(true);
+    try {
+      let lista: { nombre: string; filas: unknown[][] }[];
+      if (/\.json$/i.test(f.name)) {
+        const datos = JSON.parse(await f.text()) as unknown;
+        const arr = (Array.isArray(datos) ? datos : Object.values(datos as object).find(Array.isArray) ?? []) as Record<string, unknown>[];
+        const cols = [...new Set(arr.flatMap((o) => Object.keys(o ?? {})))];
+        lista = [{ nombre: "Datos", filas: [cols, ...arr.map((o) => cols.map((c) => o?.[c] ?? ""))] }];
+      } else {
+        const XLSX = await import("@e965/xlsx");
+        const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: true, codepage: 65001 });
+        lista = wb.SheetNames.map((n) => ({ nombre: n, filas: XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n]!, { header: 1, raw: true, defval: "", blankrows: false }) })).filter((h) => h.filas.length > 0);
+      }
+      if (!lista.length) throw new Error("vacío");
+      setArchivo(f.name);
+      setHojas(lista);
+      const conDatos = lista.reduce((b, h, i) => (h.filas.length > (lista[b]?.filas.length ?? 0) ? i : b), 0);
+      elegirHoja(lista, conDatos);
+    } catch {
+      toast.error("No se pudo leer el archivo. Pruebe guardarlo como Excel (.xlsx) o CSV.");
+    } finally {
+      setLeyendo(false);
+    }
+  };
+
+  const porDoc = useMemo(() => new Map(existentes.map((p) => [p.dni.replace(/\W/g, "").toUpperCase(), p])), [existentes]);
+
+  const procesadas: FilaImp[] = useMemo(() => {
+    const vistos = new Set<string>();
+    const val = (fila: unknown[], c: CampoImp): unknown => (mapa[c] === undefined ? "" : fila[mapa[c]!]);
+    const txt = (fila: unknown[], c: CampoImp) => String(val(fila, c) ?? "").trim();
+    return filas.slice(inicio + 1).map((fila, i) => {
+      const nombre = tituloNombre(`${txt(fila, "nombre")} ${txt(fila, "apellido")}`);
+      const dniCrudo = txt(fila, "dni").replace(/\.0$/, "");
+      const dni = dniCrudo.replace(/[^\dA-Za-z]/g, "").toUpperCase();
+      const n = i + inicio + 2;
+      if (!nombre && !dni) return { fila: n, p: null, error: "Fila vacía" };
+      if (nombre.length < 3) return { fila: n, p: null, error: "Falta el nombre" };
+      if (dni.length < 4) return { fila: n, p: null, error: "Falta el documento" };
+      if (vistos.has(dni)) return { fila: n, p: null, error: "Documento repetido en el archivo" };
+      vistos.add(dni);
+      const previo = porDoc.get(dni);
+      const tel = txt(fila, "telefono").replace(/\.0$/, "");
+      const correo = txt(fila, "email").toLowerCase();
+      const td = tipoDocDe(txt(fila, "tipoDoc")) ?? previo?.tipoDoc ?? "CC";
+      const nac = fechaImp(val(fila, "nacimiento"));
+      const sx = sexoDe(txt(fila, "sexo"));
+      const p: PacienteClinica = {
+        ...(previo ?? { id: nuevoId(), antecedentes: [], creado: new Date().toISOString(), medicoCabecera: user.nombre }),
+        nombre: previo && !actualizar ? previo.nombre : nombre,
+        dni,
+        tipoDoc: td,
+        ...(tel ? { telefono: tel } : {}),
+        ...(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo) ? { email: correo } : {}),
+        ...((txt(fila, "eps") || epsTodos.trim()) ? { obraSocial: txt(fila, "eps") || epsTodos.trim() } : {}),
+        ...(txt(fila, "afiliado") ? { afiliado: txt(fila, "afiliado") } : {}),
+        ...(nac ? { nacimiento: nac } : {}),
+        ...(sx ? { sexo: sx } : {}),
+        ...(txt(fila, "domicilio") ? { domicilio: txt(fila, "domicilio") } : {}),
+      };
+      return { fila: n, p, existe: !!previo };
+    }).filter((x) => x.error !== "Fila vacía");
+  }, [filas, inicio, mapa, epsTodos, actualizar, porDoc, user.nombre]);
+
+  const validas = procesadas.filter((x) => x.p);
+  const nuevos = validas.filter((x) => !x.existe).length;
+  const yaEstan = validas.length - nuevos;
+  const errores = procesadas.filter((x) => x.error);
+  const faltaObligatorio = mapa.nombre === undefined || mapa.dni === undefined;
+
+  const importar = () => {
+    const lista = validas.filter((x) => actualizar || !x.existe).map((x) => x.p!);
+    if (!lista.length) return;
+    onImportar(lista, actualizar);
+    log("Carga masiva de pacientes", `${archivo} · ${nuevos} nuevos${actualizar && yaEstan ? ` · ${yaEstan} actualizados` : ""}${epsTodos ? ` · ${epsTodos}` : ""}`);
+    toast.success(`Listo: ${nuevos} paciente${nuevos === 1 ? "" : "s"} nuevo${nuevos === 1 ? "" : "s"}${actualizar && yaEstan ? ` y ${yaEstan} actualizado${yaEstan === 1 ? "" : "s"}` : ""}.`);
+    onCerrar();
+  };
+
+  const plantilla = async () => {
+    const XLSX = await import("@e965/xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Tipo de documento", "Número de documento", "Nombres", "Apellidos", "EPS", "Régimen", "Celular", "Correo", "Fecha de nacimiento", "Sexo", "Dirección"],
+      ["CC", "1002240625", "María Fernanda", "López Gómez", "Nueva EPS", "Contributivo", "3001234567", "maria@correo.com", "1975-04-23", "F", "Cra 10 # 20-30, Valledupar"],
+    ]);
+    ws["!cols"] = Array(11).fill({ wch: 20 });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Pacientes");
+    XLSX.writeFile(wb, "Plantilla pacientes HEGO.xlsx");
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label="Cargar pacientes desde un archivo">
+      <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCerrar} />
+      <div className="pn-root relative flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[1.75rem] bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-[1.75rem]">
+        <div className="relative flex items-center justify-between gap-3 overflow-hidden gradient-deep px-6 py-5 text-white">
+          <div className="pn-cross pointer-events-none absolute inset-0 opacity-50" />
+          <div className="relative flex items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><FileSpreadsheet className="size-5" /></span>
+            <div>
+              <p className="text-lg font-semibold">Cargar pacientes desde un archivo</p>
+              <p className="text-xs text-white/70">Listados de EPS, convenios o empresas: Excel, CSV, ODS, TXT o JSON</p>
+            </div>
+          </div>
+          <button onClick={onCerrar} className="relative rounded-xl p-2 text-white/80 hover:bg-white/15" aria-label="Cerrar"><X className="size-5" /></button>
+        </div>
+
+        <div className="flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
+          {!hojas.length ? (
+            <>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setArrastrando(true); }}
+                onDragLeave={() => setArrastrando(false)}
+                onDrop={(e) => { e.preventDefault(); setArrastrando(false); const f = e.dataTransfer.files[0]; if (f) void leer(f); }}
+                className={`flex w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed px-6 py-14 text-center transition-colors ${arrastrando ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-secondary/40"}`}
+              >
+                <span className="grid size-16 place-items-center rounded-3xl bg-primary/10 text-primary">{leyendo ? <Loader2 className="size-7 animate-spin" /> : <Upload className="size-7" />}</span>
+                <span className="text-base font-semibold">{leyendo ? "Leyendo el archivo…" : "Arrastre el archivo aquí o toque para elegirlo"}</span>
+                <span className="text-sm text-muted-foreground">.xlsx · .xls · .csv · .ods · .txt · .json — el sistema reconoce solo las columnas</span>
+              </button>
+              <input ref={inputRef} type="file" hidden accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.tsv,.txt,.json,.xml,.numbers" onChange={(e) => { const f = e.target.files?.[0]; if (f) void leer(f); e.target.value = ""; }} />
+              <div className="grid gap-3 sm:grid-cols-3">
+                {[
+                  ["1", "Suba el archivo", "Tal como se lo manda la EPS o la empresa."],
+                  ["2", "Revise las columnas", "El sistema las reconoce; usted puede corregirlas."],
+                  ["3", "Importe", "Los repetidos no se duplican: se actualizan."],
+                ].map(([n, t, d]) => (
+                  <div key={n} className="rounded-2xl bg-secondary/50 p-4 dark:bg-white/5">
+                    <span className="grid size-7 place-items-center rounded-full gradient-deep text-xs font-bold text-white">{n}</span>
+                    <p className="mt-2 text-sm font-semibold">{t}</p>
+                    <p className="text-xs text-muted-foreground">{d}</p>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => void plantilla()} className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"><Download className="size-4" /> Descargar plantilla de Excel de ejemplo</button>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-secondary/50 p-3 dark:bg-white/5">
+                <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600"><FileSpreadsheet className="size-5" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{archivo}</p>
+                  <p className="text-xs text-muted-foreground">{procesadas.length} filas con datos</p>
+                </div>
+                {hojas.length > 1 && (
+                  <select value={hoja} onChange={(e) => elegirHoja(hojas, Number(e.target.value))} className={inp + " h-10 w-auto"}>
+                    {hojas.map((h, i) => <option key={h.nombre} value={i}>Hoja: {h.nombre}</option>)}
+                  </select>
+                )}
+                <Button variant="outline" className="h-10 rounded-xl" onClick={() => { setHojas([]); setArchivo(""); }}><RefreshCw className="size-4" /> Otro archivo</Button>
+              </div>
+
+              <div>
+                <p className="mb-2 text-sm font-semibold">¿Qué columna es cada dato?</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {CAMPOS_IMP.map((c) => (
+                    <label key={c.id} className="min-w-0 space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">{c.label}{c.obligatorio && <span className="text-rose-500"> *</span>}</span>
+                      <select value={mapa[c.id] ?? ""} onChange={(e) => setMapa({ ...mapa, [c.id]: e.target.value === "" ? undefined : Number(e.target.value) })} className={`${inp} ${mapa[c.id] !== undefined ? "!border-emerald-300 dark:!border-emerald-500/40" : ""}`}>
+                        <option value="">— No viene en el archivo —</option>
+                        {encabezados.map((h, i) => <option key={i} value={i}>{h || `Columna ${i + 1}`}</option>)}
+                      </select>
+                    </label>
+                  ))}
+                  {mapa.eps === undefined && (
+                    <label className="min-w-0 space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">EPS para todos los de este archivo</span>
+                      <input value={epsTodos} onChange={(e) => setEpsTodos(e.target.value)} placeholder="Ej.: Nueva EPS" className={inp} />
+                    </label>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">Si el archivo trae nombre y apellido juntos, elija esa columna en "Nombre" y deje "Apellido" vacío.</p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-100 dark:bg-emerald-500/10 dark:ring-emerald-500/20"><p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Nuevos</p><p className="font-display text-3xl font-semibold text-emerald-800 dark:text-emerald-200">{faltaObligatorio ? "—" : nuevos}</p></div>
+                <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100 dark:bg-sky-500/10 dark:ring-sky-500/20"><p className="text-xs font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-300">Ya estaban</p><p className="font-display text-3xl font-semibold text-sky-800 dark:text-sky-200">{faltaObligatorio ? "—" : yaEstan}</p></div>
+                <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-100 dark:bg-amber-500/10 dark:ring-amber-500/20"><p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">Con problemas</p><p className="font-display text-3xl font-semibold text-amber-800 dark:text-amber-200">{faltaObligatorio ? "—" : errores.length}</p></div>
+              </div>
+
+              {faltaObligatorio ? (
+                <p className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700 ring-1 ring-rose-100 dark:bg-rose-500/10 dark:text-rose-300">Elija arriba la columna del <b>nombre</b> y la del <b>número de documento</b>: son las dos obligatorias.</p>
+              ) : (
+                <>
+                  <div className="overflow-x-auto rounded-2xl border border-border dark:border-white/10">
+                    <table className="w-full min-w-[640px] text-sm">
+                      <thead className="bg-secondary/60 text-left text-xs uppercase tracking-wider text-muted-foreground dark:bg-white/5">
+                        <tr><th className="px-3 py-2">Paciente</th><th className="px-3 py-2">Documento</th><th className="px-3 py-2">EPS</th><th className="px-3 py-2">Celular</th><th className="px-3 py-2">Estado</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60 dark:divide-white/5">
+                        {validas.slice(0, 8).map(({ p, existe, fila }) => (
+                          <tr key={fila}>
+                            <td className="px-3 py-2 font-medium">{p!.nombre}</td>
+                            <td className="px-3 py-2 tabular-nums">{p!.tipoDoc} {p!.dni}</td>
+                            <td className="px-3 py-2">{p!.obraSocial ?? "—"}</td>
+                            <td className="px-3 py-2 tabular-nums">{p!.telefono ?? "—"}</td>
+                            <td className="px-3 py-2">{existe ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-700">Se actualiza</span> : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Nuevo</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {validas.length > 8 && <p className="border-t border-border/60 px-3 py-2 text-xs text-muted-foreground">… y {validas.length - 8} más</p>}
+                  </div>
+                  {errores.length > 0 && (
+                    <details className="rounded-2xl bg-amber-50/60 p-3 text-sm ring-1 ring-amber-100 dark:bg-amber-500/5 dark:ring-amber-500/20">
+                      <summary className="cursor-pointer font-semibold text-amber-800 dark:text-amber-300">{errores.length} fila{errores.length === 1 ? "" : "s"} no se van a importar (ver cuáles)</summary>
+                      <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto text-xs text-amber-900 dark:text-amber-200">
+                        {errores.slice(0, 200).map((e) => <li key={e.fila}>Fila {e.fila}: {e.error}</li>)}
+                      </ul>
+                    </details>
+                  )}
+                  {yaEstan > 0 && (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={actualizar} onChange={(e) => setActualizar(e.target.checked)} className="size-4 accent-[var(--primary)]" />
+                      Actualizar los {yaEstan} que ya estaban con los datos del archivo (EPS, celular, correo…)
+                    </label>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+
+        {hojas.length > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/60 bg-card/80 px-5 py-4 dark:border-white/10">
+            <Button variant="ghost" className="rounded-xl" onClick={onCerrar}>Cancelar</Button>
+            <Button className="h-11 rounded-xl px-6 shadow-md" disabled={faltaObligatorio || !(nuevos + (actualizar ? yaEstan : 0))} onClick={importar}>
+              <Upload className="size-4" /> Importar {faltaObligatorio ? "" : nuevos + (actualizar ? yaEstan : 0)} paciente{nuevos + (actualizar ? yaEstan : 0) === 1 ? "" : "s"}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }

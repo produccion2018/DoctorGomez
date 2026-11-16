@@ -641,7 +641,8 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         await c.borrar(data.coleccion, data.borrar);
         return { ok: true };
       }
-      for (const f of filas) await c.guardar(data.coleccion, f);
+      if (filas.length > 20) await c.guardarVarios(data.coleccion, filas);
+      else for (const f of filas) await c.guardar(data.coleccion, f);
       await c.borrar(data.coleccion, data.borrar);
       return { ok: true };
     }

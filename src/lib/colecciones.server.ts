@@ -66,6 +66,18 @@ export async function guardarCitaUnica(fila: Fila): Promise<boolean> {
   return filas.length > 0;
 }
 
+/** Guarda muchas filas en una sola consulta (cargas masivas: listados de EPS, padrones). */
+export async function guardarVarios(col: Coleccion, filas: Fila[]) {
+  if (!filas.length) return;
+  const sql = await db();
+  for (let i = 0; i < filas.length; i += 1000) {
+    const lote = filas.slice(i, i + 1000);
+    await sql`INSERT INTO registros (coleccion, id, valor, actualizado)
+      SELECT ${col}, x->>'id', x, now() FROM jsonb_array_elements(${JSON.stringify(lote)}::jsonb) AS x
+      ON CONFLICT (coleccion, id) DO UPDATE SET valor = EXCLUDED.valor, actualizado = now()`;
+  }
+}
+
 export async function borrar(col: Coleccion, ids: string[]) {
   if (!ids.length) return;
   const sql = await db();
