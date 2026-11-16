@@ -1493,6 +1493,17 @@ function horaDeIso(iso: string) {
   return hora12(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
 }
 
+/** Hora compacta para listas: "8:15" grande y "a. m." chiquito debajo, en una cajita. */
+function HoraMini({ hora, activo = false }: { hora: string; activo?: boolean }) {
+  const [num, ...suf] = hora12(hora).split(" ");
+  return (
+    <span className={`flex w-[3.4rem] shrink-0 flex-col items-center rounded-xl py-1.5 transition ${activo ? "bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] text-white shadow-md" : "bg-[rgba(var(--acc),.08)] text-[rgb(var(--acc))] ring-1 ring-[rgba(var(--acc),.15)]"}`}>
+      <span className="font-display text-[15px] font-semibold leading-none tabular-nums">{num}</span>
+      <span className={`mt-0.5 text-[9px] font-semibold uppercase tracking-wide ${activo ? "text-white/70" : "opacity-70"}`}>{suf.join(" ")}</span>
+    </span>
+  );
+}
+
 function HoraChip({ hora, className = "" }: { hora: string; className?: string }) {
   const [num, ...suf] = hora12(hora).split(" ");
   return (
@@ -6831,6 +6842,9 @@ function flagDe(d: Determinacion, v: number): "alto" | "bajo" | "ok" {
   if (d.min !== undefined && v < d.min) return "bajo";
   return "ok";
 }
+const rangoTxt = (d: Determinacion) =>
+  d.min !== undefined && d.max !== undefined ? `Normal ${d.min}–${d.max} ${d.unidad}` : d.max !== undefined ? `Normal hasta ${d.max} ${d.unidad}` : d.min !== undefined ? `Normal desde ${d.min} ${d.unidad}` : d.unidad;
+
 /** Seguimiento del paciente: cómo evolucionó cada valor de laboratorio en el tiempo, con su rango normal. */
 function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
   const conRes = labs.filter((l) => Object.keys(l.resultados ?? {}).length).sort((a, b) => (a.fechaResultado ?? a.fecha).localeCompare(b.fechaResultado ?? b.fecha));
@@ -6875,7 +6889,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
               <span className={`size-2.5 shrink-0 rounded-full ${f === "ok" ? "bg-emerald-500" : f === "alto" ? "bg-red-500" : "bg-amber-500"}`} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold">{d.nombre}</span>
-                <span className="block text-[10px] text-muted-foreground">{d.min !== undefined ? d.min : "—"}{d.max !== undefined ? `–${d.max}` : "+"} {d.unidad}</span>
+                <span className="block text-[10px] text-muted-foreground">{rangoTxt(d)}</span>
               </span>
               <span className="text-right">
                 <span className={`block font-display text-lg font-semibold tabular-nums ${f === "ok" ? "" : f === "alto" ? "text-red-600" : "text-amber-600"}`}>{ult.v}</span>
@@ -6888,12 +6902,21 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
       <div className="border-t border-border/60 p-4 dark:border-white/10">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-sm font-semibold">{sel.d.nombre} <span className="font-normal text-muted-foreground">({sel.d.unidad})</span></p>
-          <p className="text-[11px] text-muted-foreground"><span className="mr-1 inline-block size-2.5 rounded-sm bg-emerald-500/20 align-middle ring-1 ring-emerald-500/40" /> Rango normal{sel.d.min !== undefined ? ` desde ${sel.d.min}` : ""}{sel.d.max !== undefined ? ` hasta ${sel.d.max}` : ""}</p>
+          <p className="text-[11px] text-muted-foreground"><span className="mr-1 inline-block size-2.5 rounded-sm bg-emerald-500/20 align-middle ring-1 ring-emerald-500/40" /> {rangoTxt(sel.d)}</p>
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full" role="img" aria-label={`Evolución de ${sel.d.nombre}`}>
           {(sel.d.min !== undefined || sel.d.max !== undefined) && (
             <rect x={PX - 10} width={W - PX * 2 + 20} y={y(Math.min(sel.d.max ?? hi, hi))} height={Math.max(0, y(Math.max(sel.d.min ?? lo, lo)) - y(Math.min(sel.d.max ?? hi, hi)))} rx="8" fill="#10b981" fillOpacity=".09" stroke="#10b981" strokeOpacity=".25" strokeDasharray="4 4" />
           )}
+          {([["max", sel.d.max, "#ef4444"], ["min", sel.d.min, "#f59e0b"]] as const).map(([k, v, c]) =>
+            v === undefined || v < lo || v > hi ? null : (
+              <g key={k}>
+                <line x1={PX - 10} x2={W - PX + 10} y1={y(v)} y2={y(v)} stroke={c} strokeWidth="1.5" strokeDasharray="6 5" opacity=".75" />
+                <text x={W - PX + 8} y={y(v) - 5} textAnchor="end" fontSize="10.5" fontWeight="700" fill={c}>{k === "max" ? "Máx." : "Mín."} {v}</text>
+              </g>
+            ),
+          )}
+          {sel.pts.length > 1 && <path d={`${linea} L ${x(sel.pts.length - 1).toFixed(1)} ${H - PY} L ${x(0).toFixed(1)} ${H - PY} Z`} fill="rgb(var(--acc))" fillOpacity=".07" />}
           {sel.pts.length > 1 && <path d={linea} fill="none" stroke="rgb(var(--acc))" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
           {sel.pts.map((p, i) => (
             <g key={i}>
@@ -6903,6 +6926,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
             </g>
           ))}
         </svg>
+        {sel.pts.length === 1 && <p className="mt-1 text-center text-xs text-muted-foreground">Hay un solo resultado. Con el próximo análisis se dibuja la línea de evolución.</p>}
       </div>
     </div>
   );
@@ -8720,7 +8744,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
                       onClick={() => p && elegir(p.id)}
                       className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-all ${on ? "bg-card shadow-sm ring-1 ring-[rgba(var(--acc),.4)]" : "hover:bg-card"}`}
                     >
-                      <span className="w-11 shrink-0 text-center font-display text-sm font-semibold tabular-nums">{hora12(t.hora)}</span>
+                      <HoraMini hora={t.hora} activo={on} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{t.paciente}</span>
                         <span className="block truncate text-[11px] text-muted-foreground">{nombreCorto(t.doctor)} · {t.motivo || "Consulta"}</span>
@@ -9966,7 +9990,7 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
             const al = pacDe(t)?.ficha?.alergias;
             return (
               <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3.5 ${h ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5" : "border-border/70 bg-card"}`}>
-                <span className="w-14 shrink-0 font-display text-lg tabular-nums">{hora12(t.hora)}</span>
+                <HoraMini hora={t.hora} />
                 <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 font-semibold">{t.paciente}{al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span>}</p>
                   <p className="text-xs text-muted-foreground">{t.motivo} · {nombreCorto(t.doctor)}</p>
