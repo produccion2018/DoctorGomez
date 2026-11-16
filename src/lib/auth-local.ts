@@ -1222,7 +1222,25 @@ export type DatosSitio = {
   musicaActiva: boolean;
   musicaEjemplo: boolean;
   pistas: PistaMusica[];
+  /** Redes sociales (se muestran en el pie de la web). */
+  redes?: { instagram?: string; facebook?: string; tiktok?: string; youtube?: string; linkedin?: string };
+  /** Aviso destacado arriba de toda la web (festivos, cambios de horario, campañas). */
+  aviso?: { activo: boolean; texto: string; tono: "info" | "importante"; enlace?: string | undefined; textoEnlace?: string | undefined; hasta?: string | undefined };
+  /** Días en que el centro no atiende (festivos, cierres especiales). */
+  cierres?: { fecha: string; motivo: string }[];
 };
+/** Aviso vigente para mostrar en la web (activo, con texto y sin vencer). */
+export function avisoVigente(s: DatosSitio) {
+  const a = s.aviso;
+  if (!a?.activo || !a.texto.trim()) return null;
+  if (a.hasta && a.hasta < new Date().toISOString().slice(0, 10)) return null;
+  return a;
+}
+/** Próximos cierres (de hoy en adelante), ordenados. */
+export function proximosCierres(s: DatosSitio, n = 3) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return (s.cierres ?? []).filter((c) => c.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, n);
+}
 
 export const SITIO_BASE: DatosSitio = {
   direccion: "",

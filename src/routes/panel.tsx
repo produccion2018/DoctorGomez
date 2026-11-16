@@ -111,6 +111,14 @@ import {
   Paperclip,
   Gift,
   Monitor,
+  CalendarX,
+  Share2,
+  Instagram,
+  Facebook,
+  Youtube,
+  Linkedin,
+  Fingerprint,
+  ShieldAlert,
 } from "lucide-react";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -1204,7 +1212,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   finanzas: { a: "16,185,129", b: "14,165,233", c: "20,184,166" },
   permisos: { a: "139,92,246", b: "79,70,229", c: "56,132,246" },
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
-  auditoria: { a: "79,70,229", b: "56,132,246", c: "100,116,139" },
+  auditoria: { a: "30,58,138", b: "14,116,144", c: "100,116,139" },
   sitio: { a: "14,165,233", b: "56,132,246", c: "236,72,153" },
   comunicacion: { a: "14,165,233", b: "139,92,246", c: "16,185,129" },
   ministerio: { a: "245,158,11", b: "234,88,12", c: "59,130,246" },
@@ -5013,71 +5021,182 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
 }
 
 /* ---------- Auditoría ---------- */
+const CATS_AUD: { id: string; l: string; icon: LucideIcon; re: RegExp }[] = [
+  { id: "accesos", l: "Accesos", icon: Fingerprint, re: /sesion|fallido|contrasena|2fa|verificacion|codigo de respaldo|ingreso al portal|primer ingreso|recuperacion|restablec/ },
+  { id: "seguridad", l: "Permisos y equipo", icon: KeyRound, re: /permiso|acceso al panel|equipo|invitacion|bloqueado|profesional (agregado|quitado)/ },
+  { id: "clinico", l: "Historia clínica", icon: FileText, re: /evolucion|registro medico|enfermeria|signos|procedimiento|receta|laboratorio|muestra|estudio|documento|firma|resultado/ },
+  { id: "agenda", l: "Agenda", icon: CalendarDays, re: /cita|turno|horario|agenda|autorizacion/ },
+  { id: "finanzas", l: "Pagos y caja", icon: Wallet, re: /cobro|pago|caja|movimiento|recibo|saldo/ },
+  { id: "facturacion", l: "Facturación", icon: Receipt, re: /comprobante|factura|glosa|radic|nota credito|tarifa|prestador|liquidacion|eps/ },
+  { id: "pacientes", l: "Pacientes", icon: Users, re: /paciente|portal|carga masiva/ },
+  { id: "sistema", l: "Sistema e IA", icon: Bot, re: /asistente|\bia\b|sitio|automatizacion|notificacion|reporte|export|informe|comunicacion/ },
+];
+const catAud = (accion: string) => CATS_AUD.find((c) => c.re.test(norm(accion))) ?? { id: "otros", l: "Otros", icon: ClipboardList, re: /./ };
+const esSensible = (accion: string) => /anul|elimin|borr|quit|revoc|fallido|incorrecto|bloqueado|restablec|permiso|export|desactiv/.test(norm(accion));
+
 function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
   const [q, setQ] = useState("");
-  const lista = audit.filter((e) => norm(`${e.usuario} ${e.accion} ${e.detalle}`).includes(norm(q)));
-  const vmAud = useVerMas(lista, 15);
+  const [rango, setRango] = useState<1 | 7 | 30 | 9999>(30);
+  const [usuario, setUsuario] = useState("Todos");
+  const [cat, setCat] = useState("todas");
+  const [sensibles, setSensibles] = useState(false);
+  const desde = rango === 1 ? isoDe(new Date()) : isoDe(new Date(Date.now() - (rango - 1) * 86400000));
+  const enRango = (e: Evento) => rango === 9999 || diaLocal(e.fecha) >= desde;
+  const base = audit.filter(enRango);
+  const usuarios = [...new Set(audit.map((e) => e.usuario))].sort();
+  const lista = base
+    .filter((e) => usuario === "Todos" || e.usuario === usuario)
+    .filter((e) => cat === "todas" || catAud(e.accion).id === cat)
+    .filter((e) => !sensibles || esSensible(e.accion))
+    .filter((e) => !q || norm(`${e.usuario} ${e.accion} ${e.detalle}`).includes(norm(q)))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const vmAud = useVerMas(lista, 25);
+  const [excel, setExcel] = useState(false);
 
-  const exportar = () => {
-    const filas = [
-      ["Fecha", "Usuario", "Acción", "Detalle"],
-      ...lista.map((e) => [fechaHora(e.fecha), e.usuario, e.accion, e.detalle]),
-    ];
-    const csv = filas.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
-    const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "auditoria.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    log("Auditoría exportada", `${lista.length} eventos a CSV`);
+  const nSens = base.filter((e) => esSensible(e.accion)).length;
+  const fallidos = base.filter((e) => /fallido|incorrecto/.test(norm(e.accion))).length;
+  const activos = new Set(base.map((e) => e.usuario)).size;
+  const porUsuario = Object.entries(base.reduce<Record<string, number>>((a, e) => ({ ...a, [e.usuario]: (a[e.usuario] ?? 0) + 1 }), {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  const porCat = [...CATS_AUD, { id: "otros", l: "Otros", icon: ClipboardList, re: /./ }].map((c) => ({ ...c, v: base.filter((e) => catAud(e.accion).id === c.id).length })).filter((c) => c.v > 0);
+  const rangoTxt = rango === 1 ? "hoy" : rango === 9999 ? "todo el historial" : `últimos ${rango} días`;
+
+  const exportar = async () => {
+    setExcel(true);
+    try {
+      await descargarExcel(`HEGO auditoría ${isoDe(new Date())}`, [
+        { nombre: "Eventos", filas: lista.map((e) => ({ Fecha: fechaHora(e.fecha), Usuario: e.usuario, "Categoría": catAud(e.accion).l, "Acción": e.accion, Detalle: e.detalle, Sensible: esSensible(e.accion) ? "Sí" : "" })) },
+        { nombre: "Por usuario", filas: porUsuario.map((x) => ({ Usuario: x.l, Eventos: x.v })) },
+      ]);
+      log("Auditoría exportada", `${lista.length} eventos · ${rangoTxt}`);
+      toast.success("Excel descargado.");
+    } catch { toast.error("No se pudo generar el Excel."); }
+    setExcel(false);
   };
 
-  const hoyStr = new Date().toDateString();
-  const deHoy = audit.filter((e) => new Date(e.fecha).toDateString() === hoyStr).length;
-  const fallidos = audit.filter((e) => norm(e.accion).includes("fallido")).length;
+  // Agrupar por día
+  const dias: { dia: string; items: Evento[] }[] = [];
+  vmAud.items.forEach((e) => {
+    const d = diaLocal(e.fecha);
+    const g = dias[dias.length - 1];
+    if (g && g.dia === d) g.items.push(e);
+    else dias.push({ dia: d, items: [e] });
+  });
+  const hoyD = isoDe(new Date());
+  const ayerD = isoDe(new Date(Date.now() - 86400000));
+  const diaTxt = (d: string) => (d === hoyD ? "Hoy" : d === ayerD ? "Ayer" : new Date(`${d}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi icon={ClipboardList} label="Eventos totales" value={String(audit.length)} tono="violeta" delay={0.05} />
-        <Kpi icon={Activity} label="Eventos de hoy" value={String(deHoy)} tono="azul" delay={0.1} />
-        <Kpi icon={Lock} label="Accesos fallidos" value={String(fallidos)} hint={fallidos ? "Revisar intentos" : "Sin incidentes"} tono={fallidos ? "rojo" : "verde"} delay={0.15} />
-      </div>
-
-      <Seccion icon={ClipboardList} titulo="Registro de eventos" sub={`${lista.length} resultado${lista.length === 1 ? "" : "s"}`} delay={0.2}
-        acciones={
-          <div className="flex flex-wrap gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-64"} />
-            </div>
-            <Button variant="outline" className="h-10 rounded-xl" onClick={exportar}><Download className="size-4" /> Exportar CSV</Button>
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#071a46] via-[#0b2a6b] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-7">
+        <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><ShieldCheck className="size-3.5" /> Auditoría</span>
+            <h2 className="mt-3 text-3xl font-semibold">Quién hizo qué y cuándo</h2>
+            <p className="mt-2 text-sm text-white/75">Cada acción del panel y del portal queda registrada con usuario, fecha y detalle. Los registros no se pueden borrar ni editar.</p>
           </div>
-        }>
-        {lista.length === 0 && <Vacio icon={ClipboardList} texto="No hay eventos." />}
-        <ol className="relative space-y-1 before:absolute before:bottom-4 before:left-[19px] before:top-4 before:w-px before:bg-border">
-          {vmAud.items.map((e) => {
-            const { icon: I, clase } = iconoEvento(e.accion);
-            return (
-              <li key={e.id} className="relative flex gap-4 rounded-xl p-2 transition-colors hover:bg-secondary/40">
-                <span className={`relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full ring-4 ring-card ${clase}`}><I className="size-4" /></span>
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <p className="text-sm font-semibold">{e.accion}</p>
-                    <p className="text-xs tabular-nums text-muted-foreground">{fechaHora(e.fecha)}</p>
+          <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/15">
+            {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [9999, "Todo"]] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setRango(v)} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${rango === v ? "bg-white text-[#0b2a6b]" : "text-white/80 hover:bg-white/10"}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { l: "Eventos", v: base.length, s: rangoTxt, i: ClipboardList, on: () => { setSensibles(false); setCat("todas"); } },
+            { l: "Usuarios activos", v: activos, s: "personas con actividad", i: Users },
+            { l: "Acciones sensibles", v: nSens, s: "anulaciones, borrados, permisos", i: ShieldAlert, on: () => setSensibles(true) },
+            { l: "Accesos fallidos", v: fallidos, s: fallidos ? "revise los intentos" : "sin incidentes", i: Lock, on: () => { setCat("accesos"); setQ("fallido"); } },
+          ].map((k) => (
+            <button key={k.l} type="button" onClick={k.on} disabled={!k.on} className="rounded-2xl bg-white/10 p-4 text-left ring-1 ring-white/15 backdrop-blur transition enabled:hover:bg-white/15">
+              <div className="flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/65">{k.l}</p><k.i className="size-4 text-white/70" /></div>
+              <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{k.v}</p>
+              <p className="text-[11px] text-white/60">{k.s}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Seccion icon={ClipboardList} titulo="Registro de eventos" sub={`${lista.length} evento${lista.length === 1 ? "" : "s"}${sensibles ? " sensibles" : ""} · ${rangoTxt}`}
+          acciones={<button type="button" onClick={() => void exportar()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Exportar a Excel</button>}>
+          <div className="mb-4 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input placeholder="Buscar paciente, acción, detalle…" value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9"} />
+              </div>
+              <div className="w-full sm:w-64"><select value={usuario} onChange={(e) => setUsuario(e.target.value)} className={inp + " h-10"} aria-label="Usuario">
+                <option value="Todos">Todos los usuarios</option>
+                {usuarios.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select></div>
+              <button type="button" onClick={() => setSensibles((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${sensibles ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><ShieldAlert className="size-3.5" /> Solo sensibles</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => setCat("todas")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === "todas" ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>Todas</button>
+              {porCat.map((c) => (
+                <button key={c.id} onClick={() => setCat(c.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === c.id ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}><c.icon className="size-3.5" /> {c.l} <span className="opacity-70">{c.v}</span></button>
+              ))}
+            </div>
+          </div>
+          {lista.length === 0 ? <Vacio icon={ClipboardList} titulo="Sin eventos" texto="No hay eventos con estos filtros." /> : (
+            <div className="space-y-5">
+              {dias.map((g) => (
+                <div key={g.dia}>
+                  <div className="mb-2 flex items-center gap-3">
+                    <span className="inline-block rounded-full bg-[#0b2a6b] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase dark:bg-white/15">{diaTxt(g.dia)}</span>
+                    <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
+                    <span className="text-[11px] text-muted-foreground">{g.items.length} evento{g.items.length === 1 ? "" : "s"}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    <span className="font-medium text-foreground/80">{nombreCorto(e.usuario)}</span>
-                    {e.detalle ? ` · ${e.detalle}` : ""}
-                  </p>
+                  <ol className="relative space-y-1 before:absolute before:bottom-3 before:left-[19px] before:top-3 before:w-px before:bg-slate-200 dark:before:bg-white/10">
+                    {g.items.map((e) => {
+                      const c = catAud(e.accion);
+                      const sens = esSensible(e.accion);
+                      return (
+                        <li key={e.id} className="relative flex gap-4 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
+                          <span className={`relative z-10 grid size-10 shrink-0 place-items-center rounded-xl ring-4 ring-card ${sens ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" : "bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"}`}><c.icon className="size-4" /></span>
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{e.accion}{sens && <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">Sensible</span>}</p>
+                              <p className="text-xs tabular-nums text-muted-foreground" title={fechaHora(e.fecha)}>{horaDeIso(e.fecha)}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              <button type="button" onClick={() => setUsuario(e.usuario)} className="font-semibold text-foreground/80 hover:underline">{e.usuario}</button>
+                              <span className="mx-1.5 text-slate-300">·</span>{c.l}
+                              {e.detalle ? <span className="block text-muted-foreground/90">{e.detalle}</span> : null}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
-              </li>
-            );
-          })}
-          {vmAud.boton && <li className="list-none">{vmAud.boton}</li>}
-        </ol>
-      </Seccion>
+              ))}
+              {vmAud.boton}
+            </div>
+          )}
+        </Seccion>
+
+        <div className="space-y-6">
+          <Seccion icon={Users} titulo="Actividad por usuario" sub={rangoTxt}>
+            <BarrasH datos={porUsuario} max={8} />
+          </Seccion>
+          <Seccion icon={Activity} titulo="Por categoría" sub="Toque para filtrar">
+            <ul className="space-y-1.5">
+              {porCat.sort((a, b) => b.v - a.v).map((c) => (
+                <li key={c.id}>
+                  <button onClick={() => setCat(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-white/5">
+                    <span className="grid size-8 place-items-center rounded-lg bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><c.icon className="size-4" /></span>
+                    <span className="flex-1 text-sm font-medium">{c.l}</span>
+                    <span className="text-sm font-semibold tabular-nums">{c.v}</span>
+                  </button>
+                </li>
+              ))}
+              {porCat.length === 0 && <li className="py-4 text-center text-sm text-muted-foreground">Sin eventos en el período.</li>}
+            </ul>
+          </Seccion>
+        </div>
+      </div>
     </div>
   );
 }
@@ -10115,17 +10234,72 @@ function SitioTab({ log }: { log: LogFn }) {
   };
 
   const total = d.pistas.length + (d.musicaEjemplo ? 4 : 0);
+  const [cierre, setCierre] = useState({ fecha: "", motivo: "" });
+  const redes = d.redes ?? {};
+  const aviso = d.aviso ?? { activo: false, texto: "", tono: "info" as const };
+  const setAviso = (patch: Partial<NonNullable<DatosSitio["aviso"]>>) => set({ aviso: { ...aviso, ...patch } });
+  const checklist = [
+    { ok: !!d.direccion.trim(), t: "Dirección", d: "Aparece en el mapa de Contacto y Clínica" },
+    { ok: !!d.telefono.trim(), t: "Teléfono", d: "Botón de llamar" },
+    { ok: !!d.whatsapp.trim(), t: "WhatsApp", d: "Botón flotante y citas" },
+    { ok: !!d.email.trim(), t: "Correo", d: "Contacto y pie de página" },
+    { ok: d.semana.some((x) => x.abierto), t: "Horario de atención", d: "Encabezado y Contacto" },
+    { ok: Object.values(redes).some((v) => v?.trim()), t: "Redes sociales", d: "Íconos del pie de página" },
+  ];
+  const completo = Math.round((checklist.filter((c) => c.ok).length / checklist.length) * 100);
+  const PAGINAS = [["Inicio", "/"], ["Nosotros", "/nosotros"], ["Especialidades", "/especialidades"], ["Especialistas", "/especialistas"], ["Servicios", "/servicios"], ["Clínica", "/clinica"], ["Preguntas", "/preguntas-frecuentes"], ["Contacto", "/contacto"], ["Pedir cita", "/turnos"], ["Portal", "/portal"]] as const;
+  const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const agregarCierre = () => {
+    if (!cierre.fecha) { toast.error("Elija la fecha."); return; }
+    if ((d.cierres ?? []).some((c) => c.fecha === cierre.fecha)) { toast.error("Esa fecha ya está cargada."); return; }
+    set({ cierres: [...(d.cierres ?? []), { fecha: cierre.fecha, motivo: cierre.motivo.trim() }].sort((a, b) => a.fecha.localeCompare(b.fecha)) });
+    setCierre({ fecha: "", motivo: "" });
+  };
+  const FESTIVOS_CO: { fecha: string; motivo: string }[] = (() => {
+    const y = new Date().getFullYear();
+    return [[`${y}-12-08`, "Día de la Inmaculada Concepción"], [`${y}-12-25`, "Navidad"], [`${y + 1}-01-01`, "Año Nuevo"]].map(([fecha, motivo]) => ({ fecha: fecha!, motivo: motivo! })).filter((x) => x.fecha >= isoDe(new Date()));
+  })();
 
   return (
     <div className="space-y-6">
+      {/* Resumen de la web */}
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#071a46] via-[#0b2a6b] to-[#0e7490] p-6 text-white shadow-elevated sm:p-7">
+        <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
+        <div className="relative grid gap-6 lg:grid-cols-[1fr_340px]">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Globe className="size-3.5" /> Sitio web público</span>
+            <h2 className="mt-3 text-3xl font-semibold">Lo que ven los pacientes</h2>
+            <p className="mt-2 max-w-xl text-sm text-white/75">Contacto, horarios, avisos, redes, días de cierre y música de espera. Lo que publique aquí se actualiza en toda la web al instante.</p>
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {PAGINAS.map(([l, h]) => (
+                <a key={h} href={h} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-semibold ring-1 ring-white/15 transition hover:bg-white/20">{l} <ArrowUpRight className="size-3" /></a>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
+            <div className="flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Información completa</p><p className="font-display text-2xl font-semibold tabular-nums">{completo}%</p></div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${completo}%` }} /></div>
+            <ul className="mt-3 space-y-1.5">
+              {checklist.map((c) => (
+                <li key={c.t} className="flex items-center gap-2 text-xs">
+                  <span className={`grid size-4 place-items-center rounded-full ${c.ok ? "bg-white text-[#0b2a6b]" : "ring-1 ring-white/40"}`}>{c.ok && <Check className="size-3" strokeWidth={3} />}</span>
+                  <span className={c.ok ? "font-semibold" : "text-white/70"}>{c.t}</span>
+                  <span className="ml-auto truncate text-[10px] text-white/55">{c.d}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* Barra de guardado */}
       <div className={`pn-card pn-up sticky top-3 z-20 flex flex-wrap items-center justify-between gap-3 p-4 ${cambios ? "ring-2 ring-[rgba(var(--acc),.35)]" : ""}`}>
         <p className="flex items-center gap-2 text-sm">
           <Globe className="size-4 text-[rgb(var(--acc))]" />
           {cambios ? <span className="font-semibold">Tiene cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guarde aquí se ve en la web pública.</span>}
         </p>
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
-          <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-emerald-500" : "bg-amber-500"}`} />
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>
+          <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-[#0e7490]" : "bg-slate-400"}`} />
           {modoServidor() ? "Conectado al servidor: lo ven todos" : "Modo local: solo en este navegador"}
         </span>
         <div className="flex gap-2">
@@ -10164,6 +10338,77 @@ function SitioTab({ log }: { log: LogFn }) {
               );
             })}
           </ul>
+        </Seccion>
+      </div>
+
+      <Seccion icon={Megaphone} titulo="Aviso destacado en la web" sub="Una franja arriba de todas las páginas: festivos, cambios de horario, campañas de vacunación…"
+        acciones={<Interruptor on={aviso.activo} onChange={(v) => setAviso({ activo: v })} label={aviso.activo ? "Visible" : "Oculto"} />}>
+        <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+          <div className="space-y-4">
+            <Campo label="Texto del aviso"><input value={aviso.texto} maxLength={160} onChange={(e) => setAviso({ texto: e.target.value })} placeholder="Ej.: El lunes 8 de diciembre no hay atención por el festivo." className={inp} /></Campo>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Campo label="Tipo">
+                <select value={aviso.tono} onChange={(e) => setAviso({ tono: e.target.value as "info" | "importante" })} className={inp}><option value="info">Informativo</option><option value="importante">Importante</option></select>
+              </Campo>
+              <Campo label="Mostrar hasta (opcional)"><input type="date" value={aviso.hasta ?? ""} onChange={(e) => setAviso({ hasta: e.target.value || undefined })} className={inp} /></Campo>
+              <Campo label="Botón (opcional)"><input value={aviso.textoEnlace ?? ""} onChange={(e) => setAviso({ textoEnlace: e.target.value || undefined })} placeholder="Ej.: Pedir cita" className={inp} /></Campo>
+            </div>
+            <Campo label="Enlace del botón (opcional)"><input value={aviso.enlace ?? ""} onChange={(e) => setAviso({ enlace: e.target.value || undefined })} placeholder="/turnos o https://…" className={inp} /></Campo>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vista previa</p>
+            <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+              <div className={`${aviso.tono === "importante" ? "bg-[#7f1d1d]" : "bg-[#0e7490]"} flex flex-wrap items-center justify-center gap-2 px-3 py-2 text-center text-xs text-white ${aviso.activo ? "" : "opacity-50"}`}>
+                <Megaphone className="size-3.5" /> <span className="font-medium">{aviso.texto || "Su aviso aparece aquí"}</span>
+                {aviso.enlace && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold ring-1 ring-white/30">{aviso.textoEnlace || "Ver más"}</span>}
+              </div>
+              <div className="space-y-2 bg-slate-50 p-4 dark:bg-white/5"><div className="h-2.5 w-24 rounded bg-slate-300 dark:bg-white/20" /><div className="h-2 w-3/4 rounded bg-slate-200 dark:bg-white/10" /><div className="h-2 w-1/2 rounded bg-slate-200 dark:bg-white/10" /></div>
+            </div>
+            {aviso.activo && aviso.hasta && <p className="mt-2 text-xs text-muted-foreground">Se oculta solo después del {fechaDe(aviso.hasta)}.</p>}
+          </div>
+        </div>
+      </Seccion>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Seccion icon={CalendarX} titulo="Días sin atención" sub="Festivos y cierres especiales. Se muestran en la web para que nadie llegue con el centro cerrado.">
+          <div className="flex flex-wrap items-end gap-2">
+            <Campo label="Fecha"><input type="date" value={cierre.fecha} min={isoDe(new Date())} onChange={(e) => setCierre({ ...cierre, fecha: e.target.value })} className={inp + " h-10"} /></Campo>
+            <div className="min-w-[180px] flex-1"><Campo label="Motivo"><input value={cierre.motivo} onChange={(e) => setCierre({ ...cierre, motivo: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") agregarCierre(); }} placeholder="Ej.: Festivo, capacitación…" className={inp + " h-10"} /></Campo></div>
+            <Button className="h-10 rounded-xl" onClick={agregarCierre}><Plus className="size-4" /> Agregar</Button>
+          </div>
+          {FESTIVOS_CO.some((f) => !(d.cierres ?? []).some((c) => c.fecha === f.fecha)) && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground">Próximos festivos:</span>
+              {FESTIVOS_CO.filter((f) => !(d.cierres ?? []).some((c) => c.fecha === f.fecha)).map((f) => (
+                <button key={f.fecha} type="button" onClick={() => set({ cierres: [...(d.cierres ?? []), f].sort((a, b) => a.fecha.localeCompare(b.fecha)) })} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"><Plus className="size-3" /> {fechaCorta(f.fecha)} · {f.motivo}</button>
+              ))}
+            </div>
+          )}
+          <ul className="mt-4 space-y-2">
+            {(d.cierres ?? []).length === 0 && <li className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-muted-foreground dark:bg-white/5">No hay días de cierre cargados.</li>}
+            {(d.cierres ?? []).map((c) => {
+              const pasado = c.fecha < isoDe(new Date());
+              return (
+                <li key={c.fecha} className={`flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-white/10 ${pasado ? "opacity-50" : ""}`}>
+                  <span className="grid size-10 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-center leading-none text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><span><span className="block text-sm font-bold">{c.fecha.slice(8, 10)}</span><span className="text-[9px] uppercase">{new Date(`${c.fecha}T12:00:00`).toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span></span></span>
+                  <div className="min-w-0 flex-1"><p className="text-sm font-semibold first-letter:uppercase">{fechaLarga(c.fecha)}</p><p className="truncate text-xs text-muted-foreground">{c.motivo || "Sin atención"}{pasado ? " · ya pasó" : ""}</p></div>
+                  <button onClick={() => set({ cierres: (d.cierres ?? []).filter((x) => x.fecha !== c.fecha) })} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Quitar"><Trash2 className="size-4" /></button>
+                </li>
+              );
+            })}
+          </ul>
+        </Seccion>
+
+        <Seccion icon={Share2} titulo="Redes sociales" sub="Escriba el usuario (@clinica) o pegue el enlace. Lo que quede vacío no aparece.">
+          <div className="space-y-3">
+            {([["instagram", "Instagram", Instagram, "@hegoclinica"], ["facebook", "Facebook", Facebook, "hegoclinica"], ["tiktok", "TikTok", Music2, "@hegoclinica"], ["youtube", "YouTube", Youtube, "@hegoclinica"], ["linkedin", "LinkedIn", Linkedin, "hego"]] as const).map(([k, l, I, ph]) => (
+              <label key={k} className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b2a6b] text-white"><I className="size-4" /></span>
+                <span className="w-24 text-sm font-semibold">{l}</span>
+                <input value={redes[k] ?? ""} onChange={(e) => set({ redes: { ...redes, [k]: e.target.value } })} placeholder={ph} className={inp + " h-10 flex-1"} />
+              </label>
+            ))}
+          </div>
         </Seccion>
       </div>
 

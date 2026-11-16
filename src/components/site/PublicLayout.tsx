@@ -10,7 +10,8 @@ import { CLINICA, ESPECIALIDADES, iconoEspecialidad, imagenEspecialidad } from "
 import logoClinica from "@/assets/logo.png";
 import fondoCorazonDoc from "@/assets/fondo-corazon.jpg";
 import fondoRinonesDoc from "@/assets/fondo-rinones.jpg";
-import { KEY_SITIO, leerDato, resumenHorarioClinica, sitioDe, useDato, type DatosSitio } from "@/lib/auth-local";
+import { KEY_SITIO, leerDato, resumenHorarioClinica, sitioDe, useDato, avisoVigente, proximosCierres, type DatosSitio } from "@/lib/auth-local";
+import { Instagram, Facebook, Youtube, Linkedin, Megaphone, CalendarX } from "lucide-react";
 const LINKS = [
   { to: "/", label: "Inicio" },
   { to: "/nosotros", label: "Nosotros" },
@@ -631,6 +632,20 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="public-bg min-h-screen">
+      {/* Aviso del centro (se edita en Panel → Sitio web) */}
+      {(() => {
+        const av = avisoVigente(sitio);
+        if (!av) return null;
+        return (
+          <div className={`relative z-50 ${av.tono === "importante" ? "bg-[#7f1d1d]" : "bg-[#0e7490]"} text-white`}>
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2 text-center text-[13px] lg:px-8">
+              <Megaphone className="size-4 shrink-0 opacity-90" />
+              <span className="font-medium">{av.texto}</span>
+              {av.enlace && <a href={av.enlace} className="rounded-full bg-white/15 px-3 py-0.5 text-xs font-semibold ring-1 ring-white/30 transition hover:bg-white/25">{av.textoEnlace || "Ver más"}</a>}
+            </div>
+          </div>
+        );
+      })()}
       {/* Barra superior */}
       {(sitio.direccion || horario || sitio.telefono || sitio.email) && (
       <div className="hidden bg-deep text-deep-foreground/80 md:block">
@@ -723,6 +738,27 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <div className="space-y-4">
             <Brand light />
             <p className="text-sm leading-relaxed text-deep-foreground/70">{CLINICA.claim}</p>
+            {(() => {
+              const r = sitio.redes ?? {};
+              const url = (v: string, base: string) => (/^https?:\/\//.test(v) ? v : `${base}${v.replace(/^@/, "")}`);
+              const lista = [
+                r.instagram && { k: "Instagram", href: url(r.instagram, "https://instagram.com/"), I: Instagram },
+                r.facebook && { k: "Facebook", href: url(r.facebook, "https://facebook.com/"), I: Facebook },
+                r.tiktok && { k: "TikTok", href: url(r.tiktok, "https://tiktok.com/@"), I: null },
+                r.youtube && { k: "YouTube", href: url(r.youtube, "https://youtube.com/@"), I: Youtube },
+                r.linkedin && { k: "LinkedIn", href: url(r.linkedin, "https://linkedin.com/company/"), I: Linkedin },
+              ].filter(Boolean) as { k: string; href: string; I: typeof Instagram | null }[];
+              if (!lista.length) return null;
+              return (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {lista.map(({ k, href, I }) => (
+                    <a key={k} href={href} target="_blank" rel="noreferrer" aria-label={k} title={k} className="grid size-10 place-items-center rounded-xl bg-white/10 ring-1 ring-white/15 transition hover:-translate-y-0.5 hover:bg-white/20">
+                      {I ? <I className="size-4" /> : <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden="true"><path d="M16.6 5.8a4.3 4.3 0 0 1-1-2.8h-3.2v12.4a2.6 2.6 0 1 1-2.6-2.6c.3 0 .5 0 .8.1V9.6a5.8 5.8 0 1 0 5 5.8V9.1a7.3 7.3 0 0 0 4.3 1.4V7.3a4.3 4.3 0 0 1-3.3-1.5z" /></svg>}
+                    </a>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-deep-foreground/60">Navegación</h3>
@@ -749,6 +785,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
               {sitio.telefono && <li className="flex gap-2.5"><Phone className="mt-0.5 size-4 shrink-0 text-sky-300" />{sitio.telefono}</li>}
               {sitio.email && <li className="flex gap-2.5"><Mail className="mt-0.5 size-4 shrink-0 text-sky-300" />{sitio.email}</li>}
               {horario && <li className="flex gap-2.5"><Clock className="mt-0.5 size-4 shrink-0 text-sky-300" />{horario}</li>}
+              {proximosCierres(sitio, 2).map((c) => <li key={c.fecha} className="flex gap-2.5"><CalendarX className="mt-0.5 size-4 shrink-0 text-sky-300" />Cerrado el {new Date(`${c.fecha}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}{c.motivo ? ` · ${c.motivo}` : ""}</li>)}
               {!sitio.direccion && !sitio.telefono && !sitio.email && !horario && <li className="text-deep-foreground/55">Datos de contacto próximamente.</li>}
             </ul>
           </div>
