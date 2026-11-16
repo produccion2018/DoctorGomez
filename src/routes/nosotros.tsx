@@ -130,8 +130,22 @@ function Nosotros() {
       <section className="mx-auto max-w-7xl px-4 pb-24 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-2">
           {[
-            { icon: Target, k: "Misión", t: "Lo que hacemos cada día", d: "Ofrecer servicios integrales en salud cardiovascular con altos estándares de calidad, enfocados en la prevención, diagnóstico y tratamiento oportuno, a través de un equipo especializado y tecnología adecuada, brindando atención segura, humana y centrada en el paciente.", g: "from-rose-500 to-red-700", glow: "rgba(239,68,68,.45)" },
-            { icon: Eye, k: "Visión", t: "Hacia dónde vamos", d: "Consolidarnos como un centro de referencia en atención integral y cardiovascular, reconocido por la excelencia en nuestros servicios, la confianza de nuestros pacientes y el compromiso continuo con la innovación y el cuidado de la vida.", g: "from-sky-500 to-blue-700", glow: "rgba(14,165,233,.45)" },
+            {
+              icon: Target, k: "Nuestra misión", t: "Lo que hacemos cada día", g: "from-rose-500 to-red-700", glow: "rgba(239,68,68,.45)",
+              d: [
+                "Brindar atención médica integral, especializada y personalizada, comprometida con la prevención, el diagnóstico oportuno, el tratamiento y el seguimiento de las enfermedades.",
+                "En HEGO – Centro de Especialidades Médicas, integramos la experiencia profesional en Medicina Interna, Cardiología y Nefrología con herramientas de diagnóstico cardiovascular, como ecocardiografía, Holter y monitoreo ambulatorio de la presión arterial (MAPA).",
+                "Trabajamos con excelencia científica, ética profesional, tecnología médica y un profundo sentido humano, colocando siempre al paciente, su bienestar y su calidad de vida en el centro de cada decisión.",
+              ],
+            },
+            {
+              icon: Eye, k: "Nuestra visión", t: "Hacia dónde vamos", g: "from-sky-500 to-blue-700", glow: "rgba(14,165,233,.45)",
+              d: [
+                "Ser un centro de especialidades médicas reconocido por la excelencia de sus profesionales, la calidad de sus servicios y su compromiso con una medicina humana, innovadora y centrada en cada paciente.",
+                "Aspiramos a consolidarnos como un referente en Medicina Interna, Cardiología, Nefrología y diagnóstico cardiovascular, incorporando continuamente los avances científicos y tecnológicos que permitan ofrecer una atención cada vez más precisa, segura, accesible y personalizada.",
+                "Queremos construir relaciones duraderas de confianza con nuestros pacientes y contribuir a una comunidad más saludable mediante la prevención, la educación y el cuidado integral de la salud.",
+              ],
+            },
           ].map((m, i) => (
             <article
               key={m.k}
@@ -151,7 +165,11 @@ function Nosotros() {
                   <h2 className="text-3xl leading-tight sm:text-4xl">{m.k}</h2>
                 </div>
               </div>
-              <p className="relative mt-6 text-lg leading-relaxed text-muted-foreground">{m.d}</p>
+              <div className="relative mt-6 space-y-4">
+                {m.d.map((parrafo, j) => (
+                  <p key={j} className={j === 0 ? "text-lg font-medium leading-relaxed text-foreground/85" : "text-base leading-relaxed text-muted-foreground"}>{parrafo}</p>
+                ))}
+              </div>
             </article>
           ))}
         </div>
