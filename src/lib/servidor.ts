@@ -18,9 +18,9 @@ const PRIVADOS_MEDICOS = ["gb_permisos", "gb_interop", "gb_facturacion", "gb_tar
 const SOLO_MEDICOS = ["gb_sitio", "gb_agenda"] as const;
 const ADMINS_IDS = ["alonso", "alberto"];
 
-import { permiteColeccion, nivelDe, AREA_DIRECCION, AREAS_MEDICAS, type Permisos } from "./permisos";
-const permiteModulo = (p: Permisos, area: string, modulo: string, accion: "ver" | "editar") => {
-  const n = nivelDe(p, area, modulo);
+import { permiteColeccion, nivelPersona, AREA_DIRECCION, AREAS_MEDICAS, type Permisos } from "./permisos";
+const permiteModulo = (p: Permisos, area: string, modulo: string, accion: "ver" | "editar", personaId?: string) => {
+  const n = nivelPersona(p, personaId, area, modulo);
   return accion === "ver" ? n !== "ninguno" : n === "editar";
 };
 const modulo = () => import("./db.server");
@@ -75,7 +75,7 @@ export const guardarDatoServidor = createServerFn({ method: "POST" })
         // Agenda: los médicos, o el personal con permiso de editar Horarios (secretaría)
         const x = await a.usuarioActual();
         if (!x) throw new Error("Su sesión venció. Vuelva a ingresar.");
-        if (x.rol !== "medico" && !permiteModulo(await permisosGuardados(), x.area ?? "", "Horarios", "editar")) throw new Error("Su área no tiene permiso para modificar horarios.");
+        if (x.rol !== "medico" && !permiteModulo(await permisosGuardados(), x.area ?? "", "Horarios", "editar", x.id)) throw new Error("Su área no tiene permiso para modificar horarios.");
         u = x;
       }
       else {
@@ -552,7 +552,7 @@ async function permisosGuardados(): Promise<Permisos> {
 /** ¿Este integrante del personal puede ver / editar la colección según su área? */
 async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: string, accion: "ver" | "editar") {
   if (q.medico) return true;
-  return permiteColeccion(await permisosGuardados(), q.area, coleccion, accion);
+  return permiteColeccion(await permisosGuardados(), q.area, coleccion, accion, q.id);
 }
 
 /** Colecciones que tienen datos de un paciente (se filtran por especialidad para los médicos invitados). */

@@ -246,7 +246,7 @@ import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
 import logoClinica from "@/assets/logo.png";
-import { MODULOS, SEED_PERMISOS, nivelDe, mk, AREAS_MEDICAS, type Nivel, type Permisos } from "@/lib/permisos";
+import { MODULOS, SEED_PERMISOS, nivelDe, nivelPersona, clavePersona, mk, AREAS_MEDICAS, type Nivel, type Permisos } from "@/lib/permisos";
 /** Especialidades para marcar en la ficha del paciente. */
 const ESPECIALIDADES_PACIENTE = Array.from(new Set(["Cardiología", "Nefrología", "Medicina Interna", ...AREAS_MEDICAS.map((a) => a.replace(/\s*\(médicos\)\s*$/, ""))]));
 export const Route = createFileRoute("/panel")({
@@ -596,7 +596,7 @@ function Panel() {
   // Cualquier persona del equipo que no es médico usa los permisos de su área
   const esEnf = user.rol !== "medico";
   const areaUsuario = user.area ?? "Enfermería";
-  const nivelEnf = (m: string) => nivelDe(permisos, areaUsuario, m);
+  const nivelEnf = (m: string) => nivelPersona(permisos, user.id, areaUsuario, m);
   const TABS_ENF: Tab[] = [
     ...(areaUsuario === "Dirección general" ? (["resumen", "ministerio"] as Tab[]) : []),
     ...Object.entries(MODULO_TAB).filter(([m]) => nivelEnf(m) !== "ninguno").map(([, t]) => t!),
@@ -8704,6 +8704,28 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
   const [area, setArea] = useState(areaFija ?? AREAS[0]!.nombre);
   const [nuevoLink, setNuevoLink] = useState<string | null>(null);
   const [, refrescar] = useState(0);
+  const [permisos, setPermisos] = useDato<Permisos>("gb_permisos", SEED_PERMISOS);
+  const [verPermisos, setVerPermisos] = useState<string | null>(null);
+  const puedePermisos = user.rol === "medico";
+  const propios = (id: string) => permisos[clavePersona(id)];
+  const cambiarNivel = (n: Personal, m: string, nivel: Nivel) => {
+    const base = nivelDe(permisos, areaDe(n), m);
+    setPermisos((p) => {
+      const actual = { ...(p[clavePersona(n.id)] ?? {}) };
+      if (nivel === base) delete actual[m];
+      else actual[m] = nivel;
+      const out = { ...p };
+      if (Object.keys(actual).length) out[clavePersona(n.id)] = actual;
+      else delete out[clavePersona(n.id)];
+      return out;
+    });
+    log("Permiso personal cambiado", `${n.nombre} · ${m}: ${nivel === "ninguno" ? "sin acceso" : nivel}`);
+  };
+  const volverAlArea = (n: Personal) => {
+    setPermisos((p) => { const out = { ...p }; delete out[clavePersona(n.id)]; return out; });
+    log("Permisos personales quitados", `${n.nombre} · vuelve a los de ${areaDe(n)}`);
+    toast.success(`${n.nombre.split(" ")[0]} vuelve a tener los permisos de ${areaDe(n)}.`);
+  };
   const origen = typeof window === "undefined" ? "" : window.location.origin;
   const visibles = (areaFija ? lista.filter((x) => areaDe(x) === areaFija) : lista).slice().sort((a, b) => areaDe(a).localeCompare(areaDe(b)) || a.nombre.localeCompare(b.nombre));
 
@@ -8776,12 +8798,29 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
             const conClave = tieneClave(n.id);
             const estado = !n.activo ? "Bloqueado" : conClave ? "Activo" : "Invitación pendiente";
             return (
-              <li key={n.id} className="flex flex-wrap items-center gap-3 py-3">
+              <li key={n.id} className="py-3">
+               <div className="flex flex-wrap items-center gap-3">
                 <Avatar nombre={n.nombre} size="size-9" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{areaDe(n)}</span>}</p>
+                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{areaDe(n)}</span>}{propios(n.id) && <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Permisos personalizados</span>}</p>
                   <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)}</p>
+                  {(() => {
+                    const mods = MODULOS.map((m) => ({ m, nv: nivelPersona(permisos, n.id, areaDe(n), m) })).filter((x) => x.nv !== "ninguno");
+                    return (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {mods.length === 0 && <span className="text-[11px] text-rose-600">No ve ningún módulo</span>}
+                        {mods.map(({ m, nv }) => (
+                          <span key={m} title={nv === "editar" ? "Puede ver y modificar" : "Solo ver"} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${nv === "editar" ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>
+                            {nv === "editar" ? <Pencil className="size-2.5" /> : <Eye className="size-2.5" />} {m}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
+                <button onClick={() => setVerPermisos(verPermisos === n.id ? null : n.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${verPermisos === n.id ? "pn-acc-tile text-white" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.18)]"}`}>
+                  <ShieldCheck className="size-3.5" /> Permisos
+                </button>
                 <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${estado === "Activo" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : estado === "Bloqueado" ? "bg-red-100 text-red-700 ring-red-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{estado}</span>
                 {n.activo && !conClave && n.invitacion && (
                   <>
@@ -8816,12 +8855,44 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                 <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Acceso bloqueado" : "Acceso habilitado", `${n.nombre} · ${areaDe(n)}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
                   {n.activo ? "Bloquear" : "Habilitar"}
                 </button>
+               </div>
+                {verPermisos === n.id && (
+                  <div className="mt-3 rounded-2xl border border-border/70 bg-secondary/30 p-4 animate-in fade-in slide-in-from-top-1 duration-200 dark:border-white/10 dark:bg-white/[0.03]">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">Permisos de {n.nombre.split(" ")[0]}</p>
+                        <p className="text-xs text-muted-foreground">Arranca con los de <b>{areaDe(n)}</b>. Si cambia algo, vale solo para esta persona. Lo distinto al departamento se marca en violeta.</p>
+                      </div>
+                      {puedePermisos && propios(n.id) && <Button size="sm" variant="outline" className="rounded-lg" onClick={() => volverAlArea(n)}><RefreshCw className="size-3.5" /> Volver a los de {areaDe(n)}</Button>}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {MODULOS.map((m) => {
+                        const nv = nivelPersona(permisos, n.id, areaDe(n), m);
+                        const distinto = propios(n.id)?.[m] !== undefined;
+                        return (
+                          <div key={m} className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ring-1 ${distinto ? "bg-violet-50 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/30" : "bg-card ring-border/70 dark:ring-white/10"}`}>
+                            <span className="min-w-0 truncate text-xs font-medium">{m}</span>
+                            <div className="flex shrink-0 rounded-lg bg-secondary p-0.5 dark:bg-white/5">
+                              {(["ninguno", "ver", "editar"] as Nivel[]).map((op) => (
+                                <button key={op} type="button" disabled={!puedePermisos} onClick={() => cambiarNivel(n, m, op)}
+                                  className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${nv === op ? (op === "ninguno" ? "bg-slate-500 text-white" : op === "ver" ? "bg-sky-500 text-white" : "bg-emerald-500 text-white") : "text-muted-foreground hover:text-foreground"} disabled:cursor-not-allowed`}>
+                                  {op === "ninguno" ? "No" : op === "ver" ? "Ver" : "Editar"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {!puedePermisos && <p className="mt-3 text-xs text-muted-foreground">Solo los médicos administradores pueden cambiar permisos.</p>}
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       )}
-      <p className="mt-4 text-[11px] text-muted-foreground">{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Los módulos que ve cada persona se configuran abajo, en los permisos de su departamento."}</p>
+      <p className="mt-4 text-[11px] text-muted-foreground">{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Cada persona tiene los permisos de su departamento. Con el botón Permisos puede ver y cambiar los de una persona en particular."}</p>
     </Seccion>
   );
 }

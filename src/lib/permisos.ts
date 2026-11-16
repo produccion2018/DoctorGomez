@@ -78,12 +78,18 @@ export const MODULO_COLECCION: Record<string, { ver: string[]; editar: string[] 
   gb_audit: { ver: ["Auditoría"], editar: [] },
 };
 
-/** ¿El área puede ver / editar la colección? (los médicos administradores siempre pueden) */
-export function permiteColeccion(p: Permisos, area: string, coleccion: string, accion: "ver" | "editar") {
+/** Permisos propios de una persona (si se le dieron distintos a los de su departamento). */
+export const clavePersona = (id: string) => `persona:${id}`;
+/** Nivel de una persona en un módulo: lo suyo propio y, si no tiene, lo de su departamento. */
+export const nivelPersona = (p: Permisos, id: string | undefined, area: string, modulo: string): Nivel =>
+  (id ? p[clavePersona(id)]?.[modulo] : undefined) ?? nivelDe(p, area, modulo);
+
+/** ¿El área (o la persona) puede ver / editar la colección? (los médicos administradores siempre pueden) */
+export function permiteColeccion(p: Permisos, area: string, coleccion: string, accion: "ver" | "editar", personaId?: string) {
   const m = MODULO_COLECCION[coleccion];
   if (!m) return false;
   return m[accion].some((mod) => {
-    const n = nivelDe(p, area, mod);
+    const n = nivelPersona(p, personaId, area, mod);
     return accion === "ver" ? n !== "ninguno" : n === "editar";
   });
 }
