@@ -682,6 +682,18 @@ export const aplicarCambios = createServerFn({ method: "POST" })
         await (await acceso()).auditar(q.nombre, "Cambio bloqueado por permisos", `${q.area || "Sin área"} · ${data.coleccion.replace("gb_", "")}`);
         return { ok: false, error: `Su área (${q.area || "sin área"}) no tiene permiso para modificar esto. Pídaselo a un médico administrador.` };
       }
+      // Médicos invitados: solo cambian o borran lo que cargaron ellos (nunca lo de otra especialidad)
+      const AUTOR: Record<string, string> = { gb_evoluciones: "doctor", gb_recetas: "doctor", gb_laboratorio: "doctor", gb_estudios: "cargadoPor" };
+      const campoAutor = AUTOR[data.coleccion];
+      if (campoAutor && AREAS_MEDICAS.includes(q.area)) {
+        for (const id of [...filas.map((f) => f.id), ...data.borrar]) {
+          const previo = await c.uno(data.coleccion, id);
+          if (previo && String(previo[campoAutor] ?? "") !== q.nombre) {
+            await (await acceso()).auditar(q.nombre, "Cambio bloqueado: registro de otro profesional", `${data.coleccion.replace("gb_", "")} · ${String(previo[campoAutor] ?? "")}`);
+            return { ok: false, error: `Ese registro lo cargó ${String(previo[campoAutor] ?? "otro profesional")}. Solo puede verlo; no puede modificarlo ni borrarlo.` };
+          }
+        }
+      }
       if (data.coleccion === "gb_turnos") {
         // El equipo puede dar sobreturnos fuera de la agenda, pero nunca dos citas en el mismo horario
         for (const f of filas) {
