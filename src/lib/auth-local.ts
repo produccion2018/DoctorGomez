@@ -489,7 +489,7 @@ export async function invitarPortalPorCorreo(id: string): Promise<{ ok: true; pa
 }
 
 /** Reserva desde la web pública: con backend va al servidor. */
-export async function reservarTurnoWeb(t: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string }): Promise<Result | null> {
+export async function reservarTurnoWeb(t: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string; dni: string; tipoDoc?: string }): Promise<Result | null> {
   if (!(await iniciarBackend())) return null;
   return reservarTurnoPublico({ data: t });
 }
@@ -1225,3 +1225,18 @@ export const indicacionesTexto = (motivo: string | undefined | null) => {
   const i = indicacionesCita(motivo);
   return `${i.estudio ? `Para su ${i.titulo}:` : "Para su consulta tenga en cuenta:"}\n${i.items.map((x) => `• ${x}`).join("\n")}`;
 };
+
+/* ---------- Nombres siempre bien escritos ---------- */
+const PARTICULAS = new Set(["de", "del", "la", "las", "los", "y", "e", "da", "das", "do", "dos", "van", "von"]);
+/** "mARÍA dE LOS ángeles pérez" → "María de los Ángeles Pérez". Respeta el espacio final mientras se escribe. */
+export function nombrePropio(s: string): string {
+  return String(s ?? "")
+    .replace(/^\s+/, "")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("es-CO")
+    .split(" ")
+    .map((w, i) => (i > 0 && PARTICULAS.has(w) ? w : w.replace(/(^|[-'’])(\p{L})/gu, (_, a: string, b: string) => a + b.toLocaleUpperCase("es-CO"))))
+    .join(" ");
+}
+/** Solo números y letras del documento (sin puntos ni espacios). */
+export const limpiarDoc = (s: string) => String(s ?? "").replace(/[^\dA-Za-z]/g, "").toUpperCase().slice(0, 15);

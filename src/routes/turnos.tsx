@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CalendarioMes, SelectorHorarios, PageHero, PublicLayout, waLink } from "@/components/site/PublicLayout";
 import { DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { ADMINS, KEY_AGENDA, hora12, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
+import { ADMINS, KEY_AGENDA, TIPOS_DOC, nombrePropio, limpiarDoc, hora12, agendaDe, atiendeEl, auditar, horariosDelDia, proximosDias, resumenAgenda, proximoDiaTexto, profesionalesAgenda, useDato, type Agendas, ocupadosServidor, reservarTurnoWeb } from "@/lib/auth-local";
 
 type Busqueda = { doctor?: string | undefined; especialidad?: string | undefined };
 
@@ -77,7 +77,7 @@ function Turnos() {
   const [doc, setDoc] = useState<string | null>(null);
   const [fecha, setFecha] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
-  const [datos, setDatos] = useState({ nombre: "", telefono: "", email: "", comentario: "" });
+  const [datos, setDatos] = useState({ nombre: "", tipoDoc: "CC", dni: "", telefono: "", email: "", comentario: "" });
   const [ocupados, setOcupados] = useState<TurnoGuardado[]>([]);
   const [listo, setListo] = useState<TurnoGuardado | null>(null);
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
@@ -169,7 +169,11 @@ function Turnos() {
     if (!doctor || !fecha || !hora || !especialidad) return;
     const nom = doctor.panel;
     const motivo = especialidad.nombre + (datos.comentario.trim() ? ` · ${datos.comentario.trim()}` : "");
-    const r = await reservarTurnoWeb({ fecha, hora, paciente: datos.nombre.trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim(), servicio: especialidad.nombre });
+    if (datos.dni.length < 5) {
+      toast.error("Escriba su número de documento.");
+      return;
+    }
+    const r = await reservarTurnoWeb({ fecha, hora, paciente: nombrePropio(datos.nombre).trim(), doctor: nom, motivo, telefono: datos.telefono.trim(), email: datos.email.trim(), servicio: especialidad.nombre, dni: datos.dni, tipoDoc: datos.tipoDoc });
     if (r) {
       if (!r.ok) {
         toast.error(r.error);
@@ -384,16 +388,28 @@ function Turnos() {
             {paso === 3 && (
               <form id="form-turno" onSubmit={confirmar}>
                 <h2 className="text-2xl">Complete sus datos</h2>
-                <div className="mt-6 grid gap-4 rounded-3xl border border-border bg-card p-6 shadow-card sm:grid-cols-2">
-                  <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Nombre y apellido *</span>
-                    <input required value={datos.nombre} onChange={(e) => setDatos({ ...datos, nombre: e.target.value })} className={inp} /></label>
-                  <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Teléfono / WhatsApp *</span>
-                    <input required type="tel" value={datos.telefono} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} className={inp} /></label>
-                  <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Email</span>
-                    <input type="email" value={datos.email} onChange={(e) => setDatos({ ...datos, email: e.target.value })} className={inp} /></label>
-                  <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Motivo de consulta (opcional)</span>
-                    <textarea rows={3} value={datos.comentario} onChange={(e) => setDatos({ ...datos, comentario: e.target.value })} className={inp + " h-auto py-3"} /></label>
-                  <p className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2"><ShieldCheck className="size-4 text-emerald-600" /> Sus datos se usan solo para gestionar la cita.</p>
+                <p className="mt-1 text-sm text-muted-foreground">Los campos con * son obligatorios.</p>
+                <div className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-card dark:border-white/10">
+                  <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-7">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary sm:col-span-2 dark:text-sky-300"><span className="grid size-6 place-items-center rounded-full gradient-deep text-[10px] text-white">1</span> Identificación del paciente</p>
+                    <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Tipo de documento *</span>
+                      <select value={datos.tipoDoc} onChange={(e) => setDatos({ ...datos, tipoDoc: e.target.value })} className={inp}>
+                        {TIPOS_DOC.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select></label>
+                    <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Número de documento *</span>
+                      <input required inputMode={datos.tipoDoc === "PA" || datos.tipoDoc === "CE" || datos.tipoDoc === "PPT" ? "text" : "numeric"} minLength={5} placeholder="Ej.: 1002240625" value={datos.dni} onChange={(e) => setDatos({ ...datos, dni: limpiarDoc(e.target.value) })} className={inp + " tabular-nums"} /></label>
+                    <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Nombres y apellidos *</span>
+                      <input required minLength={3} autoComplete="name" placeholder="Ej.: María Fernanda López Gómez" value={datos.nombre} onChange={(e) => setDatos({ ...datos, nombre: nombrePropio(e.target.value) })} className={inp} /></label>
+                    <span className="h-px bg-border sm:col-span-2 dark:bg-white/10" />
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary sm:col-span-2 dark:text-sky-300"><span className="grid size-6 place-items-center rounded-full gradient-deep text-[10px] text-white">2</span> Contacto</p>
+                    <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Celular / WhatsApp *</span>
+                      <input required type="tel" autoComplete="tel" placeholder="300 123 4567" value={datos.telefono} onChange={(e) => setDatos({ ...datos, telefono: e.target.value })} className={inp} /></label>
+                    <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Correo (para recibir la confirmación)</span>
+                      <input type="email" autoComplete="email" placeholder="usted@correo.com" value={datos.email} onChange={(e) => setDatos({ ...datos, email: e.target.value.trim().toLowerCase() })} className={inp} /></label>
+                    <label className="space-y-1.5 sm:col-span-2"><span className="text-xs font-medium text-muted-foreground">Motivo de consulta (opcional)</span>
+                      <textarea rows={3} placeholder="Cuéntenos brevemente qué le pasa o qué estudio necesita" value={datos.comentario} onChange={(e) => setDatos({ ...datos, comentario: e.target.value })} className={inp + " h-auto py-3"} /></label>
+                  </div>
+                  <p className="flex items-center gap-2 border-t border-border bg-secondary/40 px-5 py-3 text-xs text-muted-foreground sm:px-7 dark:border-white/10 dark:bg-white/5"><ShieldCheck className="size-4 shrink-0 text-emerald-600" /> Sus datos están protegidos y se usan solo para gestionar su cita (Ley 1581 de 2012).</p>
                 </div>
               </form>
             )}

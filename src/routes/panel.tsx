@@ -159,6 +159,8 @@ import {
   KEY_ESTUDIOS,
   indicacionesTexto,
   invitarPortalPorCorreo,
+  nombrePropio,
+  limpiarDoc,
   KEY_CONTROLES,
   clasificarPresion,
   clasificarFevi,
@@ -257,7 +259,7 @@ export const Route = createFileRoute("/panel")({
 
 /* ---------- Tipos y datos de ejemplo ---------- */
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
-type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string };
+type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; dni?: string; tipoDoc?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion" | "ministerio";
 type LogFn = (accion: string, detalle?: string) => void;
@@ -401,7 +403,7 @@ function usePersist<T>(key: string, seed: T): readonly [T, Dispatch<SetStateActi
 }
 
 const inp =
-  "h-11 w-full rounded-xl border border-input bg-background px-3.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/15";
+  "pn-field h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-[rgb(var(--acc))] focus:ring-4 focus:ring-[rgba(var(--acc),.15)] dark:border-white/10";
 
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
@@ -813,9 +815,15 @@ function Panel() {
         .pn-sheen::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.18), transparent); transform: translateX(-100%); animation: pn-shine 6s ease-in-out infinite; pointer-events: none; }
         .pn-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
         .pn-noscroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
-        .pn-card { border: 1px solid transparent; background: linear-gradient(var(--color-card), color-mix(in oklab, var(--color-card) 96%, rgb(var(--acc))) ) padding-box, linear-gradient(160deg, rgba(var(--acc),.45), rgba(203,213,225,.7) 28%, rgba(226,232,240,.8) 72%, rgba(var(--acc),.28)) border-box; transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
+        .pn-card { border: 1px solid transparent; background: linear-gradient(180deg, #ffffff, color-mix(in oklab, #ffffff 98.5%, rgb(var(--acc)))) padding-box, linear-gradient(160deg, rgba(var(--acc),.38), rgba(203,213,225,.85) 26%, rgba(226,232,240,.9) 74%, rgba(var(--acc),.22)) border-box; transition: transform .45s cubic-bezier(.22,1,.36,1), box-shadow .45s cubic-bezier(.22,1,.36,1); }
         .pn-card::before { content: ""; position: absolute; top: 0; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, transparent, rgba(var(--acc),.8), transparent); pointer-events: none; }
-        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 1px rgba(15,23,42,.04), 0 2px 6px rgba(15,23,42,.04), 0 14px 28px -10px rgba(15,23,42,.10), 0 34px 70px -30px rgba(var(--acc),.35); }
+        .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 1px 2px rgba(15,23,42,.06), 0 4px 10px -2px rgba(15,23,42,.05), 0 18px 36px -14px rgba(15,23,42,.14), 0 34px 70px -34px rgba(var(--acc),.32); }
+        .pn-sec-h { position: relative; }
+        .pn-sec-h::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(var(--acc),.45), rgba(148,163,184,.25) 35%, rgba(148,163,184,.12)); }
+        .dark .pn-sec-h::after { background: linear-gradient(90deg, rgba(var(--acc),.5), rgba(255,255,255,.08) 40%, transparent); }
+        .pn-field { background: #fff; box-shadow: 0 1px 2px rgba(15,23,42,.05), inset 0 1px 0 rgba(255,255,255,.8); }
+        .pn-field:hover { border-color: rgba(var(--acc),.45); }
+        .dark .pn-field { background: rgba(255,255,255,.04); box-shadow: none; }
         @keyframes pn-pulse { from { stroke-dashoffset: 1180; } to { stroke-dashoffset: 0; } }
         .pn-pulse { stroke-dasharray: 80 1100; animation: pn-pulse 3.2s linear infinite; }
         @keyframes pn-ripple { 0% { transform: scale(.85); opacity: .9; } 100% { transform: scale(1.35); opacity: 0; } }
@@ -1259,15 +1267,16 @@ function Seccion({
   className?: string;
 }) {
   return (
-    <section className={`pn-card pn-up p-6 ${className}`} style={{ animationDelay: `${delay}s` }}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-5">
-        <div className="flex items-center gap-3">
-          <span className="pn-acc-tile flex size-10 items-center justify-center rounded-xl text-white">
-            <Icon className="size-[18px]" />
+    <section className={`pn-card pn-up p-5 sm:p-6 ${className}`} style={{ animationDelay: `${delay}s` }}>
+      <div className="pn-sec-h mb-5 flex flex-wrap items-center justify-between gap-3 pb-5">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span className="pn-acc-tile relative flex size-11 shrink-0 items-center justify-center rounded-2xl text-white">
+            <span className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/25 to-transparent" />
+            <Icon className="relative size-5" />
           </span>
-          <div>
-            <h3 className="text-[15px] font-semibold tracking-tight">{titulo}</h3>
-            {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">{titulo}</h3>
+            {sub && <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{sub}</p>}
           </div>
         </div>
         {acciones}
@@ -1365,7 +1374,7 @@ function Estadito({ estado }: { estado: Estado }) {
 function Campo({ label, children, className = "" }: { label: string; children: ReactNode; className?: string }) {
   return (
     <label className={`block space-y-1.5 ${className}`}>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      <span className="text-xs font-semibold text-foreground/70">{label}</span>
       {children}
     </label>
   );
@@ -1657,7 +1666,8 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [dia, setDia] = useState(hoy());
   const [asignando, setAsignando] = useState<string | null>(null); // "doctor|hora"
-  const [rapido, setRapido] = useState({ paciente: "", telefono: "", motivo: "Consulta" });
+  const [rapido, setRapido] = useState({ paciente: "", dni: "", telefono: "", motivo: "Consulta" });
+  const conocidos = usePacientesClinica(turnos);
   const [ahora, setAhora] = useState(() => new Date());
 
   useEffect(() => {
@@ -1705,15 +1715,20 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
   };
 
   const asignar = (doctor: string, hora: string) => {
-    if (!rapido.paciente.trim()) {
-      toast.error("Escriba el nombre del paciente.");
+    if (rapido.paciente.trim().length < 3) {
+      toast.error("Escriba el nombre y apellido del paciente.");
+      return;
+    }
+    if (limpiarDoc(rapido.dni).length < 5) {
+      toast.error("La cédula es obligatoria.");
       return;
     }
     const nuevo: Turno = {
       id: uid(),
       fecha: dia,
       hora,
-      paciente: rapido.paciente.trim(),
+      paciente: nombrePropio(rapido.paciente).trim(),
+      dni: limpiarDoc(rapido.dni),
       doctor,
       motivo: rapido.motivo.trim() || "Consulta",
       estado: "Confirmado",
@@ -1724,7 +1739,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
     log("Cita creada", `${nuevo.paciente} · ${fechaCorta(dia)} ${hora12(hora)} · ${doctor}`);
     toast.success("Cita asignada.");
     setAsignando(null);
-    setRapido({ paciente: "", telefono: "", motivo: "Consulta" });
+    setRapido({ paciente: "", dni: "", telefono: "", motivo: "Consulta" });
   };
 
   const FilaPaciente = ({ t, ahoraEs }: { t: Turno; ahoraEs: boolean }) => (
@@ -1924,8 +1939,13 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                             <FilaPaciente t={t} ahoraEs={h === actual} />
                           ) : asignando === clave ? (
                             <div className="space-y-2 rounded-2xl border border-[rgba(var(--acc),.4)] bg-[rgba(var(--acc),.05)] p-3 animate-in fade-in duration-200">
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <input autoFocus placeholder="Paciente" value={rapido.paciente} onChange={(e) => setRapido({ ...rapido, paciente: e.target.value })} className={inp + " h-9"} />
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                <input autoFocus inputMode="numeric" placeholder="Cédula *" value={rapido.dni} onChange={(e) => {
+                                  const dni = limpiarDoc(e.target.value);
+                                  const c = dni.length >= 5 ? conocidos.find((x) => x.dni === dni) : undefined;
+                                  setRapido({ ...rapido, dni, ...(c && !rapido.paciente ? { paciente: c.nombre, telefono: rapido.telefono || c.telefono || "" } : {}) });
+                                }} className={inp + " h-9"} />
+                                <input placeholder="Nombre y apellido *" value={rapido.paciente} onChange={(e) => setRapido({ ...rapido, paciente: nombrePropio(e.target.value) })} className={inp + " h-9"} />
                                 <input placeholder="WhatsApp (opcional)" value={rapido.telefono} onChange={(e) => setRapido({ ...rapido, telefono: e.target.value })} className={inp + " h-9"} />
                               </div>
                               <div className="flex gap-2">
@@ -1935,7 +1955,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                               </div>
                             </div>
                           ) : (
-                            <button onClick={() => { setAsignando(clave); setRapido({ paciente: "", telefono: "", motivo: servicioEn(ag, dia, h) || "Consulta" }); }} disabled={pasado}
+                            <button onClick={() => { setAsignando(clave); setRapido({ paciente: "", dni: "", telefono: "", motivo: servicioEn(ag, dia, h) || "Consulta" }); }} disabled={pasado}
                               className={`group flex w-full items-center justify-between rounded-2xl border border-dashed px-4 py-3 text-left text-sm transition-all ${h === actual ? "border-[rgba(var(--acc),.5)]" : "border-border"} ${pasado ? "cursor-default" : "hover:border-[rgba(var(--acc),.5)] hover:bg-[rgba(var(--acc),.04)]"}`}>
                               <span className="text-muted-foreground">Libre</span>
                               {!pasado && <span className="inline-flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100" style={{ color: `rgb(var(--acc))` }}><Plus className="size-3.5" /> Asignar paciente</span>}
@@ -1979,7 +1999,8 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
     const t = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
     return () => window.clearTimeout(t);
   }, [foco]);
-  const [f, setF] = useState({ fecha: hoy(), hora: "", paciente: "", telefono: "", doctor: ADMINS[0]!.nombre, motivo: "" });
+  const [f, setF] = useState({ fecha: hoy(), hora: "", paciente: "", dni: "", telefono: "", doctor: ADMINS[0]!.nombre, motivo: "" });
+  const conocidos = usePacientesClinica(turnos);
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
   const [otraHora, setOtraHora] = useState(false);
   const [manual, setManual] = useState(false);
@@ -2020,11 +2041,16 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
       toast.error("Ese horario ya está ocupado para ese profesional.");
       return;
     }
+    if (limpiarDoc(f.dni).length < 5) {
+      toast.error("La cédula del paciente es obligatoria.");
+      return;
+    }
     const nuevo: Turno = {
       id: uid(),
       fecha: f.fecha,
       hora: f.hora,
-      paciente: f.paciente.trim(),
+      paciente: nombrePropio(f.paciente).trim(),
+      dni: limpiarDoc(f.dni),
       doctor: f.doctor,
       motivo: f.motivo.trim(),
       estado: "Pendiente",
@@ -2034,7 +2060,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
     setTurnos((p) => [...p, nuevo]);
     log("Cita creada", `${nuevo.paciente} · ${fechaCorta(nuevo.fecha)} ${hora12(nuevo.hora)} · ${nuevo.doctor}`);
     toast.success("Cita creada.");
-    setF({ ...f, hora: "", paciente: "", telefono: "", motivo: "" });
+    setF({ ...f, hora: "", paciente: "", dni: "", telefono: "", motivo: "" });
   };
 
   const cambiarEstado = (t: Turno, estado: Estado) => {
@@ -2135,14 +2161,18 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
               ) : !atiende ? (
                 <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda ({resumenAgenda(agendaSel)}). Elija otro día o use "Otro horario".{irHorarios && <button type="button" onClick={() => irHorarios(adminSel.id)} className="ml-1 font-semibold text-[rgb(var(--acc))] hover:underline">Ver horarios</button>}</p>
               ) : (
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 xl:grid-cols-8">
-                  {slots.map(({ h, ocupado }) => (
-                    <button key={h} type="button" disabled={ocupado} onClick={() => setF({ ...f, hora: h, motivo: f.motivo || servicioEn(agendaSel, f.fecha, h) })}
-                      className={`rounded-xl border py-2 text-sm font-semibold tabular-nums transition-all duration-200 ${ocupado ? "cursor-not-allowed border-border bg-secondary/40 text-muted-foreground/40 line-through" : f.hora === h ? "pn-acc-tile scale-105 border-transparent text-white" : "border-border bg-card hover:border-[rgba(var(--acc),.5)]"}`}>
-                      {hora12(h)}
-                      {servicioEn(agendaSel, f.fecha, h) && <span className="block text-[9px] font-medium opacity-70">{servicioEn(agendaSel, f.fecha, h)}</span>}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">
+                  {slots.map(({ h, ocupado }) => {
+                    const [num, ...suf] = hora12(h).split(" ");
+                    const on = f.hora === h;
+                    return (
+                      <button key={h} type="button" disabled={ocupado} onClick={() => setF({ ...f, hora: h, motivo: f.motivo || servicioEn(agendaSel, f.fecha, h) })}
+                        className={`rounded-2xl px-1 py-2 tabular-nums transition-all duration-200 ${ocupado ? "cursor-not-allowed bg-secondary/40 text-muted-foreground/40" : on ? "pn-acc-tile scale-[1.03] text-white shadow-lg" : "pn-field ring-1 ring-slate-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-[rgba(var(--acc),.5)] dark:ring-white/10"}`}>
+                        <span className={`whitespace-nowrap ${ocupado ? "line-through" : ""}`}><span className="text-[15px] font-semibold">{num}</span> <span className={`text-[10px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{suf.join(" ")}</span></span>
+                        {servicioEn(agendaSel, f.fecha, h) && <span className={`block truncate text-[9px] font-medium ${on ? "text-white/75" : "text-muted-foreground"}`}>{ocupado ? "Ocupado" : servicioEn(agendaSel, f.fecha, h)}</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -2152,8 +2182,16 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
               <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">4</span> Paciente y motivo</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="relative">
+                  <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input id="nt-dni" required inputMode="numeric" placeholder="Cédula del paciente *" value={f.dni} onChange={(e) => {
+                    const dni = limpiarDoc(e.target.value);
+                    const c = dni.length >= 5 ? conocidos.find((x) => x.dni === dni) : undefined;
+                    setF({ ...f, dni, ...(c && !f.paciente ? { paciente: c.nombre, telefono: f.telefono || c.telefono || "" } : {}) });
+                  }} className={inp + " pl-10"} />
+                </div>
+                <div className="relative">
                   <Users className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input id="nt-paciente" required placeholder="Nombre y apellido" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp + " pl-10"} />
+                  <input id="nt-paciente" required placeholder="Nombre y apellido *" value={f.paciente} onChange={(e) => setF({ ...f, paciente: nombrePropio(e.target.value) })} className={inp + " pl-10"} />
                 </div>
                 <div className="relative">
                   <Send className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2811,7 +2849,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
           <form onSubmit={registrar} className="space-y-4">
             {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro de la cita atendida de {f.paciente}</p>}
             <div className="grid grid-cols-[1.5fr_1fr] gap-3">
-              <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: e.target.value })} className={inp} /></Campo>
+              <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: nombrePropio(e.target.value) })} className={inp} /></Campo>
               <Campo label="Cédula"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
             </div>
             <datalist id="pacientes-cobro">{Array.from(new Set(turnos.map((t) => t.paciente))).map((p) => <option key={p} value={p} />)}</datalist>
@@ -3072,7 +3110,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
       <div className="grid gap-6 xl:grid-cols-2">
         <Seccion icon={Users} titulo="Equipo que cobra" sub="Secretarias y administrativos" delay={0.2}>
           <form onSubmit={agregarPersona} className="mb-4 grid gap-2 sm:grid-cols-[1.4fr_1fr_auto]">
-            <input placeholder="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} className={inp} />
+            <input placeholder="Nombre y apellido" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: nombrePropio(e.target.value) })} className={inp} />
             <select value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className={inp}>{["Secretaria", "Recepción", "Administración", "Facturación"].map((r) => <option key={r}>{r}</option>)}</select>
             <Button type="submit" variant="outline" className="h-11 rounded-xl"><Plus className="size-4" /> Agregar</Button>
           </form>
@@ -4228,7 +4266,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
     }
     const nuevo: PacientePortal = {
       id: nuevoId(),
-      nombre: f.nombre.trim(),
+      nombre: nombrePropio(f.nombre).trim(),
       dni,
       telefono: f.telefono.trim(),
       email: f.email.trim(),
@@ -4364,7 +4402,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
             </div>
           ) : (
             <form onSubmit={invitar} className="space-y-4">
-              <Campo label="Nombre y apellido"><input id="inv-nombre" required placeholder="Ej.: María Fernanda López" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className={inp} /></Campo>
+              <Campo label="Nombre y apellido"><input id="inv-nombre" required placeholder="Ej.: María Fernanda López" value={f.nombre} onChange={(e) => setF({ ...f, nombre: nombrePropio(e.target.value) })} className={inp} /></Campo>
               <div className="grid grid-cols-2 gap-3">
                 <Campo label="Cédula"><input required inputMode="numeric" placeholder="1002240625" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
                 <Campo label="Celular (WhatsApp)"><input required type="tel" placeholder="300 123 4567" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} className={inp} /></Campo>
@@ -5562,7 +5600,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (!editando) return;
-    const limpio = JSON.parse(JSON.stringify({ ...editando, nombre: editando.nombre.trim(), dni: editando.dni.replace(/\D/g, "") })) as PacienteClinica;
+    const limpio = JSON.parse(JSON.stringify({ ...editando, nombre: nombrePropio(editando.nombre).trim(), dni: limpiarDoc(editando.dni) })) as PacienteClinica;
     const existe = leerDato<PacienteClinica[]>(KEY_PADRON, []).some((x) => x.id === limpio.id);
     setPadron((prev) => (existe ? prev.map((x) => (x.id === limpio.id ? limpio : x)) : [limpio, ...prev]));
     log(existe ? "Paciente actualizado" : "Paciente nuevo", `${limpio.nombre} · C.C. ${limpio.dni}`);
@@ -5730,7 +5768,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <button type="button" onClick={() => setEditando(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Campo label="Nombre y apellido" className="sm:col-span-2"><input required value={editando.nombre} onChange={set("nombre")} className={inp} /></Campo>
+            <Campo label="Nombre y apellido" className="sm:col-span-2"><input required value={editando.nombre} onChange={(e) => setEditando({ ...editando, nombre: nombrePropio(e.target.value) })} className={inp} /></Campo>
             <Campo label="Tipo de documento">
               <select value={editando.tipoDoc ?? "CC"} onChange={set("tipoDoc")} className={inp}>
                 {TIPOS_DOC.map(([v, l]) => <option key={v} value={v}>{l}</option>)}

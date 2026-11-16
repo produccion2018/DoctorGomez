@@ -581,8 +581,16 @@ export const leerColeccion = createServerFn({ method: "GET" })
       else if (c.DEL_PACIENTE.includes(data.coleccion)) filas = filas.filter((t) => t["pacienteId"] === q.id);
       else filas = [];
     }
-    return { ok: true, json: JSON.stringify(filas) };
+    return { ok: true, json: JSON.stringify(await nombresBienEscritos(data.coleccion, filas)) };
   });
+
+/** Nombres de pacientes siempre con mayúscula inicial ("maría pérez" → "María Pérez"), vengan de donde vengan. */
+async function nombresBienEscritos<T extends Record<string, unknown>>(coleccion: string, filas: T[]): Promise<T[]> {
+  const campo = coleccion === "gb_turnos" ? "paciente" : coleccion === "gb_padron" || coleccion === "gb_pacientes" ? "nombre" : null;
+  if (!campo) return filas;
+  const { nombrePropio } = await import("./auth-local");
+  return filas.map((f) => (typeof f[campo] === "string" ? { ...f, [campo]: nombrePropio(f[campo] as string).trim() } : f));
+}
 
 /** Aplica cambios fila por fila (así dos personas pueden trabajar a la vez sin pisarse). */
 export const aplicarCambios = createServerFn({ method: "POST" })
@@ -592,7 +600,7 @@ export const aplicarCambios = createServerFn({ method: "POST" })
     if (!c.esColeccion(data.coleccion)) return { ok: false, error: "Colección no habilitada." };
     const q = await quienSoy();
     if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
-    const filas = data.upserts.map((x) => JSON.parse(x) as Record<string, unknown> & { id: string }).filter((f) => typeof f.id === "string" && f.id);
+    const filas = (await nombresBienEscritos(data.coleccion, data.upserts.map((x) => JSON.parse(x) as Record<string, unknown> & { id: string }))).filter((f) => typeof f.id === "string" && f.id);
 
     // Auditoría: cualquiera agrega eventos, nadie los cambia ni los borra (salvo los médicos)
     if (data.coleccion === "gb_audit" && !(q.tipo === "staff" && q.medico)) {
@@ -740,23 +748,27 @@ export const horariosOcupados = createServerFn({ method: "GET" })
 
 /** Reserva desde la web pública (sin cuenta). */
 export const reservarTurnoPublico = createServerFn({ method: "POST" })
-  .validator((d: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string }) => d)
+  .validator((d: { fecha: string; hora: string; paciente: string; doctor: string; motivo: string; telefono: string; email: string; servicio?: string; dni?: string; tipoDoc?: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ id: string }>> => {
     const c = await colecciones();
+    const { nombrePropio, limpiarDoc } = await import("./auth-local");
     const limpio = (s: string, n: number) => String(s ?? "").trim().slice(0, n);
     const t = {
       id: (await modulo()).tokenAleatorio(5),
       fecha: limpio(data.fecha, 10),
       hora: limpio(data.hora, 5),
-      paciente: limpio(data.paciente, 120),
+      paciente: nombrePropio(limpio(data.paciente, 120)).trim(),
+      dni: limpiarDoc(data.dni ?? ""),
+      tipoDoc: limpio(data.tipoDoc ?? "CC", 4) || "CC",
       doctor: limpio(data.doctor, 120),
       motivo: limpio(data.motivo, 300),
       telefono: limpio(data.telefono, 40),
-      email: limpio(data.email, 120),
+      email: limpio(data.email, 120).toLowerCase(),
       estado: "Pendiente",
       origen: "web",
     };
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.fecha) || !/^\d{2}:\d{2}$/.test(t.hora) || t.paciente.length < 3 || !t.telefono) return { ok: false, error: "Faltan datos de la cita." };
+    if (t.dni.length < 5) return { ok: false, error: "El número de documento es obligatorio." };
     const servicio = data.servicio ? limpio(data.servicio, 80) : undefined;
     const malo = await validarHorario(t.doctor, t.fecha, t.hora, servicio);
     if (malo) return { ok: false, error: malo };

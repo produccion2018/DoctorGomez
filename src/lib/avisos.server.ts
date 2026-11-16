@@ -106,6 +106,7 @@ const marco = (titulo: string, cuerpo: string) => `<div style="font-family:Arial
 const fichaCita = (t: Cita) => `<table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0 16px">
   ${[
     ["Paciente", t["paciente"]],
+    ["Documento", t["dni"] ? `${t["tipoDoc"] ?? "CC"} ${t["dni"]}` : ""],
     ["Día", fechaLarga(t["fecha"])],
     ["Hora", h12(t["hora"])],
     ["Profesional", t["doctor"]],
