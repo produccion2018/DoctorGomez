@@ -110,6 +110,7 @@ import {
   Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
+import { confirmar as preguntar } from "@/components/confirmar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import {
@@ -3948,9 +3949,9 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
     setSel(id);
     toast.success("Profesional agregado. Ahora carga sus días y horarios.");
   };
-  const quitarProfesional = () => {
+  const quitarProfesional = async () => {
     if (ADMIN_IDS.includes(sel) || !propia) return;
-    if (!window.confirm(`¿Quitar a ${prof.nombre} de la agenda? Deja de aparecer para pedir citas.`)) return;
+    if (!(await preguntar({ titulo: `¿Quitar a ${prof.nombre} de la agenda?`, texto: "Deja de aparecer para pedir citas.", aceptar: "Sí, quitar" }))) return;
     setAgendas((p) => {
       const c = { ...p };
       delete c[sel];
@@ -4715,7 +4716,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                     {revocado ? (
                       <button onClick={() => cambiarPaciente(p.id, { estado: "Invitado", codigo: nuevoCodigo() }, "Acceso al portal reactivado")} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-sky-50 px-3 text-xs font-semibold text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300">Reactivar acceso</button>
                     ) : (
-                      <button onClick={() => { if (window.confirm(`¿Quitarle el acceso al portal a ${p.nombre}?`)) cambiarPaciente(p.id, { estado: "Revocado" }, "Acceso al portal quitado"); }} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"><Ban className="size-3.5" /> Quitar acceso</button>
+                      <button onClick={async () => { if (await preguntar({ titulo: `¿Quitarle el acceso al portal a ${p.nombre}?`, texto: "No podrá entrar a su portal hasta que se lo reactive.", aceptar: "Sí, quitar acceso" })) cambiarPaciente(p.id, { estado: "Revocado" }, "Acceso al portal quitado"); }} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"><Ban className="size-3.5" /> Quitar acceso</button>
                     )}
                   </div>
                 </div>
@@ -5220,8 +5221,8 @@ function FichaHC({
   };
   const confirmarNotas = (ids: string[]) => cambiarNotas(ids, () => ({ estado: "Confirmado", confirmadoPor: user.nombre, confirmadoEl: ahoraIso() }), "Registro de enfermería confirmado");
   const pendienteNotas = (ids: string[]) => cambiarNotas(ids, () => ({ estado: "Pendiente" }), "Registro de enfermería marcado pendiente");
-  const borrarNotas = (ids: string[]) => {
-    if (!window.confirm(ids.length === 1 ? "¿Eliminar este registro? Queda guardado en la auditoría, pero ya no se muestra." : `¿Eliminar ${ids.length} registros? Quedan guardados en la auditoría, pero ya no se muestran.`)) return;
+  const borrarNotas = async (ids: string[]) => {
+    if (!(await preguntar({ titulo: ids.length === 1 ? "¿Eliminar este registro?" : `¿Eliminar ${ids.length} registros?`, texto: "Deja de mostrarse en la historia, pero queda guardado en la auditoría de la clínica." }))) return;
     cambiarNotas(ids, () => ({ anulada: true, anuladaPor: user.nombre, anuladaEl: ahoraIso() }), "Registro de enfermería eliminado");
     toast.success(ids.length === 1 ? "Registro eliminado." : `${ids.length} registros eliminados.`);
   };
@@ -5474,7 +5475,7 @@ function FichaHC({
                         <div className="ml-auto flex items-center gap-1">
                           <button onClick={() => imprimirHtml(htmlEvolucion(p, e))} className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground">Imprimir</button>
                           {e.doctor === user.nombre && (
-                            <button onClick={() => { if (window.confirm("¿Eliminar esta evolución?")) onBorrar(e.id); }} className="rounded-lg p-1 text-muted-foreground opacity-0 transition hover:text-red-600 group-hover:opacity-100" aria-label="Eliminar evolución"><Trash2 className="size-3.5" /></button>
+                            <button onClick={async () => { if (await preguntar({ titulo: "¿Eliminar esta evolución?", texto: "Se quita de la historia clínica del paciente." })) onBorrar(e.id); }} className="rounded-lg p-1 text-muted-foreground opacity-0 transition hover:text-red-600 group-hover:opacity-100" aria-label="Eliminar evolución"><Trash2 className="size-3.5" /></button>
                           )}
                         </div>
                       </header>
@@ -6919,7 +6920,7 @@ function DocumentosPaciente({ p, user, log, soloLectura = false, compacto = fals
                     <div className="flex shrink-0 flex-col gap-1">
                       <button type="button" onClick={() => void ver(d)} disabled={abriendo === d.id} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:-translate-y-0.5">{abriendo === d.id ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />} Ver</button>
                       {!soloLectura && !compacto && (
-                        <button type="button" onClick={async () => { if (!window.confirm(`¿Eliminar "${d.nombre}"?`)) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else { log("Documento eliminado", `${p.nombre} · ${d.nombre}`); toast.success("Documento eliminado."); } }} className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="size-3" /> Eliminar</button>
+                        <button type="button" onClick={async () => { if (!(await preguntar({ titulo: "¿Eliminar este documento?", texto: d.nombre }))) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else { log("Documento eliminado", `${p.nombre} · ${d.nombre}`); toast.success("Documento eliminado."); } }} className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="size-3" /> Eliminar</button>
                       )}
                     </div>
                   </li>
@@ -9205,7 +9206,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                   <button
                     title="Si perdió o cambió el celular: la próxima vez que entre configura la verificación de nuevo"
                     onClick={async () => {
-                      if (!window.confirm(`¿Restablecer la verificación en dos pasos de ${n.nombre}? Úselo si perdió o cambió el celular.`)) return;
+                      if (!(await preguntar({ tono: "aviso", titulo: "¿Restablecer la verificación en dos pasos?", texto: `${n.nombre} la configura de nuevo al entrar. Úselo si perdió o cambió el celular.`, aceptar: "Restablecer" }))) return;
                       const r = await restablecer2fa(n.id);
                       if (!r.ok) return toast.error(r.error);
                       log("Restableció la verificación en dos pasos", n.nombre);
@@ -9653,8 +9654,8 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
     setImportante(false);
     setEmojis(false);
   };
-  const borrar = (m: Mensaje) => {
-    if (!window.confirm("¿Borrar este mensaje?")) return;
+  const borrar = async (m: Mensaje) => {
+    if (!(await preguntar({ titulo: "¿Borrar este mensaje?", texto: "Se borra para todo el equipo.", aceptar: "Sí, borrar" }))) return;
     setMsgs((p) => p.filter((x) => x.id !== m.id));
   };
   const diaTxt = (iso: string) => {
@@ -10028,7 +10029,7 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
   const ir = async (ev: FormEvent) => {
     ev.preventDefault();
     const o = opciones.find((x) => x.id === id);
-    if (!o || !window.confirm(`¿Restablecer la verificación en dos pasos de ${o.nombre}? Va a tener que configurarla de nuevo al entrar.`)) return;
+    if (!o || !(await preguntar({ tono: "aviso", titulo: "¿Restablecer la verificación en dos pasos?", texto: `${o.nombre} va a tener que configurarla de nuevo al entrar.`, aceptar: "Restablecer" }))) return;
     const r = await restablecer2fa(id);
     if (!r.ok) return toast.error(r.error);
     toast.success("Listo. La próxima vez que entre, la configura de nuevo.");
@@ -10453,8 +10454,8 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLe
   };
   const confirmar = (ids: string[]) => cambiar(ids, () => ({ estado: "Confirmado", confirmadoPor: user.nombre, confirmadoEl: ahora() }), "Registro de enfermería confirmado");
   const pendiente = (ids: string[]) => cambiar(ids, () => ({ estado: "Pendiente" }), "Registro de enfermería marcado pendiente");
-  const borrar = (ids: string[]) => {
-    if (!window.confirm(ids.length === 1 ? "¿Eliminar este registro? Queda guardado en la auditoría, pero ya no se muestra." : `¿Eliminar ${ids.length} registros? Quedan guardados en la auditoría, pero ya no se muestran.`)) return;
+  const borrar = async (ids: string[]) => {
+    if (!(await preguntar({ titulo: ids.length === 1 ? "¿Eliminar este registro?" : `¿Eliminar ${ids.length} registros?`, texto: "Deja de mostrarse en la historia, pero queda guardado en la auditoría de la clínica." }))) return;
     cambiar(ids, () => ({ anulada: true, anuladaPor: user.nombre, anuladaEl: ahora() }), "Registro de enfermería eliminado");
     toast.success(ids.length === 1 ? "Registro eliminado." : `${ids.length} registros eliminados.`);
   };

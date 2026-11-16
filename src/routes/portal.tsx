@@ -44,6 +44,7 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { confirmar } from "@/components/confirmar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { waLink, Electro, InstalarApp, CalendarioMes, SelectorHorarios } from "@/components/site/PublicLayout";
@@ -1555,7 +1556,7 @@ function SubirResultados({ ctx }: { ctx: Ctx }) {
                   {d.vistoPor ? <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">✓ Visto por su médico</span> : <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">Enviado</span>}
                   <Button size="sm" variant="ghost" className="rounded-lg" onClick={async () => { const r = await abrirDocumento(d.id); if (!r.ok) toast.error(r.error); }}><Eye className="size-4" /> Ver</Button>
                   {d.origen === "paciente" && !d.vistoPor && (
-                    <button onClick={async () => { if (!window.confirm(`¿Borrar "${d.nombre}"?`)) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else toast.success("Documento borrado."); }} aria-label="Borrar" className="rounded-lg p-1.5 text-muted-foreground hover:text-rose-600"><Trash2 className="size-4" /></button>
+                    <button onClick={async () => { if (!(await confirmar({ titulo: "¿Borrar este documento?", texto: `${d.nombre} · ya no lo verá su médico.`, aceptar: "Sí, borrar" }))) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else toast.success("Documento borrado."); }} aria-label="Borrar" className="rounded-lg p-1.5 text-muted-foreground hover:text-rose-600"><Trash2 className="size-4" /></button>
                   )}
                 </li>
               );
