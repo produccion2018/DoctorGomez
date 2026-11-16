@@ -1628,21 +1628,51 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
         <Seccion icon={CalendarCheck} titulo="Próximas citas" sub="Pendientes y confirmadas" delay={0.25} className="xl:col-span-3"
           acciones={<Button size="sm" variant="ghost" className="rounded-lg text-primary" onClick={() => irA("turnos")}>Ver agenda <ArrowUpRight className="size-4" /></Button>}>
           {proximos.length === 0 && <Vacio icon={CalendarDays} titulo="Agenda libre" texto="Todavía no hay citas. Las que se reserven desde la web o se creen aquí van a aparecer en esta lista." accion={<Button onClick={() => irA("turnos")} className="rounded-xl"><Plus className="size-4" /> Crear cita</Button>} />}
-          <div className="space-y-2">
-            {proximos.map((t) => (
-              <div key={t.id} className="flex items-center gap-3 rounded-xl border border-transparent p-2.5 transition-colors hover:border-border hover:bg-secondary/40">
-                <div className="flex w-[4.75rem] shrink-0 flex-col items-center rounded-xl bg-primary/[0.07] px-1 py-2 ring-1 ring-primary/10 dark:bg-white/5 dark:ring-white/10">
-                  <span className="whitespace-nowrap leading-none text-primary dark:text-sky-300"><span className="text-base font-bold tabular-nums">{hora12(t.hora).split(" ")[0]}</span> <span className="text-[10px] font-semibold">{hora12(t.hora).split(" ").slice(1).join(" ")}</span></span>
-                  <span className="mt-1 whitespace-nowrap text-[10px] font-medium text-muted-foreground first-letter:uppercase">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "").replace(",", "")}</span>
+          <div className="space-y-5">
+            {[...new Set(proximos.map((t) => t.fecha))].map((f) => {
+              const delDia = proximos.filter((t) => t.fecha === f);
+              const dif = Math.round((new Date(f + "T12:00:00").getTime() - new Date(hoy() + "T12:00:00").getTime()) / 86400000);
+              const titulo = dif === 0 ? "Hoy" : dif === 1 ? "Mañana" : new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+              return (
+                <div key={f}>
+                  <div className="mb-2.5 flex items-center gap-3">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${dif === 0 ? "bg-emerald-500 text-white shadow-[0_6px_14px_-6px_rgba(16,185,129,.9)]" : "bg-[#0b2a6b] text-white"}`}>
+                      {dif === 0 && <span className="size-1.5 animate-pulse rounded-full bg-white" />}<span className="first-letter:uppercase">{titulo}</span>
+                    </span>
+                    <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent dark:from-white/15" />
+                    <span className="text-[11px] font-semibold text-muted-foreground">{delDia.length} {delDia.length === 1 ? "cita" : "citas"}</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {delDia.map((t) => {
+                      const [num, ...suf] = hora12(t.hora).split(" ");
+                      const [servicio, ...resto] = (t.motivo || "Consulta").split(" · ");
+                      const foto = fotoDe(ADMINS.find((a) => a.nombre === t.doctor)?.id ?? "");
+                      return (
+                        <div key={t.id} className="group relative flex items-center gap-3.5 overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-r from-white to-slate-50/70 p-3 pr-4 shadow-[0_2px_6px_rgba(15,23,42,.04),0_12px_24px_-16px_rgba(15,35,80,.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-18px_rgba(15,35,80,.45)] dark:border-white/10 dark:from-white/[0.04] dark:to-white/[0.02]">
+                          <span className={`absolute inset-y-0 left-0 w-1.5 ${ESTADO_DOT[t.estado]}`} />
+                          <div className="ml-1 flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] py-2.5 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)]">
+                            <span className="font-display text-xl font-semibold leading-none tabular-nums">{num}</span>
+                            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
+                          </div>
+                          <Avatar nombre={t.paciente} size="size-11" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[15px] font-semibold">{nombreCorto(t.paciente)}</p>
+                            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                              <span className="rounded-md bg-[rgba(var(--acc),.12)] px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--acc))]">{servicio}</span>
+                              {resto.length > 0 && <span className="truncate text-xs text-muted-foreground">{resto.join(" · ")}</span>}
+                            </div>
+                            <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+                              {foto ? <img src={foto} alt="" className="size-4 rounded-full object-cover object-top" /> : <Stethoscope className="size-3" />} {nombreCorto(t.doctor)}
+                            </p>
+                          </div>
+                          <Estadito estado={t.estado} />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <Avatar nombre={t.paciente} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{t.paciente}</p>
-                  <p className="truncate text-xs text-muted-foreground">{t.motivo} · {nombreCorto(t.doctor)}</p>
-                </div>
-                <Estadito estado={t.estado} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Seccion>
 
@@ -3353,8 +3383,8 @@ function generarInsights(turnos: Turno[], movs: Mov[]): string[] {
   const ing = movs.filter((m) => m.tipo === "Ingreso").reduce((a, m) => a + m.monto, 0);
   const egr = movs.filter((m) => m.tipo === "Egreso").reduce((a, m) => a + m.monto, 0);
   const out: string[] = [];
-  out.push(deHoy.length ? `Hoy hay ${deHoy.length} cita${deHoy.length === 1 ? "" : "s"}; la próxima es a las ${hora12([...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora)}.` : "Hoy no hay citas agendadas.");
-  if (pend.length) out.push(`${pend.length} cita${pend.length === 1 ? "" : "s"} sigue${pend.length === 1 ? "" : "n"} pendiente${pend.length === 1 ? "" : "s"}: conviene confirmarlos para evitar ausencias.`);
+  out.push(deHoy.length ? `Hoy hay ${deHoy.length} cita${deHoy.length === 1 ? "" : "s"}; la próxima es a las ${hora12([...deHoy].sort((a, b) => a.hora.localeCompare(b.hora))[0]!.hora).replace(/\.$/, "")}.` : "Hoy no hay citas agendadas.");
+  if (pend.length) out.push(`${pend.length} cita${pend.length === 1 ? "" : "s"} sigue${pend.length === 1 ? "" : "n"} pendiente${pend.length === 1 ? "" : "s"}: conviene confirmarla${pend.length === 1 ? "" : "s"} para evitar ausencias.`);
   if (ing + egr > 0) out.push(`Los egresos representan el ${Math.round((egr / Math.max(1, ing)) * 100)}% de los ingresos; balance de ${dinero(ing - egr)}.`);
   return out;
 }
