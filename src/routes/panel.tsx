@@ -187,6 +187,9 @@ import {
   numeroComprobante,
   type ConfigFactura,
   type Tarifa,
+  valorTarifa,
+  saldoFactura,
+  type Glosa,
   KEY_INTEROP,
   TIPOS_DOC,
   type Interop,
@@ -3053,6 +3056,52 @@ function BotonExcel({ cobros, cierres, log }: { cobros: Cobro[]; cierres: Cierre
   );
 }
 
+function BotonMesExcel({ alExportar, log, que }: { alExportar: (mes: string) => Promise<number>; log: LogFn; que: string }) {
+  const [mes, setMes] = useState(hoy().slice(0, 7));
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className={inp + " h-10 w-[150px] px-2.5 text-sm"} aria-label="Mes a exportar" />
+      <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { const n = await alExportar(mes); log(`Exportó ${que} a Excel`, `${mes} · ${n} registros`); toast.success("Excel descargado."); } catch { toast.error("No se pudo generar el Excel."); } setBusy(false); }}
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel
+      </button>
+    </div>
+  );
+}
+
+/** Excel de facturación: comprobantes del mes, sus ítems, la cartera con cada EPS y las glosas. */
+async function exportarFacturacionExcel(mes: string, facturas: Factura[]) {
+  const XLSX = await import("@e965/xlsx");
+  const delMes = facturas.filter((f) => diaLocal(f.fecha).slice(0, 7) === mes).sort((a, b) => a.fecha.localeCompare(b.fecha));
+  const abonado = (f: Factura) => (f.abonos ?? []).reduce((a, x) => a + x.valor, 0);
+  const glosado = (f: Factura, e: Glosa["estado"]) => (f.glosas ?? []).filter((g) => g.estado === e).reduce((a, g) => a + g.valor, 0);
+  const comp = delMes.map((f) => ({
+    Tipo: f.tipo, "Número": f.numero, Fecha: fechaHora(f.fecha), "Paciente o entidad": f.receptor, "Cédula / NIT": f.docReceptor ?? "", Cobertura: f.cobertura, Periodo: f.periodo ?? "",
+    Total: f.tipo === "Nota crédito" ? -f.total : f.total, Estado: f.estado, Saldo: saldoFactura(f), "Corrige factura": f.refFactura?.numero ?? "", "Motivo de anulación": f.anulacion?.motivo ?? f.motivo ?? "", "Emitió": f.emitidaPor,
+  }));
+  const items = delMes.flatMap((f) => f.items.map((i) => ({ "Número": f.numero, Tipo: f.tipo, Fecha: fechaDe(diaLocal(f.fecha)), Cobertura: f.cobertura, CUPS: i.cups ?? "", Servicio: i.desc, Cantidad: i.cant, "Valor unitario": i.precio, Total: i.cant * i.precio })));
+  const cartera = facturas.filter((f) => f.estado !== "Anulada" && f.tipo !== "Nota crédito" && f.cobertura !== "Particular").sort((a, b) => a.cobertura.localeCompare(b.cobertura) || a.fecha.localeCompare(b.fecha)).map((f) => ({
+    EPS: f.cobertura, NIT: f.docReceptor ?? "", "Número": f.numero, Fecha: fechaDe(diaLocal(f.fecha)), Periodo: f.periodo ?? "", Total: f.total, Radicado: f.radicacion?.numero ?? "", "Fecha de radicación": f.radicacion ? fechaDe(f.radicacion.fecha) : "",
+    "Días desde la radicación": f.radicacion && saldoFactura(f) > 0 ? Math.floor((Date.now() - new Date(`${f.radicacion.fecha}T12:00:00`).getTime()) / 86400000) : "",
+    Pagado: abonado(f), "Glosa aceptada": glosado(f, "Aceptada"), "Glosa en discusión": glosado(f, "En discusión"), Saldo: saldoFactura(f), Estado: saldoFactura(f) <= 0 ? "Pagada" : f.radicacion ? "Radicada" : "Sin radicar",
+  }));
+  const glosas = facturas.flatMap((f) => (f.glosas ?? []).map((g) => ({ EPS: f.cobertura, "Cuenta N.º": f.numero, Fecha: fechaDe(diaLocal(g.fecha)), Motivo: g.motivo, Valor: g.valor, Estado: g.estado, "Registró": g.por })));
+  const wb = XLSX.utils.book_new();
+  const hoja = (filas: Record<string, unknown>[], nombre: string, vacio: string) => {
+    const ws = XLSX.utils.json_to_sheet(filas.length ? filas : [{ "": vacio }]);
+    const cols = Object.keys(filas[0] ?? { "": vacio });
+    ws["!cols"] = cols.map((k) => ({ wch: Math.min(48, Math.max(k.length + 2, ...filas.map((f) => String(f[k] ?? "").length + 2))) }));
+    XLSX.utils.book_append_sheet(wb, ws, nombre);
+  };
+  hoja(comp, "Comprobantes del mes", "Sin comprobantes en este mes");
+  hoja(items, "Detalle de servicios", "Sin comprobantes en este mes");
+  hoja(cartera, "Cartera EPS", "Sin cuentas con EPS");
+  hoja(glosas, "Glosas", "Sin glosas");
+  XLSX.writeFile(wb, `HEGO facturación ${mes}.xlsx`);
+  return comp.length;
+}
+
 function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser; log: LogFn }) {
   const [cobros, setCobros] = useDato<Cobro[]>(KEY_COBROS, []);
   const [cierres] = useDato<CierreCaja[]>(KEY_CIERRES, []);
@@ -3061,7 +3110,9 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
   const quienes = useQuienCobra();
   // Precios: los de Facturación → Tarifas; si todavía no se cargaron, los de la lista base.
   const activas = tarifasG.filter((t) => t.activo);
-  const catalogo = activas.length ? activas.map((t) => ({ nombre: t.nombre, precio: t.valor })) : SERVICIOS.map((x) => ({ nombre: x.nombre, precio: x.precio }));
+  const catalogo: { nombre: string; precio: number; t?: Tarifa }[] = activas.length ? activas.map((t) => ({ nombre: t.nombre, precio: t.valor, t })) : SERVICIOS.map((x) => ({ nombre: x.nombre, precio: x.precio }));
+  /** Precio del servicio: convenio con la EPS si existe, si no el particular. */
+  const precioDe = (nombre: string, eps?: string) => { const c = catalogo.find((x) => x.nombre === nombre); return c ? (c.t ? valorTarifa(c.t, eps) : c.precio) : null; };
   const profDe = (nombre: string) => { const sv = SERVICIOS.find((x) => norm(x.nombre) === norm(nombre)); return sv ? nombrePanelDe(sv.doctorId) : null; };
   const base0 = catalogo[0] ?? { nombre: "Otro", precio: 0 };
   const vacio = { paciente: "", dni: "", concepto: base0.nombre, profesional: profDe(base0.nombre) ?? ADMINS[0]!.nombre, valor: String(base0.precio || ""), pagado: String(base0.precio || ""), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "", eps: false, tipoPagoEps: "Cuota moderadora" as (typeof TIPOS_PAGO_EPS)[number], cuota: "", autorizacion: "" };
@@ -3117,9 +3168,8 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogo.map((x) => x.nombre).join("|")]);
   const elegirServicio = (nombre: string) => {
-    const s = catalogo.find((x) => x.nombre === nombre);
     const prof = profDe(nombre);
-    setF((p) => ({ ...p, concepto: nombre, ...(s ? { valor: String(s.precio), pagado: p.eps ? p.pagado : String(s.precio) } : {}), ...(prof ? { profesional: prof } : {}) }));
+    setF((p) => { const v = precioDe(nombre, p.eps ? p.obraSocial : undefined); return { ...p, concepto: nombre, ...(v !== null ? { valor: String(v), pagado: p.eps ? p.pagado : String(v) } : {}), ...(prof ? { profesional: prof } : {}) }; });
   };
 
   const cobrarTurno = (t: Turno) => {
@@ -3127,7 +3177,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
     const s = (sv && catalogo.find((x) => norm(x.nombre) === norm(sv.nombre))) ?? catalogo.find((x) => norm(t.motivo).includes(norm(x.nombre))) ?? (sv ? { nombre: sv.nombre, precio: sv.precio } : base0);
     const p = fichaDe({ pacienteId: t.pacienteId, paciente: t.paciente });
     const conEps = !!(p?.obraSocial && !/particular/i.test(p.obraSocial));
-    setF({ ...vacio, paciente: t.paciente, dni: p?.dni ?? "", concepto: s.nombre, profesional: t.doctor, valor: String(s.precio), pagado: conEps ? "" : String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? p?.id ?? "", eps: conEps, obraSocial: conEps ? p!.obraSocial! : "" });
+    setF({ ...vacio, paciente: t.paciente, dni: p?.dni ?? "", concepto: s.nombre, profesional: t.doctor, valor: String(precioDe(s.nombre, conEps ? p!.obraSocial : undefined) ?? s.precio), pagado: conEps ? "" : String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? p?.id ?? "", eps: conEps, obraSocial: conEps ? p!.obraSocial! : "" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -3221,7 +3271,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                 {catalogo.map((s) => <option key={s.nombre}>{s.nombre}</option>)}
                 <option>Otro</option>
               </select>
-              <p className="mt-1 text-[11px] text-muted-foreground">{activas.length ? "Precio tomado de Facturación → Tarifas." : "Precios de la lista base. Cárguelos en Facturación → Tarifas para usar los suyos."}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{activas.length ? (f.eps && f.obraSocial && catalogo.find((x) => x.nombre === f.concepto)?.t?.porEps && precioDe(f.concepto, f.obraSocial) !== catalogo.find((x) => x.nombre === f.concepto)?.precio ? `Precio del convenio con ${f.obraSocial} (Facturación → Tarifas).` : "Precio tomado de Facturación → Tarifas.") : "Precios de la lista base. Cárguelos en Facturación → Tarifas para usar los suyos."}</p>
             </Campo>
             <Campo label="Profesional">
               <select value={f.profesional} onChange={(e) => setF({ ...f, profesional: e.target.value })} className={inp}>{ADMINS.map((a) => <option key={a.id}>{a.nombre}</option>)}</select>
@@ -3229,13 +3279,13 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             <Campo label="Valor del servicio"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value, ...(f.eps ? {} : { pagado: e.target.value }) })} className={inp + " font-semibold tabular-nums"} /></Campo>
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 dark:bg-white/5">
               {([[false, "Particular"], [true, "EPS / prepagada"]] as const).map(([v, l]) => (
-                <button key={l} type="button" onClick={() => setF({ ...f, eps: v, pagado: v ? String(pagaPaciente({ ...f, eps: true })) : f.valor })} className={`rounded-lg py-2 text-xs font-semibold transition ${f.eps === v ? "bg-card text-[#0b2a6b] shadow-sm dark:text-sky-200" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+                <button key={l} type="button" onClick={() => { const pv = precioDe(f.concepto, v ? f.obraSocial : undefined); const valor = pv !== null ? String(pv) : f.valor; setF({ ...f, eps: v, valor, pagado: v ? String(pagaPaciente({ ...f, eps: true, valor })) : valor }); }} className={`rounded-lg py-2 text-xs font-semibold transition ${f.eps === v ? "bg-card text-[#0b2a6b] shadow-sm dark:text-sky-200" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
               ))}
             </div>
             {f.eps && (
               <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/5">
                 <div className="grid grid-cols-[1.4fr_1fr] gap-3">
-                  <Campo label="EPS"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} placeholder="Sura, Sanitas, Nueva EPS…" className={inp} /></Campo>
+                  <Campo label="EPS"><input value={f.obraSocial} onChange={(e) => { const v = precioDe(f.concepto, e.target.value); setF({ ...f, obraSocial: e.target.value, ...(v !== null ? { valor: String(v) } : {}) }); }} placeholder="Sura, Sanitas, Nueva EPS…" className={inp} /></Campo>
                   <Campo label="N° de autorización"><input value={f.autorizacion} onChange={(e) => setF({ ...f, autorizacion: e.target.value })} placeholder="Opcional" className={inp} /></Campo>
                 </div>
                 <div>
@@ -7495,15 +7545,16 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
 /* ═══════════════════════ PAGOS Y FACTURACIÓN ═══════════════════════ */
 type VistaFact = "comprobantes" | "porfacturar" | "obras" | "tarifas" | "datos";
 const ESTADO_FACT: Record<Factura["estado"], string> = {
-  Emitida: "bg-amber-100 text-amber-800 ring-amber-200",
-  Cobrada: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  Anulada: "bg-red-100 text-red-700 ring-red-200",
+  Emitida: "bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10",
+  Cobrada: "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10",
+  Anulada: "bg-red-50 text-red-700 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20",
 };
 
 function htmlFactura(f: Factura, c: ConfigFactura = {}) {
   const logo = `${location.origin}${logoClinica}`;
   const esc = (x: unknown) => String(x ?? "").replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch]!);
-  const filas = f.items.map((i, n) => `<tr><td class="c">${n + 1}</td><td>${esc(i.desc)}</td><td class="c">${i.cant}</td><td class="r">${dinero(i.precio)}</td><td class="r b">${dinero(i.cant * i.precio)}</td></tr>`).join("");
+  const conCups = f.items.some((i) => i.cups);
+  const filas = f.items.map((i, n) => `<tr><td class="c">${n + 1}</td>${conCups ? `<td class="c">${esc(i.cups ?? "")}</td>` : ""}<td>${esc(i.desc)}</td><td class="c">${i.cant}</td><td class="r">${dinero(i.precio)}</td><td class="r b">${dinero(i.cant * i.precio)}</td></tr>`).join("");
   const datos = [c.nit && `NIT ${esc(c.nit)}`, c.habilitacion && `Cód. habilitación ${esc(c.habilitacion)}`, c.direccion && esc(c.direccion), c.ciudad && esc(c.ciudad), c.telefono && `Tel. ${esc(c.telefono)}`, c.correo && esc(c.correo)].filter(Boolean).join(" · ");
   const resol = f.tipo.startsWith("Factura") && c.resolucion
     ? `Autorización de numeración de facturación DIAN N.º ${esc(c.resolucion)}${c.fechaResolucion ? ` del ${esc(fechaDe(c.fechaResolucion))}` : ""}${c.prefijo ? `, prefijo ${esc(c.prefijo)}` : ""}${c.desde && c.hasta ? `, del ${c.desde} al ${c.hasta}` : ""}${c.vigenciaHasta ? `, vigente hasta ${esc(fechaDe(c.vigenciaHasta))}` : ""}.`
@@ -7535,10 +7586,12 @@ ${datos ? `<div class="datos">${datos}</div>` : ""}
 <div class="cuerpo">
 <div class="cajas"><div class="caja"><div class="l">${f.cobertura === "Particular" ? "Paciente" : "Paciente / adquiriente"}</div><div class="v">${esc(f.receptor)}</div><div class="s">${esc(f.docReceptor || "")}</div></div>
 <div class="caja"><div class="l">Cobertura</div><div class="v">${esc(f.cobertura)}</div><div class="s">Atendió: ${esc(f.emitidaPor)}</div></div></div>
-<table><thead><tr><th class="c">#</th><th>Servicio</th><th class="c">Cant.</th><th class="r">Valor unitario</th><th class="r">Total</th></tr></thead><tbody>${filas}</tbody></table>
+${f.tipo === "Nota crédito" && f.refFactura ? `<div class="caja" style="margin-top:14px;border-color:#fecaca;background:#fff7f7"><div class="l">Corrige la factura</div><div class="v">N.º ${esc(f.refFactura.numero)}</div><div class="s">Motivo: ${esc(f.motivo ?? "")}</div></div>` : ""}
+${f.periodo ? `<p style="margin:14px 0 0;font-size:12px;color:#475569">Periodo facturado: <b>${esc(f.periodo)}</b></p>` : ""}
+<table><thead><tr><th class="c">#</th>${conCups ? '<th class="c">CUPS</th>' : ""}<th>Servicio</th><th class="c">Cant.</th><th class="r">Valor unitario</th><th class="r">Total</th></tr></thead><tbody>${filas}</tbody></table>
 <div class="tot"><p class="letras">Son: <b>${esc(enLetras(f.total))}</b></p>
 <div class="suma"><div><span>Subtotal</span><span>${dinero(f.total)}</span></div><div><span>IVA</span><span>Excluido</span></div><div class="g"><span>Total</span><span>${dinero(f.total)}</span></div></div></div>
-<p class="nota">${resol ? `${resol}<br>` : ""}${esc(c.responsabilidadIva || "Servicios de salud excluidos de IVA (art. 476, num. 1, del Estatuto Tributario).")}<br>${f.tipo.startsWith("Factura") ? "Representación interna del comprobante. La factura electrónica de venta (con CUFE) se emite al conectar el proveedor de facturación electrónica autorizado por la DIAN." : "Documento interno de la clínica."}${c.pie ? `<br>${esc(c.pie)}` : ""}</p>
+<p class="nota">${f.anulacion ? `<b style="color:#b91c1c">Anulada el ${esc(fechaDe(f.anulacion.fecha))} por ${esc(f.anulacion.por)}. Motivo: ${esc(f.anulacion.motivo)}${f.anulacion.notaCredito ? ` · Nota crédito N.º ${esc(f.anulacion.notaCredito)}` : ""}</b><br>` : ""}${resol ? `${resol}<br>` : ""}${esc(c.responsabilidadIva || "Servicios de salud excluidos de IVA (art. 476, num. 1, del Estatuto Tributario).")}<br>${f.tipo.startsWith("Factura") ? "Representación interna del comprobante. La factura electrónica de venta (con CUFE) se emite al conectar el proveedor de facturación electrónica autorizado por la DIAN." : "Documento interno de la clínica."}${c.pie ? `<br>${esc(c.pie)}` : ""}</p>
 </div></div><script>setTimeout(()=>window.print(),400)</script></body></html>`;
 }
 
@@ -7554,6 +7607,13 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
   const [cobros] = useDato<Cobro[]>(KEY_COBROS, []);
   const [form, setForm] = useState<Omit<Factura, "id" | "numero" | "estado" | "emitidaPor" | "total"> | null>(null);
   const [q, setQ] = useState("");
+  const [anulando, setAnulando] = useState<{ id: string; motivo: string } | null>(null);
+  const [accion, setAccion] = useState<{ id: string; tipo: "radicar" | "glosa" | "abono"; a: string; b: string } | null>(null);
+  const tarifaDe = (desc: string) => activas.find((x) => norm(x.nombre) === norm(desc));
+  const epsConocidas = [...new Set([...cobros.map((c) => c.obraSocial), ...facturas.map((f) => f.cobertura), ...pacientes.map((p) => p.ficha?.obraSocial)].filter((x): x is string => !!x && !/^particular$/i.test(x.trim())).map((x) => x.trim()))].sort();
+  /** Aplica un cambio a un comprobante y recalcula si quedó cobrado. */
+  const actualizar = (id: string, fn: (f: Factura) => Factura) =>
+    setFacturas((l) => l.map((x) => { if (x.id !== id) return x; const n = fn(x); return n.estado === "Anulada" ? n : { ...n, estado: saldoFactura(n) <= 0 ? "Cobrada" : "Emitida" }; }));
 
   /** Sin servidor (modo local): numera con el prefijo y el siguiente número. */
   const proximoNumero = (tipo: TipoComprobante) => {
@@ -7576,7 +7636,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
     setEmitiendo(false);
     if (r && !r.ok) { toast.error(r.error); return; }
     const numero = r ? r.numero : proximoNumero(form.tipo);
-    const f = JSON.parse(JSON.stringify({ ...form, receptor: nombrePropio(form.receptor).trim(), id: nuevoId(), numero, estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
+    const f = JSON.parse(JSON.stringify({ ...form, receptor: form.cobrosEps ? form.receptor.trim() : nombrePropio(form.receptor).trim(), id: nuevoId(), numero, estado: form.cobroId ? "Cobrada" : "Emitida", emitidaPor: user.nombre, total })) as Factura;
     setFacturas((prev) => [f, ...prev]);
     log("Comprobante emitido", `${f.tipo} ${f.numero} · ${f.receptor} · ${dinero(total)}`);
     toast.success(`${f.tipo} N.º ${f.numero} emitida`);
@@ -7584,18 +7644,87 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
     imprimirHtml(htmlFactura(f, config));
   };
 
+  const anularComp = async (f: Factura, motivo: string) => {
+    if (motivo.trim().length < 5) { toast.error("Escriba el motivo de la anulación."); return; }
+    let notaCredito: string | undefined;
+    if (f.tipo === "Factura de venta") {
+      const r = await numeroComprobante("Nota crédito");
+      if (r && !r.ok) { toast.error(r.error); return; }
+      notaCredito = r ? r.numero : `NC-${facturas.filter((x) => x.tipo === "Nota crédito").length + 1}`;
+      const nc: Factura = { id: nuevoId(), numero: notaCredito, tipo: "Nota crédito", fecha: new Date().toISOString(), receptor: f.receptor, ...(f.docReceptor ? { docReceptor: f.docReceptor } : {}), cobertura: f.cobertura, items: f.items, total: f.total, estado: "Emitida", refFactura: { id: f.id, numero: f.numero }, motivo: motivo.trim(), emitidaPor: user.nombre };
+      setFacturas((l) => [nc, ...l]);
+      imprimirHtml(htmlFactura(nc, config));
+    }
+    setFacturas((l) => l.map((x) => (x.id === f.id ? { ...x, estado: "Anulada", anulacion: { por: user.nombre, motivo: motivo.trim(), fecha: new Date().toISOString(), ...(notaCredito ? { notaCredito } : {}) } } : x)));
+    log("Comprobante anulado", `${f.tipo} ${f.numero} · motivo: ${motivo.trim()}${notaCredito ? ` · nota crédito ${notaCredito}` : ""}`);
+    toast.success(notaCredito ? `Factura anulada con la nota crédito N.º ${notaCredito}.` : "Comprobante anulado.");
+    setAnulando(null);
+  };
+  const guardarAccion = () => {
+    if (!accion) return;
+    const f = facturas.find((x) => x.id === accion.id);
+    if (!f) return;
+    const ahora = new Date().toISOString();
+    if (accion.tipo === "radicar") {
+      if (!accion.a.trim()) { toast.error("Escriba el número de radicado."); return; }
+      actualizar(f.id, (x) => ({ ...x, radicacion: { numero: accion.a.trim(), fecha: accion.b || hoy(), por: user.nombre } }));
+      log("Cuenta radicada en la EPS", `${f.cobertura} · ${f.numero} · radicado ${accion.a.trim()}`);
+      toast.success("Radicación guardada.");
+    } else if (accion.tipo === "glosa") {
+      const valor = Number(accion.b.replace(/\D/g, ""));
+      if (!accion.a.trim() || !valor) { toast.error("Escriba el motivo y el valor de la glosa."); return; }
+      if (valor > saldoFactura(f)) { toast.error(`La glosa no puede superar el saldo (${dinero(saldoFactura(f))}).`); return; }
+      const g: Glosa = { id: nuevoId(), fecha: ahora, motivo: accion.a.trim(), valor, estado: "En discusión", por: user.nombre };
+      actualizar(f.id, (x) => ({ ...x, glosas: [...(x.glosas ?? []), g] }));
+      log("Glosa registrada", `${f.cobertura} · ${f.numero} · ${dinero(valor)} · ${g.motivo}`);
+      toast.success("Glosa registrada.");
+    } else {
+      const valor = Number(accion.a.replace(/\D/g, ""));
+      if (!valor || valor > saldoFactura(f)) { toast.error(`Ingrese un valor entre $1 y ${dinero(saldoFactura(f))}.`); return; }
+      actualizar(f.id, (x) => ({ ...x, abonos: [...(x.abonos ?? []), { id: nuevoId(), fecha: ahora, valor, ...(accion.b.trim() ? { nota: accion.b.trim() } : {}), por: user.nombre }] }));
+      log("Pago de EPS registrado", `${f.cobertura} · ${f.numero} · ${dinero(valor)}`);
+      toast.success(valor === saldoFactura(f) ? "Pago registrado: la cuenta quedó cobrada." : "Pago registrado.");
+    }
+    setAccion(null);
+  };
+  const cambiarGlosa = (f: Factura, g: Glosa, estado: Glosa["estado"]) => {
+    actualizar(f.id, (x) => ({ ...x, glosas: (x.glosas ?? []).map((y) => (y.id === g.id ? { ...y, estado } : y)) }));
+    log(estado === "Aceptada" ? "Glosa aceptada" : "Glosa levantada", `${f.cobertura} · ${f.numero} · ${dinero(g.valor)}`);
+  };
+
   const mes = isoDe(new Date()).slice(0, 7);
-  const delMes = facturas.filter((f) => f.estado !== "Anulada" && f.fecha.slice(0, 7) === mes);
+  const delMes = facturas.filter((f) => f.estado !== "Anulada" && f.tipo !== "Nota crédito" && f.fecha.slice(0, 7) === mes);
   const sinFacturar = cobros.filter((c) => !c.anulado && pagadoDe(c) > 0 && !facturas.some((f) => f.cobroId === c.id && f.estado !== "Anulada"));
   const vmPf = useVerMas(sinFacturar, 8);
-  const pendOS = facturas.filter((f) => f.estado === "Emitida" && f.cobertura !== "Particular");
+  // Parte a cargo de la EPS (de copagos y cuotas moderadoras) que todavía no está en una cuenta de cobro.
+  const epsPend = cobros.filter((c) => !c.anulado && (c.aCargoEps ?? 0) > 0 && c.obraSocial && !facturas.some((f) => f.estado !== "Anulada" && f.cobrosEps?.includes(c.id)));
+  const gruposEps = Object.values(epsPend.reduce<Record<string, { eps: string; mes: string; cobros: Cobro[] }>>((acc, c) => {
+    const k = `${c.obraSocial!.trim().toLowerCase()}|${diaLocal(c.fecha).slice(0, 7)}`;
+    (acc[k] ??= { eps: c.obraSocial!.trim(), mes: diaLocal(c.fecha).slice(0, 7), cobros: [] }).cobros.push(c);
+    return acc;
+  }, {})).sort((a, b) => b.mes.localeCompare(a.mes) || a.eps.localeCompare(b.eps));
+  const mesTxt = (m: string) => new Date(`${m}-15T12:00:00`).toLocaleDateString("es-CO", { month: "long", year: "numeric" });
+  const cuentaEps = (g: { eps: string; mes: string; cobros: Cobro[] }) => {
+    const nit = facturas.find((f) => norm(f.cobertura) === norm(g.eps) && f.docReceptor)?.docReceptor;
+    nuevo({
+      tipo: "Cuenta de cobro", receptor: g.eps, cobertura: g.eps, ...(nit ? { docReceptor: nit } : {}), periodo: mesTxt(g.mes), cobrosEps: g.cobros.map((c) => c.id),
+      items: g.cobros.map((c) => { const t = tarifaDe(c.concepto); return { desc: `${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""} · ${c.concepto} · ${fechaCorta(diaLocal(c.fecha))}${c.autorizacion ? ` · Aut. ${c.autorizacion}` : ""}`, cant: 1, precio: c.aCargoEps ?? 0, ...(t?.cups ? { cups: t.cups } : {}) }; }),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cuentasEps = facturas.filter((f) => f.estado !== "Anulada" && f.tipo !== "Nota crédito" && f.cobertura !== "Particular").sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const pendOS = cuentasEps.filter((f) => saldoFactura(f) > 0);
   const porOS = Object.entries(
-    facturas.filter((f) => f.estado !== "Anulada" && f.cobertura !== "Particular").reduce<Record<string, { total: number; pend: number; n: number }>>((acc, f) => {
+    cuentasEps.reduce<Record<string, { total: number; pend: number; n: number; abonado: number; glosado: number; enDiscusion: number; cuentas: Factura[] }>>((acc, f) => {
       const k = f.cobertura;
-      acc[k] ??= { total: 0, pend: 0, n: 0 };
+      acc[k] ??= { total: 0, pend: 0, n: 0, abonado: 0, glosado: 0, enDiscusion: 0, cuentas: [] };
       acc[k].total += f.total;
       acc[k].n += 1;
-      if (f.estado === "Emitida") acc[k].pend += f.total;
+      acc[k].pend += saldoFactura(f);
+      acc[k].abonado += (f.abonos ?? []).reduce((a, x) => a + x.valor, 0);
+      acc[k].glosado += (f.glosas ?? []).filter((g) => g.estado === "Aceptada").reduce((a, g) => a + g.valor, 0);
+      acc[k].enDiscusion += (f.glosas ?? []).filter((g) => g.estado === "En discusión").reduce((a, g) => a + g.valor, 0);
+      acc[k].cuentas.push(f);
       return acc;
     }, {}),
   ).sort((a, b) => b[1].pend - a[1].pend);
@@ -7607,13 +7736,13 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi icon={Receipt} label="Facturado este mes" value={dinero(delMes.reduce((a, f) => a + f.total, 0))} hint={`${delMes.length} comprobantes`} tono="verde" />
         <Kpi icon={Wallet} label="Cobrado" value={dinero(delMes.filter((f) => f.estado === "Cobrada").reduce((a, f) => a + f.total, 0))} hint="Del mes" delay={0.05} />
-        <Kpi icon={Building2} label="Pendiente EPS" value={dinero(pendOS.reduce((a, f) => a + f.total, 0))} hint={`${pendOS.length} por liquidar`} tono="ambar" delay={0.1} />
+        <Kpi icon={Building2} label="Pendiente EPS" value={dinero(pendOS.reduce((a, f) => a + saldoFactura(f), 0))} hint={`${pendOS.length} cuenta${pendOS.length === 1 ? "" : "s"} por cobrar${epsPend.length ? ` · ${gruposEps.length} sin facturar` : ""}`} tono="ambar" delay={0.1} />
         <Kpi icon={AlertTriangle} label="Cobros sin facturar" value={String(sinFacturar.length)} hint="Pagos de pacientes" tono="rojo" delay={0.15} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="pn-card inline-flex flex-wrap gap-1 p-1.5">
-          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length})`, Clock], ["obras", "EPS", Building2], ["tarifas", "Tarifas", Wallet], ["datos", "Datos de facturación", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
+          {([["comprobantes", "Comprobantes", Receipt], ["porfacturar", `Por facturar (${sinFacturar.length + gruposEps.length})`, Clock], ["obras", "EPS", Building2], ["tarifas", "Tarifas", Wallet], ["datos", "Datos de facturación", Building2]] as [VistaFact, string, LucideIcon][]).map(([id, l, Ic]) => (
             <button key={id} onClick={() => setVista(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${vista === id ? "pn-acc-tile text-white" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
               <Ic className="size-4" /> {l}
             </button>
@@ -7637,7 +7766,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                 <option>Factura de venta</option><option>Cuenta de cobro</option><option>Recibo de caja</option>
               </select>
             </Campo>
-            <Campo label="Paciente / receptor">
+            <Campo label="Paciente o entidad">
               <input
                 list="fact-pacientes"
                 value={form.receptor}
@@ -7655,13 +7784,14 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           <datalist id="fact-servicios">{activas.map((t) => <option key={t.id} value={t.nombre} />)}</datalist>
           <div className="space-y-2">
             {form.items.map((it, i) => (
-              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_90px_160px_40px]">
+              <div key={i} className="grid gap-2 sm:grid-cols-[110px_1fr_80px_150px_40px]">
+                <input value={it.cups ?? ""} onChange={(e) => setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, cups: e.target.value.replace(/[^\d]/g, "").slice(0, 8) } : x)) })} placeholder="CUPS" className={inp + " tabular-nums"} aria-label="Código CUPS" />
                 <input
                   list="fact-servicios"
                   value={it.desc}
                   onChange={(e) => {
                     const t = activas.find((x) => x.nombre === e.target.value);
-                    setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, desc: e.target.value, ...(t ? { precio: t.valor } : {}) } : x)) });
+                    setForm({ ...form, items: form.items.map((x, j) => (j === i ? { ...x, desc: e.target.value, ...(t ? { precio: valorTarifa(t, form.cobertura), ...(t.cups ? { cups: t.cups } : {}) } : {}) } : x)) });
                   }}
                   placeholder="Descripción"
                   className={inp}
@@ -7673,6 +7803,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
             ))}
             <button type="button" onClick={() => setForm({ ...form, items: [...form.items, { desc: "", cant: 1, precio: 0 }] })} className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary"><Plus className="size-4" /> Agregar ítem</button>
           </div>
+          {form.cobrosEps && <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">Cuenta de cobro a <b>{form.cobertura}</b>{form.periodo ? ` · ${form.periodo}` : ""}: incluye la parte a cargo de la EPS de {form.cobrosEps.length} atención{form.cobrosEps.length === 1 ? "" : "es"}. Escriba el NIT de la EPS antes de emitir.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
             <p className="font-display text-2xl font-semibold">Total {dinero(form.items.reduce((a, i) => a + i.cant * i.precio, 0))}</p>
             <Button type="submit" disabled={emitiendo} className="rounded-xl px-6">{emitiendo ? <Loader2 className="size-4 animate-spin" /> : <Receipt className="size-4" />} Emitir e imprimir</Button>
@@ -7691,7 +7822,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar" className={inp + " h-10 pl-10"} />
               </div>
-              <Button variant="outline" className="h-10 rounded-xl" onClick={() => exportarCSV("facturacion", [["Tipo", "Número", "Fecha", "Receptor", "Documento", "Cobertura", "Total", "Estado"], ...facturas.map((f) => [f.tipo, f.numero, fechaHora(f.fecha), f.receptor, f.docReceptor, f.cobertura, f.total, f.estado])])}><Download className="size-4" /> Exportar</Button>
+              <BotonMesExcel alExportar={(m) => exportarFacturacionExcel(m, facturas)} log={log} que="facturación" />
             </div>
           }
         >
@@ -7700,24 +7831,36 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
           ) : (
             <ul className="divide-y divide-border/60">
               {vmComp.items.map((f) => (
-                <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:items-center">
+                <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:flex-wrap lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo.startsWith("Factura") ? "from-emerald-400 to-teal-600" : f.tipo.startsWith("Cuenta") ? "from-sky-500 to-blue-700" : "from-violet-500 to-indigo-700"}`}>{siglaComp(f.tipo)}</span>
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo === "Nota crédito" ? "from-slate-500 to-slate-700" : f.tipo.startsWith("Factura") ? "from-[#0b2a6b] to-[#071a46]" : f.tipo.startsWith("Cuenta") ? "from-[#0e7490] to-[#155e75]" : "from-[#1d4ed8] to-[#0b2a6b]"}`}>{siglaComp(f.tipo)}</span>
                     <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span></p>
-                      <p className="text-xs text-muted-foreground">{f.tipo} N.º {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} {f.tipo !== "Nota crédito" && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>}</p>
+                      <p className="text-xs text-muted-foreground">{f.tipo} N.º {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}{f.periodo ? ` · ${f.periodo}` : ""}</p>
+                      {f.refFactura && <p className="text-xs text-muted-foreground">Corrige la factura N.º {f.refFactura.numero} · {f.motivo}</p>}
+                      {f.anulacion && <p className="text-xs text-red-700 dark:text-red-300">Anulada por {nombreCorto(f.anulacion.por)}: {f.anulacion.motivo}{f.anulacion.notaCredito ? ` · Nota crédito N.º ${f.anulacion.notaCredito}` : ""}</p>}
+                      {f.estado === "Emitida" && f.cobertura !== "Particular" && saldoFactura(f) < f.total && <p className="text-xs text-muted-foreground">Saldo {dinero(saldoFactura(f))}</p>}
                     </div>
                   </div>
                   <p className="font-display text-xl font-semibold tabular-nums lg:w-36 lg:text-right">{dinero(f.total)}</p>
                   <div className="flex flex-wrap gap-1.5">
                     <button onClick={() => imprimirHtml(htmlFactura(f, config))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Imprimir</button>
-                    {f.estado === "Emitida" && (
-                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">Marcar cobrada</button>
+                    {f.estado === "Emitida" && f.cobertura === "Particular" && f.tipo !== "Nota crédito" && (
+                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Marcar cobrada</button>
                     )}
-                    {f.estado !== "Anulada" && (
-                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Anulada" } : x))); log("Comprobante anulado", `${f.tipo} ${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600">Anular</button>
+                    {f.estado !== "Anulada" && f.tipo !== "Nota crédito" && (
+                      <button onClick={() => setAnulando(anulando?.id === f.id ? null : { id: f.id, motivo: "" })} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600">Anular</button>
                     )}
                   </div>
+                  {anulando?.id === f.id && (
+                    <div className="w-full basis-full rounded-xl bg-red-50/60 p-3 ring-1 ring-red-100 dark:bg-red-500/5 dark:ring-red-500/20">
+                      <p className="mb-2 text-xs text-red-800 dark:text-red-200">{f.tipo === "Factura de venta" ? "Una factura no se borra: se anula con una nota crédito por el mismo valor, que se numera e imprime sola." : "El comprobante queda anulado y el motivo se guarda en la auditoría."}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <input autoFocus placeholder="Motivo de la anulación (obligatorio)" value={anulando.motivo} onChange={(e) => setAnulando({ id: f.id, motivo: e.target.value })} className={inp + " h-10 flex-1"} />
+                        <Button onClick={() => void anularComp(f, anulando.motivo)} className="h-10 rounded-xl !bg-red-600 text-white hover:!bg-red-700"><Ban className="size-4" /> {f.tipo === "Factura de venta" ? "Anular con nota crédito" : "Anular"}</Button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
               {vmComp.boton && <li className="list-none">{vmComp.boton}</li>}
@@ -7726,6 +7869,30 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
         </Seccion>
       )}
 
+      {vista === "porfacturar" && (
+        <Seccion icon={Building2} titulo="Por cobrar a las EPS" sub="Parte a cargo de la EPS de las atenciones con cuota moderadora o copago. Se agrupa por EPS y por mes.">
+          {gruposEps.length === 0 ? (
+            <Vacio icon={Check} titulo="Nada pendiente con las EPS" texto="Cuando en Pagos y caja registre una atención por EPS, la parte que cubre la EPS aparece aquí para pasarle la cuenta de cobro." />
+          ) : (
+            <ul className="space-y-2.5">
+              {gruposEps.map((g) => {
+                const total = g.cobros.reduce((a, c) => a + (c.aCargoEps ?? 0), 0);
+                return (
+                  <li key={`${g.eps}|${g.mes}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-3.5 dark:border-white/10">
+                    <span className="grid size-11 place-items-center rounded-xl bg-[#0b2a6b] text-white"><Building2 className="size-5" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{g.eps} <span className="font-normal text-muted-foreground first-letter:uppercase">· {mesTxt(g.mes)}</span></p>
+                      <p className="text-xs text-muted-foreground">{g.cobros.length} atención{g.cobros.length === 1 ? "" : "es"} · {[...new Set(g.cobros.map((c) => c.paciente))].slice(0, 3).join(", ")}{new Set(g.cobros.map((c) => c.paciente)).size > 3 ? "…" : ""}</p>
+                    </div>
+                    <p className="font-display text-lg font-semibold tabular-nums">{dinero(total)}</p>
+                    <Button size="sm" className="rounded-xl" onClick={() => cuentaEps(g)}><Receipt className="size-4" /> Generar cuenta de cobro</Button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Seccion>
+      )}
       {vista === "porfacturar" && (
         <Seccion icon={Clock} titulo="Cobros sin facturar" sub="Pagos de pacientes que todavía no tienen comprobante">
           {sinFacturar.length === 0 ? (
@@ -7759,37 +7926,107 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
       )}
 
       {vista === "obras" && (
-        <Seccion icon={Building2} titulo="Liquidación por EPS" sub="Lo facturado a cada cobertura y lo que falta cobrar">
+        <Seccion icon={Building2} titulo="Cartera con las EPS" sub="Cuentas de cobro a cada EPS: radicación, glosas, pagos recibidos y saldo"
+          acciones={<BotonMesExcel alExportar={(m) => exportarFacturacionExcel(m, facturas)} log={log} que="cartera EPS" />}>
           {porOS.length === 0 ? (
-            <Vacio icon={Building2} texto="Cuando facture a una EPS o medicina prepagada, aquí verá cuánto le deben." />
+            <Vacio icon={Building2} texto="Cuando le pase una cuenta de cobro a una EPS (desde Por facturar), aquí lleva el seguimiento hasta que pague." />
           ) : (
-            <ul className="space-y-3">
+            <div className="space-y-5">
               {porOS.map(([os, v]) => (
-                <li key={os} className="flex flex-wrap items-center gap-4 rounded-2xl border border-border/70 p-4">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 text-white"><Building2 className="size-5" /></span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold">{os}</p>
-                    <p className="text-xs text-muted-foreground">{v.n} comprobantes · Facturado {dinero(v.total)}</p>
-                    <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-secondary">
-                      <div className="pn-bar h-full rounded-full bg-gradient-to-r from-emerald-400 to-teal-600" style={{ width: `${v.total ? ((v.total - v.pend) / v.total) * 100 : 0}%` }} />
+                <div key={os} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
+                  <div className="flex flex-wrap items-center gap-4 bg-slate-50/80 p-4 dark:bg-white/5">
+                    <span className="grid size-11 place-items-center rounded-xl bg-[#0b2a6b] text-white"><Building2 className="size-5" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{os}</p>
+                      <p className="text-xs text-muted-foreground">{v.n} cuenta{v.n === 1 ? "" : "s"} · facturado {dinero(v.total)}</p>
+                      <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                        <div className="h-full rounded-full bg-[#0e7490]" style={{ width: `${v.total ? ((v.total - v.pend) / v.total) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-right text-xs">
+                      <div><p className="text-muted-foreground">Pagado</p><p className="font-semibold tabular-nums">{dinero(v.abonado)}</p></div>
+                      <div><p className="text-muted-foreground">Glosado</p><p className="font-semibold tabular-nums">{dinero(v.glosado)}</p>{v.enDiscusion > 0 && <p className="text-[10px] text-muted-foreground">{dinero(v.enDiscusion)} en discusión</p>}</div>
+                      <div><p className="text-muted-foreground">Saldo</p><p className="font-display text-lg font-semibold tabular-nums text-[#0b2a6b] dark:text-sky-200">{dinero(v.pend)}</p></div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pendiente</p>
-                    <p className="font-display text-xl font-semibold tabular-nums text-amber-700">{dinero(v.pend)}</p>
-                  </div>
-                  {v.pend > 0 && (
-                    <Button size="sm" variant="outline" className="rounded-xl" onClick={() => { setFacturas((p) => p.map((x) => (x.cobertura === os && x.estado === "Emitida" ? { ...x, estado: "Cobrada" } : x))); log("Liquidación cobrada", `${os} · ${dinero(v.pend)}`); toast.success(`${os}: liquidación marcada como cobrada`); }}>
-                      <Check className="size-4" /> Marcar liquidada
-                    </Button>
-                  )}
-                </li>
+                  <ul className="divide-y divide-slate-100 dark:divide-white/5">
+                    {v.cuentas.map((f) => {
+                      const saldo = saldoFactura(f);
+                      const dias = f.radicacion ? Math.floor((Date.now() - new Date(`${f.radicacion.fecha}T12:00:00`).getTime()) / 86400000) : null;
+                      const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition";
+                      return (
+                        <li key={f.id} className="p-4">
+                          <div className="flex flex-wrap items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{f.tipo} N.º {f.numero}
+                                <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${saldo <= 0 ? "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{saldo <= 0 ? "Pagada" : f.radicacion ? "Radicada" : "Sin radicar"}</span>
+                              </p>
+                              <p className="text-xs text-muted-foreground">{fechaDe(f.fecha)}{f.periodo ? ` · ${f.periodo}` : ""} · {f.items.length} ítem{f.items.length === 1 ? "" : "s"}{f.docReceptor ? ` · ${f.docReceptor}` : ""}</p>
+                              {f.radicacion && <p className="text-xs text-muted-foreground">Radicado {f.radicacion.numero} el {fechaDe(f.radicacion.fecha)}{dias !== null && saldo > 0 ? (dias === 0 ? " · hoy" : ` · hace ${dias} día${dias === 1 ? "" : "s"}`) : ""}</p>}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-display text-lg font-semibold tabular-nums">{dinero(saldo)}</p>
+                              <p className="text-[11px] text-muted-foreground">de {dinero(f.total)}</p>
+                            </div>
+                          </div>
+                          {(f.glosas?.length || f.abonos?.length) ? (
+                            <div className="mt-3 space-y-1.5">
+                              {(f.glosas ?? []).map((g) => (
+                                <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
+                                  <span className="font-semibold">Glosa</span><span className="min-w-0 flex-1 truncate text-muted-foreground">{g.motivo}</span>
+                                  <span className="font-semibold tabular-nums">{dinero(g.valor)}</span>
+                                  <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">{g.estado}</span>
+                                  {g.estado === "En discusión" && (
+                                    <>
+                                      <button onClick={() => cambiarGlosa(f, g, "Levantada")} className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#0b2a6b] hover:bg-white dark:text-sky-200">Levantada (la EPS paga)</button>
+                                      <button onClick={() => cambiarGlosa(f, g, "Aceptada")} className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-white dark:text-slate-300">Aceptar (se descuenta)</button>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              {(f.abonos ?? []).map((x) => (
+                                <div key={x.id} className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
+                                  <Check className="size-3.5 text-[#0e7490]" /><span className="text-muted-foreground">Pago recibido el {fechaDe(diaLocal(x.fecha))}{x.nota ? ` · ${x.nota}` : ""}</span>
+                                  <span className="ml-auto font-semibold tabular-nums">{dinero(x.valor)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {!f.radicacion && <button onClick={() => setAccion({ id: f.id, tipo: "radicar", a: "", b: hoy() })} className={`${btn} bg-[#0b2a6b] text-white hover:bg-[#0a2459]`}><Send className="size-3.5" /> Registrar radicación</button>}
+                            {saldo > 0 && <button onClick={() => setAccion({ id: f.id, tipo: "abono", a: String(saldo), b: "" })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Wallet className="size-3.5" /> Registrar pago</button>}
+                            {saldo > 0 && <button onClick={() => setAccion({ id: f.id, tipo: "glosa", a: "", b: "" })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><AlertTriangle className="size-3.5" /> Registrar glosa</button>}
+                            <button onClick={() => imprimirHtml(htmlFactura(f, config))} className={`${btn} text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10`}><Printer className="size-3.5" /> Imprimir</button>
+                          </div>
+                          {accion?.id === f.id && (
+                            <div className="mt-3 flex flex-wrap items-end gap-2 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200 dark:bg-white/5 dark:ring-white/10">
+                              {accion.tipo === "radicar" && (<>
+                                <Campo label="N.º de radicado"><input autoFocus value={accion.a} onChange={(e) => setAccion({ ...accion, a: e.target.value })} className={inp + " h-10"} /></Campo>
+                                <Campo label="Fecha de radicación"><input type="date" value={accion.b} onChange={(e) => setAccion({ ...accion, b: e.target.value })} className={inp + " h-10"} /></Campo>
+                              </>)}
+                              {accion.tipo === "glosa" && (<>
+                                <div className="min-w-[220px] flex-1"><Campo label="Motivo de la glosa"><input autoFocus value={accion.a} onChange={(e) => setAccion({ ...accion, a: e.target.value })} placeholder="Ej.: falta autorización, tarifa no pactada…" className={inp + " h-10"} /></Campo></div>
+                                <Campo label="Valor glosado"><input inputMode="numeric" value={accion.b} onChange={(e) => setAccion({ ...accion, b: e.target.value })} className={inp + " h-10 w-36 tabular-nums"} /></Campo>
+                              </>)}
+                              {accion.tipo === "abono" && (<>
+                                <Campo label="Valor recibido"><input autoFocus inputMode="numeric" value={accion.a} onChange={(e) => setAccion({ ...accion, a: e.target.value })} className={inp + " h-10 w-40 tabular-nums"} /></Campo>
+                                <div className="min-w-[200px] flex-1"><Campo label="Referencia (opcional)"><input value={accion.b} onChange={(e) => setAccion({ ...accion, b: e.target.value })} placeholder="Transferencia, comprobante de egreso…" className={inp + " h-10"} /></Campo></div>
+                              </>)}
+                              <Button onClick={guardarAccion} className="h-10 rounded-xl"><Check className="size-4" /> Guardar</Button>
+                              <Button variant="ghost" onClick={() => setAccion(null)} className="h-10 rounded-xl">Cancelar</Button>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </Seccion>
       )}
-      {vista === "tarifas" && <TarifasFact tarifas={tarifas} setTarifas={(v) => setTarifas(() => v)} puede={puedeConfig} log={log} />}
+      {vista === "tarifas" && <TarifasFact tarifas={tarifas} setTarifas={(v) => setTarifas(() => v)} puede={puedeConfig} log={log} epsConocidas={epsConocidas} />}
       {vista === "datos" && <DatosFact config={config} setConfig={(v) => setConfig(() => v)} puede={puedeConfig} log={log} />}
 
       <p className="text-center text-[11px] text-muted-foreground">Comprobantes internos con numeración del sistema. La factura electrónica (con CUFE) y los RIPS se emiten al conectar un proveedor de facturación electrónica autorizado por la DIAN.</p>
@@ -7797,8 +8034,14 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
   );
 }
 
-function TarifasFact({ tarifas, setTarifas, puede, log }: { tarifas: Tarifa[]; setTarifas: (v: Tarifa[]) => void; puede: boolean; log: LogFn }) {
+function TarifasFact({ tarifas, setTarifas, puede, log, epsConocidas = [] }: { tarifas: Tarifa[]; setTarifas: (v: Tarifa[]) => void; puede: boolean; log: LogFn; epsConocidas?: string[] }) {
   const [lista, setLista] = useState<Tarifa[]>(tarifas);
+  const [cob, setCob] = useState("Particular");
+  const [nuevaEps, setNuevaEps] = useState("");
+  const [extra, setExtra] = useState<string[]>([]);
+  const opciones = [...new Set([...epsConocidas, ...lista.flatMap((t) => Object.keys(t.porEps ?? {})), ...extra])].sort();
+  const valorEps = (t: Tarifa) => (cob === "Particular" ? t.valor : t.porEps?.[cob] ?? 0);
+  const ponerValor = (t: Tarifa, v: number) => cambiar(t.id, cob === "Particular" ? { valor: v } : { porEps: Object.fromEntries(Object.entries({ ...(t.porEps ?? {}), [cob]: v }).filter(([, x]) => x > 0)) });
   const firma = JSON.stringify(tarifas);
   useEffect(() => setLista(tarifas), [firma]); // eslint-disable-line react-hooks/exhaustive-deps
   const cambios = JSON.stringify(lista) !== firma;
@@ -7807,23 +8050,39 @@ function TarifasFact({ tarifas, setTarifas, puede, log }: { tarifas: Tarifa[]; s
     const limpias = lista.filter((t) => t.nombre.trim()).map((t) => ({ ...t, nombre: t.nombre.trim(), valor: Math.max(0, Math.round(t.valor)) }));
     setTarifas(limpias);
     log("Tarifas actualizadas", `${limpias.length} servicios`);
-    toast.success("Tarifas guardadas. Ya se usan al facturar.");
+    toast.success("Tarifas guardadas. Ya se usan al facturar y al cobrar.");
   };
+  const conConvenio = (e: string) => lista.filter((t) => t.porEps?.[e]).length;
   return (
-    <Seccion icon={Wallet} titulo="Tarifas de los servicios" sub="Valor particular de cada servicio. Se completa solo al facturar."
+    <Seccion icon={Wallet} titulo="Tarifas de los servicios" sub="Valor particular y valor pactado con cada EPS. Se usan solas al cobrar y al facturar."
       acciones={puede ? <div className="flex gap-2"><Button variant="outline" className="h-9 rounded-lg" onClick={() => setLista((l) => [...l, { id: nuevoId(), nombre: "", valor: 0, activo: true }])}><Plus className="size-4" /> Agregar servicio</Button>{cambios && <Button className="h-9 rounded-lg" onClick={guardar}><Check className="size-4" /> Guardar</Button>}</div> : undefined}>
       {!puede && <p className="mb-4 rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800 ring-1 ring-amber-100">Solo los médicos administradores o Dirección pueden cambiar las tarifas.</p>}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Ver tarifas de:</span>
+        {["Particular", ...opciones].map((e) => (
+          <button key={e} type="button" onClick={() => setCob(e)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cob === e ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>
+            {e}{e !== "Particular" && <span className={`rounded px-1 text-[10px] ${cob === e ? "bg-white/20" : "bg-slate-100 dark:bg-white/10"}`}>{conConvenio(e)}</span>}
+          </button>
+        ))}
+        {puede && (
+          <form onSubmit={(ev) => { ev.preventDefault(); const n = nuevaEps.trim(); if (!n) return; setExtra((x) => [...x, n]); setCob(n); setNuevaEps(""); }} className="flex items-center gap-1.5">
+            <input value={nuevaEps} onChange={(e) => setNuevaEps(e.target.value)} placeholder="Otra EPS…" className={inp + " h-8 w-36 text-xs"} />
+            <button type="submit" className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10"><Plus className="size-3.5" /> Agregar</button>
+          </form>
+        )}
+      </div>
+      {cob !== "Particular" && <p className="mb-3 rounded-xl bg-slate-50 px-4 py-2.5 text-xs text-slate-600 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">Valores del convenio con <b>{cob}</b>. Si deja un servicio vacío, se cobra el valor particular.</p>}
       <div className="overflow-x-auto rounded-2xl border border-border/70 dark:border-white/10">
         <table className="w-full min-w-[620px] text-sm">
           <thead className="bg-secondary/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground dark:bg-white/5">
-            <tr><th className="px-4 py-3">Servicio</th><th className="px-4 py-3">Código CUPS</th><th className="px-4 py-3 text-right">Valor particular</th><th className="px-4 py-3 text-center">Activo</th><th className="w-10" /></tr>
+            <tr><th className="px-4 py-3">Servicio</th><th className="px-4 py-3">Código CUPS</th><th className="px-4 py-3 text-right">{cob === "Particular" ? "Valor particular" : `Valor con ${cob}`}</th><th className="px-4 py-3 text-center">Activo</th><th className="w-10" /></tr>
           </thead>
           <tbody className="divide-y divide-border/60 dark:divide-white/5">
             {lista.map((t) => (
               <tr key={t.id} className={t.activo ? "" : "opacity-50"}>
                 <td className="px-3 py-2"><input disabled={!puede} value={t.nombre} onChange={(e) => cambiar(t.id, { nombre: e.target.value })} placeholder="Ej.: Consulta de Cardiología" className={inp + " h-10"} /></td>
                 <td className="px-3 py-2"><input disabled={!puede} value={t.cups ?? ""} onChange={(e) => cambiar(t.id, { cups: e.target.value.replace(/[^\d]/g, "").slice(0, 8) })} placeholder="Opcional" className={inp + " h-10 w-32 tabular-nums"} /></td>
-                <td className="px-3 py-2 text-right"><div className="relative ml-auto w-40"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span><input disabled={!puede} inputMode="numeric" value={t.valor ? t.valor.toLocaleString("es-CO") : ""} onChange={(e) => cambiar(t.id, { valor: Number(e.target.value.replace(/\D/g, "")) || 0 })} placeholder="0" className={inp + " h-10 pl-7 text-right tabular-nums"} /></div></td>
+                <td className="px-3 py-2 text-right"><div className="relative ml-auto w-40"><span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span><input disabled={!puede} inputMode="numeric" value={valorEps(t) ? valorEps(t).toLocaleString("es-CO") : ""} onChange={(e) => ponerValor(t, Number(e.target.value.replace(/\D/g, "")) || 0)} placeholder={cob === "Particular" ? "0" : t.valor.toLocaleString("es-CO")} className={inp + " h-10 pl-7 text-right tabular-nums"} /></div></td>
                 <td className="px-3 py-2 text-center"><input type="checkbox" disabled={!puede} checked={t.activo} onChange={(e) => cambiar(t.id, { activo: e.target.checked })} className="size-4 accent-[var(--primary)]" /></td>
                 <td className="px-2">{puede && <button onClick={() => setLista((l) => l.filter((x) => x.id !== t.id))} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Quitar"><Trash2 className="size-4" /></button>}</td>
               </tr>
@@ -7831,7 +8090,7 @@ function TarifasFact({ tarifas, setTarifas, puede, log }: { tarifas: Tarifa[]; s
           </tbody>
         </table>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">Los valores que había eran de ejemplo: cargue las tarifas reales de la clínica. Las tarifas con cada EPS dependen de su contrato y se ajustan al facturar.</p>
+      <p className="mt-3 text-xs text-muted-foreground">El código CUPS sale en las facturas y cuentas de cobro, y se usará en los RIPS.</p>
     </Seccion>
   );
 }

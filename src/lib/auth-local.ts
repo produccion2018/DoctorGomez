@@ -994,9 +994,9 @@ export type PedidoLab = {
 export const KEY_LAB = "gb_laboratorio";
 
 /* ---------- Facturación ---------- */
-export type TipoComprobante = "Factura de venta" | "Cuenta de cobro" | "Recibo de caja" | "Factura B" | "Factura C" | "Recibo"; // los tres últimos: datos viejos
+export type TipoComprobante = "Factura de venta" | "Cuenta de cobro" | "Recibo de caja" | "Nota crédito" | "Factura B" | "Factura C" | "Recibo"; // los tres últimos: datos viejos
 /** Sigla corta del comprobante (FV, CC, RC). */
-export const siglaComp = (t: string) => (t.startsWith("Factura de venta") ? "FV" : t.startsWith("Cuenta") ? "CC" : t.startsWith("Recibo") ? "RC" : "FV");
+export const siglaComp = (t: string) => (t.startsWith("Nota") ? "NC" : t.startsWith("Factura de venta") ? "FV" : t.startsWith("Cuenta") ? "CC" : t.startsWith("Recibo") ? "RC" : "FV");
 export type Factura = {
   id: string;
   numero: string;
@@ -1005,12 +1005,28 @@ export type Factura = {
   receptor: string;
   docReceptor?: string;
   cobertura: string; // "Particular" o EPS
-  items: { desc: string; cant: number; precio: number }[];
+  items: { desc: string; cant: number; precio: number; cups?: string }[];
   total: number;
   estado: "Emitida" | "Cobrada" | "Anulada";
   cobroId?: string;
+  /** Cuenta de cobro a una EPS: los cobros (copago/cuota) cuya parte a cargo de la EPS se está cobrando. */
+  cobrosEps?: string[];
+  periodo?: string;
+  /** Seguimiento del cobro a la EPS. */
+  radicacion?: { numero: string; fecha: string; por: string };
+  glosas?: Glosa[];
+  abonos?: { id: string; fecha: string; valor: number; nota?: string; por: string }[];
+  anulacion?: { por: string; motivo: string; fecha: string; notaCredito?: string };
+  /** Nota crédito: a qué factura corrige y por qué. */
+  refFactura?: { id: string; numero: string };
+  motivo?: string;
   emitidaPor: string;
 };
+export type Glosa = { id: string; fecha: string; motivo: string; valor: number; estado: "En discusión" | "Aceptada" | "Levantada"; por: string };
+/** Lo que falta cobrar de un comprobante: total menos pagos recibidos y glosas aceptadas. */
+export const saldoFactura = (f: Factura) =>
+  f.estado === "Anulada" || f.tipo === "Nota crédito" ? 0
+  : Math.max(0, f.total - (f.abonos ?? []).reduce((a, x) => a + x.valor, 0) - (f.glosas ?? []).filter((g) => g.estado === "Aceptada").reduce((a, g) => a + g.valor, 0));
 export const KEY_FACTURAS = "gb_facturas";
 
 /** Datos del prestador para los comprobantes (Colombia). Los cargan los médicos administradores. */
@@ -1031,15 +1047,24 @@ export type ConfigFactura = {
   vigenciaHasta?: string;
   prefijoCuenta?: string;
   prefijoRecibo?: string;
+  prefijoNota?: string;
   pie?: string;
 };
 export const KEY_FACT_CONFIG = "gb_facturacion";
 /** Tarifas de los servicios: valor particular y, si se quiere, código CUPS. */
-export type Tarifa = { id: string; nombre: string; cups?: string; valor: number; activo: boolean };
+export type Tarifa = { id: string; nombre: string; cups?: string; valor: number; activo: boolean; /** Convenios: valor pactado con cada EPS. */ porEps?: Record<string, number> };
+/** Valor de un servicio para una cobertura: el del convenio con esa EPS, o el particular. */
+export function valorTarifa(t: Tarifa, cobertura?: string): number {
+  if (cobertura && t.porEps) {
+    const k = Object.keys(t.porEps).find((x) => x.trim().toLowerCase() === cobertura.trim().toLowerCase());
+    if (k && t.porEps[k]) return t.porEps[k]!;
+  }
+  return t.valor;
+}
 export const KEY_TARIFAS = "gb_tarifas";
 /** Prefijo que usa cada tipo de comprobante. */
 export const prefijoDe = (tipo: string, c: ConfigFactura) =>
-  (tipo.startsWith("Factura") ? c.prefijo : tipo.startsWith("Cuenta") ? c.prefijoCuenta || "CC" : c.prefijoRecibo || "RC")?.trim().toUpperCase() || "";
+  (tipo.startsWith("Factura") ? c.prefijo : tipo.startsWith("Nota") ? c.prefijoNota || "NC" : tipo.startsWith("Cuenta") ? c.prefijoCuenta || "CC" : c.prefijoRecibo || "RC")?.trim().toUpperCase() || "";
 /** Valor en letras para el comprobante: 125000 → "ciento veinticinco mil pesos m/cte". */
 export function enLetras(n: number): string {
   const u = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiún", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
