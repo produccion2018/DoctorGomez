@@ -16,6 +16,7 @@ import {
   Volume2,
   VolumeX,
   Loader2,
+  Printer,
   ListChecks,
   Landmark,
   Globe,
@@ -232,6 +233,9 @@ import {
   type CierreCaja,
   type EstadoCobro,
   type MetodoPago,
+  metodoTxt,
+  TIPOS_PAGO_EPS,
+  enviarReciboPorCorreo,
   type Persona,
   type AgendaDoctor,
   type Agendas,
@@ -1895,7 +1899,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
 /* ---------- Agenda del día (grilla por doctor) ---------- */
 function waDe(tel: string, texto: string) {
   let n = tel.replace(/\D/g, "");
-  if (n && n.length <= 10) n = "549" + n.replace(/^0/, "");
+  if (n.length === 10 && n.startsWith("3")) n = "57" + n;
   return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
 }
 
@@ -2947,12 +2951,17 @@ const ESTADO_COBRO: Record<EstadoCobro, string> = {
   Anulado: "bg-slate-100 text-slate-500 ring-slate-200 line-through",
 };
 const COLOR_METODO: Record<string, string> = {
-  Efectivo: "from-emerald-400 to-teal-600",
-  Débito: "from-sky-400 to-blue-600",
-  Crédito: "from-violet-500 to-indigo-700",
-  Transferencia: "from-cyan-400 to-sky-600",
-  "Mercado Pago": "from-sky-300 to-blue-500",
-  "Obra social": "from-amber-400 to-orange-600",
+  Efectivo: "from-[#0f766e] to-[#115e59]",
+  "Tarjeta débito": "from-[#1d4ed8] to-[#0b2a6b]",
+  "Tarjeta crédito": "from-[#0b2a6b] to-[#071a46]",
+  Transferencia: "from-[#0e7490] to-[#155e75]",
+  Nequi: "from-[#6d28d9] to-[#4c1d95]",
+  Daviplata: "from-[#b91c1c] to-[#7f1d1d]",
+  PSE: "from-[#0369a1] to-[#0c4a6e]",
+  "Débito": "from-[#1d4ed8] to-[#0b2a6b]",
+  "Crédito": "from-[#0b2a6b] to-[#071a46]",
+  "Mercado Pago": "from-slate-500 to-slate-700",
+  EPS: "from-slate-500 to-slate-700",
 };
 
 function useQuienCobra() {
@@ -2960,29 +2969,126 @@ function useQuienCobra() {
   return [...equipo.filter((p) => p.activo).map((p) => p.nombre), ...ADMINS.map((a) => a.nombre)];
 }
 
+function textoRecibo(c: Cobro) {
+  const eps = c.aCargoEps ?? 0;
+  return [
+    `*HEGO · Centro de especialidades médicas*`,
+    `Recibo de pago N° ${c.id.toUpperCase()}`,
+    ``,
+    `Paciente: ${c.paciente}${c.dni ? ` (C.C. ${c.dni})` : ""}`,
+    `Servicio: ${c.concepto}`,
+    `Profesional: ${c.profesional}`,
+    ...(c.obraSocial ? [`EPS: ${c.obraSocial}`] : []),
+    ...(eps > 0 ? [`Valor del servicio: ${dinero(c.valor + eps)}`, `A cargo de la EPS: ${dinero(eps)}`] : []),
+    `${c.tipoPagoEps ?? "Valor"}: ${dinero(c.valor)}`,
+    ...c.pagos.map((p) => `Pago ${metodoTxt(p.metodo)} · ${fechaHora(p.fecha)}: ${dinero(p.monto)}`),
+    `*Total pagado: ${dinero(pagadoDe(c))}*`,
+    ...(saldoDe(c) > 0 ? [`Saldo pendiente: ${dinero(saldoDe(c))}`] : []),
+    ``,
+    `Gracias por confiar en HEGO.`,
+  ].join("\n");
+}
+
 function imprimirRecibo(c: Cobro) {
   const w = window.open("", "_blank", "width=720,height=900");
   if (!w) return;
-  const filas = c.pagos.map((p) => `<tr><td>${fechaHora(p.fecha)}</td><td>${p.metodo}</td><td>${p.cobradoPor}</td><td style="text-align:right">${dinero(p.monto)}</td></tr>`).join("");
+  const eps = c.aCargoEps ?? 0;
+  const filas = c.pagos.map((p) => `<tr><td>${fechaHora(p.fecha)}</td><td>${metodoTxt(p.metodo)}</td><td>${p.cobradoPor}</td><td style="text-align:right">${dinero(p.monto)}</td></tr>`).join("");
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
-  <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700}.m{color:#64748b;font-size:13px}</style></head><body>
-  <h1>HEGO · Centro de especialidades médicas</h1><p class="m">Recibo N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
-  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Concepto:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>EPS:</b> ${c.obraSocial}` : ""}</p>
+  <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px;color:#0b2a6b}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700;color:#0b2a6b}.m{color:#64748b;font-size:13px}.r{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}</style></head><body>
+  <h1>HEGO · Centro de especialidades médicas</h1><p class="m">Recibo de pago N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
+  <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Servicio:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>EPS:</b> ${c.obraSocial}` : ""}${c.autorizacion ? `<br><b>Autorización:</b> ${c.autorizacion}` : ""}</p>
+  ${eps > 0 ? `<div class="r"><span>Valor del servicio</span><b>${dinero(c.valor + eps)}</b></div><div class="r"><span>A cargo de la EPS</span><b>${dinero(eps)}</b></div>` : ""}
+  <div class="r"><span>${c.tipoPagoEps ?? "Valor a pagar"}</span><b>${dinero(c.valor)}</b></div>
   <table><thead><tr><th>Fecha</th><th>Medio</th><th>Cobró</th><th style="text-align:right">Monto</th></tr></thead><tbody>${filas}</tbody></table>
-  <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Valor ${dinero(c.valor)} · Saldo ${dinero(saldoDe(c))}</p>
+  <p class="t">Total pagado: ${dinero(pagadoDe(c))}</p><p class="m">Saldo pendiente ${dinero(saldoDe(c))}</p>
+  <p class="m" style="margin-top:28px">Este recibo es un soporte de pago, no reemplaza la factura electrónica.</p>
   <script>window.print()</script></body></html>`);
   w.document.close();
 }
 
+/** Excel del mes: cobros, pagos uno por uno y cierres de caja. */
+async function exportarFinanzasExcel(mes: string, cobros: Cobro[], cierres: CierreCaja[]) {
+  const XLSX = await import("@e965/xlsx");
+  const delMes = cobros.filter((c) => diaLocal(c.fecha).slice(0, 7) === mes || c.pagos.some((p) => diaLocal(p.fecha).slice(0, 7) === mes));
+  const hojaCobros = delMes.map((c) => ({
+    Fecha: fechaHora(c.fecha), "Recibo N°": c.id.toUpperCase(), Paciente: c.paciente, "Cédula": c.dni ?? "", Servicio: c.concepto, Profesional: c.profesional,
+    Cobertura: c.obraSocial || "Particular", "Tipo de pago": c.tipoPagoEps ?? "Particular", "Autorización": c.autorizacion ?? "",
+    "Valor del servicio": c.valor + (c.aCargoEps ?? 0), "A cargo de la EPS": c.aCargoEps ?? 0, "Paga el paciente": c.valor, Pagado: pagadoDe(c), Saldo: saldoDe(c),
+    Estado: estadoCobro(c), "Motivo de anulación": c.anulado?.motivo ?? "", Nota: c.nota ?? "",
+  }));
+  const hojaPagos = delMes.filter((c) => !c.anulado).flatMap((c) => c.pagos.filter((p) => diaLocal(p.fecha).slice(0, 7) === mes).map((p) => ({
+    Fecha: fechaHora(p.fecha), Paciente: c.paciente, "Cédula": c.dni ?? "", Servicio: c.concepto, "Medio de pago": metodoTxt(p.metodo), "Cobró": p.cobradoPor, Monto: p.monto,
+  })));
+  const hojaCierres = cierres.filter((c) => c.fecha.slice(0, 7) === mes).map((c) => ({
+    "Día": fechaCorta(c.fecha), Persona: c.persona, "Según el sistema": c.esperado, "Efectivo contado": c.declarado, Diferencia: c.declarado - c.esperado, "Aclaración": c.nota, "Registró": c.registradoPor,
+  }));
+  const porMedio = METODOS_PAGO.map((m) => ({ "Medio de pago": m, Total: hojaPagos.filter((p) => p["Medio de pago"] === m).reduce((a, p) => a + p.Monto, 0) })).filter((x) => x.Total > 0);
+  const wb = XLSX.utils.book_new();
+  const hoja = (filas: Record<string, unknown>[], nombre: string, vacio: string) => {
+    const ws = XLSX.utils.json_to_sheet(filas.length ? filas : [{ "": vacio }]);
+    const cols = Object.keys(filas[0] ?? { "": vacio });
+    ws["!cols"] = cols.map((k) => ({ wch: Math.min(40, Math.max(k.length + 2, ...filas.map((f) => String(f[k] ?? "").length + 2))) }));
+    XLSX.utils.book_append_sheet(wb, ws, nombre);
+  };
+  hoja(hojaCobros, "Cobros", "Sin cobros en este mes");
+  hoja(hojaPagos, "Pagos recibidos", "Sin pagos en este mes");
+  hoja(porMedio, "Por medio de pago", "Sin pagos en este mes");
+  hoja(hojaCierres, "Cierres de caja", "Sin cierres en este mes");
+  XLSX.writeFile(wb, `HEGO pagos y caja ${mes}.xlsx`);
+  return hojaCobros.length;
+}
+
+function BotonExcel({ cobros, cierres, log }: { cobros: Cobro[]; cierres: CierreCaja[]; log: LogFn }) {
+  const [mes, setMes] = useState(hoy().slice(0, 7));
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className={inp + " h-10 w-[150px] px-2.5 text-sm"} aria-label="Mes a exportar" />
+      <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { const n = await exportarFinanzasExcel(mes, cobros, cierres); log("Exportó pagos y caja a Excel", `${mes} · ${n} cobros`); toast.success("Excel descargado."); } catch { toast.error("No se pudo generar el Excel."); } setBusy(false); }}
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
+        {busy ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel
+      </button>
+    </div>
+  );
+}
+
 function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser; log: LogFn }) {
   const [cobros, setCobros] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [cierres] = useDato<CierreCaja[]>(KEY_CIERRES, []);
+  const [padron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
+  const [tarifasG] = useDato<Tarifa[]>(KEY_TARIFAS, []);
   const quienes = useQuienCobra();
-  const vacio = { paciente: "", dni: "", concepto: SERVICIOS[0]!.nombre, profesional: ADMINS[0]!.nombre, valor: String(SERVICIOS[0]!.precio), pagado: String(SERVICIOS[0]!.precio), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "" };
+  // Precios: los de Facturación → Tarifas; si todavía no se cargaron, los de la lista base.
+  const activas = tarifasG.filter((t) => t.activo);
+  const catalogo = activas.length ? activas.map((t) => ({ nombre: t.nombre, precio: t.valor })) : SERVICIOS.map((x) => ({ nombre: x.nombre, precio: x.precio }));
+  const profDe = (nombre: string) => { const sv = SERVICIOS.find((x) => norm(x.nombre) === norm(nombre)); return sv ? nombrePanelDe(sv.doctorId) : null; };
+  const base0 = catalogo[0] ?? { nombre: "Otro", precio: 0 };
+  const vacio = { paciente: "", dni: "", concepto: base0.nombre, profesional: profDe(base0.nombre) ?? ADMINS[0]!.nombre, valor: String(base0.precio || ""), pagado: String(base0.precio || ""), metodo: "Efectivo" as MetodoPago, obraSocial: "", cobradoPor: quienes[0] ?? user.nombre, nota: "", turnoId: "", pacienteId: "", eps: false, tipoPagoEps: "Cuota moderadora" as (typeof TIPOS_PAGO_EPS)[number], cuota: "", autorizacion: "" };
+  const fichaDe = (c: { pacienteId?: string | undefined; dni?: string | undefined; paciente: string }) =>
+    padron.find((p) => (c.pacienteId && (p.id === c.pacienteId)) || (c.dni && p.dni === c.dni)) ?? padron.find((p) => norm(p.nombre) === norm(c.paciente));
+  const [enviando, setEnviando] = useState<{ id: string; para: string } | null>(null);
+  const [mandando, setMandando] = useState(false);
   const [f, setF] = useState(vacio);
   const [filtro, setFiltro] = useState<"Todos" | EstadoCobro>("Todos");
   const [q, setQ] = useState("");
   const [abonando, setAbonando] = useState<string | null>(null);
   const [abono, setAbono] = useState({ monto: "", metodo: "Efectivo" as MetodoPago, cobradoPor: quienes[0] ?? user.nombre });
+  // Lo que paga el paciente: el valor del servicio, o solo la cuota moderadora / copago si va por EPS.
+  const pagaPaciente = (x: typeof f) => (!x.eps ? Number(x.valor || 0) : x.tipoPagoEps === "Sin pago del paciente" ? 0 : Number(x.cuota || 0));
+  const elegirPaciente = (nombre: string) => {
+    const p = padron.find((x) => norm(x.nombre) === norm(nombre));
+    setF((x) => ({ ...x, paciente: nombrePropio(nombre), ...(p ? { dni: p.dni ?? x.dni, pacienteId: p.id, ...(p.obraSocial && !/particular/i.test(p.obraSocial) ? { eps: true, obraSocial: p.obraSocial, pagado: x.cuota } : {}) } : {}) }));
+  };
+  const enviarCorreo = async () => {
+    if (!enviando || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(enviando.para.trim())) { toast.error("Escriba un correo válido."); return; }
+    setMandando(true);
+    const r = await enviarReciboPorCorreo(enviando.id, enviando.para.trim());
+    setMandando(false);
+    if (!r.ok) { toast.error(r.error); return; }
+    toast.success(`Recibo enviado a ${r.para}.`);
+    setEnviando(null);
+  };
   const [anulando, setAnulando] = useState<string | null>(null);
   const [motivo, setMotivo] = useState("");
 
@@ -2995,7 +3101,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
   const saldoTotal = validos.reduce((a, c) => a + saldoDe(c), 0);
   const conDeuda = validos.filter((c) => saldoDe(c) > 0).length;
 
-  const porMetodo = METODOS_PAGO.map((m) => ({ m, total: pagosMes.filter((p) => p.metodo === m).reduce((a, p) => a + p.monto, 0) })).filter((x) => x.total > 0);
+  const porMetodo = [...new Set([...METODOS_PAGO, ...pagosMes.map((p) => metodoTxt(p.metodo))])].map((m) => ({ m, total: pagosMes.filter((p) => metodoTxt(p.metodo) === m).reduce((a, p) => a + p.monto, 0) })).filter((x) => x.total > 0);
   const maxMetodo = Math.max(1, ...porMetodo.map((x) => x.total));
 
   const sinCobrar = turnos.filter((t) => t.estado === "Atendido" && !cobros.some((c) => c.turnoId === t.id));
@@ -3005,27 +3111,45 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
     .filter((c) => norm(`${c.paciente} ${c.dni ?? ""} ${c.concepto} ${c.profesional}`).includes(norm(q)))
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
 
+  // Cuando llegan las tarifas, el servicio elegido se ajusta a esa lista.
+  useEffect(() => {
+    if (f.concepto !== "Otro" && !catalogo.some((x) => x.nombre === f.concepto) && catalogo[0]) elegirServicio(catalogo[0].nombre);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogo.map((x) => x.nombre).join("|")]);
   const elegirServicio = (nombre: string) => {
-    const s = SERVICIOS.find((x) => x.nombre === nombre);
-    setF((p) => ({ ...p, concepto: nombre, ...(s ? { valor: String(s.precio), pagado: String(s.precio), profesional: nombrePanelDe(s.doctorId) } : {}) }));
+    const s = catalogo.find((x) => x.nombre === nombre);
+    const prof = profDe(nombre);
+    setF((p) => ({ ...p, concepto: nombre, ...(s ? { valor: String(s.precio), pagado: p.eps ? p.pagado : String(s.precio) } : {}), ...(prof ? { profesional: prof } : {}) }));
   };
 
   const cobrarTurno = (t: Turno) => {
-    const s = SERVICIOS.find((x) => t.motivo.startsWith(x.especialidad)) ?? SERVICIOS[0]!;
-    setF({ ...vacio, paciente: t.paciente, concepto: s.nombre, profesional: t.doctor, valor: String(s.precio), pagado: String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? "" });
+    const sv = SERVICIOS.find((x) => t.motivo.startsWith(x.especialidad));
+    const s = (sv && catalogo.find((x) => norm(x.nombre) === norm(sv.nombre))) ?? catalogo.find((x) => norm(t.motivo).includes(norm(x.nombre))) ?? (sv ? { nombre: sv.nombre, precio: sv.precio } : base0);
+    const p = fichaDe({ pacienteId: t.pacienteId, paciente: t.paciente });
+    const conEps = !!(p?.obraSocial && !/particular/i.test(p.obraSocial));
+    setF({ ...vacio, paciente: t.paciente, dni: p?.dni ?? "", concepto: s.nombre, profesional: t.doctor, valor: String(s.precio), pagado: conEps ? "" : String(s.precio), turnoId: t.id, pacienteId: t.pacienteId ?? p?.id ?? "", eps: conEps, obraSocial: conEps ? p!.obraSocial! : "" });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const registrar = (e: FormEvent) => {
     e.preventDefault();
-    const valor = Number(f.valor);
+    const total = Number(f.valor);
+    const valor = pagaPaciente(f);
     const pagado = Number(f.pagado || 0);
-    if (!valor || valor <= 0) {
-      toast.error("Ingrese el valor.");
+    if (!total || total <= 0) {
+      toast.error("Ingrese el valor del servicio.");
+      return;
+    }
+    if (f.eps && !f.obraSocial.trim()) {
+      toast.error("Escriba la EPS.");
+      return;
+    }
+    if (valor < 0 || valor > total) {
+      toast.error("Lo que paga el paciente no puede superar el valor del servicio.");
       return;
     }
     if (pagado < 0 || pagado > valor) {
-      toast.error("El monto pagado no puede superar el valor.");
+      toast.error(f.eps ? `El paciente paga ${dinero(valor)}: no puede pagar más que eso.` : "El monto pagado no puede superar el valor.");
       return;
     }
     const ahora = new Date().toISOString();
@@ -3040,11 +3164,11 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
       ...(f.dni.trim() ? { dni: f.dni.replace(/\D/g, "") } : {}),
       ...(f.turnoId ? { turnoId: f.turnoId } : {}),
       ...(f.pacienteId ? { pacienteId: f.pacienteId } : {}),
-      ...(f.metodo === "EPS" && f.obraSocial.trim() ? { obraSocial: f.obraSocial.trim() } : {}),
+      ...(f.eps ? { obraSocial: f.obraSocial.trim(), tipoPagoEps: f.tipoPagoEps, aCargoEps: total - valor, ...(f.autorizacion.trim() ? { autorizacion: f.autorizacion.trim() } : {}) } : {}),
       ...(f.nota.trim() ? { nota: f.nota.trim() } : {}),
     };
     setCobros((l) => [nuevo, ...l]);
-    log("Cobro registrado", `${nuevo.paciente} · ${dinero(pagado)} de ${dinero(valor)} · ${f.metodo} · cobró ${f.cobradoPor}`);
+    log("Cobro registrado", `${nuevo.paciente} · ${dinero(pagado)} de ${dinero(valor)}${f.eps ? ` (${f.tipoPagoEps} · ${f.obraSocial.trim()} cubre ${dinero(total - valor)})` : ""} · ${metodoTxt(f.metodo)} · cobró ${f.cobradoPor}`);
     toast.success(pagado >= valor ? "Cobro registrado." : "Cobro registrado con saldo pendiente.");
     setF({ ...vacio, cobradoPor: f.cobradoPor });
   };
@@ -3088,37 +3212,73 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
           <form onSubmit={registrar} className="space-y-4">
             {f.turnoId && <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800 ring-1 ring-sky-100"><CalendarCheck className="size-4" /> Cobro de la cita atendida de {f.paciente}</p>}
             <div className="grid grid-cols-[1.5fr_1fr] gap-3">
-              <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => setF({ ...f, paciente: nombrePropio(e.target.value) })} className={inp} /></Campo>
+              <Campo label="Paciente"><input required list="pacientes-cobro" value={f.paciente} onChange={(e) => elegirPaciente(e.target.value)} className={inp} /></Campo>
               <Campo label="Cédula"><input inputMode="numeric" value={f.dni} onChange={(e) => setF({ ...f, dni: e.target.value })} className={inp} /></Campo>
             </div>
-            <datalist id="pacientes-cobro">{Array.from(new Set(turnos.map((t) => t.paciente))).map((p) => <option key={p} value={p} />)}</datalist>
+            <datalist id="pacientes-cobro">{Array.from(new Set([...padron.map((p) => p.nombre), ...turnos.map((t) => t.paciente)])).map((p) => <option key={p} value={p} />)}</datalist>
             <Campo label="Servicio">
               <select value={f.concepto} onChange={(e) => elegirServicio(e.target.value)} className={inp}>
-                {SERVICIOS.map((s) => <option key={s.id}>{s.nombre}</option>)}
+                {catalogo.map((s) => <option key={s.nombre}>{s.nombre}</option>)}
                 <option>Otro</option>
               </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">{activas.length ? "Precio tomado de Facturación → Tarifas." : "Precios de la lista base. Cárguelos en Facturación → Tarifas para usar los suyos."}</p>
             </Campo>
             <Campo label="Profesional">
               <select value={f.profesional} onChange={(e) => setF({ ...f, profesional: e.target.value })} className={inp}>{ADMINS.map((a) => <option key={a.id}>{a.nombre}</option>)}</select>
             </Campo>
-            <div className="grid grid-cols-2 gap-3">
-              <Campo label="Valor"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
-              <Campo label="Pague ahora"><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
+            <Campo label="Valor del servicio"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value, ...(f.eps ? {} : { pagado: e.target.value }) })} className={inp + " font-semibold tabular-nums"} /></Campo>
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 dark:bg-white/5">
+              {([[false, "Particular"], [true, "EPS / prepagada"]] as const).map(([v, l]) => (
+                <button key={l} type="button" onClick={() => setF({ ...f, eps: v, pagado: v ? String(pagaPaciente({ ...f, eps: true })) : f.valor })} className={`rounded-lg py-2 text-xs font-semibold transition ${f.eps === v ? "bg-card text-[#0b2a6b] shadow-sm dark:text-sky-200" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+              ))}
             </div>
+            {f.eps && (
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/5">
+                <div className="grid grid-cols-[1.4fr_1fr] gap-3">
+                  <Campo label="EPS"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} placeholder="Sura, Sanitas, Nueva EPS…" className={inp} /></Campo>
+                  <Campo label="N° de autorización"><input value={f.autorizacion} onChange={(e) => setF({ ...f, autorizacion: e.target.value })} placeholder="Opcional" className={inp} /></Campo>
+                </div>
+                <div>
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">El paciente paga</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {TIPOS_PAGO_EPS.map((t) => (
+                      <button key={t} type="button" onClick={() => { const nx = { ...f, tipoPagoEps: t }; setF({ ...nx, pagado: String(pagaPaciente(nx)) }); }} className={`rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition ${f.tipoPagoEps === t ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{t}</button>
+                    ))}
+                  </div>
+                </div>
+                {f.tipoPagoEps !== "Sin pago del paciente" && (
+                  <Campo label={f.tipoPagoEps === "Copago" ? "Valor del copago" : "Valor de la cuota moderadora"}>
+                    <input type="number" min="0" value={f.cuota} onChange={(e) => { const nx = { ...f, cuota: e.target.value }; setF({ ...nx, pagado: String(pagaPaciente(nx)) }); }} className={inp + " font-semibold tabular-nums"} />
+                    {f.tipoPagoEps === "Copago" && Number(f.valor) > 0 && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] text-muted-foreground">Calcular:</span>
+                        {[10, 15, 20, 30].map((pc) => (
+                          <button key={pc} type="button" onClick={() => { const nx = { ...f, cuota: String(Math.round((Number(f.valor) * pc) / 100)) }; setF({ ...nx, pagado: nx.cuota }); }} className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">{pc}%</button>
+                        ))}
+                      </div>
+                    )}
+                  </Campo>
+                )}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-xl bg-white p-2.5 ring-1 ring-slate-200 dark:bg-white/5 dark:ring-white/10"><p className="text-muted-foreground">Paga el paciente</p><p className="font-semibold tabular-nums">{dinero(pagaPaciente(f))}</p></div>
+                  <div className="rounded-xl bg-white p-2.5 ring-1 ring-slate-200 dark:bg-white/5 dark:ring-white/10"><p className="text-muted-foreground">A cargo de la EPS</p><p className="font-semibold tabular-nums">{dinero(Math.max(0, Number(f.valor || 0) - pagaPaciente(f)))}</p></div>
+                </div>
+              </div>
+            )}
+            <Campo label={f.eps ? "El paciente paga ahora" : "Paga ahora"}><input type="number" min="0" value={f.pagado} onChange={(e) => setF({ ...f, pagado: e.target.value })} className={inp + " font-semibold tabular-nums"} /></Campo>
             <div>
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">Medio de pago</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {METODOS_PAGO.map((m) => (
-                  <button key={m} type="button" onClick={() => setF({ ...f, metodo: m })} className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${f.metodo === m ? `bg-gradient-to-br ${COLOR_METODO[m]} text-white shadow-md` : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
+                  <button key={m} type="button" onClick={() => setF({ ...f, metodo: m })} className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${f.metodo === m ? "bg-[#0b2a6b] text-white shadow-md" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
                 ))}
               </div>
             </div>
-            {f.metodo === "EPS" && <Campo label="EPS / medicina prepagada"><input value={f.obraSocial} onChange={(e) => setF({ ...f, obraSocial: e.target.value })} className={inp} /></Campo>}
             <Campo label="Cobró">
               <select value={f.cobradoPor} onChange={(e) => setF({ ...f, cobradoPor: e.target.value })} className={inp}>{quienes.map((n) => <option key={n}>{n}</option>)}</select>
             </Campo>
             <Campo label="Nota (opcional)"><input value={f.nota} onChange={(e) => setF({ ...f, nota: e.target.value })} className={inp} /></Campo>
-            {Number(f.pagado) < Number(f.valor) && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-100">Queda un saldo de {dinero(Number(f.valor) - Number(f.pagado || 0))} a cobrar.</p>}
+            {Number(f.pagado || 0) < pagaPaciente(f) && <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">Queda un saldo de <b>{dinero(pagaPaciente(f) - Number(f.pagado || 0))}</b> a cobrarle al paciente.</p>}
             <Button type="submit" className="h-12 w-full rounded-xl !bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25"><Check className="size-4" /> Registrar cobro</Button>
           </form>
         </Seccion>
@@ -3156,7 +3316,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
       </div>
 
       <Seccion icon={Receipt} titulo="Cobros registrados" sub={`${lista.length} resultado${lista.length === 1 ? "" : "s"}`} delay={0.25}
-        acciones={<div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Paciente, cédula, servicio..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div>}>
+        acciones={<div className="flex flex-wrap items-center gap-2"><BotonExcel cobros={cobros} cierres={cierres} log={log} /><div className="relative"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input placeholder="Paciente, cédula, servicio..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-60"} /></div></div>}>
         <div className="mb-4 flex flex-wrap gap-2">
           {(["Todos", "Pagado", "Parcial", "Pendiente", "Anulado"] as const).map((x) => {
             const n = x === "Todos" ? cobros.length : cobros.filter((c) => estadoCobro(c) === x).length;
@@ -3179,7 +3339,8 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-semibold">{c.paciente} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_COBRO[est]}`}>{est}</span></p>
                     <p className="text-xs text-muted-foreground">{c.concepto} · {nombreCorto(c.profesional)} · {fechaHora(c.fecha)}{c.dni ? ` · C.C. ${c.dni}` : ""}</p>
-                    {ult && <p className="text-xs text-muted-foreground">Último pago: {ult.metodo} · cobró <b className="text-foreground/80">{ult.cobradoPor}</b></p>}
+                    {c.obraSocial && c.tipoPagoEps && <p className="text-xs text-muted-foreground">{c.obraSocial} · {c.tipoPagoEps}{c.aCargoEps ? ` · la EPS cubre ${dinero(c.aCargoEps)}` : ""}{c.autorizacion ? ` · Aut. ${c.autorizacion}` : ""}</p>}
+                    {ult && <p className="text-xs text-muted-foreground">Último pago: {metodoTxt(ult.metodo)} · cobró <b className="text-foreground/80">{ult.cobradoPor}</b></p>}
                     {c.anulado && <p className="text-xs text-rose-700">Anulado por {nombreCorto(c.anulado.por)}: {c.anulado.motivo}</p>}
                   </div>
                   <div className="text-right">
@@ -3190,8 +3351,16 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                 {!c.anulado && (
                   <div className="mt-3 flex flex-wrap gap-1.5 pl-[52px]">
                     {saldoDe(c) > 0 && <button onClick={() => { setAbonando(abonando === c.id ? null : c.id); setAbono({ ...abono, monto: String(saldoDe(c)) }); }} className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">Registrar pago</button>}
-                    <button onClick={() => imprimirRecibo(c)} className="rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70">Recibo</button>
+                    <button onClick={() => imprimirRecibo(c)} className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70"><Printer className="size-3" /> Imprimir recibo</button>
+                    <button onClick={() => setEnviando(enviando?.id === c.id ? null : { id: c.id, para: fichaDe(c)?.email ?? "" })} className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70"><Mail className="size-3" /> Por correo</button>
+                    <a href={(() => { const tel = fichaDe(c)?.telefono; return tel ? waDe(tel, textoRecibo(c)) : `https://wa.me/?text=${encodeURIComponent(textoRecibo(c))}`; })()} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-secondary px-2.5 py-1 text-xs font-medium hover:bg-secondary/70"><MessageCircle className="size-3" /> Por WhatsApp</a>
                     <button onClick={() => { setAnulando(anulando === c.id ? null : c.id); setMotivo(""); }} className="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100">Anular</button>
+                  </div>
+                )}
+                {enviando?.id === c.id && (
+                  <div className="mt-3 flex flex-wrap gap-2 rounded-xl bg-secondary/50 p-3">
+                    <input autoFocus type="email" placeholder="Correo del paciente" value={enviando.para} onChange={(e) => setEnviando({ id: c.id, para: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") void enviarCorreo(); }} className={inp + " h-10 flex-1"} />
+                    <Button onClick={() => void enviarCorreo()} disabled={mandando} className="h-10 rounded-xl">{mandando ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Enviar recibo</Button>
                   </div>
                 )}
                 {abonando === c.id && (
@@ -3364,7 +3533,7 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
           </div>
         </Seccion>
 
-        <Seccion icon={ClipboardList} titulo="Historial de cierres" delay={0.25}>
+        <Seccion icon={ClipboardList} titulo="Historial de cierres" delay={0.25} acciones={<BotonExcel cobros={cobros} cierres={cierres} log={log} />}>
           {cierres.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay cierres de caja.</p>}
           <div className="space-y-2">
             {cierres.slice(0, 12).map((c) => {
@@ -4354,7 +4523,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
 /* ---------- Portal del paciente (accesos y autorizaciones) ---------- */
 function waPaciente(tel: string, texto: string) {
   let n = tel.replace(/\D/g, "");
-  if (n && n.length <= 10) n = "549" + n.replace(/^0/, "");
+  if (n.length === 10 && n.startsWith("3")) n = "57" + n;
   return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
 }
 

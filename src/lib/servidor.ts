@@ -1041,6 +1041,22 @@ export const siguienteComprobante = createServerFn({ method: "POST" })
     return { ok: true, numero: `${prefijo ? `${prefijo}-` : ""}${n}` };
   });
 
+/** Envía por correo (Resend) el recibo de un cobro. Solo personal con acceso a Pagos. */
+export const enviarReciboCorreo = createServerFn({ method: "POST" })
+  .validator((d: { id: string; para: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ para: string }>> => {
+    const q = await quienSoy();
+    if (!q || q.tipo !== "staff") return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    if (!(await areaPermite(q, "gb_cobros", "ver"))) return { ok: false, error: "Su área no tiene permiso para Pagos." };
+    const c = await (await colecciones()).uno("gb_cobros", String(data.id ?? ""));
+    if (!c) return { ok: false, error: "No se encontró el cobro. Recargue la página." };
+    const para = String(data.para ?? "").trim();
+    const r = await (await avisos()).reciboPorCorreo(c, para);
+    if (!r.ok) return r;
+    await (await acceso()).auditar(q.nombre, "Recibo enviado por correo", `${c["paciente"]} · ${para}`);
+    return { ok: true, para };
+  });
+
 /** Envía por correo (Resend) la invitación al Portal del paciente. Solo personal del panel. */
 export const invitarPortalCorreo = createServerFn({ method: "POST" })
   .validator((d: { id: string }) => d)

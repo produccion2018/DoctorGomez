@@ -248,3 +248,42 @@ export async function invitarPortalPorCorreo(p: Record<string, unknown>) {
     ),
   );
 }
+
+
+/* ---------- recibo de pago ---------- */
+const pesos = (n: unknown) => "$ " + Number(n ?? 0).toLocaleString("es-CO");
+const METODO_TXT: Record<string, string> = { "Débito": "Tarjeta débito", "Crédito": "Tarjeta crédito" };
+export async function reciboPorCorreo(c: Record<string, unknown>, para: string) {
+  const pagos = (Array.isArray(c["pagos"]) ? c["pagos"] : []) as { fecha: string; monto: number; metodo: string }[];
+  const pagado = pagos.reduce((a, p) => a + Number(p.monto || 0), 0);
+  const valor = Number(c["valor"] ?? 0);
+  const eps = Number(c["aCargoEps"] ?? 0);
+  const saldo = c["anulado"] ? 0 : Math.max(0, valor - pagado);
+  const nombre = String(c["paciente"] ?? "").split(" ")[0] ?? "";
+  const fecha = (iso: string) => new Date(iso).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const fila = (k: string, v: string, fuerte = false) => `<tr><td style="padding:7px 0;color:#64748b">${k}</td><td style="padding:7px 0;text-align:right;${fuerte ? "font-weight:bold;color:#0b2a6b" : ""}">${v}</td></tr>`;
+  const filas = [
+    fila("Servicio", esc(c["concepto"])),
+    fila("Profesional", esc(c["profesional"])),
+    c["obraSocial"] ? fila("EPS", esc(c["obraSocial"])) : "",
+    eps > 0 ? fila("Valor del servicio", pesos(valor + eps)) : "",
+    eps > 0 ? fila("A cargo de la EPS", pesos(eps)) : "",
+    fila(c["tipoPagoEps"] ? String(c["tipoPagoEps"]) : "Valor", pesos(valor)),
+    ...pagos.map((p) => fila(`Pago · ${esc(METODO_TXT[p.metodo] ?? p.metodo)} · ${esc(fecha(p.fecha))}`, pesos(p.monto))),
+    fila("Total pagado", pesos(pagado), true),
+    saldo > 0 ? fila("Saldo pendiente", pesos(saldo), true) : "",
+  ].join("");
+  return enviarCorreoDetalle(
+    [para],
+    `Recibo de pago N° ${String(c["id"] ?? "").toUpperCase()} · HEGO`,
+    marco(
+      "Recibo de pago",
+      `<p style="margin:0 0 12px">Hola ${esc(nombre)}, este es el recibo de su pago en el Centro HEGO.</p>
+       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:6px 16px;margin:14px 0">
+         <table style="width:100%;border-collapse:collapse;font-size:14px">${filas}</table>
+       </div>
+       <p style="font-size:12px;color:#64748b;margin:0">Recibo N° ${esc(String(c["id"] ?? "").toUpperCase())} · Paciente ${esc(c["paciente"])}${c["dni"] ? ` · C.C. ${esc(c["dni"])}` : ""}</p>
+       <p style="font-size:12px;color:#94a3b8;margin-top:12px">Este recibo es un soporte de pago, no reemplaza la factura electrónica.</p>`,
+    ),
+  );
+}

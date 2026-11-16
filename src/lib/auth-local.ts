@@ -26,6 +26,7 @@ import {
   aplicarCambios,
   horariosOcupados,
   invitarPortalCorreo,
+  enviarReciboCorreo,
   siguienteComprobante,
   subirDocumentoServidor,
   verDocumentoServidor,
@@ -492,6 +493,17 @@ export async function invitarPortalPorCorreo(id: string): Promise<{ ok: true; pa
   return { ok: false, error: "No se pudo enviar." };
 }
 
+/** Envía el recibo de un cobro por correo. Reintenta unos segundos por si el cobro recién creado todavía se está guardando. */
+export async function enviarReciboPorCorreo(id: string, para: string): Promise<{ ok: true; para: string } | { ok: false; error: string }> {
+  if (!(await iniciarBackend())) return { ok: false, error: "El envío de correos funciona con el servidor (en la página publicada)." };
+  for (let i = 0; i < 4; i++) {
+    const r = await enviarReciboCorreo({ data: { id, para } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+    if (r.ok || !/No se encontró/.test(r.error) || i === 3) return r;
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  return { ok: false, error: "No se pudo enviar." };
+}
+
 /** Número del próximo comprobante (consecutivo del servidor). Sin servidor: null y el panel numera localmente. */
 export async function numeroComprobante(tipo: string): Promise<{ ok: true; numero: string } | { ok: false; error: string } | null> {
   if (!(await iniciarBackend())) return null;
@@ -851,8 +863,11 @@ export type Autorizacion = {
 export const KEY_AUT = "gb_autorizaciones";
 
 /* ---------- Cobros a pacientes, equipo y control de caja ---------- */
-export const METODOS_PAGO = ["Efectivo", "Débito", "Crédito", "Transferencia", "Mercado Pago", "EPS"] as const;
-export type MetodoPago = (typeof METODOS_PAGO)[number];
+export const METODOS_PAGO = ["Efectivo", "Tarjeta débito", "Tarjeta crédito", "Transferencia", "Nequi", "Daviplata", "PSE"] as const;
+/** Incluye los nombres viejos para que los cobros anteriores se sigan viendo bien. */
+export type MetodoPago = (typeof METODOS_PAGO)[number] | "Débito" | "Crédito" | "Mercado Pago" | "EPS";
+export const metodoTxt = (m: string) => ({ "Débito": "Tarjeta débito", "Crédito": "Tarjeta crédito" } as Record<string, string>)[m] ?? m;
+export const TIPOS_PAGO_EPS = ["Cuota moderadora", "Copago", "Sin pago del paciente"] as const;
 export type EstadoCobro = "Pagado" | "Parcial" | "Pendiente" | "Anulado";
 export type PagoParcial = { fecha: string; monto: number; metodo: MetodoPago; cobradoPor: string };
 export type Cobro = {
@@ -867,6 +882,10 @@ export type Cobro = {
   valor: number;
   pagos: PagoParcial[];
   obraSocial?: string;
+  /** Atención por EPS: qué paga el paciente (cuota moderadora o copago), cuánto queda a cargo de la EPS y la autorización. */
+  tipoPagoEps?: (typeof TIPOS_PAGO_EPS)[number];
+  aCargoEps?: number;
+  autorizacion?: string;
   nota?: string;
   anulado?: { por: string; motivo: string; fecha: string };
 };
@@ -891,6 +910,7 @@ export const saldoDe = (c: Cobro) => (c.anulado ? 0 : Math.max(0, c.valor - paga
 export function estadoCobro(c: Cobro): EstadoCobro {
   if (c.anulado) return "Anulado";
   const p = pagadoDe(c);
+  if (c.valor <= 0) return "Pagado"; // EPS sin pago del paciente
   if (p <= 0) return "Pendiente";
   return p >= c.valor ? "Pagado" : "Parcial";
 }
