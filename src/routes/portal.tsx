@@ -38,6 +38,10 @@ import {
   UserRound,
   Wallet,
   X,
+  Upload,
+  Loader2,
+  Paperclip,
+  ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -87,7 +91,8 @@ import {
   type TurnoClinica,
   KEY_SITIO,
   sitioDe,
-  leerDato, ocupadosServidor, salirPortal } from "@/lib/auth-local";
+  leerDato, ocupadosServidor, salirPortal,
+  KEY_DOCUMENTOS, CATEGORIAS_DOC, subirDocumento, abrirDocumento, borrarDocumento, type DocumentoPaciente } from "@/lib/auth-local";
 import heroDoctors from "@/assets/hero-doctors.jpg";
 
 import logoClinica from "@/assets/logo.png";
@@ -718,6 +723,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
             <div className="mt-6 flex flex-wrap gap-2">
               <Button onClick={() => ctx.ir("turnos")} className="rounded-full !bg-white px-5 text-[var(--deep)] hover:!bg-white/90"><CalendarPlus className="size-4" /> Sacar cita</Button>
               <Button onClick={() => ctx.ir("controles")} variant="outline" className="rounded-full !border-white/30 !bg-white/10 px-5 text-white hover:!bg-white/20 hover:text-white"><Gauge className="size-4" /> Registrar presión</Button>
+              <Button onClick={() => ctx.ir("estudios")} variant="outline" className="rounded-full !border-white/30 !bg-white/10 px-5 text-white hover:!bg-white/20 hover:text-white"><Upload className="size-4" /> Subir laboratorios</Button>
             </div>
           </div>
           <div className="rounded-3xl bg-white/10 p-5 ring-1 ring-white/20 backdrop-blur">
@@ -1367,7 +1373,9 @@ function Estudios({ ctx }: { ctx: Ctx }) {
 
   return (
     <div className="space-y-6">
-      <Titulo icon={FileText} titulo="Estudios y resultados" sub="Sus análisis e informes de nefrología y cardiología, explicados." />
+      <Titulo icon={FileText} titulo="Estudios y resultados" sub="Suba sus laboratorios y estudios para que su médico los vea, y consulte los informes de la clínica." />
+
+      <SubirResultados ctx={ctx} />
 
       {egfrs.length >= 2 && (
         <Tarjeta>
@@ -1437,6 +1445,125 @@ function Estudios({ ctx }: { ctx: Ctx }) {
         <p className="mt-4 text-xs text-muted-foreground">Son indicaciones generales. Si su médico le dio otras, siga las de su médico.</p>
       </Tarjeta>
     </div>
+  );
+}
+
+/* ===================================================================== */
+/* Subir laboratorios y estudios (los ve el médico en su panel)             */
+/* ===================================================================== */
+
+const pesoTxt = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+const iconoArchivo = (tipo: string) => (tipo.startsWith("image/") ? ImageIcon : tipo.includes("pdf") ? FileText : Paperclip);
+
+function SubirResultados({ ctx }: { ctx: Ctx }) {
+  const [docs] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
+  const mios = docs.filter((d) => d.pacienteId === ctx.paciente.id).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [categoria, setCategoria] = useState<string>(CATEGORIAS_DOC[0]);
+  const [fechaEstudio, setFechaEstudio] = useState("");
+  const [nota, setNota] = useState("");
+  const [subiendo, setSubiendo] = useState<string | null>(null);
+  const [arrastra, setArrastra] = useState(false);
+
+  const agregar = (lista: FileList | null) => {
+    if (!lista) return;
+    const nuevos = Array.from(lista);
+    const grandes = nuevos.filter((f) => f.size > 15 * 1024 * 1024);
+    if (grandes.length) toast.error(`${grandes.map((f) => f.name).join(", ")}: supera 15 MB.`);
+    setArchivos((a) => [...a, ...nuevos.filter((f) => f.size <= 15 * 1024 * 1024)].slice(0, 10));
+  };
+  const enviar = async () => {
+    if (!archivos.length) return toast.error("Elija al menos un archivo.");
+    let bien = 0;
+    for (const f of archivos) {
+      setSubiendo(f.name);
+      const r = await subirDocumento(f, { categoria, ...(fechaEstudio ? { fechaEstudio } : {}), ...(nota.trim() ? { nota: nota.trim() } : {}) });
+      if (r.ok) bien++;
+      else toast.error(r.error);
+    }
+    setSubiendo(null);
+    if (bien) {
+      toast.success(bien === 1 ? "Documento enviado. Su médico ya lo puede ver." : `${bien} documentos enviados. Su médico ya los puede ver.`);
+      setArchivos([]);
+      setNota("");
+      setFechaEstudio("");
+    }
+  };
+
+  return (
+    <Tarjeta>
+      <Subtitulo icon={Upload}>Subir mis laboratorios y estudios</Subtitulo>
+      <p className="-mt-2 mb-4 text-sm text-muted-foreground">Fotos o archivos de sus exámenes (PDF, JPG, PNG, Word, etc.). Su médico los ve en su historia antes de la consulta. <b className="text-foreground">Igual traiga los originales en físico el día de la cita.</b></p>
+
+      <label
+        onDragOver={(e) => { e.preventDefault(); setArrastra(true); }}
+        onDragLeave={() => setArrastra(false)}
+        onDrop={(e) => { e.preventDefault(); setArrastra(false); agregar(e.dataTransfer.files); }}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed px-6 py-8 text-center transition ${arrastra ? "border-sky-500 bg-sky-50 dark:bg-sky-500/10" : "border-border hover:border-sky-400 hover:bg-secondary/40 dark:border-white/15"}`}
+      >
+        <span className="grid size-14 place-items-center rounded-2xl gradient-deep text-white shadow-lg"><Upload className="size-6" /></span>
+        <span className="font-semibold">Toque para elegir archivos o tomar una foto</span>
+        <span className="text-xs text-muted-foreground">Hasta 10 archivos a la vez · máximo 15 MB cada uno</span>
+        <input type="file" multiple hidden accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.heic,.heif,.webp,.doc,.docx,.xls,.xlsx,.txt,.zip,.dcm" onChange={(e) => { agregar(e.target.files); e.target.value = ""; }} />
+      </label>
+
+      {archivos.length > 0 && (
+        <div className="mt-4 space-y-4">
+          <ul className="space-y-2">
+            {archivos.map((f, i) => {
+              const Ic = iconoArchivo(f.type);
+              return (
+                <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-2xl bg-secondary/50 px-3 py-2.5 dark:bg-white/5">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-300"><Ic className="size-4" /></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{f.name}</span><span className="text-[11px] text-muted-foreground">{pesoTxt(f.size)}</span></span>
+                  {subiendo === f.name ? <Loader2 className="size-4 animate-spin text-sky-600" /> : <button type="button" disabled={!!subiendo} onClick={() => setArchivos((a) => a.filter((_, j) => j !== i))} aria-label="Quitar" className="rounded-lg p-1.5 text-muted-foreground hover:text-rose-600"><X className="size-4" /></button>}
+                </li>
+              );
+            })}
+          </ul>
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">¿Qué es?</p>
+            <div className="flex flex-wrap gap-1.5">
+              {CATEGORIAS_DOC.map((c) => (
+                <button key={c} type="button" onClick={() => setCategoria(c)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${categoria === c ? "gradient-deep text-white shadow" : "bg-secondary text-muted-foreground hover:text-foreground dark:bg-white/5"}`}>{c}</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Fecha del examen</span><input type="date" value={fechaEstudio} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setFechaEstudio(e.target.value)} className={inp} /></label>
+            <label className="space-y-1.5"><span className="text-xs font-medium text-muted-foreground">Comentario para su médico (opcional)</span><input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Ej.: laboratorio que me pidió el Dr. en la última consulta" className={inp} /></label>
+          </div>
+          <Button onClick={() => void enviar()} disabled={!!subiendo} className="h-12 w-full rounded-2xl text-base btn-glow">
+            {subiendo ? <><Loader2 className="size-5 animate-spin" /> Enviando…</> : <><Upload className="size-5" /> Enviar {archivos.length === 1 ? "el archivo" : `${archivos.length} archivos`} a mi médico</>}
+          </Button>
+        </div>
+      )}
+
+      {mios.length > 0 && (
+        <div className="mt-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mis documentos enviados</p>
+          <ul className="space-y-2">
+            {mios.map((d) => {
+              const Ic = iconoArchivo(d.tipo);
+              return (
+                <li key={d.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/60 px-3 py-2.5 dark:border-white/10">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl gradient-deep text-white"><Ic className="size-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{d.nombre}</span>
+                    <span className="block text-[11px] text-muted-foreground">{d.categoria}{d.fechaEstudio ? ` · examen del ${fechaCorta(d.fechaEstudio)}` : ""} · enviado {fechaCorta(d.fecha.slice(0, 10))} · {pesoTxt(d.tamano)}</span>
+                  </span>
+                  {d.vistoPor ? <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200">✓ Visto por su médico</span> : <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">Enviado</span>}
+                  <Button size="sm" variant="ghost" className="rounded-lg" onClick={async () => { const r = await abrirDocumento(d.id); if (!r.ok) toast.error(r.error); }}><Eye className="size-4" /> Ver</Button>
+                  {d.origen === "paciente" && !d.vistoPor && (
+                    <button onClick={async () => { if (!window.confirm(`¿Borrar "${d.nombre}"?`)) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else toast.success("Documento borrado."); }} aria-label="Borrar" className="rounded-lg p-1.5 text-muted-foreground hover:text-rose-600"><Trash2 className="size-4" /></button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </Tarjeta>
   );
 }
 

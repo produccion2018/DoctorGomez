@@ -107,6 +107,7 @@ import {
   UserPlus,
   MessageCircle,
   FileSpreadsheet,
+  Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -159,6 +160,12 @@ import {
   KEY_ESTUDIOS,
   indicacionesTexto,
   invitarPortalPorCorreo,
+  KEY_DOCUMENTOS,
+  CATEGORIAS_DOC,
+  subirDocumento,
+  abrirDocumento,
+  borrarDocumento,
+  type DocumentoPaciente,
   nombrePropio,
   limpiarDoc,
   KEY_CONTROLES,
@@ -1053,11 +1060,16 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
   const [vistas, setVistas] = useDato<string[]>(`gb_notif_vistas_${user.id}`, []);
   const [notasEnfN] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const [triagesN] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const [docsN] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
 
   const ahora = Date.now();
   const nombreP = (id: string) => pacientes.find((p) => p.id === id)?.nombre ?? "Paciente";
   const esMedicoN = user.rol === "medico";
   const items: Notif[] = [
+    // Laboratorios y estudios que subieron los pacientes desde su portal
+    ...docsN
+      .filter((d) => d.origen === "paciente" && !d.vistoPor)
+      .map((d) => ({ id: `doc-${d.id}`, titulo: "Documento subido por un paciente", texto: `${nombreCorto(d.paciente)} · ${d.categoria} · ${d.nombre}`, icon: Paperclip, tono: "azul" as Tono, tab: "padron" as Tab, fecha: d.fecha })),
     // Lo que registra enfermería le llega al médico
     ...(esMedicoN
       ? notasEnfN
@@ -5353,6 +5365,7 @@ function FichaHC({
 
       {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
 
+      <DocumentosPaciente p={p} user={user} log={log} soloLectura={soloLectura} compacto />
       {labsHC.some((l) => Object.keys(l.resultados ?? {}).length) && <SeguimientoLab labs={labsHC} />}
 
       <RegistrarEnHC p={p} user={user} log={log} turnos={turnosHC} pacientes={pacientesHC.length ? pacientesHC : [p]} puede={notasEnf || user.rol === "medico" || user.area === "Dirección general"} />
@@ -6884,6 +6897,97 @@ function flagDe(d: Determinacion, v: number): "alto" | "bajo" | "ok" {
 const rangoTxt = (d: Determinacion) =>
   d.min !== undefined && d.max !== undefined ? `Normal ${d.min}–${d.max} ${d.unidad}` : d.max !== undefined ? `Normal hasta ${d.max} ${d.unidad}` : d.min !== undefined ? `Normal desde ${d.min} ${d.unidad}` : d.unidad;
 
+const pesoDoc = (b: number) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
+
+/** Laboratorios, imágenes e informes que subió el paciente desde su portal (o que cargó la clínica). */
+function DocumentosPaciente({ p, user, log, soloLectura = false, compacto = false }: { p: { id: string; nombre: string; portalId?: string | undefined }; user: SessionUser; log: LogFn; soloLectura?: boolean; compacto?: boolean }) {
+  const [docsTodos] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
+  const docs = docsTodos.filter((d) => d.pacienteId === p.id || d.pacienteId === p.portalId).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const nuevos = docs.filter((d) => d.origen === "paciente" && !d.vistoPor).length;
+  const [abriendo, setAbriendo] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [cat, setCat] = useState<string>(CATEGORIAS_DOC[0]);
+  const [abierto, setAbierto] = useState(!compacto);
+  const vm = useVerMas(docs, compacto ? 4 : 8);
+  const ver = async (d: DocumentoPaciente) => {
+    setAbriendo(d.id);
+    const r = await abrirDocumento(d.id);
+    setAbriendo(null);
+    if (!r.ok) toast.error(r.error);
+    else if (d.origen === "paciente" && !d.vistoPor) log("Documento del paciente revisado", `${p.nombre} · ${d.nombre}`);
+  };
+  const subir = async (lista: FileList | null) => {
+    if (!lista?.length) return;
+    setSubiendo(true);
+    let bien = 0;
+    for (const f of Array.from(lista).slice(0, 10)) {
+      const r = await subirDocumento(f, { categoria: cat, pacienteId: p.id });
+      if (r.ok) bien++;
+      else toast.error(r.error);
+    }
+    setSubiendo(false);
+    if (bien) toast.success(bien === 1 ? "Documento agregado a la carpeta." : `${bien} documentos agregados.`);
+  };
+  if (compacto && docs.length === 0) return null;
+  const COLOR: Record<string, string> = { Laboratorio: "from-rose-500 to-red-600", "Imágenes (Rx, eco, TAC)": "from-sky-500 to-blue-700", Electrocardiograma: "from-pink-500 to-rose-600", "Holter / MAPA": "from-violet-500 to-indigo-600", Ecocardiograma: "from-cyan-500 to-sky-700", "Orden o fórmula médica": "from-amber-400 to-orange-600" };
+  return (
+    <section className={`overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm dark:border-white/10 ${compacto ? "" : "mb-2"}`}>
+      <button type="button" onClick={() => compacto && setAbierto((v) => !v)} className={`relative flex w-full flex-wrap items-center gap-3 overflow-hidden bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#0e7490] px-4 py-3.5 text-left text-white ${compacto ? "cursor-pointer" : "cursor-default"}`}>
+        <span className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+        <span className="relative grid size-10 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><Paperclip className="size-5" /></span>
+        <span className="relative min-w-0 flex-1">
+          <span className="block font-display text-lg font-semibold">Documentos del paciente</span>
+          <span className="block text-xs text-white/75">Laboratorios, imágenes e informes que subió desde su portal o que cargó la clínica</span>
+        </span>
+        {nuevos > 0 && <span className="relative inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-amber-950 shadow"><span className="size-1.5 animate-pulse rounded-full bg-amber-950" /> {nuevos} sin revisar</span>}
+        <span className="relative rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/25">{docs.length}</span>
+        {compacto && <ChevronDown className={`relative size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />}
+      </button>
+      {abierto && (
+        <div className="p-3 sm:p-4">
+          {!soloLectura && !compacto && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary/50 p-3 dark:bg-white/5">
+              <select value={cat} onChange={(e) => setCat(e.target.value)} className={inp + " h-10 w-auto"} aria-label="Tipo de documento">{CATEGORIAS_DOC.map((c) => <option key={c}>{c}</option>)}</select>
+              <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-md transition gradient-deep ${subiendo ? "pointer-events-none opacity-70" : "hover:-translate-y-0.5"}`}>
+                {subiendo ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} {subiendo ? "Subiendo…" : "Cargar documento"}
+                <input type="file" multiple hidden onChange={(e) => { void subir(e.target.files); e.target.value = ""; }} />
+              </label>
+              <span className="text-xs text-muted-foreground">PDF, fotos o cualquier archivo · hasta 15 MB</span>
+            </div>
+          )}
+          {docs.length === 0 ? (
+            <Vacio icon={Paperclip} titulo="Sin documentos" texto="Cuando el paciente suba sus laboratorios o estudios desde su portal, aparecen aquí." />
+          ) : (
+            <ul className="grid gap-2.5 2xl:grid-cols-2">
+              {vm.items.map((d) => {
+                const nuevo = d.origen === "paciente" && !d.vistoPor;
+                return (
+                  <li key={d.id} className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:shadow-md ${nuevo ? "border-amber-300 bg-amber-50/60 dark:border-amber-500/40 dark:bg-amber-500/5" : "border-border/70 bg-card dark:border-white/10"}`}>
+                    <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm ${COLOR[d.categoria] ?? "from-slate-500 to-slate-700"}`}>{d.tipo.startsWith("image/") ? <ScanLine className="size-5" /> : d.tipo.includes("pdf") ? <FileText className="size-5" /> : <Paperclip className="size-5" />}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold">{d.nombre}{nuevo && <span className="shrink-0 rounded-full bg-amber-400 px-1.5 text-[9px] font-bold uppercase text-amber-950">Nuevo</span>}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{d.categoria}{d.fechaEstudio ? ` · examen del ${fechaDe(d.fechaEstudio)}` : ""} · {pesoDoc(d.tamano)}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{d.origen === "paciente" ? "Lo subió el paciente" : `Cargado por ${nombreCorto(d.subidoPor)}`} · {fechaHora(d.fecha)}{d.vistoPor ? ` · ✓ visto por ${nombreCorto(d.vistoPor)}` : ""}</p>
+                      {d.nota && <p className="mt-1 line-clamp-2 rounded-lg bg-secondary/60 px-2 py-1 text-[11px] italic dark:bg-white/5">"{d.nota}"</p>}
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button type="button" onClick={() => void ver(d)} disabled={abriendo === d.id} className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:-translate-y-0.5">{abriendo === d.id ? <Loader2 className="size-3.5 animate-spin" /> : <Eye className="size-3.5" />} Ver</button>
+                      {!soloLectura && !compacto && (
+                        <button type="button" onClick={async () => { if (!window.confirm(`¿Eliminar "${d.nombre}"?`)) return; const r = await borrarDocumento(d.id); if (!r.ok) toast.error(r.error); else { log("Documento eliminado", `${p.nombre} · ${d.nombre}`); toast.success("Documento eliminado."); } }} className="inline-flex items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="size-3" /> Eliminar</button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {vm.boton}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Seguimiento del paciente: cómo evolucionó cada valor de laboratorio en el tiempo, con su rango normal. */
 function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
   const conRes = labs.filter((l) => Object.keys(l.resultados ?? {}).length).sort((a, b) => (a.fechaResultado ?? a.fecha).localeCompare(b.fechaResultado ?? b.fecha));
@@ -8202,13 +8306,14 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
 }
 
 /* ═══════════ CARPETA DEL PACIENTE (estilo Cloud Esther: paciente + historial) ═══════════ */
-type SecCarpeta = "resumen" | "historia" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
+type SecCarpeta = "resumen" | "historia" | "documentos" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
 const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; icon: LucideIcon }[] }[] = [
   { titulo: "General", items: [{ id: "resumen", label: "Resumen", icon: LayoutDashboard }] },
   {
     titulo: "Clínico",
     items: [
       { id: "historia", label: "Historia clínica", icon: FileText },
+      { id: "documentos", label: "Documentos del paciente", icon: Paperclip },
       { id: "estudios", label: "Estudios", icon: ScanLine },
       { id: "laboratorio", label: "Laboratorio", icon: FlaskConical },
       { id: "recetas", label: "Receta digital", icon: PenLine },
@@ -8254,7 +8359,10 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
   const ultima = evols[0];
   const edad = edadDe(p.ficha?.nacimiento);
 
+  const [docsTodos] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
+  const docsP = docsTodos.filter((d) => d.pacienteId === p.id || d.pacienteId === p.portalId);
   const contador: Partial<Record<SecCarpeta, number>> = {
+    documentos: docsP.length,
     historia: evols.length,
     estudios: estudios.length,
     laboratorio: labs.length,
@@ -8499,6 +8607,8 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
               />
             </div>
           )}
+
+          {sec === "documentos" && <DocumentosPaciente p={p} user={user} log={log} soloLectura={soloLectura} />}
 
           {sec === "estudios" && (
             <>

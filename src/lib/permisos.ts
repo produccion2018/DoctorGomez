@@ -76,6 +76,7 @@ export const MODULO_COLECCION: Record<string, { ver: string[]; editar: string[] 
   gb_cierres: { ver: ["Finanzas", "Facturación"], editar: ["Finanzas", "Facturación"] },
   gb_movs: { ver: ["Finanzas", "Reportes"], editar: ["Finanzas"] },
   gb_audit: { ver: ["Auditoría"], editar: [] },
+  gb_documentos: { ver: ["Historias clínicas", "Estudios", "Laboratorio", "Portal del paciente"], editar: ["Historias clínicas", "Estudios", "Laboratorio"] },
 };
 
 /** Permisos propios de una persona (si se le dieron distintos a los de su departamento). */

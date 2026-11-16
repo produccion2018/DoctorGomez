@@ -27,6 +27,9 @@ import {
   horariosOcupados,
   invitarPortalCorreo,
   siguienteComprobante,
+  subirDocumentoServidor,
+  verDocumentoServidor,
+  borrarDocumentoServidor,
   reservarTurnoPublico,
   ingresarPacienteServidor,
   salirPacienteServidor,
@@ -402,7 +405,7 @@ const COLECCIONES = [
   "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
-  "gb_audit", "gb_mensajes",
+  "gb_audit", "gb_mensajes", "gb_documentos",
 ];
 type ConId = { id: string };
 const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");
@@ -1307,3 +1310,78 @@ export function nombrePropio(s: string): string {
 }
 /** Solo números y letras del documento (sin puntos ni espacios). */
 export const limpiarDoc = (s: string) => String(s ?? "").replace(/[^\dA-Za-z]/g, "").toUpperCase().slice(0, 15);
+
+
+/* ---------- Documentos que sube el paciente (o la clínica): laboratorios, imágenes, informes ---------- */
+export const CATEGORIAS_DOC = ["Laboratorio", "Imágenes (Rx, eco, TAC)", "Electrocardiograma", "Holter / MAPA", "Ecocardiograma", "Orden o fórmula médica", "Otro"] as const;
+export type DocumentoPaciente = {
+  id: string;
+  pacienteId: string;
+  paciente: string;
+  categoria: string;
+  nombre: string;
+  tipo: string;
+  tamano: number;
+  fechaEstudio?: string;
+  nota?: string;
+  subidoPor: string;
+  origen: "paciente" | "clinica";
+  fecha: string;
+  vistoPor?: string;
+  vistoEl?: string;
+};
+export const KEY_DOCUMENTOS = "gb_documentos";
+
+const aBase64 = (f: File) =>
+  new Promise<string>((ok, mal) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1] ?? "");
+    r.onerror = () => mal(new Error("No se pudo leer el archivo."));
+    r.readAsDataURL(f);
+  });
+
+/** Sube un documento al servidor y lo agrega a la lista local. */
+export async function subirDocumento(f: File, meta: { categoria: string; fechaEstudio?: string; nota?: string; pacienteId?: string }): Promise<{ ok: true; doc: DocumentoPaciente } | { ok: false; error: string }> {
+  if (!(await iniciarBackend())) return { ok: false, error: "Subir archivos funciona con el servidor (en la página publicada)." };
+  if (f.size > 15 * 1024 * 1024) return { ok: false, error: `"${f.name}" pesa más de 15 MB. Si es una foto, mándela con menos resolución o en PDF.` };
+  const base64 = await aBase64(f);
+  const r = await subirDocumentoServidor({ data: { nombre: f.name, tipo: f.type || "application/octet-stream", base64, ...meta } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (!r.ok) return r;
+  const doc = JSON.parse(r.json) as DocumentoPaciente;
+  const lista = leerDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
+  localStorage.setItem(KEY_DOCUMENTOS, JSON.stringify([doc, ...lista.filter((x) => x.id !== doc.id)]));
+  window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_DOCUMENTOS }));
+  return { ok: true, doc };
+}
+
+/** Abre el documento en una pestaña nueva (o lo descarga si el navegador no lo puede mostrar). */
+export async function abrirDocumento(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const ventana = window.open("", "_blank");
+  const r = await verDocumentoServidor({ data: { id } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (!r.ok) {
+    ventana?.close();
+    return r;
+  }
+  const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes], { type: r.tipo }));
+  const muestra = /^(image\/|application\/pdf|text\/)/.test(r.tipo);
+  if (muestra && ventana) ventana.location.href = url;
+  else {
+    ventana?.close();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = r.nombre;
+    a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+  return { ok: true };
+}
+
+export async function borrarDocumento(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await borrarDocumentoServidor({ data: { id } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  if (r.ok) {
+    localStorage.setItem(KEY_DOCUMENTOS, JSON.stringify(leerDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []).filter((x) => x.id !== id)));
+    window.dispatchEvent(new CustomEvent("gb-store", { detail: KEY_DOCUMENTOS }));
+  }
+  return r;
+}

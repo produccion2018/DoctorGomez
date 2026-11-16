@@ -25,6 +25,7 @@ const permiteModulo = (p: Permisos, area: string, modulo: string, accion: "ver" 
 };
 const modulo = () => import("./db.server");
 const acceso = () => import("./acceso.server");
+const acceso_ = acceso;
 
 /* ===================================================================== */
 /* Estado                                                                  */
@@ -516,6 +517,109 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
   });
 
 /* ===================================================================== */
+/* Documentos del paciente (laboratorios, imágenes, informes) → Vercel Blob */
+/* ===================================================================== */
+
+const MAX_DOC_MB = 15;
+
+/** Sube un documento. El paciente sube a su propio portal; el personal, a la carpeta de un paciente. */
+export const subirDocumentoServidor = createServerFn({ method: "POST" })
+  .validator((d: { nombre: string; tipo: string; base64: string; categoria: string; fechaEstudio?: string; nota?: string; pacienteId?: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ json: string }>> => {
+    const q = await quienSoy();
+    if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    if (!process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "El almacenamiento de archivos no está configurado." };
+    const c = await colecciones();
+    let pacienteId = "";
+    let paciente = "";
+    if (q.tipo === "paciente") {
+      pacienteId = q.id;
+      paciente = q.nombre;
+    } else {
+      if (!(await areaPermite(q, "gb_documentos", "editar"))) return { ok: false, error: "Su área no tiene permiso para cargar documentos." };
+      pacienteId = String(data.pacienteId ?? "");
+      const p = (await c.uno("gb_padron", pacienteId)) ?? (await c.uno("gb_pacientes", pacienteId));
+      if (!p) return { ok: false, error: "No se encontró el paciente." };
+      paciente = String(p["nombre"] ?? "");
+    }
+    const buf = Buffer.from(String(data.base64 ?? ""), "base64");
+    if (!buf.length) return { ok: false, error: "El archivo está vacío." };
+    if (buf.length > MAX_DOC_MB * 1024 * 1024) return { ok: false, error: `El archivo supera ${MAX_DOC_MB} MB. Si es una foto, envíela con menos resolución o en PDF.` };
+    const { put } = await import("@vercel/blob");
+    const limpio = String(data.nombre ?? "documento").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9.]+/g, "-").slice(-80) || "documento";
+    const ruta = `documentos/${pacienteId}/${(await modulo()).tokenAleatorio(8)}-${limpio}`;
+    const tipo = String(data.tipo || "application/octet-stream").slice(0, 120);
+    let r: { url: string };
+    let acceso: "private" | "public" = "private";
+    try {
+      r = await put(ruta, buf, { access: "private", contentType: tipo, addRandomSuffix: true });
+    } catch {
+      // Si el almacenamiento no admite archivos privados, se guarda con dirección secreta y solo se entrega por el servidor
+      acceso = "public";
+      r = await put(ruta, buf, { access: "public", contentType: tipo, addRandomSuffix: true });
+    }
+    const doc = {
+      id: (await modulo()).tokenAleatorio(6),
+      pacienteId,
+      paciente,
+      categoria: String(data.categoria || "Otro").slice(0, 60),
+      nombre: String(data.nombre || "documento").slice(0, 140),
+      tipo,
+      tamano: buf.length,
+      ...(data.fechaEstudio ? { fechaEstudio: String(data.fechaEstudio).slice(0, 10) } : {}),
+      ...(data.nota?.trim() ? { nota: data.nota.trim().slice(0, 500) } : {}),
+      subidoPor: q.nombre,
+      origen: q.tipo === "paciente" ? "paciente" : "clinica",
+      fecha: new Date().toISOString(),
+      url: r.url,
+      acceso,
+    };
+    await c.guardar("gb_documentos", doc);
+    await (await acceso_()).auditar(q.nombre, q.tipo === "paciente" ? "Documento subido desde el portal" : "Documento cargado al paciente", `${paciente} · ${doc.categoria} · ${doc.nombre}`);
+    const { url: _u, acceso: _a, ...publico } = doc;
+    return { ok: true, json: JSON.stringify(publico) };
+  });
+
+/** Entrega el archivo solo a quien puede verlo: el propio paciente o el personal autorizado. */
+export const verDocumentoServidor = createServerFn({ method: "POST" })
+  .validator((d: { id: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ base64: string; tipo: string; nombre: string }>> => {
+    const q = await quienSoy();
+    if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    const c = await colecciones();
+    const doc = await c.uno("gb_documentos", String(data.id ?? ""));
+    if (!doc) return { ok: false, error: "El documento ya no existe." };
+    if (q.tipo === "paciente" ? doc["pacienteId"] !== q.id : !(await areaPermite(q, "gb_documentos", "ver"))) return { ok: false, error: "No tiene permiso para ver este documento." };
+    if (q.tipo === "staff" && !q.medico && AREAS_MEDICAS.includes(q.area) && !(await ambitoEspecialidad(c, q))(doc, "gb_documentos")) return { ok: false, error: "Este paciente no es de su especialidad." };
+    const { get } = await import("@vercel/blob");
+    const r = await get(String(doc["url"]), { access: doc["acceso"] === "public" ? "public" : "private" }).catch(() => null);
+    if (!r || !("stream" in r) || !r.stream) return { ok: false, error: "No se pudo abrir el archivo." };
+    const buf = Buffer.from(await new Response(r.stream as ReadableStream).arrayBuffer());
+    if (q.tipo === "staff" && doc["origen"] === "paciente" && !doc["vistoPor"]) await c.guardar("gb_documentos", { ...doc, vistoPor: q.nombre, vistoEl: new Date().toISOString() });
+    return { ok: true, base64: buf.toString("base64"), tipo: String(doc["tipo"] ?? "application/octet-stream"), nombre: String(doc["nombre"] ?? "documento") };
+  });
+
+/** Borra un documento: el paciente solo los suyos que la clínica todavía no revisó; el personal con permiso, cualquiera. */
+export const borrarDocumentoServidor = createServerFn({ method: "POST" })
+  .validator((d: { id: string }) => d)
+  .handler(async ({ data }): Promise<Resultado> => {
+    const q = await quienSoy();
+    if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
+    const c = await colecciones();
+    const doc = await c.uno("gb_documentos", String(data.id ?? ""));
+    if (!doc) return { ok: true };
+    if (q.tipo === "paciente") {
+      if (doc["pacienteId"] !== q.id || doc["origen"] !== "paciente") return { ok: false, error: "No puede borrar este documento." };
+      if (doc["vistoPor"]) return { ok: false, error: "La clínica ya revisó este documento. Para quitarlo, comuníquese con la clínica." };
+    } else if (!(await areaPermite(q, "gb_documentos", "editar"))) return { ok: false, error: "No tiene permiso para borrar documentos." };
+    const { del } = await import("@vercel/blob");
+    await del(String(doc["url"])).catch(() => undefined);
+    await c.borrar("gb_documentos", [doc.id]);
+    await (await acceso_()).auditar(q.nombre, "Documento eliminado", `${doc["paciente"]} · ${doc["nombre"]}`);
+    return { ok: true };
+  });
+
+/* ===================================================================== */
 /* Colecciones: turnos, padrón y pacientes del portal                      */
 /* ===================================================================== */
 
@@ -556,7 +660,7 @@ async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: stri
 }
 
 /** Colecciones que tienen datos de un paciente (se filtran por especialidad para los médicos invitados). */
-const COLECCIONES_CON_PACIENTE = ["gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros"];
+const COLECCIONES_CON_PACIENTE = ["gb_documentos", "gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros"];
 
 /**
  * Qué pacientes le corresponden a un médico invitado: los de su especialidad.
@@ -629,6 +733,7 @@ export const leerColeccion = createServerFn({ method: "GET" })
       else if (c.DEL_PACIENTE.includes(data.coleccion)) filas = filas.filter((t) => t["pacienteId"] === q.id);
       else filas = [];
     }
+    if (data.coleccion === "gb_documentos") filas = filas.map(({ url: _u, acceso: _a, ...resto }) => resto as typeof filas[number]);
     return { ok: true, json: JSON.stringify(await nombresBienEscritos(data.coleccion, filas)) };
   });
 
