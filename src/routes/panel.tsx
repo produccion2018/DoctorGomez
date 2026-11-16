@@ -1187,9 +1187,9 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
   facturacion: { a: "13,148,136", b: "16,185,129", c: "14,165,233" },
   analitica: { a: "217,119,6", b: "56,132,246", c: "16,185,129" },
   automatizaciones: { a: "234,88,12", b: "225,29,72", c: "139,92,246" },
-  historia: { a: "225,29,72", b: "56,132,246", c: "14,165,233" },
+  historia: { a: "14,116,144", b: "11,42,107", c: "56,132,246" },
   horarios: { a: "13,148,136", b: "14,165,233", c: "16,185,129" },
-  pacientes: { a: "219,39,119", b: "139,92,246", c: "56,132,246" },
+  pacientes: { a: "29,78,216", b: "11,42,107", c: "14,116,144" },
   finanzas: { a: "16,185,129", b: "14,165,233", c: "20,184,166" },
   permisos: { a: "139,92,246", b: "79,70,229", c: "56,132,246" },
   asistente: { a: "99,102,241", b: "168,85,247", c: "14,165,233" },
@@ -1257,11 +1257,11 @@ function saludo(d: Date) {
   return "Buenas noches";
 }
 const AVATAR_COLORES = [
-  "from-sky-500 to-blue-700",
-  "from-violet-500 to-indigo-700",
-  "from-emerald-400 to-teal-600",
-  "from-amber-400 to-orange-600",
-  "from-rose-500 to-pink-700",
+  "from-[#0b2a6b] to-[#1e3a8a]",
+  "from-[#0e7490] to-[#155e75]",
+  "from-slate-600 to-slate-800",
+  "from-[#1d4ed8] to-[#0b2a6b]",
+  "from-[#0f766e] to-[#134e4a]",
 ];
 function colorDe(texto: string) {
   let h = 0;
@@ -5323,7 +5323,7 @@ function FichaHC({
           <p className="text-xs text-muted-foreground">Los registra enfermería o el médico. Quedan en el historial y los ve todo el equipo.</p>
         </div>
         {puedeSignos && (
-          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 px-4 py-2.5 text-xs font-semibold text-white shadow-[0_10px_24px_-12px_rgba(225,29,72,.9)] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
+          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0b2a6b] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0a2459] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -5340,7 +5340,7 @@ function FichaHC({
             </div>
             <p className="mt-2 font-display text-2xl font-semibold tabular-nums">{x.v} <span className="text-xs font-normal text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
+              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0e7490] dark:text-sky-300"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
               {x.f && <span className="text-[10px] text-muted-foreground">{fechaDe(x.f)}</span>}
             </div>
           </button>
@@ -5392,28 +5392,12 @@ function FichaHC({
             <Vacio icon={NotebookPen} titulo="Sin registros" texto={soloLectura ? "Todavía no hay consultas ni registros de enfermería para este paciente." : "Registre la primera consulta con Nueva evolución."} />
           ) : (
             <>
-            {puedeNotas && notasEnfP.length > 0 && (ver === "todo" || ver === "enfermeria") && (
-              <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-secondary/60 p-2.5 dark:bg-white/5">
-                <button type="button" onClick={() => setSelNotas(selNotas.size === notasEnfP.length ? new Set() : new Set(notasEnfP.map((n) => n.id)))} className="inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-xs font-semibold hover:bg-card">
-                  <span className={`grid size-5 place-items-center rounded-md border-2 ${selNotas.size && selNotas.size === notasEnfP.length ? "border-[rgb(var(--acc))] bg-[rgb(var(--acc))] text-white" : "border-slate-300 bg-white dark:border-white/20 dark:bg-transparent"}`}>{selNotas.size > 0 && <Check className="size-3.5" strokeWidth={3} />}</span>
-                  {selNotas.size ? `${selNotas.size} seleccionado${selNotas.size === 1 ? "" : "s"}` : "Seleccionar registros de enfermería"}
-                </button>
-                {selNotas.size > 0 && (
-                  <>
-                    <button type="button" onClick={() => confirmarNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 text-xs font-semibold text-white shadow-sm hover:bg-emerald-600"><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
-                    <button type="button" onClick={() => pendienteNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-3 text-xs font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"><Clock className="size-3.5" /> Pendiente</button>
-                    <button type="button" onClick={() => borrarNotas([...selNotas])} className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-rose-600 hover:bg-rose-50"><Trash2 className="size-3.5" /> Eliminar</button>
-                  </>
-                )}
-                <span className="ml-auto pr-2 text-[11px] text-muted-foreground">{(() => { const k = notasEnfP.filter((n) => n.estado !== "Confirmado").length; return k === 0 ? "Todo confirmado ✓" : `${k} ${k === 1 ? "pendiente" : "pendientes"} de confirmar`; })()}</span>
-              </div>
-            )}
             <ol className="hc-linea relative space-y-4">
               {vmLinea.items.map((it, i) => {
                 const nuevoDia = i === 0 || new Date(vmLinea.items[i - 1]!.f).toDateString() !== new Date(it.f).toDateString();
                 const separador = nuevoDia ? (
                   <li key={`dia-${it.f}`} className="relative flex items-center gap-3 pl-[52px] pt-1">
-                    <span className="rounded-full bg-gradient-to-r from-[rgb(var(--acc))] to-[rgba(var(--acc),.7)] px-3 py-1 text-[11px] inline-block font-bold text-white first-letter:uppercase shadow-md">{diaTxt(it.f)}</span>
+                    <span className="inline-block rounded-full bg-[#0b2a6b] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase shadow-sm dark:bg-white/15">{diaTxt(it.f)}</span>
                     <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                   </li>
                 ) : null;
@@ -5422,54 +5406,16 @@ function FichaHC({
                   const n = it.e;
                   return (
                     <li key={`en-${n.id}`} className="hc-item relative flex gap-4" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-[0_10px_20px_-8px_rgba(16,185,129,.9)] ring-4 ring-card"><Syringe className="size-4" /></span>
-                      <div className={`hc-card min-w-0 flex-1 rounded-2xl border p-4 transition-all ${selNotas.has(n.id) ? "border-[rgb(var(--acc))] ring-2 ring-[rgba(var(--acc),.25)]" : "border-emerald-200/70 dark:border-emerald-500/20"} bg-gradient-to-br from-emerald-50/80 to-card dark:from-emerald-500/5`}>
+                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0e7490] to-[#0b2a6b] text-white shadow-sm ring-4 ring-card"><Syringe className="size-4" /></span>
+                      <div className="hc-card min-w-0 flex-1 rounded-2xl border border-slate-200 bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] dark:border-white/10">
                         <div className="flex flex-wrap items-center gap-2">
-                          {puedeNotas && (
-                            <button type="button" onClick={() => alternarSel(n.id)} aria-label="Seleccionar" aria-pressed={selNotas.has(n.id)} className={`grid size-6 place-items-center rounded-[7px] transition-all duration-200 ${selNotas.has(n.id) ? "scale-105 bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-[0_6px_14px_-6px_rgba(16,185,129,.9)]" : "bg-white text-transparent shadow-[inset_0_0_0_1.5px_rgb(203,213,225),0_1px_2px_rgba(15,23,42,.08)] hover:text-emerald-400 hover:shadow-[inset_0_0_0_1.5px_rgb(52,211,153)] dark:bg-white/5"}`}>
-                              <Check className="size-3.5" strokeWidth={3.2} />
-                            </button>
-                          )}
-                          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
-                          {n.estado === "Confirmado" ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 py-0.5 pl-1 pr-2.5 text-[11px] font-bold text-white shadow-[0_4px_10px_-4px_rgba(16,185,129,.8)]"><span className="grid size-4 place-items-center rounded-full bg-white/25"><Check className="size-2.5" strokeWidth={3.5} /></span> Confirmado</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 py-0.5 pl-1.5 pr-2.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200"><span className="relative flex size-2"><span className="absolute inset-0 animate-ping rounded-full bg-amber-400/70" /><span className="relative size-2 rounded-full bg-amber-500" /></span> Pendiente</span>
-                          )}
-                          {n.editadoPor && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300" title={`Texto original: ${n.textoOriginal ?? ""}`}>Corregido por {nombreCorto(n.editadoPor)}</span>}
+                          <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
+                          <EstadoNota n={n} />
+                          {n.editadoPor && <span className="text-[10px] text-muted-foreground" title={`Texto original: ${n.textoOriginal ?? ""}`}>· corregido por {nombreCorto(n.editadoPor)}</span>}
                           <span className="ml-auto text-xs text-muted-foreground">{horaDeIso(n.fecha)} · {nombreCorto(n.enfermera)}</span>
                         </div>
-                        {editNota?.id === n.id ? (
-                          <div className="mt-3 space-y-2">
-                            <textarea autoFocus rows={3} value={editNota.texto} onChange={(e) => setEditNota({ id: n.id, texto: e.target.value })} className={inp + " h-auto py-2.5"} />
-                            <div className="flex justify-end gap-2">
-                              <Button type="button" variant="ghost" size="sm" className="rounded-lg" onClick={() => setEditNota(null)}>Cancelar</Button>
-                              <Button type="button" size="sm" className="rounded-lg" onClick={guardarEdicion}><Check className="size-4" /> Guardar corrección</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{limpiarTextoNota(n.texto)}</p>
-                        )}
-                        {n.estado === "Confirmado" && n.confirmadoPor && <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">✓ Confirmado por {nombreCorto(n.confirmadoPor)}{n.confirmadoEl ? ` · ${horaDeIso(n.confirmadoEl)}` : ""}</p>}
-                        {puedeNotas && editNota?.id !== n.id && (
-                          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-emerald-200/60 pt-3 dark:border-white/10">
-                            {n.estado === "Confirmado" ? (
-                              <button type="button" onClick={() => pendienteNotas([n.id])} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-amber-800 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-amber-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-white/5">
-                                <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow-sm transition-transform group-hover/b:rotate-[-20deg]"><Clock className="size-3.5" /></span> Marcar pendiente
-                              </button>
-                            ) : (
-                              <button type="button" onClick={() => confirmarNotas([n.id])} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 py-1 pl-1 pr-4 text-xs font-bold text-white shadow-[0_8px_18px_-8px_rgba(16,185,129,.9)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-8px_rgba(16,185,129,.9)]">
-                                <span className="grid size-7 place-items-center rounded-full bg-white/25 ring-1 ring-white/40 transition-transform group-hover/b:scale-110"><Check className="size-3.5" strokeWidth={3.2} /></span> Confirmar
-                              </button>
-                            )}
-                            <button type="button" onClick={() => setEditNota({ id: n.id, texto: n.texto })} className="group/b inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-sky-700 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-sky-200 transition hover:-translate-y-0.5 hover:shadow-md dark:bg-white/5 dark:text-sky-300 dark:ring-sky-500/30">
-                              <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sm transition-transform group-hover/b:rotate-12"><Pencil className="size-3.5" /></span> Editar
-                            </button>
-                            <button type="button" onClick={() => borrarNotas([n.id])} aria-label="Eliminar" title="Eliminar" className="group/b ml-auto inline-flex h-9 items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-xs font-semibold text-rose-600 shadow-[0_1px_2px_rgba(15,23,42,.08)] ring-1 ring-rose-200 transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-md dark:bg-white/5 dark:ring-rose-500/30">
-                              <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-rose-400 to-red-600 text-white shadow-sm transition-transform group-hover/b:-rotate-12"><Trash2 className="size-3.5" /></span> Eliminar
-                            </button>
-                          </div>
-                        )}
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">{limpiarTextoNota(n.texto)}</p>
+                        {n.estado === "Confirmado" && n.confirmadoPor && <p className="mt-1.5 text-[11px] text-muted-foreground">Confirmado por {nombreCorto(n.confirmadoPor)}{n.confirmadoEl ? ` · ${horaDeIso(n.confirmadoEl)}` : ""}</p>}
                       </div>
                     </li>
                   );
@@ -9082,7 +9028,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
 
       <ProcedimientosHoy user={user} log={log} turnos={turnosHoy} pacientes={pacientes} soloLectura={soloLectura} />
 
-      <RegistrosEnfHoy pacientes={pacientes} esMedico={esMedico} abrirHistoria={abrirHistoria} />
+      <RegistrosEnfHoy pacientes={pacientes} esMedico={esMedico} abrirHistoria={abrirHistoria} user={user} log={log} soloLectura={soloLectura} />
 
       <Seccion icon={ClipboardList} titulo="Signos vitales registrados hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · quedan en la Historia Clínica de cada paciente`}>
         {deHoy.length === 0 ? (
@@ -10110,16 +10056,7 @@ function RestablecerOtro({ user }: { user: SessionUser }) {
 const TIPOS_NOTA_ENF = ["Nota de enfermería", "Procedimiento realizado", "Toma de muestra", "Administración de medicamento", "Educación al paciente", "Novedad / incidente"] as const;
 // (Glucometría, Electrocardiograma, Curación y Holter / MAPA se registran desde los botones de Enfermería)
 const COLOR_NOTA: Record<string, string> = {
-  "Nota de enfermería": "bg-sky-100 text-sky-700 ring-sky-200",
-  "Procedimiento realizado": "bg-violet-100 text-violet-700 ring-violet-200",
-  "Toma de muestra": "bg-amber-100 text-amber-800 ring-amber-200",
-  "Administración de medicamento": "bg-emerald-100 text-emerald-700 ring-emerald-200",
-  "Educación al paciente": "bg-teal-100 text-teal-700 ring-teal-200",
-  "Novedad / incidente": "bg-rose-100 text-rose-700 ring-rose-200",
-  "Glucometría": "bg-orange-100 text-orange-700 ring-orange-200",
-  "Electrocardiograma": "bg-red-100 text-red-700 ring-red-200",
-  "Curación": "bg-pink-100 text-pink-700 ring-pink-200",
-  "Holter / MAPA": "bg-indigo-100 text-indigo-700 ring-indigo-200",
+  "Nota de enfermería": "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-white/10 dark:text-slate-200 dark:ring-white/10",
 };
 
 /** Registro de enfermería del paciente (dentro de la Historia Clínica). Solo enfermería escribe; los médicos lo leen. */
@@ -10276,7 +10213,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
                 className={`inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[rgb(var(--acc))] text-white ring-transparent shadow-md" : "bg-card ring-border hover:bg-secondary"}`}>
                 <Avatar nombre={p.nombre} size="size-7" />
                 {p.nombre}
-                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-full px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-emerald-100 text-emerald-700"}`}>cita hoy</span>}
+                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-full px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"}`}>cita hoy</span>}
                 {p.ficha?.alergias && <AlertTriangle className={`size-3.5 ${p.id === pacSel ? "text-white" : "text-red-500"}`} />}
               </button>
             ))}
@@ -10490,36 +10427,117 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
 }
 
 
-/** Lo que registró enfermería hoy: lo ven la enfermera y los médicos (sincronizado). */
-function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria }: { pacientes: PacienteHC[]; esMedico: boolean; abrirHistoria: (id: string) => void }) {
-  const [notas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+function EstadoNota({ n }: { n: NotaEnfermeria }) {
+  return n.estado === "Confirmado" ? (
+    <span className="inline-flex items-center gap-1 rounded-md bg-[#0b2a6b]/[.06] px-2 py-0.5 text-[11px] font-semibold text-[#0b2a6b] ring-1 ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10"><Check className="size-3" strokeWidth={3} /> Confirmado</span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"><span className="size-1.5 rounded-full bg-slate-400" /> Pendiente</span>
+  );
+}
+
+/** Lo que registró enfermería hoy: lo ven la enfermera y los médicos (sincronizado). Aquí se confirma, corrige o elimina. */
+function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLectura = false }: { pacientes: PacienteHC[]; esMedico: boolean; abrirHistoria: (id: string) => void; user: SessionUser; log: LogFn; soloLectura?: boolean }) {
+  const [notas, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const hoyIso = isoDe(new Date());
   const deHoy = notas.filter((n) => !n.anulada && diaLocal(n.fecha) === hoyIso).sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const vm = useVerMas(deHoy, 6);
+  const [sel, setSel] = useState<Set<string>>(() => new Set());
+  const [edit, setEdit] = useState<{ id: string; texto: string } | null>(null);
+  const puede = !soloLectura;
+  const ahora = () => new Date().toISOString();
+  const cambiar = (ids: string[], patch: (n: NotaEnfermeria) => Partial<NotaEnfermeria>, accion: string) => {
+    setNotas((l) => l.map((n) => (ids.includes(n.id) ? { ...n, ...patch(n) } : n)));
+    const quienes = [...new Set(deHoy.filter((n) => ids.includes(n.id)).map((n) => n.paciente))].join(", ");
+    log(accion, `${quienes} · ${ids.length} registro${ids.length === 1 ? "" : "s"} de enfermería`);
+    setSel(new Set());
+  };
+  const confirmar = (ids: string[]) => cambiar(ids, () => ({ estado: "Confirmado", confirmadoPor: user.nombre, confirmadoEl: ahora() }), "Registro de enfermería confirmado");
+  const pendiente = (ids: string[]) => cambiar(ids, () => ({ estado: "Pendiente" }), "Registro de enfermería marcado pendiente");
+  const borrar = (ids: string[]) => {
+    if (!window.confirm(ids.length === 1 ? "¿Eliminar este registro? Queda guardado en la auditoría, pero ya no se muestra." : `¿Eliminar ${ids.length} registros? Quedan guardados en la auditoría, pero ya no se muestran.`)) return;
+    cambiar(ids, () => ({ anulada: true, anuladaPor: user.nombre, anuladaEl: ahora() }), "Registro de enfermería eliminado");
+    toast.success(ids.length === 1 ? "Registro eliminado." : `${ids.length} registros eliminados.`);
+  };
+  const guardar = () => {
+    if (!edit || !edit.texto.trim()) return;
+    const { id, texto } = edit;
+    cambiar([id], (n) => ({ texto: texto.trim(), textoOriginal: n.textoOriginal ?? n.texto, editadoPor: user.nombre, editadoEl: ahora() }), "Registro de enfermería corregido");
+    setEdit(null);
+    toast.success("Registro corregido. El texto original queda guardado.");
+  };
+  const alternar = (id: string) => setSel((s) => { const x = new Set(s); if (x.has(id)) x.delete(id); else x.add(id); return x; });
+  const pend = deHoy.filter((n) => n.estado !== "Confirmado").length;
+  const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition";
+  const caja = (on: boolean) => `grid size-5 shrink-0 place-items-center rounded-md border transition ${on ? "border-[#0b2a6b] bg-[#0b2a6b] text-white" : "border-slate-300 bg-white text-transparent hover:border-[#0b2a6b]/60 dark:border-white/20 dark:bg-transparent"}`;
   return (
-    <Seccion icon={NotebookPen} titulo="Registros de enfermería de hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · glucometrías, medicamentos, muestras, procedimientos y notas`}>
+    <Seccion icon={NotebookPen} titulo="Registros de enfermería de hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · ${pend ? `${pend} ${pend === 1 ? "pendiente" : "pendientes"} de confirmar` : "todo confirmado"}`}>
       {deHoy.length === 0 ? (
         <Vacio icon={NotebookPen} texto="Todavía no hay registros de enfermería hoy." />
       ) : (
-        <ul className="space-y-2.5">
-          {deHoy.map((n) => {
-            const al = pacientes.find((p) => p.id === n.pacienteId || p.portalId === n.pacienteId)?.ficha?.alergias;
-            return (
-              <li key={n.id} className="flex flex-wrap items-start gap-3 rounded-2xl border border-border/70 bg-card p-3.5">
-                <Avatar nombre={n.paciente} size="size-10" />
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 font-semibold">
-                    {n.paciente}
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
-                    {al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> {al}</span>}
-                  </p>
-                  <p className="mt-1 text-sm">{limpiarTextoNota(n.texto)}</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">{horaDeIso(n.fecha)} · {n.enfermera}</p>
+        <>
+          {puede && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-2.5 py-2 dark:border-white/10 dark:bg-white/5">
+              <button type="button" onClick={() => setSel(sel.size === deHoy.length ? new Set() : new Set(deHoy.map((n) => n.id)))} className={`${btn} text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10`}>
+                <span className={caja(sel.size > 0 && sel.size === deHoy.length)}><Check className="size-3.5" strokeWidth={3} /></span>
+                {sel.size ? `${sel.size} seleccionado${sel.size === 1 ? "" : "s"}` : "Seleccionar todos"}
+              </button>
+              {sel.size > 0 && (
+                <div className="ml-auto flex flex-wrap gap-1.5">
+                  <button type="button" onClick={() => confirmar([...sel])} className={`${btn} bg-[#0b2a6b] text-white shadow-sm hover:bg-[#0a2459]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                  <button type="button" onClick={() => pendiente([...sel])} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Clock className="size-3.5" /> Pendiente</button>
+                  <button type="button" onClick={() => borrar([...sel])} className={`${btn} text-slate-500 hover:bg-red-50 hover:text-red-700`}><Trash2 className="size-3.5" /> Eliminar</button>
                 </div>
-                {esMedico && <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(n.pacienteId)}><FileText className="size-3.5" /> Ver historia</Button>}
-              </li>
-            );
-          })}
-        </ul>
+              )}
+            </div>
+          )}
+          <ul className="space-y-2.5">
+            {vm.items.map((n) => {
+              const al = pacientes.find((p) => p.id === n.pacienteId || p.portalId === n.pacienteId)?.ficha?.alergias;
+              const on = sel.has(n.id);
+              return (
+                <li key={n.id} className={`rounded-2xl border bg-card p-3.5 transition ${on ? "border-[#0b2a6b]/50 ring-2 ring-[#0b2a6b]/10" : "border-slate-200 dark:border-white/10"}`}>
+                  <div className="flex flex-wrap items-start gap-3">
+                    {puede && <button type="button" onClick={() => alternar(n.id)} aria-label="Seleccionar" aria-pressed={on} className={caja(on) + " mt-2.5"}><Check className="size-3.5" strokeWidth={3} /></button>}
+                    <Avatar nombre={n.paciente} size="size-10" />
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">
+                        {n.paciente}
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
+                        <EstadoNota n={n} />
+                        {al && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-100"><AlertTriangle className="size-3" /> {al}</span>}
+                      </p>
+                      {edit?.id === n.id ? (
+                        <div className="mt-2 space-y-2">
+                          <textarea autoFocus rows={3} value={edit.texto} onChange={(e) => setEdit({ id: n.id, texto: e.target.value })} className={inp + " h-auto py-2.5"} />
+                          <div className="flex justify-end gap-2">
+                            <Button type="button" variant="ghost" size="sm" className="rounded-lg" onClick={() => setEdit(null)}>Cancelar</Button>
+                            <Button type="button" size="sm" className="rounded-lg" onClick={guardar}><Check className="size-4" /> Guardar corrección</Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{limpiarTextoNota(n.texto)}</p>
+                      )}
+                      <p className="mt-1 text-[11px] text-muted-foreground">{horaDeIso(n.fecha)} · {nombreCorto(n.enfermera)}{n.editadoPor ? ` · corregido por ${nombreCorto(n.editadoPor)}` : ""}{n.estado === "Confirmado" && n.confirmadoPor ? ` · confirmado por ${nombreCorto(n.confirmadoPor)}` : ""}</p>
+                    </div>
+                    {esMedico && <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(n.pacienteId)}><FileText className="size-3.5" /> Ver historia</Button>}
+                  </div>
+                  {puede && edit?.id !== n.id && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2.5 dark:border-white/10">
+                      {n.estado === "Confirmado" ? (
+                        <button type="button" onClick={() => pendiente([n.id])} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Clock className="size-3.5" /> Marcar pendiente</button>
+                      ) : (
+                        <button type="button" onClick={() => confirmar([n.id])} className={`${btn} bg-[#0b2a6b] text-white shadow-sm hover:bg-[#0a2459]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                      )}
+                      <button type="button" onClick={() => setEdit({ id: n.id, texto: n.texto })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Pencil className="size-3.5" /> Editar</button>
+                      <button type="button" onClick={() => borrar([n.id])} className={`${btn} ml-auto text-slate-500 hover:bg-red-50 hover:text-red-700`}><Trash2 className="size-3.5" /> Eliminar</button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {vm.boton}
+        </>
       )}
     </Seccion>
   );

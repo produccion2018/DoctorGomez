@@ -682,7 +682,7 @@
 @keyframes bajar { 0%, 100% { transform: translateY(-1.5px); } 50% { transform: translateY(2px); } }
 
 /* Historial del paciente */
-.hc-linea::before { content: ""; position: absolute; left: 19px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, rgb(var(--acc, 14 165 233)) 0%, rgba(16,185,129,.6) 50%, rgba(245,158,11,.25) 100%); }
+.hc-linea::before { content: ""; position: absolute; left: 19px; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: linear-gradient(180deg, rgba(11,42,107,.55) 0%, rgba(14,116,144,.3) 60%, rgba(148,163,184,.15) 100%); }
 .hc-linea::after { content: ""; position: absolute; left: 17px; top: 8px; width: 6px; height: 70px; border-radius: 6px; background: linear-gradient(180deg, transparent, rgba(255,255,255,.95), transparent); animation: hc-pulso 3.2s ease-in-out infinite; }
 @keyframes hc-pulso { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(520px); opacity: 0; } }
 .hc-item { animation: hc-entra .5s cubic-bezier(.2,.8,.2,1) both; }
