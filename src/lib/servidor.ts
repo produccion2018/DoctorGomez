@@ -528,7 +528,8 @@ export const subirDocumentoServidor = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<Resultado<{ json: string }>> => {
     const q = await quienSoy();
     if (!q) return { ok: false, error: "Su sesión venció. Vuelva a ingresar." };
-    if (!process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "El almacenamiento de archivos no está configurado." };
+    const nubeCfg = (await import("./cloudinary.server")).configCloudinary();
+    if (!nubeCfg && !process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "El almacenamiento de archivos no está configurado." };
     const c = await colecciones();
     let pacienteId = "";
     let paciente = "";
@@ -545,18 +546,31 @@ export const subirDocumentoServidor = createServerFn({ method: "POST" })
     const buf = Buffer.from(String(data.base64 ?? ""), "base64");
     if (!buf.length) return { ok: false, error: "El archivo está vacío." };
     if (buf.length > MAX_DOC_MB * 1024 * 1024) return { ok: false, error: `El archivo supera ${MAX_DOC_MB} MB. Si es una foto, envíela con menos resolución o en PDF.` };
-    const { put } = await import("@vercel/blob");
     const limpio = String(data.nombre ?? "documento").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9.]+/g, "-").slice(-80) || "documento";
     const ruta = `documentos/${pacienteId}/${(await modulo()).tokenAleatorio(8)}-${limpio}`;
     const tipo = String(data.tipo || "application/octet-stream").slice(0, 120);
-    let r: { url: string };
-    let acceso: "private" | "public" = "private";
-    try {
-      r = await put(ruta, buf, { access: "private", contentType: tipo, addRandomSuffix: true });
-    } catch {
-      // Si el almacenamiento no admite archivos privados, se guarda con dirección secreta y solo se entrega por el servidor
-      acceso = "public";
-      r = await put(ruta, buf, { access: "public", contentType: tipo, addRandomSuffix: true });
+    let r: { url: string } = { url: "" };
+    let acceso: "private" | "public" | "cloudinary" = "private";
+    let nube: import("./cloudinary.server").ArchivoNube | undefined;
+    if (nubeCfg) {
+      // Cloudinary: archivo privado, solo lo entrega el servidor
+      try {
+        nube = await (await import("./cloudinary.server")).subirCloudinary(buf, tipo, `hego/documentos/${pacienteId}`, String(data.nombre ?? "documento"));
+        acceso = "cloudinary";
+      } catch (e) {
+        console.error("Cloudinary:", e);
+        if (!process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "No se pudo subir el archivo. Intente de nuevo en un momento." };
+      }
+    }
+    if (!nube) {
+      const { put } = await import("@vercel/blob");
+      try {
+        r = await put(ruta, buf, { access: "private", contentType: tipo, addRandomSuffix: true });
+      } catch {
+        // Si el almacenamiento no admite archivos privados, se guarda con dirección secreta y solo se entrega por el servidor
+        acceso = "public";
+        r = await put(ruta, buf, { access: "public", contentType: tipo, addRandomSuffix: true });
+      }
     }
     const doc = {
       id: (await modulo()).tokenAleatorio(6),
@@ -573,10 +587,11 @@ export const subirDocumentoServidor = createServerFn({ method: "POST" })
       fecha: new Date().toISOString(),
       url: r.url,
       acceso,
+      ...(nube ? { nube } : {}),
     };
     await c.guardar("gb_documentos", doc);
     await (await acceso_()).auditar(q.nombre, q.tipo === "paciente" ? "Documento subido desde el portal" : "Documento cargado al paciente", `${paciente} · ${doc.categoria} · ${doc.nombre}`);
-    const { url: _u, acceso: _a, ...publico } = doc;
+    const { url: _u, acceso: _a, nube: _n, ...publico } = doc as typeof doc & { nube?: unknown };
     return { ok: true, json: JSON.stringify(publico) };
   });
 
@@ -591,10 +606,17 @@ export const verDocumentoServidor = createServerFn({ method: "POST" })
     if (!doc) return { ok: false, error: "El documento ya no existe." };
     if (q.tipo === "paciente" ? doc["pacienteId"] !== q.id : !(await areaPermite(q, "gb_documentos", "ver"))) return { ok: false, error: "No tiene permiso para ver este documento." };
     if (q.tipo === "staff" && !q.medico && AREAS_MEDICAS.includes(q.area) && !(await ambitoEspecialidad(c, q))(doc, "gb_documentos")) return { ok: false, error: "Este paciente no es de su especialidad." };
-    const { get } = await import("@vercel/blob");
-    const r = await get(String(doc["url"]), { access: doc["acceso"] === "public" ? "public" : "private" }).catch(() => null);
-    if (!r || !("stream" in r) || !r.stream) return { ok: false, error: "No se pudo abrir el archivo." };
-    const buf = Buffer.from(await new Response(r.stream as ReadableStream).arrayBuffer());
+    let buf: Buffer;
+    if (doc["acceso"] === "cloudinary" && doc["nube"]) {
+      const b = await (await import("./cloudinary.server")).bajarCloudinary(doc["nube"] as import("./cloudinary.server").ArchivoNube).catch((e: Error) => { console.error("Cloudinary:", e); return null; });
+      if (!b) return { ok: false, error: "No se pudo abrir el archivo." };
+      buf = b;
+    } else {
+      const { get } = await import("@vercel/blob");
+      const r = await get(String(doc["url"]), { access: doc["acceso"] === "public" ? "public" : "private" }).catch(() => null);
+      if (!r || !("stream" in r) || !r.stream) return { ok: false, error: "No se pudo abrir el archivo." };
+      buf = Buffer.from(await new Response(r.stream as ReadableStream).arrayBuffer());
+    }
     if (q.tipo === "staff" && doc["origen"] === "paciente" && !doc["vistoPor"]) await c.guardar("gb_documentos", { ...doc, vistoPor: q.nombre, vistoEl: new Date().toISOString() });
     return { ok: true, base64: buf.toString("base64"), tipo: String(doc["tipo"] ?? "application/octet-stream"), nombre: String(doc["nombre"] ?? "documento") };
   });
@@ -612,8 +634,11 @@ export const borrarDocumentoServidor = createServerFn({ method: "POST" })
       if (doc["pacienteId"] !== q.id || doc["origen"] !== "paciente") return { ok: false, error: "No puede borrar este documento." };
       if (doc["vistoPor"]) return { ok: false, error: "La clínica ya revisó este documento. Para quitarlo, comuníquese con la clínica." };
     } else if (!(await areaPermite(q, "gb_documentos", "editar"))) return { ok: false, error: "No tiene permiso para borrar documentos." };
-    const { del } = await import("@vercel/blob");
-    await del(String(doc["url"])).catch(() => undefined);
+    if (doc["acceso"] === "cloudinary" && doc["nube"]) await (await import("./cloudinary.server")).borrarCloudinary(doc["nube"] as import("./cloudinary.server").ArchivoNube);
+    else {
+      const { del } = await import("@vercel/blob");
+      await del(String(doc["url"])).catch(() => undefined);
+    }
     await c.borrar("gb_documentos", [doc.id]);
     await (await acceso_()).auditar(q.nombre, "Documento eliminado", `${doc["paciente"]} · ${doc["nombre"]}`);
     return { ok: true };
@@ -733,7 +758,7 @@ export const leerColeccion = createServerFn({ method: "GET" })
       else if (c.DEL_PACIENTE.includes(data.coleccion)) filas = filas.filter((t) => t["pacienteId"] === q.id);
       else filas = [];
     }
-    if (data.coleccion === "gb_documentos") filas = filas.map(({ url: _u, acceso: _a, ...resto }) => resto as typeof filas[number]);
+    if (data.coleccion === "gb_documentos") filas = filas.map(({ url: _u, acceso: _a, nube: _n, ...resto }) => resto as typeof filas[number]);
     return { ok: true, json: JSON.stringify(await nombresBienEscritos(data.coleccion, filas)) };
   });
 

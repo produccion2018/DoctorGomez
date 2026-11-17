@@ -5,6 +5,7 @@
  * Variables de entorno:
  *  RESEND_API_KEY      clave de Resend
  *  RESEND_FROM         remitente (por defecto "HEGO <onboarding@resend.dev>", modo prueba)
+ *  CORREO_PRUEBA       (opcional) a dónde llegan los correos mientras Resend está en modo prueba
  *  CORREO_AVISOS       correo(s) de la administración que reciben las citas nuevas (separados por coma)
  *  URL_PUBLICA         dirección del sitio (por defecto https://doctor-gomez.vercel.app)
  *  WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_PLANTILLA   WhatsApp Business (Meta Cloud API)
@@ -64,7 +65,8 @@ export async function enviarCorreoDetalle(para: string[], asunto: string, html: 
   if (/testing emails|verify a domain|own email/i.test(texto)) {
     // Modo prueba de Resend (sin dominio propio): el correo se manda a la cuenta de Resend,
     // con un aviso de a quién iba dirigido, para poder ver cómo funciona.
-    const cuenta = texto.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] || env("CORREO_PRUEBA") || env("CORREO_AVISOS").split(",")[0]?.trim() || "";
+    // CORREO_PRUEBA (en Vercel) manda; si no está, se usa el correo de la cuenta que indica Resend.
+    const cuenta = env("CORREO_PRUEBA") || texto.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] || env("CORREO_AVISOS").split(",")[0]?.trim() || "";
     if (cuenta && !to.includes(cuenta)) {
       const aviso = `<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:10px 14px;margin:0 0 16px;font:13px system-ui,sans-serif"><b>Correo de prueba.</b> Este mensaje iba para <b>${esc(to.join(", "))}</b>. Mientras no haya un dominio propio verificado en Resend, los correos llegan a esta cuenta.</div>`;
       const r2 = await fetch("https://api.resend.com/emails", {
