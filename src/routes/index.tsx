@@ -477,7 +477,7 @@ function Home() {
             </div>
           </div>
 
-          <div className="glass absolute bottom-6 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
+          <div className="glass absolute bottom-20 right-6 hidden rounded-xl px-3 py-2 text-right lg:right-10 lg:block">
             <p className="text-xs font-semibold leading-snug text-white">Dr. Carlos Alonso Gómez Bolaño<br />Dr. Carlos Alberto Gómez Bolaño</p>
             <p className="text-[10px] uppercase tracking-[0.16em] text-white/75">Directores médicos</p>
           </div>
