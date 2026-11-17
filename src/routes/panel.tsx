@@ -122,6 +122,7 @@ import {
   RotateCcw,
   Archive,
 } from "lucide-react";
+import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra } from "@/data/examenes";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -1479,82 +1480,112 @@ function useVerMas<T>(lista: T[], inicial = 5) {
   return { items, boton };
 }
 
-/** Exámenes de sangre más pedidos (para sugerir mientras se escribe). */
-const EXAMENES_SANGRE: { n: string; a?: string }[] = [
-  { n: "Hemograma completo", a: "cuadro hematico ch" }, { n: "Hemoglobina", a: "hb" }, { n: "Hemoglobina glicosilada (HbA1c)", a: "hba1c a1c glicada" }, { n: "Hematocrito", a: "hto" },
-  { n: "Plaquetas" }, { n: "Reticulocitos" }, { n: "Velocidad de sedimentación (VSG)", a: "vsg eritrosedimentacion" }, { n: "Grupo sanguíneo y Rh", a: "rh hemoclasificacion" },
-  { n: "Glucosa en ayunas", a: "glicemia basal" }, { n: "Glucosa posprandial", a: "glicemia pospandrial" }, { n: "Curva de tolerancia a la glucosa", a: "ptog" }, { n: "Insulina" }, { n: "Péptido C" },
-  { n: "Creatinina", a: "tfg filtrado" }, { n: "Nitrógeno ureico (BUN)", a: "bun" }, { n: "Urea" }, { n: "Ácido úrico" }, { n: "Cistatina C" },
-  { n: "Ionograma", a: "electrolitos" }, { n: "Sodio", a: "na" }, { n: "Potasio", a: "k" }, { n: "Cloro", a: "cl" }, { n: "Calcio", a: "ca" }, { n: "Fósforo" }, { n: "Magnesio", a: "mg" },
-  { n: "Perfil lipídico", a: "lipidos" }, { n: "Colesterol total" }, { n: "Colesterol HDL", a: "hdl" }, { n: "Colesterol LDL", a: "ldl" }, { n: "Triglicéridos", a: "tg" },
-  { n: "Transaminasas (AST/TGO, ALT/TGP)", a: "tgo tgp ast alt" }, { n: "Bilirrubinas", a: "bilirrubina" }, { n: "Fosfatasa alcalina" }, { n: "Gamma GT (GGT)", a: "ggt" }, { n: "Albúmina" }, { n: "Proteínas totales" },
-  { n: "Troponina", a: "tnt tni" }, { n: "CK-MB", a: "ckmb" }, { n: "CPK total", a: "ck" }, { n: "NT-proBNP", a: "bnp peptido natriuretico" }, { n: "Dímero D", a: "dimero" },
-  { n: "Tiempo de protrombina (TP/INR)", a: "tp inr" }, { n: "Tiempo parcial de tromboplastina (TPT)", a: "tpt ptt" }, { n: "Fibrinógeno" },
-  { n: "Proteína C reactiva (PCR)", a: "pcr" }, { n: "Procalcitonina" }, { n: "Ferritina" }, { n: "Hierro sérico", a: "fe" }, { n: "Transferrina" }, { n: "Vitamina B12", a: "b12" }, { n: "Ácido fólico", a: "folato" }, { n: "Vitamina D", a: "25 oh" },
-  { n: "TSH", a: "tiroides" }, { n: "T4 libre", a: "t4" }, { n: "T3", a: "t3" }, { n: "Hormona paratiroidea (PTH)", a: "pth paratohormona" }, { n: "Cortisol" }, { n: "Prolactina" }, { n: "Antígeno prostático (PSA)", a: "psa" },
-  { n: "Amilasa" }, { n: "Lipasa" }, { n: "Gases arteriales", a: "gasometria" }, { n: "Lactato" },
-  { n: "VIH", a: "elisa hiv" }, { n: "Hepatitis B (HBsAg)", a: "hbsag" }, { n: "Hepatitis C", a: "vhc" }, { n: "VDRL", a: "sifilis serologia" }, { n: "Hemocultivo" },
-];
 const normEx = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const COLOR_MUESTRA: Record<TipoMuestra, string> = { Sangre: "from-rose-500 to-red-600", Orina: "from-amber-400 to-yellow-600", "Materia fecal": "from-orange-700 to-amber-900", Cultivo: "from-violet-500 to-indigo-600", "Otras muestras": "from-slate-500 to-slate-700" };
+/** Tipo de muestra elegido en los botones → familia del catálogo (para ordenar las sugerencias). */
+const familiaMuestra = (m?: string): TipoMuestra | undefined =>
+  !m ? undefined : /sangre/i.test(m) ? "Sangre" : /orina/i.test(m) ? "Orina" : /fecal|heces/i.test(m) ? "Materia fecal" : /cultivo/i.test(m) ? "Cultivo" : "Otras muestras";
 
-/** Campo de exámenes: al escribir "h" sugiere Hemograma, Hemoglobina…; se pueden poner varios separados por coma. */
-function ExamenesSangre({ valor, onChange }: { valor: string; onChange: (v: string) => void }) {
+/**
+ * Exámenes de la orden: se busca por nombre, abreviatura o sinónimo (CPK → creatina quinasa; orina → uroanálisis),
+ * se van sumando a la lista y se guardan todos juntos con el botón Guardar. ENTER solo elige el examen resaltado.
+ */
+function ExamenesSangre({ valor, onChange, muestra }: { valor: string; onChange: (v: string) => void; muestra?: string | undefined }) {
   const [foco, setFoco] = useState(false);
+  const [sel, setSel] = useState(0);
   const partes = valor.split(",");
-  const actual = normEx(partes[partes.length - 1] ?? "");
-  const elegidos = new Set(partes.slice(0, -1).map((x) => normEx(x)));
-  const sugeridos = actual
-    ? EXAMENES_SANGRE.filter((e) => !elegidos.has(normEx(e.n)) && (normEx(e.n).split(/[\s(/-]+/).some((w) => w.startsWith(actual)) || normEx(e.n).startsWith(actual) || (e.a ?? "").split(" ").some((w) => w.startsWith(actual))))
-        .sort((x, y) => Number(!normEx(x.n).startsWith(actual)) - Number(!normEx(y.n).startsWith(actual)))
-        .slice(0, 8)
-    : [];
-  const elegir = (n: string) => {
-    const previos = partes.slice(0, -1).map((x) => x.trim()).filter(Boolean);
-    onChange([...previos, n].join(", ") + ", ");
-  };
-  const quitar = (n: string) => onChange(partes.map((x) => x.trim()).filter((x) => x && normEx(x) !== normEx(n)).join(", "));
+  const escrito = partes[partes.length - 1] ?? "";
   const lista = partes.slice(0, -1).map((x) => x.trim()).filter(Boolean);
+  const elegidos = new Set(lista.map((x) => normExamen(x)));
+  const sugeridos = escrito.trim() ? buscarExamenes(escrito, { muestra: familiaMuestra(muestra), excluir: elegidos, max: 10 }) : [];
+  const elegir = (nom: string) => {
+    if (elegidos.has(normExamen(nom))) return;
+    onChange([...lista, nom].join(", ") + ", ");
+    setSel(0);
+  };
+  const agregarLibre = () => {
+    const t = escrito.trim();
+    if (t.length < 2) return;
+    elegir(t.charAt(0).toUpperCase() + t.slice(1));
+  };
+  const quitar = (x: string) => { const r = lista.filter((y) => normExamen(y) !== normExamen(x)); onChange(r.length ? r.join(", ") + ", " : ""); };
+  const frecuentes = (familiaMuestra(muestra) === "Orina" ? ["Uroanálisis", "Urocultivo", "Microalbuminuria", "Relación albúmina/creatinina en orina", "Proteinuria en orina de 24 horas"]
+    : familiaMuestra(muestra) === "Materia fecal" ? ["Coprológico", "Coproscópico", "Sangre oculta en heces", "Coprocultivo"]
+    : familiaMuestra(muestra) === "Sangre" ? ["Hemograma completo", "Creatinina", "Glucosa en ayunas", "Perfil lipídico", "Ionograma", "Hemoglobina glicosilada (HbA1c)", "TSH"]
+    : ["Hemocultivo", "Urocultivo", "Cultivo de secreción de herida", "Gram", "Hisopado nasofaríngeo"]).filter((x) => !elegidos.has(normExamen(x)));
   return (
     <div className="relative">
       {lista.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1.5">
-          {lista.map((x) => (
-            <span key={x} className="inline-flex items-center gap-1 rounded-full bg-rose-50 py-1 pl-2.5 pr-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-300">
-              <Droplets className="size-3" /> {x}
-              <button type="button" onClick={() => quitar(x)} aria-label={`Quitar ${x}`} className="grid size-4 place-items-center rounded-full hover:bg-rose-200/60"><X className="size-3" /></button>
-            </span>
-          ))}
+        <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-2 dark:border-white/10 dark:bg-white/5">
+          <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{lista.length} examen{lista.length === 1 ? "" : "es"} en la orden</p>
+          <div className="flex flex-wrap gap-1.5">
+            {lista.map((x) => {
+              const ex = examenPorNombre(x);
+              return (
+                <span key={x} className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-1 pr-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-100 dark:ring-white/10">
+                  <span className={`grid size-5 place-items-center rounded-full bg-gradient-to-br text-white ${COLOR_MUESTRA[ex?.muestra ?? "Otras muestras"]}`}><FlaskConical className="size-2.5" /></span>
+                  {x}{ex?.remision && <span className="rounded bg-slate-100 px-1 text-[9px] font-bold uppercase text-slate-500 dark:bg-white/10">Remisión</span>}
+                  <button type="button" onClick={() => quitar(x)} aria-label={`Quitar ${x}`} className="grid size-5 place-items-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"><X className="size-3" /></button>
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
-      <input
-        value={partes[partes.length - 1]?.trimStart() ?? ""}
-        onChange={(e) => onChange([...partes.slice(0, -1).map((x) => x.trim()), e.target.value].filter((x, i, arr) => x || i === arr.length - 1).join(", "))}
-        onFocus={() => setFoco(true)}
-        onBlur={() => setTimeout(() => setFoco(false), 150)}
-        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === "Tab") && sugeridos[0] && actual) { e.preventDefault(); elegir(sugeridos[0].n); } }}
-        placeholder={lista.length ? "Agregar otro examen…" : "Escriba la primera letra: h → Hemograma, c → Creatinina…"}
-        className={inp}
-        autoComplete="off"
-      />
-      {foco && sugeridos.length > 0 && (
-        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl dark:border-white/10">
-          {sugeridos.map((e) => (
-            <li key={e.n}>
-              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); elegir(e.n); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary">
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-red-600 text-white"><Droplets className="size-3.5" /></span>
-                <span className="font-medium">{e.n}</span>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={escrito.trimStart()}
+          onChange={(e) => { onChange([...lista, e.target.value.replace(/,/g, " ")].join(", ")); setSel(0); setFoco(true); }}
+          onFocus={() => setFoco(true)}
+          onBlur={() => setTimeout(() => setFoco(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown" && sugeridos.length) { e.preventDefault(); setSel((x) => Math.min(sugeridos.length - 1, x + 1)); }
+            else if (e.key === "ArrowUp" && sugeridos.length) { e.preventDefault(); setSel((x) => Math.max(0, x - 1)); }
+            else if (e.key === "Enter" || (e.key === "Tab" && sugeridos.length && escrito.trim())) {
+              e.preventDefault(); // ENTER nunca guarda ni cierra: solo agrega el examen resaltado
+              if (sugeridos[sel]) elegir(sugeridos[sel]!.nombre);
+              else agregarLibre();
+            } else if (e.key === "Escape") setFoco(false);
+          }}
+          placeholder={lista.length ? "Agregar otro examen…" : "Buscar: hemo, CPK, orina, urocultivo, HbA1c…"}
+          className={inp + " pl-10"}
+          autoComplete="off"
+          enterKeyHint="done"
+        />
+      </div>
+      {foco && escrito.trim() && (
+        <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl dark:border-white/10">
+          {sugeridos.map((e, i) => (
+            <li key={e.nombre}>
+              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); elegir(e.nombre); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#0b2a6b]/[.06] dark:bg-white/10" : "hover:bg-secondary"}`}>
+                <span className={`grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white ${COLOR_MUESTRA[e.muestra]}`}><FlaskConical className="size-3.5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">{e.nombre}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{e.muestra} · {e.grupo}{e.sin.length ? ` · ${e.sin.slice(0, 3).join(", ")}` : ""}</span>
+                </span>
+                {e.remision && <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500 dark:bg-white/10" title="Normalmente se procesa en un laboratorio de referencia o requiere condiciones especiales">Remisión</span>}
               </button>
             </li>
           ))}
+          {sugeridos.length === 0 && (
+            <li>
+              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); agregarLibre(); }} className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-200 text-slate-600 dark:bg-white/10"><Plus className="size-3.5" /></span>
+                <span>No está en el catálogo: agregar <b>"{escrito.trim()}"</b></span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
-      {!actual && lista.length === 0 && (
+      {!escrito.trim() && frecuentes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {["Hemograma completo", "Creatinina", "Glucosa en ayunas", "Perfil lipídico", "Ionograma", "Hemoglobina glicosilada (HbA1c)", "TSH"].map((n) => (
-            <button key={n} type="button" onClick={() => elegir(n)} className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-rose-50 hover:text-rose-700">+ {n}</button>
+          {frecuentes.map((x) => (
+            <button key={x} type="button" onClick={() => elegir(x)} className="rounded-full bg-secondary px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition hover:bg-slate-200 hover:text-foreground dark:hover:bg-white/10">+ {x}</button>
           ))}
         </div>
       )}
+      <p className="mt-1.5 text-[11px] text-muted-foreground">Busque por nombre, abreviatura o sinónimo y vaya sumando exámenes. Todo se guarda junto con el botón <b>Guardar</b>.</p>
     </div>
   );
 }
@@ -11361,7 +11392,7 @@ const ACCIONES_ENF: AccionEnf[] = [
   { id: "signos", t: "Signos vitales", d: "Presión arterial, pulso, temperatura, saturación, peso y talla", icon: HeartPulse, c: "#0ea5e9" },
   { id: "Glucometría", t: "Glucometría", d: "Glucosa capilar en mg/dL", icon: Droplets, c: "#f97316" },
   { id: "Electrocardiograma", t: "Electrocardiograma", d: "Toma del ECG de 12 derivaciones", icon: Activity, c: "#ef4444" },
-  { id: "Toma de muestra", t: "Toma de muestra", d: "Muestra de sangre para laboratorio", icon: FlaskConical, c: "#eab308" },
+  { id: "Toma de muestra", t: "Toma de muestra", d: "Sangre, orina, heces, cultivos y otras muestras", icon: FlaskConical, c: "#eab308" },
   { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10b981" },
   { id: "Holter / MAPA", t: "Holter / MAPA", d: "Colocación o retiro del equipo", icon: Clock, c: "#6366f1" },
   { id: "Curación", t: "Curación", d: "Curaciones y procedimientos menores", icon: Syringe, c: "#ec4899" },
@@ -11555,9 +11586,19 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
         return `Glucometría: ${f.valor} mg/dL${f.momento ? ` (${f.momento.toLowerCase()})` : ""} a las ${hora12(f.hora).replace(/\.$/, "")}.${gluNivel ? ` ${gluNivel.t}.` : ""}${obs}`;
       case "Electrocardiograma":
         return `Electrocardiograma de 12 derivaciones tomado a las ${hora12(f.hora).replace(/\.$/, "")}.${f.entregado ? ` ${f.entregado}.` : ""}${obs}`;
-      case "Toma de muestra":
+      case "Toma de muestra": {
         if (!f.muestra) return null;
-        return `Toma de muestra: ${f.muestra.trim()}${f.examenes?.replace(/[,\s]+$/, "").trim() ? ` para ${f.examenes.replace(/[,\s]+$/, "").trim()}` : ""}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
+        const exs = (f.examenes ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        const fam = familiaMuestra(f.muestra);
+        const grupos = new Map<string, string[]>();
+        exs.forEach((x) => {
+          const m = examenPorNombre(x)?.muestra;
+          const k = !m || m === fam ? f.muestra! : m === "Sangre" ? "Sangre" : m;
+          grupos.set(k, [...(grupos.get(k) ?? []), x]);
+        });
+        const det = grupos.size <= 1 ? `${f.muestra.trim()}${exs.length ? ` para ${exs.join(", ")}` : ""}` : [...grupos].map(([k, v]) => `${k} para ${v.join(", ")}`).join("; ");
+        return `Toma de muestra: ${det}, a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
+      }
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
         return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora).replace(/\.$/, "")}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
@@ -11589,7 +11630,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm animate-in fade-in duration-200" onClick={onCerrar} />
-      <form onSubmit={guardar} className="pn-root relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-[1.75rem]">
+      <form onSubmit={guardar} onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") e.preventDefault(); }} className="pn-root relative flex max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-background shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 sm:rounded-[1.75rem]">
         <div className="flex items-center gap-3 px-6 py-5 text-white" style={{ background: `linear-gradient(120deg, ${accion.c}, ${accion.c}cc)` }}>
           <span className="flex size-11 items-center justify-center rounded-2xl bg-white/20"><accion.icon className="size-5" /></span>
           <div className="flex-1">
@@ -11630,8 +11671,8 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
           )}
           {accion.id === "Toma de muestra" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">{campo("Tipo de muestra (sangre)", <Chips k="muestra" ops={["Sangre venosa", "Sangre capilar", "Sangre arterial"]} />, true)}</div>
-              <div className="sm:col-span-2">{campo("Exámenes", <ExamenesSangre valor={f.examenes ?? ""} onChange={(v) => setF((x) => ({ ...x, examenes: v }))} />)}</div>
+              <div className="sm:col-span-2">{campo("Tipo de muestra", <Chips k="muestra" ops={["Sangre venosa", "Sangre capilar", "Sangre arterial", "Orina", "Materia fecal", "Cultivo / secreción", "Hisopado", "Esputo", "Líquido corporal"]} />, true)}</div>
+              <div className="sm:col-span-2">{campo("Exámenes", <ExamenesSangre valor={f.examenes ?? ""} muestra={f.muestra} onChange={(v) => setF((x) => ({ ...x, examenes: v }))} />)}</div>
               {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
             </div>
           )}
