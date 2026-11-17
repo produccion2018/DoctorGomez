@@ -138,7 +138,17 @@ function Servicios() {
                 <p className="relative mt-3 flex-1 text-sm leading-relaxed text-muted-foreground">{s.descripcion}</p>
 
                 <div className="relative mt-6 flex items-center justify-between gap-3 border-t border-border/70 pt-5">
-                  {doc ? (
+                  {s.especialidad === "Medicina Interna" ? (
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex shrink-0 -space-x-3">
+                        {DOCTORS.map((d) => <img key={d.id} src={fotoDoctor(d.foto)} alt={d.nombre} title={d.nombre} className="size-9 rounded-full object-cover object-top ring-2 ring-background" />)}
+                      </span>
+                      <span className="min-w-0 text-xs leading-tight">
+                        <span className="block text-muted-foreground">Atienden</span>
+                        <span className="block font-semibold leading-snug">Dres. Gómez Bolaño</span>
+                      </span>
+                    </span>
+                  ) : doc ? (
                     <Link to="/especialistas/$id" params={{ id: doc.id }} className="flex min-w-0 items-center gap-2.5">
                       <img src={fotoDoctor(doc.foto)} alt="" className="size-9 shrink-0 rounded-full object-cover object-top ring-2 ring-background" />
                       <span className="min-w-0 text-xs leading-tight">
@@ -147,7 +157,7 @@ function Servicios() {
                       </span>
                     </Link>
                   ) : <span />}
-                  <Button asChild size="sm" className="shrink-0 rounded-full px-4"><Link to="/turnos" search={{ doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
+                  <Button asChild size="sm" className="shrink-0 rounded-full px-4"><Link to="/turnos" search={s.especialidad === "Medicina Interna" ? { especialidad: "medicina-interna" } : { doctor: s.doctorId }}><CalendarPlus className="size-4" /> Reservar</Link></Button>
                 </div>
               </article>
             );
