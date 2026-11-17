@@ -122,7 +122,7 @@ import {
   RotateCcw,
   Archive,
 } from "lucide-react";
-import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra } from "@/data/examenes";
+import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -11556,11 +11556,44 @@ function BuscadorMedicamento({ value, onChange, onElegir, placeholder = "Escriba
   );
 }
 
+/** Campo de texto libre con sugerencias mientras se escribe (se puede escribir cualquier otra cosa). */
+function TextoPredictivo({ value, onChange, sugerencias, vacias = [], placeholder, extra }: { value: string; onChange: (v: string) => void; sugerencias: (q: string) => string[]; vacias?: string[]; placeholder?: string; extra?: ReactNode }) {
+  const [abierto, setAbierto] = useState(false);
+  const [sel, setSel] = useState(0);
+  const lista = abierto ? (value.trim() ? sugerencias(value) : vacias) : [];
+  const elegir = (v: string) => { onChange(v); setAbierto(false); };
+  return (
+    <div className="relative">
+      <input value={value} autoComplete="off" placeholder={placeholder} className={inp}
+        onChange={(e) => { onChange(e.target.value); setAbierto(true); setSel(0); }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => window.setTimeout(() => setAbierto(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); if (lista[sel]) elegir(lista[sel]!); return; }
+          if (!lista.length) return;
+          if (e.key === "ArrowDown") { e.preventDefault(); setSel((x) => Math.min(lista.length - 1, x + 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setSel((x) => Math.max(0, x - 1)); }
+          else if (e.key === "Escape") setAbierto(false);
+        }} />
+      {lista.length > 0 && (
+        <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-xl dark:border-white/10">
+          {lista.map((x, i) => (
+            <li key={x}>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(x); }} onMouseEnter={() => setSel(i)} className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#0b2a6b]/[.06] font-semibold dark:bg-white/10" : ""}`}>{x}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {extra}
+    </div>
+  );
+}
+
 function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, inicial = "" }: { accion: AccionEnf; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; onCerrar: () => void; inicial?: string }) {
   const [, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const [pacId, setPacId] = useState(inicial);
   const hora = () => new Date().toTimeString().slice(0, 5);
-  type CamposEnf = { hora: string; valor?: string; momento?: string; obs?: string; entregado?: string; muestra?: string; examenes?: string; med?: string; dosis?: string; via?: string; indica?: string; tipo?: string; zona?: string; desc?: string };
+  type CamposEnf = { hora: string; valor?: string; momento?: string; obs?: string; entregado?: string; muestra?: string; examenes?: string; med?: string; dosis?: string; via?: string; indica?: string; tipo?: string; zona?: string; desc?: string; proc?: string };
   const [f, setF] = useState<CamposEnf>(accion.id === "Toma de muestra" ? { hora: hora(), muestra: "Sangre venosa" } : { hora: hora() });
   const set = (k: keyof CamposEnf) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }));
   const pac = pacientes.find((p) => p.id === pacId);
@@ -11614,7 +11647,9 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
       }
       case "Curación":
         if (!f.zona) return null;
-        return `Curación en ${f.zona} a las ${hora12(f.hora).replace(/\.$/, "")}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
+        return f.proc?.trim()
+          ? `${f.proc.trim()} en ${f.zona.trim().toLowerCase()} a las ${hora12(f.hora).replace(/\.$/, "")}.${f.desc?.trim() ? ` ${f.desc.trim().replace(/\.$/, "")}.` : ""}${obs}`
+          : `Curación en ${f.zona} a las ${hora12(f.hora).replace(/\.$/, "")}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
       default:
         return f.obs?.trim() ? f.obs.trim() : null;
     }
@@ -11721,12 +11756,28 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
           )}
           {accion.id === "Curación" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              {campo("Zona", <input value={f.zona ?? ""} onChange={set("zona")} placeholder="Ej.: sitio de punción brazo izquierdo" className={inp} />, true)}
+              <div className="sm:col-span-2">{campo("Procedimiento", <TextoPredictivo value={f.proc ?? ""} onChange={(v) => setF((x) => ({ ...x, proc: v }))} sugerencias={(q) => sugerir(CURACIONES, q)} vacias={["Curación simple de herida", "Curación de herida quirúrgica", "Retiro de puntos de sutura", "Retiro y cambio de apósito", "Curación de sitio de catéter de hemodiálisis"]} placeholder="Escriba: herida, quirúrgica, úlcera, quemadura, apósito…" />)}</div>
+              {campo("Zona", <TextoPredictivo value={f.zona ?? ""} onChange={(v) => setF((x) => ({ ...x, zona: v }))} sugerencias={(q) => sugerir(ZONAS_CUERPO.map((z) => ({ nombre: z })), q)} placeholder="Ej.: sitio de punción brazo izquierdo"
+                extra={f.zona?.trim() && !/(izquierd|derech|bilateral)/i.test(f.zona) ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {(ZONA_FEMENINA.test(f.zona.trim()) ? ["izquierda", "derecha"] : ["izquierdo", "derecho"]).concat("bilateral").map((l) => (
+                      <button key={l} type="button" onClick={() => setF((x) => ({ ...x, zona: `${(x.zona ?? "").trim()} ${l}` }))} className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200">+ {l}</button>
+                    ))}
+                  </div>
+                ) : null} />, true)}
               {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
-              <div className="sm:col-span-2">{campo("Descripción", <input value={f.desc ?? ""} onChange={set("desc")} placeholder="Estado de la herida y material usado" className={inp} />)}</div>
+              <div className="sm:col-span-2">{campo("Descripción", <input value={f.desc ?? ""} onChange={set("desc")} placeholder="Ej.: herida en dorso de mano, bordes limpios, sin signos de infección" className={inp} />)}</div>
             </div>
           )}
           {campo(accion.id === "Nota de enfermería" ? "Nota" : "Observaciones", <textarea rows={3} value={f.obs ?? ""} onChange={set("obs")} placeholder={accion.id === "Nota de enfermería" ? "Estado del paciente, educación brindada, novedades…" : "Opcional"} className={inp + " h-auto py-2.5"} />, accion.id === "Nota de enfermería")}
+          {accion.id === "Curación" && (
+            <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Materiales usados:</span>
+              {MATERIALES_CURACION.filter((m) => !(f.obs ?? "").toLowerCase().includes(m.toLowerCase())).map((m) => (
+                <button key={m} type="button" onClick={() => setF((x) => ({ ...x, obs: `${(x.obs ?? "").trim().replace(/[,.]?$/, (x.obs ?? "").trim() ? ", " : "")}${m}` }))} className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200">+ {m}</button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 border-t border-border/60 bg-card px-6 py-4">
           <Button type="button" variant="ghost" onClick={onCerrar} className="rounded-xl">Cancelar</Button>

@@ -328,3 +328,78 @@ export function buscarExamenes(q: string, opciones: { muestra?: TipoMuestra | un
 
 export const examenPorNombre = (nombre: string) => EXAMENES.find((e) => n(e.nombre) === n(nombre));
 export const normExamen = n;
+
+/* ───────────── Curaciones (enfermería) ───────────── */
+/** Procedimientos de curación y cuidado de heridas habituales en enfermería en Colombia. */
+export const CURACIONES: { nombre: string; sin: string[] }[] = [
+  ["Curación simple de herida", "herida limpia, curación simple, aseo de herida"],
+  ["Curación compleja (avanzada) de herida", "curación avanzada, curación compleja, apósitos especiales"],
+  ["Curación de herida quirúrgica", "posoperatorio, postquirúrgica, cirugía, incisión"],
+  ["Curación de herida quirúrgica infectada", "dehiscencia, infección de sitio operatorio, ISO"],
+  ["Curación de herida infectada", "herida con pus, secreción purulenta, infección"],
+  ["Curación de herida abierta (cierre por segunda intención)", "segunda intención, herida abierta, granulación"],
+  ["Curación de sutura", "puntos, herida suturada, sutura"],
+  ["Retiro de puntos de sutura", "retiro de puntos, quitar puntos, sutura"],
+  ["Retiro de grapas quirúrgicas", "grapas, ganchos"],
+  ["Curación de laceración", "herida cortante, corte, herida por trauma"],
+  ["Curación de abrasión o excoriación", "raspón, escoriación, abrasión"],
+  ["Curación de absceso drenado", "absceso, forúnculo, drenaje"],
+  ["Curación de úlcera por presión (lesión por presión)", "escara, úlcera por decúbito, LPP, escaras"],
+  ["Curación de úlcera venosa", "úlcera varicosa, úlcera de pierna, insuficiencia venosa"],
+  ["Curación de úlcera arterial", "úlcera isquémica"],
+  ["Curación de pie diabético", "úlcera diabética, pie diabético"],
+  ["Curación de quemadura de primer grado", "quemadura superficial, quemadura"],
+  ["Curación de quemadura de segundo grado superficial", "quemadura con ampolla, flictena, quemadura"],
+  ["Curación de quemadura de segundo grado profunda", "quemadura profunda, quemadura"],
+  ["Curación de mordedura", "mordedura de perro, mordedura animal"],
+  ["Curación de uña encarnada (onicocriptosis)", "uña encarnada, onicocriptosis, unero"],
+  ["Curación de sitio de inserción de catéter venoso central", "CVC, catéter central, catéter yugular, catéter subclavio"],
+  ["Curación de sitio de catéter de hemodiálisis", "catéter de diálisis, mahurkar, catéter tunelizado, permcath"],
+  ["Curación de orificio de salida de catéter peritoneal", "diálisis peritoneal, catéter de Tenckhoff, orificio de salida"],
+  ["Curación de sitio de punción de fístula arteriovenosa", "fístula, FAV, punción de fístula"],
+  ["Curación de sitio de catéter venoso periférico", "venoclisis, yelco, catéter periférico, acceso venoso"],
+  ["Curación de sitio de punción", "punción venosa, punción arterial, sitio de venopunción"],
+  ["Curación de sitio de drenaje", "dren, drenaje, sonda de drenaje"],
+  ["Cuidado y curación de estoma (ostomía)", "colostomía, ileostomía, urostomía, ostomía"],
+  ["Curación de traqueostomía", "traqueostomía, cánula"],
+  ["Curación de gastrostomía", "gastrostomía, sonda de gastrostomía, PEG"],
+  ["Retiro y cambio de apósito", "cambio de apósito, cambio de gasa, cambio de curación"],
+  ["Cambio de apósito de terapia de presión negativa", "VAC, presión negativa, terapia de vacío"],
+  ["Curación con desbridamiento autolítico", "desbridamiento, hidrogel, tejido necrótico, esfacelo"],
+  ["Aplicación de vendaje", "vendaje, vendaje compresivo, venda"],
+].map(([nombre, sin]) => ({ nombre: nombre!, sin: sin!.split(",").map((x) => x.trim()) }));
+
+/** Zonas anatómicas para ubicar la lesión. */
+export const ZONAS_CUERPO = [
+  "Cabeza", "Cuero cabelludo", "Frente", "Cara", "Mejilla", "Nariz", "Mentón", "Oreja", "Cuello",
+  "Hombro", "Brazo", "Codo", "Antebrazo", "Muñeca", "Mano", "Dorso de mano", "Palma de mano",
+  "Dedo pulgar", "Dedo índice", "Dedo medio", "Dedo anular", "Dedo meñique",
+  "Tórax", "Pecho", "Mama", "Espalda", "Región lumbar", "Abdomen", "Ombligo", "Flanco",
+  "Región sacra", "Glúteo", "Cadera", "Ingle", "Región perineal",
+  "Muslo", "Rodilla", "Pierna", "Pantorrilla", "Tobillo", "Pie", "Dorso del pie", "Planta del pie", "Talón", "Dedo del pie", "Uña del pie",
+];
+/** Zonas que van en femenino ("mano izquierda"). */
+export const ZONA_FEMENINA = /^(cabeza|cara|frente|nariz|mejilla|oreja|mama|espalda|mano|palma|muñeca|cadera|ingle|pierna|pantorrilla|rodilla|planta|region|uña)/i;
+
+/** Insumos y materiales frecuentes en una curación (para las observaciones). */
+export const MATERIALES_CURACION = [
+  "Solución salina 0,9%", "Agua estéril", "Pervinox (povidona yodada)", "Clorhexidina", "Alcohol antiséptico",
+  "Gasas estériles", "Apósito estéril", "Apósito transparente", "Apósito hidrocoloide", "Hidrogel", "Alginato de calcio",
+  "Apósito con plata", "Espuma de poliuretano", "Sulfadiazina de plata", "Esparadrapo / micropore", "Vendaje",
+  "Guantes estériles", "Equipo de curación",
+];
+
+const nz = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+/** Sugerencias para un texto libre: busca en nombre y sinónimos (sin tildes). */
+export function sugerir(lista: { nombre: string; sin?: string[] }[], q: string, max = 8) {
+  const t = nz(q.trim());
+  if (!t) return [];
+  const empieza: string[] = [];
+  const contiene: string[] = [];
+  for (const x of lista) {
+    const textos = [x.nombre, ...(x.sin ?? [])].map(nz);
+    if (textos.some((y) => y.startsWith(t) || y.split(/[\s(/]+/).some((w) => w.startsWith(t)))) empieza.push(x.nombre);
+    else if (t.length >= 3 && textos.some((y) => y.includes(t))) contiene.push(x.nombre);
+  }
+  return [...empieza, ...contiene].filter((x) => nz(x) !== t).slice(0, max);
+}
