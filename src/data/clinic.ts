@@ -446,7 +446,7 @@ export const SERVICIOS = [
   { id: "s9", nombre: "Ecocardiografía", icono: "waves", especialidad: "Ecocardiografía", doctorId: "d2", duracion: 45, precio: 58000, descripcion: "Ecocardiograma doppler color con informe del especialista." },
   { id: "s10", nombre: "Segunda opinión médica", icono: "users", especialidad: "Medicina Interna", doctorId: "d2", duracion: 45, precio: 40000, descripcion: "Revisión de diagnóstico y tratamiento por un segundo especialista." },
   { id: "s12", nombre: "Holter de ritmo cardíaco (24 horas)", icono: "watch", especialidad: "Holter", doctorId: "d2", duracion: 30, precio: 150000, descripcion: "Registro continuo del corazón durante 24 horas para detectar arritmias, palpitaciones o desmayos. El equipo se coloca en la clínica y se retira al día siguiente." },
-  { id: "s13", nombre: "Presurometría (MAPA 24 horas)", icono: "gauge", especialidad: "Presurometría", doctorId: "d2", duracion: 30, precio: 150000, descripcion: "Monitoreo ambulatorio de la presión arterial durante 24 horas, en su vida diaria, para confirmar hipertensión y ajustar el tratamiento." },
+  { id: "s13", nombre: "Presurometría (MAPA)", icono: "gauge", especialidad: "Presurometría", doctorId: "d2", duracion: 30, precio: 150000, descripcion: "Monitoreo ambulatorio de la presión arterial: le entregamos el presurómetro con su instructivo, usted se toma la presión en casa durante 7 días y nos trae el registro para que el especialista lo evalúe." },
   { id: "s11", nombre: "Seguimiento integral", icono: "calendar-check", especialidad: "Medicina Interna", doctorId: "d1", duracion: 30, precio: 26000, descripcion: "Plan de controles coordinado entre las distintas especialidades." },
 ];
 

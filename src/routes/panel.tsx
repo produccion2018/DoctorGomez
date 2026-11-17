@@ -11394,7 +11394,7 @@ const ACCIONES_ENF: AccionEnf[] = [
   { id: "Electrocardiograma", t: "Electrocardiograma", d: "Toma del ECG de 12 derivaciones", icon: Activity, c: "#ef4444" },
   { id: "Toma de muestra", t: "Toma de muestra", d: "Sangre, orina, heces, cultivos y otras muestras", icon: FlaskConical, c: "#eab308" },
   { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10b981" },
-  { id: "Holter / MAPA", t: "Holter / MAPA", d: "Colocación o retiro del equipo", icon: Clock, c: "#6366f1" },
+  { id: "Holter / MAPA", t: "Holter / Presurómetro", d: "Colocación o retiro del Holter o del presurómetro (MAPA)", icon: Clock, c: "#6366f1" },
   { id: "Curación", t: "Curación", d: "Curaciones y procedimientos menores", icon: Syringe, c: "#ec4899" },
   { id: "Nota de enfermería", t: "Nota de enfermería", d: "Observaciones, educación al paciente o novedades", icon: NotebookPen, c: "#14b8a6" },
 ];
@@ -11602,9 +11602,16 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
       case "Administración de medicamento":
         if (!f.med || !f.dosis || !f.via) return null;
         return `${f.med} ${f.dosis}, vía ${f.via.toLowerCase()}, a las ${hora12(f.hora).replace(/\.$/, "")}${f.indica ? `. Indicado por ${f.indica}` : ""}.${obs}`;
-      case "Holter / MAPA":
+      case "Holter / MAPA": {
         if (!f.tipo) return null;
-        return `${f.tipo} a las ${hora12(f.hora).replace(/\.$/, "")}.${obs}`;
+        const h = hora12(f.hora).replace(/\.$/, "");
+        if (f.tipo === "Colocación del presurómetro") {
+          const dev = new Date(Date.now() + 7 * 86400000).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+          return `Colocación del presurómetro (MAPA) a las ${h}: se entregó el equipo con el instructivo de uso. El paciente toma su presión arterial en casa durante 7 días según la indicación médica y devuelve el equipo con el registro de mediciones el ${dev}.${obs}`;
+        }
+        if (f.tipo === "Retiro del presurómetro") return `Retiro del presurómetro (MAPA) a las ${h}: el paciente devolvió el equipo y el registro de mediciones de 7 días para evaluación médica.${obs}`;
+        return `${f.tipo} a las ${h}.${obs}`;
+      }
       case "Curación":
         if (!f.zona) return null;
         return `Curación en ${f.zona} a las ${hora12(f.hora).replace(/\.$/, "")}.${f.desc ? ` ${f.desc}` : ""}${obs}`;
@@ -11700,7 +11707,15 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
           )}
           {accion.id === "Holter / MAPA" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">{campo("Qué se hizo", <Chips k="tipo" ops={["Colocación de Holter 24 h", "Retiro de Holter", "Colocación de MAPA 24 h", "Retiro de MAPA"]} />, true)}</div>
+              <div className="sm:col-span-2">{campo("Qué se hizo", <Chips k="tipo" ops={["Colocación de Holter 24 h", "Retiro de Holter", "Colocación del presurómetro", "Retiro del presurómetro"]} />, true)}</div>
+              {(f.tipo === "Colocación del presurómetro" || f.tipo === "Retiro del presurómetro") && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs leading-relaxed text-slate-700 sm:col-span-2 dark:border-white/10 dark:bg-white/5 dark:text-slate-300" translate="no">
+                  <p className="mb-1 font-semibold text-[#0b2a6b] dark:text-sky-200">MAPA · Monitoreo Ambulatorio de la Presión Arterial</p>
+                  {f.tipo === "Colocación del presurómetro"
+                    ? <>Se le entrega al paciente el <b>presurómetro con el instructivo de uso</b>. Él mismo toma su presión <b>en casa durante 7 días</b>, según la indicación médica, y después devuelve el equipo con el <b>registro de las mediciones</b> para que el médico lo evalúe. No es una visita domiciliaria.</>
+                    : <>El paciente devuelve el presurómetro y el <b>registro de las mediciones de los 7 días</b>. El médico lo evalúa en la historia clínica.</>}
+                </div>
+              )}
               {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
             </div>
           )}
