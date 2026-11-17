@@ -16,6 +16,8 @@ import {
   Users,
   Waves,
   type LucideIcon,
+  Watch,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FondoEspecialidades, PageHero, PublicLayout, useReveal, waLink, Electro } from "@/components/site/PublicLayout";
@@ -43,6 +45,8 @@ const ICONOS: Record<string, LucideIcon> = {
   waves: Waves,
   users: Users,
   "calendar-check": CalendarCheck,
+  watch: Watch,
+  gauge: Gauge,
 };
 
 /** Color de acento por especialidad (mismo criterio que el inicio). */
@@ -51,6 +55,8 @@ const COLOR: Record<string, { c: string; c2: string }> = {
   Nefrología: { c: "#0ea5e9", c2: "#0369a1" },
   Cardiología: { c: "#ef4444", c2: "#b91c1c" },
   Ecocardiografía: { c: "#8b5cf6", c2: "#6d28d9" },
+  Holter: { c: "#ec4899", c2: "#be185d" },
+  Presurometría: { c: "#f97316", c2: "#c2410c" },
 };
 const colorDe = (e: string) => COLOR[e] ?? { c: "#3b82f6", c2: "#1d4ed8" };
 
@@ -77,7 +83,7 @@ function Servicios() {
         {/* Barra de filtros */}
         <div className="sticky top-20 z-20 -mx-2 mb-10 rounded-3xl border border-border/70 bg-card/80 p-2 shadow-[0_20px_50px_-35px_rgba(10,25,70,.6)] backdrop-blur-xl sm:mx-0">
           <div className="flex flex-col gap-2 md:flex-row md:items-center">
-            <div className="flex flex-1 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none]">
+            <div className="flex flex-1 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none] md:flex-wrap md:overflow-visible">
               {categorias.map((c) => {
                 const on = cat === c;
                 const col = colorDe(c);
