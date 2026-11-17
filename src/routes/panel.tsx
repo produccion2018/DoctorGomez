@@ -11446,10 +11446,10 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
           <div className="mt-3 flex flex-wrap gap-2">
             {visibles.map((p) => (
               <button key={p.id} type="button" onClick={() => setPacSel(p.id === pacSel ? "" : p.id)}
-                className={`inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[rgb(var(--acc))] text-white ring-transparent shadow-md" : "bg-card ring-border hover:bg-secondary"}`}>
-                <Avatar nombre={p.nombre} size="size-7" />
+                className={`inline-flex items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[#0b2a6b] text-white ring-transparent shadow-md" : "bg-card ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 dark:ring-white/10 dark:hover:bg-white/5"}`}>
+                <Avatar nombre={p.nombre} size="size-8 !rounded-lg" />
                 {p.nombre}
-                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-full px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"}`}>cita hoy</span>}
+                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-md px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"}`}>cita hoy</span>}
                 {p.ficha?.alergias && <AlertTriangle className={`size-3.5 ${p.id === pacSel ? "text-white" : "text-red-500"}`} />}
               </button>
             ))}
