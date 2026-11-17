@@ -12137,7 +12137,7 @@ function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
     window.addEventListener("gb-abrir-ia", f);
     return () => window.removeEventListener("gb-abrir-ia", f);
   }, []);
-  useEffect(() => fin.current?.scrollIntoView({ behavior: "smooth", block: "end" }), [msgs, pensando]);
+  useEffect(() => { fin.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs, pensando]);
   useEffect(() => () => { if (reloj.current) window.clearInterval(reloj.current); }, []);
 
   const hablar = (t: string) => {

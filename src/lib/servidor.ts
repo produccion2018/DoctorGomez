@@ -1010,6 +1010,7 @@ export const salirPacienteServidor = createServerFn({ method: "POST" }).handler(
 /* ===================================================================== */
 const errorIA = (e: unknown) => {
   const m = (e as Error)?.message ?? "";
+  if (/credit card|customer_verification/i.test(m)) return "La IA todavía no está activada: falta registrar una tarjeta en Vercel (AI Gateway). Avísele al administrador.";
   if (/credit|insufficient|budget|402/i.test(m)) return "La IA se quedó sin créditos este mes. Avísele al administrador.";
   if (/rate|429/i.test(m)) return "La IA está muy ocupada. Intente en un minuto.";
   if (/auth|401|403|oidc|api key/i.test(m)) return "La IA todavía no está habilitada en el servidor. Avísele al administrador.";
