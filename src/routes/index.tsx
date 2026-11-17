@@ -553,8 +553,8 @@ function Home() {
       <section className="relative mx-auto max-w-7xl px-4 py-24 lg:px-8">
         <div className="mx-auto mb-14 max-w-2xl text-center" data-reveal>
           <span className="section-kicker"><HeartPulse className="size-3.5" /> Nuestras dos grandes áreas</span>
-          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">El corazón y los riñones, <span className="text-gradient-clinic italic">cuidados juntos</span></h2>
-          <p className="mt-4 text-lg text-muted-foreground">La hipertensión, la diabetes y la enfermedad renal afectan al corazón y al riñón a la vez. Por eso los atendemos de forma coordinada.</p>
+          <h2 className="mt-4 text-3xl leading-tight sm:text-5xl">Tu corazón y tus riñones están conectados. <span className="text-gradient-clinic inline-block pr-2 italic">Nuestro cuidado también.</span></h2>
+          <p className="mt-4 text-lg text-muted-foreground">Porque para nosotros, lo más importante no es solo tu enfermedad. Eres tú.</p>
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
           {[
