@@ -402,7 +402,7 @@ function traerDelServidor(key: string): Promise<void> {
 
 /* ---------- Colecciones fila por fila (turnos, padrón, pacientes) ---------- */
 const COLECCIONES = [
-  "gb_turnos", "gb_padron", "gb_pacientes",
+  "gb_turnos", "gb_padron", "gb_pacientes", "gb_papelera",
   "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
@@ -586,7 +586,25 @@ export function useDato<T>(key: string, fallback: T): readonly [T, (fn: (prev: T
 }
 
 /* ---------- Turnos (misma clave que usa el panel) ---------- */
-export type EstadoTurno = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
+export type EstadoTurno = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado" | "Vencida";
+/** Fecha y hora actuales en Colombia (la clínica atiende en hora de Bogotá). */
+export function ahoraClinica() {
+  const s = new Date().toLocaleString("sv-SE", { timeZone: "America/Bogota" });
+  return { fecha: s.slice(0, 10), hora: s.slice(11, 16) };
+}
+/** ¿Esa fecha y hora ya pasó (en Colombia)? Con margen en minutos. */
+export function yaPaso(fecha: string, hora: string, margenMin = 0) {
+  const a = ahoraClinica();
+  const [h, m] = hora.split(":").map(Number);
+  const tot = (h ?? 0) * 60 + (m ?? 0) + margenMin;
+  const hh = `${String(Math.floor(tot / 60)).padStart(2, "0")}:${String(tot % 60).padStart(2, "0")}`;
+  return fecha < a.fecha || (fecha === a.fecha && (tot >= 24 * 60 || hh <= a.hora));
+}
+/** Minutos de gracia: pasado ese tiempo sin atender, la cita pasa al historial como vencida. */
+export const GRACIA_CITA_MIN = 3;
+/** Historial de lo eliminado (citas y pacientes): se puede restaurar. */
+export type ItemPapelera = { id: string; tipo: "cita" | "paciente"; refId: string; nombre: string; detalle: string; datos: unknown; pacienteId?: string; por: string; fecha: string; motivo?: string };
+export const KEY_PAPELERA = "gb_papelera";
 export type TurnoClinica = {
   id: string;
   fecha: string;

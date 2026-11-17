@@ -641,7 +641,7 @@ function Vacio({ icon: Icon, texto, accion }: { icon: LucideIcon; texto: string;
   );
 }
 
-const ESTADO_T: Record<TurnoClinica["estado"], Tono> = { Pendiente: "ambar", Confirmado: "azul", Atendido: "verde", Cancelado: "rojo" };
+const ESTADO_T: Record<TurnoClinica["estado"], Tono> = { Pendiente: "ambar", Confirmado: "azul", Atendido: "verde", Cancelado: "rojo", Vencida: "rojo" };
 
 function proximos(turnos: TurnoClinica[]) {
   const h = hoyIso();

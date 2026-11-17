@@ -119,6 +119,8 @@ import {
   Linkedin,
   Fingerprint,
   ShieldAlert,
+  RotateCcw,
+  Archive,
 } from "lucide-react";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -179,6 +181,11 @@ import {
   abrirDocumento,
   borrarDocumento,
   type DocumentoPaciente,
+  ahoraClinica,
+  yaPaso,
+  GRACIA_CITA_MIN,
+  KEY_PAPELERA,
+  type ItemPapelera,
   nombrePropio,
   limpiarDoc,
   KEY_CONTROLES,
@@ -293,14 +300,14 @@ export const Route = createFileRoute("/panel")({
 });
 
 /* ---------- Tipos y datos de ejemplo ---------- */
-type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado";
+type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado" | "Vencida";
 type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; dni?: string; tipoDoc?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion" | "ministerio";
 type LogFn = (accion: string, detalle?: string) => void;
 type Tono = "azul" | "ambar" | "verde" | "violeta" | "rojo";
 
-const ESTADOS: Estado[] = ["Pendiente", "Confirmado", "Atendido", "Cancelado"];
+const ESTADOS: Estado[] = ["Pendiente", "Confirmado", "Atendido", "Cancelado", "Vencida"];
 
 
 /** Qué pestaña del panel abre cada módulo de permisos. */
@@ -377,12 +384,14 @@ const ESTADO_CLASE: Record<Estado, string> = {
   Confirmado: "bg-sky-100 text-sky-800 ring-sky-200",
   Atendido: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   Cancelado: "bg-red-100 text-red-700 ring-red-200",
+  Vencida: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 const ESTADO_DOT: Record<Estado, string> = {
   Pendiente: "bg-amber-500",
   Confirmado: "bg-sky-500",
   Atendido: "bg-emerald-500",
   Cancelado: "bg-red-500",
+  Vencida: "bg-slate-400",
 };
 
 const TONOS: Record<Tono, { tile: string; glow: string; text: string }> = {
@@ -593,6 +602,25 @@ function Panel() {
   useEffect(() => {
     setTurnos((p) => (p.some((t) => IDS_EJEMPLO.includes(t.id)) ? p.filter((t) => !IDS_EJEMPLO.includes(t.id)) : p));
   }, [setTurnos]);
+
+  // Citas que pasaron su hora sin atenderse: van al historial como "Vencida" (se pueden marcar atendidas después)
+  const turnosRef = useRef(turnos);
+  turnosRef.current = turnos;
+  const firmaPendientes = turnos.filter((t) => t.estado === "Pendiente" || t.estado === "Confirmado").map((t) => t.id).join(",");
+  useEffect(() => {
+    if (!user) return;
+    const revisar = () => {
+      const vencen = turnosRef.current.filter((t) => (t.estado === "Pendiente" || t.estado === "Confirmado") && yaPaso(t.fecha, t.hora, GRACIA_CITA_MIN));
+      if (!vencen.length) return;
+      const ids = new Set(vencen.map((t) => t.id));
+      setTurnos((p) => p.map((t) => (ids.has(t.id) && (t.estado === "Pendiente" || t.estado === "Confirmado") ? { ...t, estado: "Vencida" as Estado } : t)));
+      vencen.slice(0, 20).forEach((t) => setAudit(auditar("Sistema", "Cita vencida (no se atendió)", `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${t.doctor}`)));
+      toast.message(vencen.length === 1 ? `La cita de ${vencen[0]!.paciente} (${hora12(vencen[0]!.hora)}) pasó su hora y se movió al historial.` : `${vencen.length} citas pasaron su hora y se movieron al historial.`, { description: "Agenda y citas → Historial. Si se atendió, cámbiela a Atendido.", duration: 8000 });
+    };
+    revisar();
+    const t = window.setInterval(revisar, 60000);
+    return () => window.clearInterval(t);
+  }, [user, setTurnos, firmaPendientes]);
 
 
   useEffect(() => {
@@ -1040,7 +1068,7 @@ function Panel() {
         )}
         {(!esEnf || TABS_ENF.length > 0) && tabVisible === "resumen" && <Resumen turnos={turnos} movs={movs} audit={audit} irA={setTab} abrirTurnos={(f) => { setFocoTurnos(f); irTab("turnos"); }} />}
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
-        {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} foco={focoTurnos} irHorarios={permitido("horarios") ? irHorarios : undefined} />}
+        {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} user={user} foco={focoTurnos} irHorarios={permitido("horarios") ? irHorarios : undefined} />}
         {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf || esAreaMedica(user.area)} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
         {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
         {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} notasEnf={esEnf && !esAreaMedica(user.area) && TABS_ENF.includes("triage") && !soloLectura("triage")} />}
@@ -1087,7 +1115,12 @@ function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: 
   const ahora = Date.now();
   const nombreP = (id: string) => pacientes.find((p) => p.id === id)?.nombre ?? "Paciente";
   const esMedicoN = user.rol === "medico";
+  const ayerIso = isoDe(new Date(Date.now() - 86400000));
   const items: Notif[] = [
+    // Citas que pasaron su hora sin atenderse
+    ...turnos
+      .filter((t) => t.estado === "Vencida" && t.fecha >= ayerIso)
+      .map((t) => ({ id: `venc-${t.id}`, titulo: "Cita vencida sin atender", texto: `${t.paciente} · ${hora12(t.hora)} · ${nombreCorto(t.doctor)} · pasó al historial`, icon: CalendarX, tono: "ambar" as Tono, tab: "turnos" as Tab, fecha: `${t.fecha}T${t.hora}:00` })),
     // Laboratorios y estudios que subieron los pacientes desde su portal
     ...docsN
       .filter((d) => d.origen === "paciente" && !d.vistoPor)
@@ -1855,7 +1888,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
                 style={{
                   background: turnos.length
                     ? `conic-gradient(${(() => {
-                        const col: Record<Estado, string> = { Pendiente: "#f59e0b", Confirmado: "#0ea5e9", Atendido: "#10b981", Cancelado: "#ef4444" };
+                        const col: Record<Estado, string> = { Pendiente: "#f59e0b", Confirmado: "#0ea5e9", Atendido: "#10b981", Cancelado: "#ef4444", Vencida: "#94a3b8" };
                         let acc = 0;
                         return conteo
                           .map(({ e, n }) => {
@@ -2257,7 +2290,30 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
   );
 }
 
-function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; foco?: FocoTurnos; irHorarios?: ((id: string) => void) | undefined }) {
+/** Ventana simple centrada (sobre todo el panel). */
+function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onCerrar(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onCerrar]);
+  return createPortal(
+    <div className="pn-root fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div className="absolute inset-0 bg-[#071a46]/45 backdrop-blur-[3px]" onClick={onCerrar} />
+      <div className="pn-up relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl">
+        <div className="h-1 w-full bg-gradient-to-r from-[#0b2a6b] via-[#0e7490] to-[#0b2a6b]" />
+        <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
+          <h3 className="font-display text-xl font-semibold">{titulo}</h3>
+          <button onClick={onCerrar} aria-label="Cerrar" className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; user: SessionUser; foco?: FocoTurnos; irHorarios?: ((id: string) => void) | undefined }) {
   const [procHoy, setProcHoy] = useState(foco === "procedimientos");
   useEffect(() => {
     if (!foco) return;
@@ -2282,7 +2338,12 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
   const slots = horariosDelDia(agendaSel, f.fecha).map((h) => ({
     h,
     ocupado: turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === h && t.estado !== "Cancelado"),
+    pasado: yaPaso(f.fecha, h),
   }));
+  const [vista, setVista] = useState<"proximas" | "historial" | "eliminadas">("proximas");
+  const [papelera, setPapelera] = useDato<ItemPapelera[]>(KEY_PAPELERA, []);
+  const eliminadas = papelera.filter((x) => x.tipo === "cita").sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const [editando, setEditando] = useState<Turno | null>(null);
   const MOTIVOS = ["Consulta", "Control", "Primera vez", "Ecocardiograma", "Electrocardiograma", "Lectura de estudios"];
   const [filtro, setFiltro] = useState<"Todos" | Estado>("Todos");
   const [q, setQ] = useState("");
@@ -2290,17 +2351,22 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
   const lista = useMemo(
     () =>
       [...turnos]
+        .filter((t) => (vista === "proximas" ? t.estado === "Pendiente" || t.estado === "Confirmado" : t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida"))
         .filter((t) => filtro === "Todos" || t.estado === filtro)
         .filter((t) => !procHoy || (t.fecha === hoy() && esProcedimiento(t.motivo)))
         .filter((t) => norm(`${t.paciente} ${t.motivo} ${t.doctor}`).includes(norm(q)))
-        .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora)),
-    [turnos, filtro, q, procHoy],
+        .sort((a, b) => (vista === "proximas" ? (a.fecha + a.hora).localeCompare(b.fecha + b.hora) : (b.fecha + b.hora).localeCompare(a.fecha + a.hora))),
+    [turnos, filtro, q, procHoy, vista],
   );
 
   const agregar = (e: FormEvent) => {
     e.preventDefault();
     if (!f.hora) {
       toast.error("Elija un horario.");
+      return;
+    }
+    if (yaPaso(f.fecha, f.hora)) {
+      toast.error(`Ese horario ya pasó (en Colombia son las ${hora12(ahoraClinica().hora)}). Elija uno más tarde.`);
       return;
     }
     if (turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === f.hora && t.estado !== "Cancelado")) {
@@ -2334,12 +2400,41 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
     log("Cita actualizada", `${t.paciente}: ${t.estado} → ${estado}`);
   };
 
-  const borrar = (t: Turno) => {
+  const borrar = async (t: Turno) => {
+    if (!(await preguntar({ titulo: "¿Eliminar esta cita?", texto: `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)}. Se libera el horario y queda en "Eliminadas", desde donde se puede restaurar.` }))) return;
+    setPapelera((p) => [{ id: uid(), tipo: "cita", refId: t.id, nombre: t.paciente, detalle: `${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${t.doctor} · ${t.motivo}`, datos: t, ...(t.pacienteId ? { pacienteId: t.pacienteId } : {}), por: user.nombre, fecha: new Date().toISOString() }, ...p]);
     setTurnos((p) => p.filter((x) => x.id !== t.id));
     log("Cita eliminada", `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)}`);
+    toast.success("Cita eliminada. Está en Eliminadas por si hay que restaurarla.");
+  };
+  const restaurar = (x: ItemPapelera) => {
+    const t = x.datos as Turno;
+    if (turnos.some((y) => y.doctor === t.doctor && y.fecha === t.fecha && y.hora === t.hora && y.estado !== "Cancelado" && y.id !== t.id)) {
+      toast.error("Ese horario ya lo ocupó otra cita. Restáurela y cámbiele la hora, o cree una nueva.");
+      return;
+    }
+    const estado: Estado = (t.estado === "Pendiente" || t.estado === "Confirmado") && yaPaso(t.fecha, t.hora, GRACIA_CITA_MIN) ? "Vencida" : t.estado;
+    setTurnos((p) => [...p.filter((y) => y.id !== t.id), { ...t, estado }]);
+    setPapelera((p) => p.filter((y) => y.id !== x.id));
+    log("Cita restaurada", `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)}`);
+    toast.success("Cita restaurada.");
+  };
+  const guardarEdicion = (t: Turno) => {
+    const orig = turnos.find((x) => x.id === t.id);
+    if (!orig) return;
+    if (!t.paciente.trim() || limpiarDoc(t.dni ?? "").length < 5) { toast.error("Nombre y cédula son obligatorios."); return; }
+    const cambioHora = orig.fecha !== t.fecha || orig.hora !== t.hora || orig.doctor !== t.doctor;
+    if (cambioHora && yaPaso(t.fecha, t.hora)) { toast.error("Ese horario ya pasó. Elija uno más tarde."); return; }
+    if (cambioHora && turnos.some((x) => x.id !== t.id && x.doctor === t.doctor && x.fecha === t.fecha && x.hora === t.hora && x.estado !== "Cancelado")) { toast.error("Ese horario ya está ocupado para ese profesional."); return; }
+    const nuevo: Turno = { ...t, paciente: nombrePropio(t.paciente).trim(), dni: limpiarDoc(t.dni ?? ""), ...(cambioHora && orig.estado === "Vencida" ? { estado: "Pendiente" as Estado } : {}), ...(cambioHora ? { recordado1: undefined, recordado2: undefined } : {}) } as Turno;
+    setTurnos((p) => p.map((x) => (x.id === t.id ? nuevo : x)));
+    const cambios = [orig.paciente !== nuevo.paciente && "paciente", cambioHora && `${fechaCorta(orig.fecha)} ${hora12(orig.hora)} → ${fechaCorta(nuevo.fecha)} ${hora12(nuevo.hora)}`, orig.doctor !== nuevo.doctor && `profesional: ${nuevo.doctor}`, orig.motivo !== nuevo.motivo && "motivo"].filter(Boolean).join(" · ");
+    log("Cita editada", `${nuevo.paciente}${cambios ? ` · ${cambios}` : ""}`);
+    toast.success("Cita actualizada.");
+    setEditando(null);
   };
 
-  const filtros: ("Todos" | Estado)[] = ["Todos", ...ESTADOS];
+  const filtros: ("Todos" | Estado)[] = ["Todos", ...(vista === "proximas" ? (["Pendiente", "Confirmado"] as Estado[]) : (["Atendido", "Cancelado", "Vencida"] as Estado[]))];
 
   return (
     <div className="space-y-6">
@@ -2428,11 +2523,12 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
                 <p className="rounded-2xl border border-dashed border-border bg-secondary/30 p-4 text-sm text-muted-foreground">{nombreCorto(adminSel.nombre)} no atiende este día según su agenda ({resumenAgenda(agendaSel)}). Elija otro día o use "Otro horario".{irHorarios && <button type="button" onClick={() => irHorarios(adminSel.id)} className="ml-1 font-semibold text-[rgb(var(--acc))] hover:underline">Ver horarios</button>}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">
-                  {slots.map(({ h, ocupado }) => {
+                  {slots.map(({ h, ocupado: ocup, pasado }) => {
+                    const ocupado = ocup || pasado;
                     const [num, ...suf] = hora12(h).split(" ");
                     const on = f.hora === h;
                     return (
-                      <button key={h} type="button" disabled={ocupado} onClick={() => setF({ ...f, hora: h, motivo: f.motivo || servicioEn(agendaSel, f.fecha, h) })}
+                      <button key={h} type="button" disabled={ocupado || pasado} title={pasado ? "Ese horario ya pasó" : undefined} onClick={() => setF({ ...f, hora: h, motivo: f.motivo || servicioEn(agendaSel, f.fecha, h) })}
                         className={`rounded-2xl px-1 py-2 tabular-nums transition-all duration-200 ${ocupado ? "cursor-not-allowed bg-secondary/40 text-muted-foreground/40" : on ? "pn-acc-tile scale-[1.03] text-white shadow-lg" : "pn-field ring-1 ring-slate-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-[rgba(var(--acc),.5)] dark:ring-white/10"}`}>
                         <span className={`whitespace-nowrap ${ocupado ? "line-through" : ""}`}><span className="text-[15px] font-semibold">{num}</span> <span className={`text-[10px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{suf.join(" ")}</span></span>
                         {servicioEn(agendaSel, f.fecha, h) && <span className={`block truncate text-[9px] font-medium ${on ? "text-white/75" : "text-muted-foreground"}`}>{ocupado ? "Ocupado" : servicioEn(agendaSel, f.fecha, h)}</span>}
@@ -2495,7 +2591,7 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
                 <p className="flex items-center gap-3 text-sm"><Users className="size-4 text-sky-300" /> {f.paciente.trim() || <span className="text-white/50">Paciente</span>}</p>
                 <p className="flex items-center gap-3 text-sm"><Stethoscope className="size-4 text-sky-300" /> {f.motivo.trim() || <span className="text-white/50">Motivo</span>}</p>
               </div>
-              {atiende && !otraHora && <p className="text-xs text-white/60">{slots.filter((x) => !x.ocupado).length} horarios libres este día</p>}
+              {atiende && !otraHora && <p className="text-xs text-white/60">{slots.filter((x) => !x.ocupado && !x.pasado).length} horarios libres este día</p>}
             </div>
             <Button type="submit" className="relative h-12 w-full rounded-xl !bg-white text-[var(--deep)] shadow-lg hover:!bg-white/90">
               <Plus className="size-4" /> Crear cita
@@ -2506,20 +2602,44 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
       )}
 
       <div id="lista-turnos" className="scroll-mt-24" />
-      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : "Todas las citas"} sub={`${lista.length} cita${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
+      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : vista === "proximas" ? "Próximas citas" : vista === "historial" ? "Historial de citas" : "Citas eliminadas"} sub={`${lista.length} cita${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input placeholder="Buscar paciente, motivo..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-64"} />
           </div>
         }>
+        <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5">
+          {([["proximas", "Próximas", turnos.filter((t) => t.estado === "Pendiente" || t.estado === "Confirmado").length], ["historial", "Historial", turnos.filter((t) => t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida").length], ["eliminadas", "Eliminadas", eliminadas.length]] as const).map(([v, l, n]) => (
+            <button key={v} onClick={() => { setVista(v); setFiltro("Todos"); }} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${vista === v ? "bg-[#0b2a6b] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>
+              {v === "proximas" ? <CalendarDays className="size-3.5" /> : v === "historial" ? <ClipboardList className="size-3.5" /> : <Trash2 className="size-3.5" />} {l} <span className={`rounded-md px-1.5 tabular-nums ${vista === v ? "bg-white/20" : "bg-white dark:bg-white/10"}`}>{n}</span>
+            </button>
+          ))}
+        </div>
+        {vista === "eliminadas" ? (
+          eliminadas.length === 0 ? <Vacio icon={Trash2} titulo="No hay citas eliminadas" texto="Las citas que se eliminen quedan aquí y se pueden restaurar." /> : (
+            <ul className="space-y-2">
+              {eliminadas.map((x) => (
+                <li key={x.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-3 dark:border-white/10">
+                  <Avatar nombre={x.nombre} size="size-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{x.nombre}</p>
+                    <p className="truncate text-xs text-muted-foreground">{x.detalle}</p>
+                    <p className="text-[11px] text-muted-foreground">Eliminada por {nombreCorto(x.por)} · {fechaHora(x.fecha)}</p>
+                  </div>
+                  <button onClick={() => restaurar(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (<>
         <div className="mb-4 flex flex-wrap gap-2">
           <button onClick={() => setProcHoy(!procHoy)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${procHoy ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-md" : "bg-violet-50 text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30"}`}>
             <Stethoscope className="size-3.5" /> Procedimientos de hoy
             <span className={`rounded-full px-1.5 tabular-nums ${procHoy ? "bg-white/20" : "bg-white dark:bg-white/10"}`}>{turnos.filter((t) => t.fecha === hoy() && t.estado !== "Cancelado" && esProcedimiento(t.motivo)).length}</span>
           </button>
           {filtros.map((x) => {
-            const n = x === "Todos" ? turnos.length : turnos.filter((t) => t.estado === x).length;
+            const n = x === "Todos" ? turnos.filter((t) => (vista === "proximas" ? t.estado === "Pendiente" || t.estado === "Confirmado" : t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida")).length : turnos.filter((t) => t.estado === x).length;
             const on = filtro === x;
             return (
               <button key={x} onClick={() => setFiltro(x)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${on ? "gradient-deep text-white shadow-md" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>
@@ -2578,16 +2698,42 @@ function TurnosTab({ turnos, setTurnos, log, foco = null, irHorarios }: { turnos
                     </select>
                   </td>
                   <td className="py-3 text-right">
-                    <button onClick={() => borrar(t)} aria-label="Eliminar cita" className="rounded-lg p-2 text-muted-foreground opacity-60 transition-all hover:bg-red-50 hover:text-red-600 group-hover:opacity-100">
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="inline-flex gap-1">
+                      <button onClick={() => setEditando({ ...t })} aria-label="Editar cita" title="Editar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-slate-100 hover:text-[#0b2a6b] dark:hover:bg-white/10"><Pencil className="size-4" /></button>
+                      <button onClick={() => void borrar(t)} aria-label="Eliminar cita" title="Eliminar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        </>)}
+        {vista === "historial" && <p className="mt-3 text-xs text-muted-foreground">Las citas que pasan su hora sin marcarse como atendidas llegan aquí como <b>Vencida</b> ({GRACIA_CITA_MIN} minutos después). Si el paciente sí se atendió, cámbiela a <b>Atendido</b>.</p>}
       </Seccion>
+
+      {editando && (
+        <Modal titulo="Editar cita" onCerrar={() => setEditando(null)}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Campo label="Paciente"><input value={editando.paciente} onChange={(e) => setEditando({ ...editando, paciente: nombrePropio(e.target.value) })} className={inp} /></Campo>
+            <Campo label="Cédula"><input inputMode="numeric" value={editando.dni ?? ""} onChange={(e) => setEditando({ ...editando, dni: limpiarDoc(e.target.value) })} className={inp} /></Campo>
+            <Campo label="Teléfono / WhatsApp"><input value={editando.telefono ?? ""} onChange={(e) => setEditando({ ...editando, telefono: e.target.value })} className={inp} /></Campo>
+            <Campo label="Profesional">
+              <select value={editando.doctor} onChange={(e) => setEditando({ ...editando, doctor: e.target.value })} className={inp}>{profs.map((a) => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}{!profs.some((a) => a.nombre === editando.doctor) && <option value={editando.doctor}>{editando.doctor}</option>}</select>
+            </Campo>
+            <Campo label="Fecha"><input type="date" value={editando.fecha} onChange={(e) => setEditando({ ...editando, fecha: e.target.value })} className={inp} /></Campo>
+            <Campo label="Hora"><SelectorHora value={editando.hora} onChange={(v) => setEditando({ ...editando, hora: v })} label="" /></Campo>
+            <div className="sm:col-span-2"><Campo label="Motivo"><input value={editando.motivo} onChange={(e) => setEditando({ ...editando, motivo: e.target.value })} className={inp} /></Campo></div>
+            <Campo label="Estado">
+              <select value={editando.estado} onChange={(e) => setEditando({ ...editando, estado: e.target.value as Estado })} className={inp}>{ESTADOS.map((x) => <option key={x}>{x}</option>)}</select>
+            </Campo>
+          </div>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button variant="ghost" className="rounded-xl" onClick={() => setEditando(null)}>Cancelar</Button>
+            <Button className="rounded-xl" onClick={() => guardarEdicion(editando)}><Check className="size-4" /> Guardar cambios</Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -6109,6 +6255,8 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
 function usePacientesClinica(turnos: Turno[]): PacienteHC[] {
   const [padron] = useDato<PacienteClinica[]>(KEY_PADRON, []);
   const [portal] = useDato<PacientePortal[]>(KEY_PACIENTES, []);
+  const [papelera] = useDato<ItemPapelera[]>(KEY_PAPELERA, []);
+  const archivados = useMemo(() => new Set(papelera.filter((x) => x.tipo === "paciente").flatMap((x) => [x.refId, ...(((x.datos as PacienteHC)?.portalId) ? [(x.datos as PacienteHC).portalId!] : [])])), [papelera]);
   return useMemo(() => {
     const lista: PacienteHC[] = [];
     const porDni = new Map<string, PacienteHC>();
@@ -6146,8 +6294,8 @@ function usePacientesClinica(turnos: Turno[]): PacienteHC[] {
       porNombre.add(norm(n));
       lista.push({ id: t.pacienteId ?? `nombre:${norm(n)}`, nombre: n, telefono: t.telefono, email: t.email, origen: "turno", portal: false } as PacienteHC);
     });
-    return lista.map((p) => ({ ...p, nombre: nombrePropio(p.nombre).trim() })).sort((a, b) => a.nombre.localeCompare(b.nombre));
-  }, [padron, portal, turnos]);
+    return lista.filter((p) => !archivados.has(p.id) && !(p.portalId && archivados.has(p.portalId))).map((p) => ({ ...p, nombre: nombrePropio(p.nombre).trim() })).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [padron, portal, turnos, archivados]);
 }
 
 const esCardio = (ant: string[] = []) => ant.some((a) => /card|infarto|arritmia|marcapasos|hipert|colesterol/i.test(a));
@@ -6197,7 +6345,7 @@ function SelectorPaciente({ pacientes, valor, onChange, arriba = false }: { paci
 }
 
 type PeriodoReg = "hoy" | "mes" | "total";
-type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal";
+type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal" | "inactivos";
 
 function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
   const [abiertoId, setAbiertoId] = useState<string | null>(inicial);
@@ -6213,6 +6361,29 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
   const [editando, setEditando] = useState<PacienteClinica | null>(null);
 
   const vacio = (): PacienteClinica => ({ id: nuevoId(), nombre: "", dni: "", antecedentes: [], creado: new Date().toISOString(), medicoCabecera: user.nombre });
+  const [papelera, setPapelera] = useDato<ItemPapelera[]>(KEY_PAPELERA, []);
+  const [verEliminados, setVerEliminados] = useState(false);
+  const eliminados = papelera.filter((x) => x.tipo === "paciente").sort((a, b) => b.fecha.localeCompare(a.fecha));
+  /** Última vez que vino (cita o fecha de registro), en días. */
+  const ultimaVisita = (p: PacienteHC) => {
+    const fechas = turnos.filter((t) => (t.pacienteId && (t.pacienteId === p.id || t.pacienteId === p.portalId)) || (p.dni && t.dni === p.dni) || norm(t.paciente) === norm(p.nombre)).filter((t) => t.estado !== "Cancelado").map((t) => t.fecha);
+    if (p.creado) fechas.push(p.creado.slice(0, 10));
+    return fechas.sort().pop() ?? "";
+  };
+  const diasSinVenir = (p: PacienteHC) => { const u = ultimaVisita(p); return u ? Math.floor((Date.now() - new Date(`${u}T12:00:00`).getTime()) / 86400000) : 99999; };
+  const archivar = async (p: PacienteHC) => {
+    const u = ultimaVisita(p);
+    if (!(await preguntar({ titulo: `¿Eliminar a ${p.nombre}?`, texto: `Deja de aparecer en la lista de pacientes. Su historia clínica no se borra (lo exige la norma) y queda en "Pacientes eliminados", desde donde se puede restaurar.${u ? ` Última visita: ${fechaCorta(u)}.` : ""}` }))) return;
+    setPapelera((l) => [{ id: nuevoId(), tipo: "paciente", refId: p.id, nombre: p.nombre, detalle: `${p.dni ? `C.C. ${p.dni}` : "Sin cédula"}${u ? ` · última visita ${fechaCorta(u)}` : ""}`, datos: p, pacienteId: p.id, por: user.nombre, fecha: new Date().toISOString() }, ...l]);
+    if (abiertoId === p.id) setAbiertoId(null);
+    log("Paciente eliminado", `${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""}${u ? ` · última visita ${fechaCorta(u)}` : ""}`);
+    toast.success(`${p.nombre} se movió a Pacientes eliminados.`);
+  };
+  const restaurarPac = (x: ItemPapelera) => {
+    setPapelera((l) => l.filter((y) => y.id !== x.id));
+    log("Paciente restaurado", x.nombre);
+    toast.success(`${x.nombre} volvió a la lista de pacientes.`);
+  };
   const visibles = pacientes.filter((p) => {
     if (q && !norm(`${p.nombre} ${p.dni ?? ""} ${p.telefono ?? ""}`).includes(norm(q))) return false;
     const ant = p.ficha?.antecedentes ?? [];
@@ -6220,6 +6391,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
     if (filtro === "nefro") return esNefro(ant);
     if (filtro === "alergias") return !!p.ficha?.alergias;
     if (filtro === "sinportal") return !p.portal;
+    if (filtro === "inactivos") return diasSinVenir(p) >= 730;
     return true;
   });
   if (inicial) visibles.sort((a, b) => (b.id === inicial ? 1 : 0) - (a.id === inicial ? 1 : 0));
@@ -6499,10 +6671,34 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
               <Download className="size-4" /> Exportar
             </Button>
             {!soloLectura && <Button variant="outline" className="h-10 rounded-xl" onClick={() => setImportando(true)}><FileSpreadsheet className="size-4" /> Cargar desde archivo</Button>}
+            <Button variant="outline" className="h-10 rounded-xl" onClick={() => setVerEliminados((v) => !v)}><Archive className="size-4" /> Eliminados{eliminados.length ? ` (${eliminados.length})` : ""}</Button>
             {!soloLectura && <Button className="h-10 rounded-xl" onClick={() => setEditando(vacio())}><Plus className="size-4" /> Nuevo paciente</Button>}
           </div>
         }
       >
+        {verEliminados && (
+          <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-semibold"><Archive className="size-4 text-[#0b2a6b]" /> Pacientes eliminados</p>
+              <button onClick={() => setVerEliminados(false)} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Cerrar</button>
+            </div>
+            {eliminados.length === 0 ? <p className="text-sm text-muted-foreground">No hay pacientes eliminados.</p> : (
+              <ul className="space-y-2">
+                {eliminados.map((x) => (
+                  <li key={x.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-card p-3 ring-1 ring-slate-200 dark:ring-white/10">
+                    <Avatar nombre={x.nombre} size="size-9" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold">{x.nombre}</p>
+                      <p className="truncate text-xs text-muted-foreground">{x.detalle} · eliminado por {nombreCorto(x.por)} el {fechaCorta(x.fecha.slice(0, 10))}</p>
+                    </div>
+                    {!soloLectura && <button onClick={() => restaurarPac(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-[11px] text-muted-foreground">La historia clínica, recetas y estudios de un paciente eliminado se conservan: en Colombia no se pueden destruir.</p>
+          </div>
+        )}
         {importando && (
           <ImportarPacientes
             user={user}
@@ -6522,7 +6718,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, cédula o teléfono" className={inp + " pl-10"} />
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {([["todos", "Todos"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"]] as [FiltroPac, string][]).map(([id, l]) => (
+            {([["todos", "Todos"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"], ["inactivos", "Sin venir hace 2+ años"]] as [FiltroPac, string][]).map(([id, l]) => (
               <button key={id} onClick={() => setFiltro(id)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filtro === id ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{l}</button>
             ))}
           </div>
@@ -6590,6 +6786,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                         <FileText className="size-4" /> {abierto ? "Cerrar carpeta" : "Abrir carpeta"} <ChevronDown className={`size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
                       </button>
                       {!soloLectura && <button onClick={() => editar(p)} aria-label={`Editar a ${p.nombre}`} className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"><Pencil className="size-4" /></button>}
+                      {!soloLectura && <button onClick={() => void archivar(p)} aria-label={`Eliminar a ${p.nombre}`} title="Eliminar paciente" className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>}
                     </div>
                   </div>
                   {abierto && (
