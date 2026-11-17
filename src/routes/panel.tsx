@@ -1005,7 +1005,7 @@ function Panel() {
             <div className="flex flex-wrap items-center gap-2">
               <ThemeToggle className="size-10 rounded-xl bg-white/10 text-white ring-1 ring-white/25 hover:bg-white/20 hover:text-white" />
               <InstalarApp nombre="el panel" oscuro className="h-11" />
-              {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} />}
+              {!esEnf && <CampanaPanel turnos={turnos} user={user} irA={setTab} abrirPac={abrirPaciente} />}
               {!esEnf && <Button onClick={() => abrirIA()} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
               </Button>}
@@ -1066,9 +1066,12 @@ function Panel() {
 }
 
 /* ---------- Campana de notificaciones de los doctores ---------- */
-type Notif = { id: string; titulo: string; texto: string; icon: LucideIcon; tono: Tono; tab: Tab; fecha: string };
+type Notif = { id: string; titulo: string; texto: string; icon: LucideIcon; tono: Tono; tab: Tab; fecha: string; pacienteId?: string; sec?: SecCarpeta };
+/** Sección de la carpeta que se abre al llegar desde un aviso (ej.: Documentos del paciente). */
+let secCarpetaInicial: SecCarpeta | null = null;
 
-function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUser; irA: (t: Tab) => void }) {
+function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: SessionUser; irA: (t: Tab) => void; abrirPac?: (t: Tab, id: string) => void }) {
+  const pacsN = usePacientesClinica(turnos);
   const [abierta, setAbierta] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
   const [auts] = useDato<Autorizacion[]>(KEY_AUT, []);
@@ -1088,7 +1091,10 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
     // Laboratorios y estudios que subieron los pacientes desde su portal
     ...docsN
       .filter((d) => d.origen === "paciente" && !d.vistoPor)
-      .map((d) => ({ id: `doc-${d.id}`, titulo: "Documento subido por un paciente", texto: `${nombreCorto(d.paciente)} · ${d.categoria} · ${d.nombre}`, icon: Paperclip, tono: "azul" as Tono, tab: "padron" as Tab, fecha: d.fecha })),
+      .map((d) => {
+        const pac = pacsN.find((p) => p.id === d.pacienteId || p.portalId === d.pacienteId);
+        return { id: `doc-${d.id}`, titulo: "Documento subido por un paciente", texto: `${nombreCorto(d.paciente)} · ${d.categoria} · ${d.nombre} · toque para verlo`, icon: Paperclip, tono: "azul" as Tono, tab: "padron" as Tab, fecha: d.fecha, pacienteId: pac?.id ?? d.pacienteId, sec: "documentos" as SecCarpeta };
+      }),
     // Lo que registra enfermería le llega al médico
     ...(esMedicoN
       ? notasEnfN
@@ -1130,7 +1136,10 @@ function CampanaPanel({ turnos, user, irA }: { turnos: Turno[]; user: SessionUse
   const abrir = (n: Notif) => {
     setVistas((v) => (v.includes(n.id) ? v : [...v, n.id].slice(-500)));
     setAbierta(false);
-    irA(n.tab);
+    if (n.pacienteId && abrirPac) {
+      secCarpetaInicial = n.sec ?? null;
+      abrirPac(n.tab, n.pacienteId);
+    } else irA(n.tab);
   };
   const TONO_N: Record<Tono, string> = {
     azul: "bg-sky-100 text-sky-700",
@@ -6213,7 +6222,16 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
     if (filtro === "sinportal") return !p.portal;
     return true;
   });
+  if (inicial) visibles.sort((a, b) => (b.id === inicial ? 1 : 0) - (a.id === inicial ? 1 : 0));
   const vmPad = useVerMas(visibles, 10);
+  const [docsPad] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
+  const docsNuevos = (p: PacienteHC) => docsPad.filter((d) => (d.pacienteId === p.id || d.pacienteId === p.portalId) && d.origen === "paciente" && !d.vistoPor).length;
+  const [secAbrir, setSecAbrir] = useState(0);
+  useEffect(() => {
+    if (!inicial) return;
+    const t = window.setTimeout(() => document.getElementById(`pac-${inicial}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+    return () => window.clearTimeout(t);
+  }, [inicial]);
 
   const editar = (p: PacienteHC) => {
     if (p.origen !== "padron") {
@@ -6518,6 +6536,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
               const edad = edadDe(p.ficha?.nacimiento);
               const ant = p.ficha?.antecedentes ?? [];
               const abierto = abiertoId === p.id;
+              const nDocs = docsNuevos(p);
               const hoyIso = isoDe(new Date());
               const proximo = turnos
                 .filter((t) => (t.pacienteId === p.id || norm(t.paciente) === norm(p.nombre)) && t.fecha >= hoyIso && (t.estado === "Pendiente" || t.estado === "Confirmado"))
@@ -6562,6 +6581,11 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                     </div>
                     {/* Acciones */}
                     <div className="flex items-center gap-2 lg:justify-end">
+                      {nDocs > 0 && (
+                        <button onClick={() => { secCarpetaInicial = "documentos"; setAbiertoId(p.id); setSecAbrir((x) => x + 1); }} title="Documentos que subió el paciente y nadie revisó" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#0b2a6b] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#0a2459]">
+                          <Paperclip className="size-3.5" /> {nDocs} nuevo{nDocs === 1 ? "" : "s"}
+                        </button>
+                      )}
                       <button onClick={() => setAbiertoId(abierto ? null : p.id)} aria-expanded={abierto} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${abierto ? "bg-secondary text-foreground" : "pn-acc-tile text-white hover:-translate-y-0.5"}`}>
                         <FileText className="size-4" /> {abierto ? "Cerrar carpeta" : "Abrir carpeta"} <ChevronDown className={`size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
                       </button>
@@ -6570,7 +6594,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                   </div>
                   {abierto && (
                     <div className="pb-4">
-                      <CarpetaPaciente p={p} user={user} log={log} turnos={turnos} abrir={abrir} soloLectura={soloLectura || (user.rol !== "medico" && !esAreaMedica(user.area))} onEditar={() => { if (!soloLectura) { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); } }} />
+                      <CarpetaPaciente key={`${p.id}-${secAbrir}`} p={p} user={user} log={log} turnos={turnos} abrir={abrir} soloLectura={soloLectura || (user.rol !== "medico" && !esAreaMedica(user.area))} onEditar={() => { if (!soloLectura) { editar(p); window.scrollTo({ top: 0, behavior: "smooth" }); } }} />
                     </div>
                   )}
                 </li>
@@ -7196,7 +7220,7 @@ function DocumentosPaciente({ p, user, log, soloLectura = false, compacto = fals
   const [abriendo, setAbriendo] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
   const [cat, setCat] = useState<string>(CATEGORIAS_DOC[0]);
-  const [abierto, setAbierto] = useState(!compacto);
+  const [abierto, setAbierto] = useState(!compacto || nuevos > 0);
   const vm = useVerMas(docs, compacto ? 4 : 8);
   const ver = async (d: DocumentoPaciente) => {
     setAbriendo(d.id);
@@ -9133,7 +9157,7 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
 ];
 
 function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = false }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; onEditar: () => void; soloLectura?: boolean }) {
-  const [sec, setSec] = useState<SecCarpeta>("resumen");
+  const [sec, setSec] = useState<SecCarpeta>(() => { const x = secCarpetaInicial; secCarpetaInicial = null; return x ?? "resumen"; });
   const [evolsTodas, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
   const [estTodos] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [ctrlTodos] = useDato<Control[]>(KEY_CONTROLES, []);
