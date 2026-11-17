@@ -122,6 +122,7 @@ import {
   RotateCcw,
   Archive,
 } from "lucide-react";
+import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
 import { confirmar as preguntar } from "@/components/confirmar";
@@ -7091,7 +7092,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
             </p>
           )}
 
-          <datalist id="meds-frecuentes">{MEDICAMENTOS_FRECUENTES.map((m) => <option key={m} value={m} />)}</datalist>
+          <datalist id="meds-frecuentes">{[...new Set([...MEDICAMENTOS_FRECUENTES, ...MEDICAMENTOS_CAT.map((m) => m.nombre)])].map((m) => <option key={m} value={m} />)}</datalist>
           <div className="space-y-3">
             {items.map((it, i) => (
               <div key={i} className="relative rounded-2xl border border-border/70 border-l-4 border-l-[rgb(var(--acc))] bg-secondary/30 p-4 transition hover:shadow-md">
@@ -11485,6 +11486,45 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
   );
 }
 
+/** Buscador de medicamentos: escribe "furo" y aparece Furosemida (también por marca: "dolex" → Acetaminofén). */
+function BuscadorMedicamento({ value, onChange, onElegir, placeholder = "Escriba: furo, losar, dolex…" }: { value: string; onChange: (v: string) => void; onElegir: (m: MedCatalogo) => void; placeholder?: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [sel, setSel] = useState(0);
+  const lista = abierto ? buscarMedicamentos(value, 8) : [];
+  const elegir = (m: MedCatalogo) => { onElegir(m); setAbierto(false); };
+  return (
+    <div className="relative">
+      <Pill className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <input value={value} autoComplete="off" placeholder={placeholder} className={inp + " pl-10"}
+        onChange={(e) => { onChange(e.target.value); setAbierto(true); setSel(0); }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => window.setTimeout(() => setAbierto(false), 150)}
+        onKeyDown={(e) => {
+          if (!lista.length) return;
+          if (e.key === "ArrowDown") { e.preventDefault(); setSel((x) => Math.min(lista.length - 1, x + 1)); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setSel((x) => Math.max(0, x - 1)); }
+          else if (e.key === "Enter") { e.preventDefault(); elegir(lista[sel]!); }
+          else if (e.key === "Escape") setAbierto(false);
+        }} />
+      {lista.length > 0 && (
+        <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-xl dark:border-white/10">
+          {lista.map((m, i) => (
+            <li key={m.nombre}>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(m); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition ${i === sel ? "bg-[#0b2a6b]/[.06] dark:bg-white/10" : ""}`}>
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><Pill className="size-3.5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">{m.nombre}{m.marcas?.length ? <span className="font-normal text-muted-foreground"> · {m.marcas.slice(0, 2).join(", ")}</span> : null}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{m.dosis.slice(0, 4).join(" · ")} — {m.vias.join(", ")}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, inicial = "" }: { accion: AccionEnf; user: SessionUser; log: LogFn; turnos: Turno[]; pacientes: PacienteHC[]; onCerrar: () => void; inicial?: string }) {
   const [, setNotas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const [pacId, setPacId] = useState(inicial);
@@ -11597,9 +11637,21 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
           )}
           {accion.id === "Administración de medicamento" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              {campo("Medicamento", <input value={f.med ?? ""} onChange={set("med")} placeholder="Ej.: Furosemida" className={inp} />, true)}
+              {campo("Medicamento", <BuscadorMedicamento value={f.med ?? ""} onChange={(v) => setF((x) => ({ ...x, med: v }))} onElegir={(m: MedCatalogo) => setF((x) => ({ ...x, med: m.nombre, ...(m.dosis[0] ? { dosis: m.dosis[0] } : {}), ...(m.vias[0] ? { via: m.vias[0] } : {}) }))} />, true)}
               {campo("Dosis", <input value={f.dosis ?? ""} onChange={set("dosis")} placeholder="Ej.: 20 mg" className={inp} />, true)}
-              <div className="sm:col-span-2">{campo("Vía", <Chips k="via" ops={["Oral", "Intravenosa", "Intramuscular", "Subcutánea", "Sublingual", "Inhalada", "Tópica"]} />, true)}</div>
+              {(() => {
+                const m = medicamentoPorNombre(f.med ?? "");
+                if (!m) return null;
+                return (
+                  <div className="-mt-2 flex flex-wrap items-center gap-1.5 sm:col-span-2">
+                    <span className="text-[11px] font-medium text-muted-foreground">Dosis habituales:</span>
+                    {m.dosis.map((d) => (
+                      <button key={d} type="button" onClick={() => setF((x) => ({ ...x, dosis: d }))} className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${f.dosis === d ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200"}`}>{d}</button>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="sm:col-span-2">{campo("Vía", <Chips k="via" ops={[...new Set([...(medicamentoPorNombre(f.med ?? "")?.vias ?? []), "Oral", "Intravenosa", "Intramuscular", "Subcutánea", "Sublingual", "Inhalada", "Tópica"])]} />, true)}</div>
               {campo("Indicado por", <input value={f.indica ?? ""} onChange={set("indica")} placeholder="Médico que lo indicó" list="medicos-hego" className={inp} />)}
               <datalist id="medicos-hego">{ADMINS.map((a) => <option key={a.id} value={a.nombre} />)}</datalist>
               {campo("Hora", <input type="time" value={f.hora} onChange={set("hora")} className={inp} />)}
