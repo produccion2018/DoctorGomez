@@ -469,7 +469,7 @@ function Home() {
                 </div>
                 <p className="text-sm leading-snug text-deep-foreground/85">
                   <span className="block font-semibold text-deep-foreground">Directores médicos</span>
-                  Atención personalizada con cita previa
+                  Atención personalizada con previa cita
                 </p>
               </div>
 
