@@ -42,6 +42,7 @@ import {
   Loader2,
   Paperclip,
   ImageIcon,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { confirmar } from "@/components/confirmar";
@@ -958,7 +959,14 @@ function Turnos({ ctx }: { ctx: Ctx }) {
 
   const prox = proximos(ctx.turnos);
   const historial = ctx.turnos.filter((t) => !prox.includes(t)).sort((a, b) => (b.fecha + b.hora).localeCompare(a.fecha + a.hora));
-  const paso = (n: number, t: string) => <p className="mb-2 mt-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="flex size-5 items-center justify-center rounded-full gradient-deep text-[10px] text-white">{n}</span> {t}</p>;
+  const pasoActual = !especialidad ? 1 : !doctor ? 2 : !hora ? 3 : 4;
+  const paso = (n: number, t: string, sub?: string) => (
+    <div className="mb-3 mt-8 flex items-center gap-3">
+      <span className={`flex size-7 items-center justify-center rounded-lg text-xs font-bold ${pasoActual > n ? "bg-emerald-600 text-white" : "gradient-deep text-white"}`}>{pasoActual > n ? <Check className="size-3.5" /> : n}</span>
+      <div><p className="text-sm font-semibold tracking-tight">{t}</p>{sub && <p className="text-xs text-muted-foreground">{sub}</p>}</div>
+    </div>
+  );
+  const PASOS = ["Especialidad", "Profesional", "Día y hora", "Confirmar"];
 
   return (
     <div className="space-y-6">
@@ -966,33 +974,66 @@ function Turnos({ ctx }: { ctx: Ctx }) {
         accion={!pidiendo && <Button onClick={() => setPidiendo(true)} className="btn-glow rounded-full px-6"><CalendarPlus className="size-4" /> Pedir cita</Button>} />
 
       {pidiendo && (
-        <Tarjeta className="animate-in fade-in zoom-in-95 duration-300">
-          <div className="flex items-center justify-between">
-            <h2 className="font-sans text-lg font-semibold">Nueva cita</h2>
-            <Button variant="ghost" size="icon" onClick={reset} aria-label="Cerrar"><X className="size-4" /></Button>
+        <Tarjeta className="animate-in fade-in zoom-in-95 duration-300 !p-0">
+          <div className="relative overflow-hidden rounded-t-3xl bg-[linear-gradient(120deg,#0b2a6b,#123a86_55%,#0e7490)] px-6 py-5 text-white">
+            <span className="pointer-events-none absolute -right-10 -top-14 size-44 rounded-full bg-white/10 blur-2xl" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25"><CalendarPlus className="size-5" /></span>
+                <div>
+                  <h2 className="font-sans text-lg font-semibold tracking-tight">Nueva cita</h2>
+                  <p className="text-xs text-white/75">Elija la especialidad, el profesional y el horario que le quede mejor.</p>
+                </div>
+              </div>
+              <button onClick={reset} aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 transition hover:bg-white/20"><X className="size-4" /></button>
+            </div>
+            <ol className="relative mt-5 grid grid-cols-4 gap-2">
+              {PASOS.map((t, i) => {
+                const n = i + 1;
+                const hecho = pasoActual > n;
+                const activo = pasoActual === n;
+                return (
+                  <li key={t} className="min-w-0">
+                    <span className={`block h-1 rounded-full transition-all duration-500 ${hecho || activo ? "bg-white" : "bg-white/20"}`} />
+                    <span className={`mt-2 flex items-center gap-1.5 truncate text-[11px] font-semibold ${activo ? "text-white" : hecho ? "text-white/85" : "text-white/50"}`}>
+                      {hecho ? <CheckCircle2 className="size-3.5 shrink-0" /> : <span className="shrink-0 tabular-nums">{n}.</span>}<span className="truncate">{t}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
-          {paso(1, "Especialidad")}
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="px-6 pb-6">
+          {paso(1, "Especialidad", "¿Qué tipo de atención necesita?")}
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
             {ESPECIALIDADES.map((e) => {
               const I = iconoEspecialidad(e.icono);
               const on = esp === e.slug;
+              const n = e.doctorIds.length;
               return (
-                <button key={e.slug} onClick={() => { setEsp(e.slug); setDoc(""); setFecha(""); setHora(""); }} className={`flex items-center gap-3 rounded-xl border p-3 text-left text-sm font-medium transition-all ${on ? "border-primary bg-primary/5 ring-4 ring-primary/10" : "border-border hover:border-primary/30 dark:border-white/10"}`}>
-                  <span className={`flex size-9 items-center justify-center rounded-lg ${on ? "gradient-deep text-white" : "bg-secondary text-primary dark:bg-white/5 dark:text-sky-400"}`}><I className="size-4" /></span>{e.nombre}
+                <button key={e.slug} onClick={() => { setEsp(e.slug); setDoc(""); setFecha(""); setHora(""); }}
+                  className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${on ? "border-[#0b2a6b] bg-[#0b2a6b]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
+                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${on ? "gradient-deep text-white" : "bg-slate-100 text-[#0b2a6b] group-hover:bg-[#0b2a6b]/10 dark:bg-white/5 dark:text-sky-300"}`}><I className="size-[18px]" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{e.nombre}</span>
+                    <span className="block truncate text-[11px] text-muted-foreground">{n > 1 ? `${n} especialistas` : "1 especialista"}</span>
+                  </span>
+                  {on ? <CheckCircle2 className="size-5 shrink-0 text-[#0b2a6b] dark:text-sky-300" /> : <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" />}
                 </button>
               );
             })}
           </div>
           {especialidad && (
             <>
-              {paso(2, "Profesional")}
+              {paso(2, "Profesional", "Seleccione con quién desea atenderse.")}
               <div className="grid gap-3 sm:grid-cols-2">
                 {doctores.map((d) => {
                   const ag = agendaDe(agendas, d.foto);
                   return (
-                    <button key={d.id} disabled={!ag.activo} onClick={() => { setDoc(d.id); setFecha(""); setHora(""); }} className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-all disabled:opacity-50 ${doc === d.id ? "border-primary bg-primary/5 ring-4 ring-primary/10" : "border-border hover:border-primary/30 dark:border-white/10"}`}>
-                      <img src={fotoDoctor(d.foto)} alt="" className="size-14 rounded-xl object-cover object-top" />
-                      <span className="min-w-0"><span className="block font-semibold leading-tight">{d.nombre}</span><span className="block text-xs text-muted-foreground">{resumenAgenda(ag)}</span></span>
+                    <button key={d.id} disabled={!ag.activo} onClick={() => { setDoc(d.id); setFecha(""); setHora(""); }} className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 disabled:opacity-50 ${doc === d.id ? "border-[#0b2a6b] bg-[#0b2a6b]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
+                      <img src={fotoDoctor(d.foto)} alt="" className="size-14 rounded-xl object-cover object-top ring-2 ring-white shadow-sm dark:ring-white/10" />
+                      <span className="min-w-0 flex-1"><span className="block font-semibold leading-tight">{d.nombre}</span><span className="mt-0.5 block text-xs text-muted-foreground">{resumenAgenda(ag)}</span></span>
+                      {doc === d.id && <CheckCircle2 className="size-5 shrink-0 text-[#0b2a6b] dark:text-sky-300" />}
                     </button>
                   );
                 })}
@@ -1001,7 +1042,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
           )}
           {agenda && (
             <>
-              {paso(3, "Día y horario")}
+              {paso(3, "Día y horario", "Solo se muestran los días y horas disponibles.")}
               {agenda.nota && <p className={`mb-2 rounded-xl px-3 py-2 text-xs ring-1 ${TONO.ambar}`}>{agenda.nota}</p>}
               {dias.length === 0 ? <p className="text-sm text-muted-foreground">No hay días disponibles por ahora.</p> : <CalendarioMes compacto disponibles={dias} valor={fecha || null} onElegir={(f) => { setFecha(f); setHora(""); }} />}
               {fecha && (
@@ -1010,14 +1051,26 @@ function Turnos({ ctx }: { ctx: Ctx }) {
             </>
           )}
           {hora && (
-            <div className="mt-6 space-y-3 animate-in fade-in duration-300">
+            <div className="animate-in fade-in duration-300">
+              {paso(4, "Confirmar", "Revise los datos antes de enviar el pedido.")}
               <input value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Motivo o comentario (opcional)" className={inp} />
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-secondary/60 p-4 dark:bg-white/5">
-                <p className="text-sm"><b className="inline-block first-letter:uppercase">{fechaTxt(fecha)}</b> a las <b>{hora ? hora12(hora) : ""}</b> con {doctor?.nombre}</p>
-                <Button onClick={confirmar} className="btn-glow rounded-xl"><Check className="size-4" /> Confirmar pedido</Button>
+              <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 dark:border-white/10 dark:bg-white/[.03]">
+                <div className="grid gap-px bg-slate-200/70 sm:grid-cols-3 dark:bg-white/10">
+                  {[["Especialidad", especialidad?.nombre ?? ""], ["Profesional", doctor?.nombre ?? ""], ["Fecha y hora", `${fechaTxt(fecha)} · ${hora ? hora12(hora) : ""}`]].map(([k, v]) => (
+                    <div key={k} className="bg-white px-4 py-3 dark:bg-slate-950">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{k}</p>
+                      <p className="mt-0.5 text-sm font-semibold first-letter:uppercase">{v}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-emerald-600" /> La clínica revisará su pedido y le confirmará la cita.</p>
+                  <Button onClick={confirmar} className="btn-glow rounded-xl !bg-[#0b2a6b] px-5 hover:!bg-[#0b2a6b]/90"><Check className="size-4" /> Confirmar pedido</Button>
+                </div>
               </div>
             </div>
           )}
+          </div>
         </Tarjeta>
       )}
 
