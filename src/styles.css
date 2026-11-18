@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -699,3 +699,200 @@
 
 /* Patrón de cruces médicas sutil (portal y web) */
 .pn-cross { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Cpath d='M12 9h4v3h3v4h-3v3h-4v-3H9v-4h3z' fill='%23ffffff' fill-opacity='.06'/%3E%3C/svg%3E"); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TEMA SaaS MÉDICO · panel de profesionales y portal del paciente
+   Única fuente de color y tipografía. Se activa con la clase .saas
+   (modo claro). Cambiar un color aquí lo cambia en todo el panel/portal.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root:not(.dark) .saas {
+  /* Paleta */
+  --saas-bg: #F5F7FA;
+  --saas-primary: #1E3A8A;
+  --saas-primary-hover: #172E6E;
+  --saas-primary-soft: #EEF2FB;
+  --saas-mint: #10B981;
+  --saas-mint-soft: #D1FAE5;
+  --saas-mint-text: #065F46;
+  --saas-card: #FFFFFF;
+  --saas-border: #E2E8F0;
+  --saas-input: #CBD5E1;
+  --saas-text: #0F172A;
+  --saas-text2: #475569;
+  --saas-espera: #DBE4FB;
+  --saas-programado: #E8ECF2;
+  --saas-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --saas-font: "Inter", system-ui, sans-serif;
+
+  /* Tokens del sistema */
+  --acc: 30, 58, 138 !important;
+  --deep: var(--saas-primary);
+  --deep-foreground: #FFFFFF;
+  --clinic: var(--saas-primary);
+  --background: var(--saas-bg);
+  --foreground: var(--saas-text);
+  --card: var(--saas-card);
+  --card-foreground: var(--saas-text);
+  --popover: var(--saas-card);
+  --popover-foreground: var(--saas-text);
+  --primary: var(--saas-primary);
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: var(--saas-primary);
+  --muted: #F1F5F9;
+  --muted-foreground: var(--saas-text2);
+  --accent: var(--saas-primary-soft);
+  --accent-foreground: var(--saas-primary);
+  --border: var(--saas-border);
+  --input: var(--saas-input);
+  --ring: var(--saas-primary);
+  --color-border: var(--saas-border);
+  --color-card: var(--saas-card);
+
+  /* Familias de color de la interfaz → navy (azules, violetas, cian, rosados decorativos) */
+  --color-sky-50: #EEF2FB; --color-sky-100: #DBE4FB; --color-sky-200: #BFCDF5; --color-sky-300: #93A9E8; --color-sky-400: #6382D6; --color-sky-500: #3B5BC0; --color-sky-600: #1E3A8A; --color-sky-700: #1E3A8A; --color-sky-800: #172E6E; --color-sky-900: #122456; --color-sky-950: #0B173A;
+  --color-blue-50: #EEF2FB; --color-blue-100: #DBE4FB; --color-blue-200: #BFCDF5; --color-blue-300: #93A9E8; --color-blue-400: #6382D6; --color-blue-500: #3B5BC0; --color-blue-600: #1E3A8A; --color-blue-700: #1E3A8A; --color-blue-800: #172E6E; --color-blue-900: #122456; --color-blue-950: #0B173A;
+  --color-indigo-50: #EEF2FB; --color-indigo-100: #DBE4FB; --color-indigo-200: #BFCDF5; --color-indigo-300: #93A9E8; --color-indigo-400: #6382D6; --color-indigo-500: #3B5BC0; --color-indigo-600: #1E3A8A; --color-indigo-700: #1E3A8A; --color-indigo-800: #172E6E; --color-indigo-900: #122456; --color-indigo-950: #0B173A;
+  --color-violet-50: #EEF2FB; --color-violet-100: #DBE4FB; --color-violet-200: #BFCDF5; --color-violet-300: #93A9E8; --color-violet-400: #6382D6; --color-violet-500: #3B5BC0; --color-violet-600: #1E3A8A; --color-violet-700: #1E3A8A; --color-violet-800: #172E6E; --color-violet-900: #122456; --color-violet-950: #0B173A;
+  --color-purple-50: #EEF2FB; --color-purple-100: #DBE4FB; --color-purple-200: #BFCDF5; --color-purple-300: #93A9E8; --color-purple-400: #6382D6; --color-purple-500: #3B5BC0; --color-purple-600: #1E3A8A; --color-purple-700: #1E3A8A; --color-purple-800: #172E6E; --color-purple-900: #122456; --color-purple-950: #0B173A;
+  --color-fuchsia-50: #EEF2FB; --color-fuchsia-100: #DBE4FB; --color-fuchsia-200: #BFCDF5; --color-fuchsia-300: #93A9E8; --color-fuchsia-400: #6382D6; --color-fuchsia-500: #3B5BC0; --color-fuchsia-600: #1E3A8A; --color-fuchsia-700: #1E3A8A; --color-fuchsia-800: #172E6E; --color-fuchsia-900: #122456; --color-fuchsia-950: #0B173A;
+  --color-pink-50: #EEF2FB; --color-pink-100: #DBE4FB; --color-pink-200: #BFCDF5; --color-pink-300: #93A9E8; --color-pink-400: #6382D6; --color-pink-500: #3B5BC0; --color-pink-600: #1E3A8A; --color-pink-700: #1E3A8A; --color-pink-800: #172E6E; --color-pink-900: #122456; --color-pink-950: #0B173A;
+  --color-cyan-50: #EEF2FB; --color-cyan-100: #DBE4FB; --color-cyan-200: #BFCDF5; --color-cyan-300: #93A9E8; --color-cyan-400: #6382D6; --color-cyan-500: #3B5BC0; --color-cyan-600: #1E3A8A; --color-cyan-700: #1E3A8A; --color-cyan-800: #172E6E; --color-cyan-900: #122456; --color-cyan-950: #0B173A;
+  --color-teal-50: #EEF2FB; --color-teal-100: #DBE4FB; --color-teal-200: #BFCDF5; --color-teal-300: #93A9E8; --color-teal-400: #6382D6; --color-teal-500: #3B5BC0; --color-teal-600: #1E3A8A; --color-teal-700: #1E3A8A; --color-teal-800: #172E6E; --color-teal-900: #122456; --color-teal-950: #0B173A;
+  /* Verdes → verde menta (tonos oscuros ajustados para contraste 4.5:1) */
+  --color-emerald-50: #ECFDF5; --color-emerald-100: #D1FAE5; --color-emerald-200: #A7F3D0; --color-emerald-300: #6EE7B7; --color-emerald-400: #34D399; --color-emerald-500: #10B981; --color-emerald-600: #047857; --color-emerald-700: #065F46; --color-emerald-800: #065F46; --color-emerald-900: #064E3B; --color-emerald-950: #022C22;
+  --color-green-50: #ECFDF5; --color-green-100: #D1FAE5; --color-green-200: #A7F3D0; --color-green-300: #6EE7B7; --color-green-400: #34D399; --color-green-500: #10B981; --color-green-600: #047857; --color-green-700: #065F46; --color-green-800: #065F46; --color-green-900: #064E3B; --color-green-950: #022C22;
+  /* Naranja → ámbar (alertas) */
+  --color-orange-50: #FFFBEB; --color-orange-100: #FEF3C7; --color-orange-200: #FDE68A; --color-orange-300: #FCD34D; --color-orange-400: #FBBF24; --color-orange-500: #D97706; --color-orange-600: #B45309; --color-orange-700: #92400E; --color-orange-800: #78350F; --color-orange-900: #78350F;
+
+  font-family: var(--saas-font);
+  color: var(--saas-text);
+  line-height: 1.5;
+}
+
+/* Tipografía */
+:root:not(.dark) .saas :is(.font-display, .font-sans, h1, h2, h3, h4, h5, h6, button, input, textarea, select) { font-family: var(--saas-font); }
+:root:not(.dark) .saas .pn-titulo { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+:root:not(.dark) .saas .pn-kicker { color: var(--saas-text2) !important; letter-spacing: 0.08em; }
+:root:not(.dark) .saas :is(h1, h2, h3) { letter-spacing: -0.01em; }
+
+/* Fondo y decoraciones: sin degradados, brillos ni animaciones llamativas */
+:root:not(.dark) .saas.pn-bg, :root:not(.dark) .saas.pn-root { background: var(--saas-bg) !important; }
+:root:not(.dark) .saas :is(.pn-fondo, .pn-cross, .pn-cross-dark, .pn-orb, .blob),
+:root:not(.dark) .saas .pointer-events-none[class*="blur-"],
+:root:not(.dark) .saas [aria-hidden][class*="blur-"],
+:root:not(.dark) .saas svg:has(filter[id^="ecg-"]),
+:root:not(.dark) .saas .pn-sheen::after,
+:root:not(.dark) .saas .pn-hero > :not(.relative) { display: none !important; }
+:root:not(.dark) .saas :is([class*="bg-gradient-to-"], [class*="bg-linear-"]) { background-image: none !important; background-color: var(--tw-gradient-from, transparent); }
+:root:not(.dark) .saas :is([class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"]) { background-image: none; background-color: var(--saas-card); }
+:root:not(.dark) .saas :is([class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"])[class*="text-white"] { background-color: var(--saas-primary); }
+:root:not(.dark) .saas :is(.gradient-deep, .pn-acc-tile) { background-image: none; background-color: var(--saas-primary); box-shadow: none; }
+:root:not(.dark) .saas :is(.text-gradient-clinic, .text-shine) { background: none; color: var(--saas-primary); -webkit-text-fill-color: currentColor; animation: none; }
+:root:not(.dark) .saas .text-white :is(.text-gradient-clinic, .text-shine) { color: #FFFFFF; }
+:root:not(.dark) .saas :is(.pn-up, .pn-orb, .pn-wave, .pn-pulse, .pn-ripple, .pn-beat, .pn-scan, .pn-ecg, .pn-online::after, .animate-pulse, .animate-ping, .animate-bounce) { animation: none !important; }
+:root:not(.dark) .saas .pn-online::after { display: none; }
+:root:not(.dark) .saas :is(.pn-lift, [class*="hover:-translate-y"], [class*="hover:translate-x"], [class*="hover:scale"]):hover { transform: none !important; translate: none !important; scale: none !important; }
+:root:not(.dark) .saas [class*="backdrop-blur"] { backdrop-filter: none; }
+
+/* Sombras suaves */
+:root:not(.dark) .saas [class*="shadow"]:not(.shadow-none) { --tw-shadow: var(--saas-shadow) !important; }
+:root:not(.dark) .saas :is(.shadow-xl, .shadow-2xl) { --tw-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.18) !important; }
+:root:not(.dark) .saas .shadow-elevated { box-shadow: var(--saas-shadow); }
+
+/* Tarjetas */
+:root:not(.dark) .saas .pn-card {
+  background: var(--saas-card) !important;
+  border: 1px solid var(--saas-border) !important;
+  border-radius: 16px;
+  box-shadow: var(--saas-shadow) !important;
+  backdrop-filter: none;
+  --tw-ring-color: transparent;
+}
+:root:not(.dark) .saas .pn-card::before { display: none; }
+:root:not(.dark) .saas .pn-card:hover { box-shadow: var(--saas-shadow) !important; transform: none; }
+:root:not(.dark) .saas :is(.rounded-3xl, .rounded-\[1\.25rem\], .rounded-\[1\.75rem\], .rounded-\[2rem\]) { border-radius: 16px; }
+
+/* Encabezado de cada sección: blanco, título 16px, línea fina */
+:root:not(.dark) .saas .pn-sec-top { background: var(--saas-card) !important; color: var(--saas-text); border-bottom: 1px solid var(--saas-border); box-shadow: none; border-radius: 16px 16px 0 0; }
+:root:not(.dark) .saas .pn-sec-top :is(p, .font-display) { color: var(--saas-text); }
+:root:not(.dark) .saas .pn-sec-top span[class*="bg-white/20"] { background: var(--saas-primary-soft); color: var(--saas-primary); box-shadow: none; --tw-ring-color: transparent; }
+:root:not(.dark) .saas .pn-sec-top button.bg-white { border: 1px solid var(--saas-input); color: var(--saas-primary); }
+:root:not(.dark) .saas .pn-sec-top > :is(.pointer-events-none, svg) { display: none; }
+:root:not(.dark) .saas .pn-sec-top h3 { color: var(--saas-text) !important; font-size: 16px; font-weight: 600; }
+:root:not(.dark) .saas .pn-sec-top .text-white { color: var(--saas-text); }
+:root:not(.dark) .saas .pn-sec-top [class*="text-white/"] { color: var(--saas-text2) !important; }
+:root:not(.dark) .saas .pn-sec-top span[class*="bg-white/15"] { background: var(--saas-primary-soft); color: var(--saas-primary); box-shadow: none; --tw-ring-color: transparent; }
+:root:not(.dark) .saas .pn-sec-acc { background: transparent; box-shadow: none; padding: 0; }
+:root:not(.dark) .saas .pn-sec-band { background: var(--saas-bg); }
+:root:not(.dark) .saas .pn-sec-h::after { background: var(--saas-border); }
+
+/* Tarjetas de indicadores: etiqueta, número grande y barra fina */
+:root:not(.dark) .saas .pn-kpi {
+  background: var(--saas-card) !important;
+  color: var(--saas-text);
+  border: 1px solid var(--saas-border);
+  border-radius: 16px;
+  padding: 20px 20px 34px;
+  box-shadow: var(--saas-shadow) !important;
+  --tw-ring-color: transparent;
+}
+:root:not(.dark) .saas .pn-kpi > :is(.pointer-events-none, svg) { display: none; }
+:root:not(.dark) .saas .pn-kpi::after { content: ""; position: absolute; left: 20px; right: 20px; bottom: 18px; height: 6px; border-radius: 9999px; background: var(--saas-mint); }
+:root:not(.dark) .saas .pn-kpi:nth-child(even)::after { background: var(--saas-primary); }
+:root:not(.dark) .saas .pn-kpi .text-white, :root:not(.dark) .saas .pn-kpi [class*="text-white/"] { color: var(--saas-text2) !important; }
+:root:not(.dark) .saas .pn-kpi p.uppercase { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+:root:not(.dark) .saas .pn-kpi .font-display { color: var(--saas-text) !important; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; filter: none; }
+:root:not(.dark) .saas .pn-kpi .grid .font-display { font-size: 18px; }
+:root:not(.dark) .saas .pn-kpi span[class*="bg-white/20"] { background: var(--saas-primary-soft); color: var(--saas-primary) !important; box-shadow: none; --tw-ring-color: transparent; transform: none !important; }
+:root:not(.dark) .saas .pn-kpi p[class*="bg-white/15"] { background: var(--saas-primary-soft); color: var(--saas-primary) !important; --tw-ring-color: transparent; }
+:root:not(.dark) .saas .pn-kpi [class*="border-white/"] { border-color: var(--saas-border); }
+:root:not(.dark) .saas .pn-kpi[aria-expanded="true"] { border-color: var(--saas-primary); box-shadow: 0 0 0 1px var(--saas-primary) !important; }
+
+/* Encabezado de bienvenida y barras: navy sólido */
+:root:not(.dark) .saas .pn-hero { background: var(--saas-primary) !important; box-shadow: var(--saas-shadow); }
+
+/* Menú lateral navy; ítem activo con indicador verde menta */
+:root:not(.dark) .saas :is(.pn-side, .pt-side) { background: var(--saas-primary) !important; }
+:root:not(.dark) .saas .pn-side > [aria-hidden] { display: none; }
+:root:not(.dark) .saas .pn-side .pn-medico { background: rgba(255, 255, 255, 0.08) !important; box-shadow: none !important; }
+:root:not(.dark) .saas .pn-side .pn-nav-on { background: rgba(255, 255, 255, 0.12) !important; box-shadow: inset 3px 0 0 var(--saas-mint) !important; }
+:root:not(.dark) .saas .pn-side :is([class*="text-white/4"], [class*="text-white/5"], [class*="text-white/6"]) { color: rgba(255, 255, 255, 0.8); }
+
+/* Botones */
+:root:not(.dark) .saas [data-slot="button"]:not([data-size="icon"]) { min-height: 44px; border-radius: 12px; font-size: 14px; font-weight: 600; }
+:root:not(.dark) .saas [data-slot="button"][data-variant="default"]:not([class*="!bg-"]) { background-color: var(--saas-primary); color: #FFFFFF; }
+:root:not(.dark) .saas [data-slot="button"][data-variant="default"]:not([class*="!bg-"]):hover { background-color: var(--saas-primary-hover); }
+:root:not(.dark) .saas [data-slot="button"]:is([data-variant="outline"], [data-variant="secondary"]):not([class*="!bg-"]) { background-color: #FFFFFF; border: 1px solid var(--saas-input); color: var(--saas-primary); }
+:root:not(.dark) .saas :is(.bg-emerald-500, [class*="from-emerald-500"]).text-white { background-color: #047857; }
+:root:not(.dark) .saas a:not([class]) { color: var(--saas-primary); }
+
+/* Campos */
+:root:not(.dark) .saas .pn-field { background: #FFFFFF; box-shadow: none; border-color: var(--saas-input); }
+:root:not(.dark) .saas .pn-field:hover { border-color: #94A3B8; }
+:root:not(.dark) .saas :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select) { border-color: var(--saas-input); }
+:root:not(.dark) .saas :is(input, textarea, select):focus { border-color: var(--saas-primary); }
+
+/* Tablas: cabecera gris claro, filas con línea fina, sin cebra */
+:root:not(.dark) .saas thead th { background: var(--saas-bg); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--saas-text2); }
+:root:not(.dark) .saas tbody tr { border-bottom: 1px solid var(--saas-border); background-color: transparent; }
+:root:not(.dark) .saas tbody tr:last-child { border-bottom: 0; }
+:root:not(.dark) .saas :is(td, th) { font-size: 14px; }
+:root:not(.dark) .saas thead th { font-size: 11px; }
+
+/* Estados de turno */
+.est-atendido { background: #D1FAE5; color: #065F46; --tw-ring-color: #A7F3D0; }
+.est-consulta { background: #1E3A8A; color: #FFFFFF; --tw-ring-color: #1E3A8A; }
+.est-espera { background: #DBE4FB; color: #1E3A8A; --tw-ring-color: #BFCDF5; }
+.est-programado { background: #E8ECF2; color: #475569; --tw-ring-color: #CBD5E1; }
+.dark .est-atendido { background: rgb(16 185 129 / .15); color: #6EE7B7; }
+.dark .est-espera { background: rgb(59 91 192 / .2); color: #BFCDF5; }
+.dark .est-programado { background: rgb(148 163 184 / .14); color: #CBD5E1; }
+/* Ajustes finos del tema SaaS */
+:root:not(.dark) .saas .pn-sec-top .pn-acc-tile, :root:not(.dark) .saas .pn-sec-top .pn-acc-tile * { color: #FFFFFF !important; }
+:root:not(.dark) .saas .pn-sec-top [class*="bg-emerald-400/"] { background: var(--saas-mint-soft); color: var(--saas-mint-text); --tw-ring-color: #A7F3D0; }
+:root:not(.dark) .saas .pn-sec-top :is(.text-emerald-100, .text-emerald-200, .text-emerald-300) { color: var(--saas-mint-text); }
+:root:not(.dark) .saas .pn-sec-top :is(.text-sky-100, .text-sky-200, .text-sky-300, .text-amber-100, .text-amber-200) { color: var(--saas-text2); }
+:root:not(.dark) .saas .pn-side nav button:not(.pn-nav-on) svg { color: rgba(255, 255, 255, 0.75); }
+:root:not(.dark) .saas .pt-side :is(.text-muted-foreground, [class*="text-white/4"], [class*="text-white/5"], [class*="text-white/6"]) { color: rgba(255, 255, 255, 0.8); }
+:root:not(.dark) .saas .pt-side [class*="from-rose-500"] { background-color: #3B5BC0; }

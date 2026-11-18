@@ -382,16 +382,16 @@ const NIVELES: Record<Nivel, string> = { ninguno: "Sin acceso", ver: "Solo ver",
 const NIVEL_ICON: Record<Nivel, LucideIcon> = { ninguno: Ban, ver: Eye, editar: Pencil };
 
 const ESTADO_CLASE: Record<Estado, string> = {
-  Pendiente: "bg-amber-100 text-amber-800 ring-amber-200",
-  Confirmado: "bg-sky-100 text-sky-800 ring-sky-200",
-  Atendido: "bg-emerald-100 text-emerald-800 ring-emerald-200",
+  Pendiente: "est-programado",
+  Confirmado: "est-espera",
+  Atendido: "est-atendido",
   Cancelado: "bg-red-100 text-red-700 ring-red-200",
-  Vencida: "bg-slate-100 text-slate-600 ring-slate-200",
+  Vencida: "est-programado",
 };
 const ESTADO_DOT: Record<Estado, string> = {
-  Pendiente: "bg-amber-500",
-  Confirmado: "bg-sky-500",
-  Atendido: "bg-emerald-500",
+  Pendiente: "bg-slate-400",
+  Confirmado: "bg-[var(--saas-primary,#1E3A8A)]",
+  Atendido: "bg-[var(--saas-mint,#10B981)]",
   Cancelado: "bg-red-500",
   Vencida: "bg-slate-400",
 };
@@ -446,7 +446,7 @@ function usePersist<T>(key: string, seed: T): readonly [T, Dispatch<SetStateActi
 }
 
 const inp =
-  "pn-field h-11 w-full rounded-xl border border-slate-200 px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-[rgb(var(--acc))] focus:ring-4 focus:ring-[rgba(var(--acc),.15)] dark:border-white/10";
+  "pn-field h-11 w-full rounded-xl border border-slate-300 px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-[rgb(var(--acc))] focus:ring-4 focus:ring-[rgba(var(--acc),.15)] dark:border-white/10";
 
 const NAV: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
@@ -706,7 +706,7 @@ function Panel() {
     irTab(id);
   };
   const interiorSidebar = (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0a1226] text-white">
+    <div className="pn-side relative flex h-full min-h-0 flex-col overflow-hidden bg-[#0a1226] text-white">
       {/* Brillos de fondo (estilo Cloud Esther, en azul clínico y rojo cardio) */}
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(56,132,246,0.28),transparent_48%),radial-gradient(circle_at_100%_55%,rgba(244,63,94,0.12),transparent_42%),radial-gradient(circle_at_0%_100%,rgba(14,165,233,0.16),transparent_45%)]" />
 
@@ -722,7 +722,7 @@ function Panel() {
             </span>
             <span className="leading-tight">
               <span className="block font-display text-[15px] font-semibold tracking-tight">HEGO</span>
-              <span className="block text-[10px] uppercase tracking-[0.18em] text-white/50">Especialidades médicas</span>
+              <span className="block text-[11px] uppercase tracking-[0.18em] text-white/50">Especialidades médicas</span>
             </span>
           </Link>
           <button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-white/80 hover:bg-white/10 lg:hidden">
@@ -731,7 +731,7 @@ function Panel() {
         </div>
 
         {/* Médico activo */}
-        <div className="relative mx-3 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 p-3 shadow-[0_14px_30px_-18px_rgba(37,99,235,0.95)]">
+        <div className="pn-medico relative mx-3 mb-3 flex items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 p-3 shadow-[0_14px_30px_-18px_rgba(37,99,235,0.95)]">
           <span aria-hidden className="pointer-events-none absolute -right-6 -top-8 size-20 rounded-full bg-white/20 blur-xl" />
           <span aria-hidden className="pointer-events-none absolute -bottom-8 -left-4 size-16 rounded-full bg-rose-400/30 blur-xl" />
           <span className="relative shrink-0">
@@ -755,7 +755,7 @@ function Panel() {
         <nav className="pn-noscroll min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 pb-6 pt-1 [mask-image:linear-gradient(to_bottom,transparent,#000_10px,#000_calc(100%-28px),transparent)]">
           {gruposVisibles.map((g) => (
             <div key={g.grupo}>
-              <p className="flex items-center gap-2 px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
+              <p className="flex items-center gap-2 px-2 pb-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/45">
                 <span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />
                 {g.grupo}
               </p>
@@ -775,17 +775,17 @@ function Panel() {
                           aria-current={activo ? "page" : undefined}
                           className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/40 ${n.sub ? "pr-9" : ""} ${
                             activo
-                              ? "bg-gradient-to-r from-sky-500 to-blue-600 font-semibold text-white shadow-[0_10px_24px_-14px_rgba(56,132,246,0.95)]"
+                              ? "pn-nav-on bg-gradient-to-r from-sky-500 to-blue-600 font-semibold text-white shadow-[0_10px_24px_-14px_rgba(56,132,246,0.95)]"
                               : "text-white/75 hover:translate-x-0.5 hover:bg-white/[0.07] hover:text-white"
                           }`}
                         >
                           <n.icon className={`size-4 shrink-0 ${activo ? "text-white" : n.tono}`} />
                           <span className="truncate">{n.label}</span>
                           {n.id === "asistente" && !activo && (
-                            <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">IA</span>
+                            <span className="ml-auto rounded-full bg-gradient-to-r from-sky-400 to-violet-400 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white">IA</span>
                           )}
                           {!!badge && !n.sub && (
-                            <span className={`ml-auto grid min-w-5 place-items-center rounded-full px-1.5 text-[10px] font-bold ${activo ? "bg-white text-blue-700" : "bg-rose-500 text-white"}`}>{badge > 99 ? "99+" : badge}</span>
+                            <span className={`ml-auto grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold ${activo ? "bg-white text-blue-700" : "bg-rose-500 text-white"}`}>{badge > 99 ? "99+" : badge}</span>
                           )}
                         </button>
                         {n.sub && (
@@ -815,7 +815,7 @@ function Panel() {
                                     >
                                       <span className={`size-1.5 shrink-0 rounded-full ${subActivo ? "bg-sky-300 shadow-[0_0_8px_rgba(125,211,252,.9)]" : "bg-white/25"}`} />
                                       <span className="truncate">{s.label}</span>
-                                      {s.badge?.() ? <span className="ml-auto rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{s.badge()}</span> : null}
+                                      {s.badge?.() ? <span className="ml-auto rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">{s.badge()}</span> : null}
                                     </button>
                                   </li>
                                 );
@@ -839,7 +839,7 @@ function Panel() {
               <p className="font-display text-lg font-semibold tabular-nums">{hora}</p>
               <p className="text-[11px] text-white/55 first-letter:uppercase">{fechaLarga}</p>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold text-emerald-300">
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-2 py-1 text-[11px] font-semibold text-emerald-300">
               <span className="size-1.5 rounded-full bg-emerald-400" /> En línea
             </span>
           </div>
@@ -860,7 +860,7 @@ function Panel() {
   );
 
   return (
-    <div className="pn-root pn-bg isolate min-h-screen bg-[#eaf0f9] text-foreground lg:grid lg:grid-cols-[280px_1fr] dark:bg-[#070d1a]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
+    <div className="saas pn-root pn-bg isolate min-h-screen bg-[#eaf0f9] text-foreground lg:grid lg:grid-cols-[280px_1fr] dark:bg-[#070d1a]" style={{ ["--acc" as string]: FONDOS[tab].a }}>
       <style>{`
         @keyframes pn-up { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pn-orb { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(18px,-24px) scale(1.15); } }
@@ -886,7 +886,7 @@ function Panel() {
         .pn-card { box-shadow: inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,.5), 0 1px 2px rgba(15,23,42,.06), 0 8px 18px -6px rgba(15,23,42,.08), 0 26px 50px -20px rgba(15,35,80,.22), 0 40px 80px -40px rgba(var(--acc),.55); }
         .pn-bg { background-image: radial-gradient(1100px 620px at 85% -8%, rgba(var(--acc),.22), transparent 60%), radial-gradient(900px 600px at -5% 25%, rgba(37,99,235,.14), transparent 60%), radial-gradient(800px 500px at 60% 110%, rgba(var(--acc),.12), transparent 60%), linear-gradient(180deg, #edf2fb 0%, #e3eaf6 100%); background-attachment: fixed; transition: background-image .6s; }
         .dark .pn-bg { background-image: radial-gradient(1100px 620px at 85% -8%, rgba(var(--acc),.18), transparent 60%), radial-gradient(900px 600px at -5% 25%, rgba(37,99,235,.12), transparent 60%), linear-gradient(180deg, #070d1a, #050a14); }
-        .pn-sec-top { background: linear-gradient(118deg, #071a46 0%, #0b2a6b 38%, rgb(var(--acc)) 130%); box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); }
+        .pn-sec-top { background: linear-gradient(118deg, #172E6E 0%, #1E3A8A 38%, rgb(var(--acc)) 130%); box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); }
         .pn-sec-acc .h-10, .pn-sec-acc .h-11 { height: 2.4rem; }
         .pn-sec-band { background: linear-gradient(100deg, rgba(var(--acc),.13), rgba(var(--acc),.05) 45%, transparent 80%); }
         .dark .pn-sec-band { background: linear-gradient(100deg, rgba(var(--acc),.18), rgba(var(--acc),.05) 45%, transparent 80%); }
@@ -968,7 +968,7 @@ function Panel() {
         <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="flex size-10 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20"><Menu className="size-5" /></button>
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-sm font-semibold">{titulo}</p>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">Gómez Bolaño · Panel</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-white/60">Gómez Bolaño · Panel</p>
         </div>
         {foto ? <img src={foto} alt="" className="size-10 rounded-xl object-cover object-top ring-2 ring-white/25" /> : null}
       </div>
@@ -990,14 +990,14 @@ function Panel() {
             const on = tabVisible === n.id;
             const b = badges[n.id];
             return (
-              <button key={n.id} onClick={() => irTab(n.id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-colors ${on ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
+              <button key={n.id} onClick={() => irTab(n.id)} className={`relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-semibold transition-colors ${on ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
                 <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-all ${on ? "bg-[rgba(var(--acc),.12)]" : ""}`}><n.icon className="size-5" /></span>
                 {n.id === "pacientes" ? "Pacientes" : n.label}
-                {!!b && <span className="absolute right-2 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white">{b}</span>}
+                {!!b && <span className="absolute right-2 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">{b}</span>}
               </button>
             );
           })}
-          <button onClick={() => setMenu(true)} className="flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold text-muted-foreground">
+          <button onClick={() => setMenu(true)} className="flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-semibold text-muted-foreground">
             <span className="flex h-8 w-12 items-center justify-center rounded-full"><Menu className="size-5" /></span>
             Más
           </button>
@@ -1007,7 +1007,7 @@ function Panel() {
       {/* ───────── CONTENIDO ───────── */}
       <FondoModulo tab={tabVisible} />
       <main className="relative min-w-0 p-4 pb-28 sm:p-8 sm:pb-28 lg:pb-8">
-        <div className="pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
+        <div className="pn-hero pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
           <div className="pn-orb pointer-events-none absolute -right-10 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
           <FondoEspecialidadMedico id={user.id} />
@@ -1055,8 +1055,8 @@ function Panel() {
               })()}
             </span>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: `rgb(${FONDOS[tab].a})` }}>Panel · {titulo}</p>
-              <h2 className="text-2xl font-semibold leading-tight sm:text-3xl">{titulo}</h2>
+              <p className="pn-kicker text-[11px] font-semibold uppercase tracking-[0.2em]" style={{ color: `rgb(${FONDOS[tab].a})` }}>Panel · {titulo}</p>
+              <h2 className="pn-titulo text-2xl font-semibold leading-tight sm:text-3xl">{titulo}</h2>
               <p className="text-sm text-muted-foreground">{subtitulo}</p>
             </div>
           </div>
@@ -1197,7 +1197,7 @@ function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: 
       >
         <Bell className={`size-5 ${nuevas.length ? "origin-top animate-[pn-wave_1.6s_ease-in-out_2]" : ""}`} />
         {nuevas.length > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-[var(--deep)]">
+          <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white ring-2 ring-[var(--deep)]">
             {nuevas.length > 9 ? "9+" : nuevas.length}
           </span>
         )}
@@ -1207,7 +1207,7 @@ function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: 
           <div className="fixed inset-0 z-[90]" onClick={() => setAbierta(false)} />
           <div style={{ top: pos.top, right: pos.right }} className="fixed z-[100] w-[min(22rem,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-popover text-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <p className="font-semibold">Notificaciones {nuevas.length > 0 && <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white">{nuevas.length}</span>}</p>
+              <p className="font-semibold">Notificaciones {nuevas.length > 0 && <span className="ml-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white">{nuevas.length}</span>}</p>
               {nuevas.length > 0 && <button onClick={marcarTodas} className="text-xs font-semibold text-primary hover:underline">Marcar todas como leídas</button>}
             </div>
             <div className="max-h-[26rem] overflow-y-auto pn-noscroll">
@@ -1225,7 +1225,7 @@ function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: 
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-sm font-semibold">{n.titulo}{nueva && <span className="size-2 rounded-full bg-sky-500" />}</span>
                       <span className="block truncate text-xs text-muted-foreground">{limpiarTextoNota(n.texto)}</span>
-                      <span className="block text-[10px] text-muted-foreground/70">{fechaHora(n.fecha.length > 16 ? n.fecha : n.fecha + ":00")}</span>
+                      <span className="block text-[11px] text-muted-foreground/70">{fechaHora(n.fecha.length > 16 ? n.fecha : n.fecha + ":00")}</span>
                     </span>
                   </button>
                 );
@@ -1264,7 +1264,7 @@ const FONDOS: Record<Tab, { a: string; b: string; c: string }> = {
 
 function FondoModulo({ tab }: { tab: Tab }) {
   return (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden lg:left-[280px]">
+    <div aria-hidden="true" className="pn-fondo pointer-events-none fixed inset-0 -z-10 overflow-hidden lg:left-[280px]">
       {(Object.keys(FONDOS) as Tab[]).map((k) => {
         const f = FONDOS[k];
         return (
@@ -1320,10 +1320,10 @@ function saludo(d: Date) {
   return "Buenas noches";
 }
 const AVATAR_COLORES = [
-  "from-[#0b2a6b] to-[#1e3a8a]",
-  "from-[#0e7490] to-[#155e75]",
+  "from-[#1E3A8A] to-[#1e3a8a]",
+  "from-[#1E3A8A] to-[#155e75]",
   "from-slate-600 to-slate-800",
-  "from-[#1d4ed8] to-[#0b2a6b]",
+  "from-[#3B5BC0] to-[#1E3A8A]",
   "from-[#0f766e] to-[#134e4a]",
 ];
 function colorDe(texto: string) {
@@ -1359,8 +1359,8 @@ function Seccion({
   className?: string;
 }) {
   return (
-    <section className={`pn-card pn-up p-5 sm:p-6 ${className}`} style={{ animationDelay: `${delay}s` }}>
-      <div className="pn-sec-top relative -mx-5 -mt-5 mb-5 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-t-[1.2rem] px-5 py-4 text-white sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-5">
+    <section className={`pn-card pn-up p-5 ${className}`} style={{ animationDelay: `${delay}s` }}>
+      <div className="pn-sec-top relative -mx-5 -mt-5 mb-5 flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-t-[1.2rem] px-5 py-4 text-white">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
         <div className="pointer-events-none absolute -right-10 -top-16 size-48 rounded-full bg-white/15 blur-3xl" />
         <svg viewBox="0 0 400 40" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-1 h-7 w-full opacity-30" aria-hidden="true"><polyline points="0,22 120,22 135,22 145,10 155,34 165,22 250,22 262,22 272,4 282,38 292,22 400,22" fill="none" stroke="white" strokeWidth="1.5" strokeLinejoin="round" /></svg>
@@ -1380,7 +1380,7 @@ function Seccion({
   );
 }
 
-const TONO_HEX: Record<Tono, string> = { azul: "#0ea5e9", ambar: "#f59e0b", verde: "#10b981", violeta: "#8b5cf6", rojo: "#f43f5e" };
+const TONO_HEX: Record<Tono, string> = { azul: "#1E3A8A", ambar: "#f59e0b", verde: "#10B981", violeta: "#3B5BC0", rojo: "#e11d48" };
 
 function Kpi({
   icon: Icon,
@@ -1443,7 +1443,7 @@ function Kpi({
         <div className="relative mt-3 grid grid-cols-3 gap-2 border-t border-white/20 pt-3">
           {desglose.map((d) => (
             <div key={d.l} className="min-w-0">
-              <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-white/70">{d.l}</p>
+              <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-white/70">{d.l}</p>
               <p className="font-display text-lg font-semibold tabular-nums">{d.v}</p>
             </div>
           ))}
@@ -1517,14 +1517,14 @@ function ExamenesSangre({ valor, onChange, muestra }: { valor: string; onChange:
     <div className="relative">
       {lista.length > 0 && (
         <div className="mb-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-2 dark:border-white/10 dark:bg-white/5">
-          <p className="mb-1.5 px-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{lista.length} examen{lista.length === 1 ? "" : "es"} en la orden</p>
+          <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{lista.length} examen{lista.length === 1 ? "" : "es"} en la orden</p>
           <div className="flex flex-wrap gap-1.5">
             {lista.map((x) => {
               const ex = examenPorNombre(x);
               return (
                 <span key={x} className="inline-flex items-center gap-1.5 rounded-full bg-white py-1 pl-1 pr-1 text-xs font-semibold text-slate-800 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-100 dark:ring-white/10">
                   <span className={`grid size-5 place-items-center rounded-full bg-gradient-to-br text-white ${COLOR_MUESTRA[ex?.muestra ?? "Otras muestras"]}`}><FlaskConical className="size-2.5" /></span>
-                  {x}{ex?.remision && <span className="rounded bg-slate-100 px-1 text-[9px] font-bold uppercase text-slate-500 dark:bg-white/10">Remisión</span>}
+                  {x}{ex?.remision && <span className="rounded bg-slate-100 px-1 text-[11px] font-bold uppercase text-slate-500 dark:bg-white/10">Remisión</span>}
                   <button type="button" onClick={() => quitar(x)} aria-label={`Quitar ${x}`} className="grid size-5 place-items-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600"><X className="size-3" /></button>
                 </span>
               );
@@ -1558,13 +1558,13 @@ function ExamenesSangre({ valor, onChange, muestra }: { valor: string; onChange:
         <ul className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl dark:border-white/10">
           {sugeridos.map((e, i) => (
             <li key={e.nombre}>
-              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); elegir(e.nombre); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#0b2a6b]/[.06] dark:bg-white/10" : "hover:bg-secondary"}`}>
+              <button type="button" onMouseDown={(ev) => { ev.preventDefault(); elegir(e.nombre); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#1E3A8A]/[.06] dark:bg-white/10" : "hover:bg-secondary"}`}>
                 <span className={`grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br text-white ${COLOR_MUESTRA[e.muestra]}`}><FlaskConical className="size-3.5" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{e.nombre}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{e.muestra} · {e.grupo}{e.sin.length ? ` · ${e.sin.slice(0, 3).join(", ")}` : ""}</span>
                 </span>
-                {e.remision && <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500 dark:bg-white/10" title="Normalmente se procesa en un laboratorio de referencia o requiere condiciones especiales">Remisión</span>}
+                {e.remision && <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold uppercase text-slate-500 dark:bg-white/10" title="Normalmente se procesa en un laboratorio de referencia o requiere condiciones especiales">Remisión</span>}
               </button>
             </li>
           ))}
@@ -1603,9 +1603,9 @@ function horaDeIso(iso: string) {
 function HoraMini({ hora, activo = false }: { hora: string; activo?: boolean }) {
   const [num, ...suf] = hora12(hora).split(" ");
   return (
-    <span className={`flex w-[3.4rem] shrink-0 flex-col items-center rounded-xl py-1.5 transition ${activo ? "bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] text-white shadow-md" : "bg-[rgba(var(--acc),.08)] text-[rgb(var(--acc))] ring-1 ring-[rgba(var(--acc),.15)]"}`}>
+    <span className={`flex w-[3.4rem] shrink-0 flex-col items-center rounded-xl py-1.5 transition ${activo ? "bg-gradient-to-br from-[#1E3A8A] to-[#3B5BC0] text-white shadow-md" : "bg-[rgba(var(--acc),.08)] text-[rgb(var(--acc))] ring-1 ring-[rgba(var(--acc),.15)]"}`}>
       <span className="font-display text-[15px] font-semibold leading-none tabular-nums">{num}</span>
-      <span className={`mt-0.5 text-[9px] font-semibold uppercase tracking-wide ${activo ? "text-white/70" : "opacity-70"}`}>{suf.join(" ")}</span>
+      <span className={`mt-0.5 text-[11px] font-semibold uppercase tracking-wide ${activo ? "text-white/70" : "opacity-70"}`}>{suf.join(" ")}</span>
     </span>
   );
 }
@@ -1613,9 +1613,9 @@ function HoraMini({ hora, activo = false }: { hora: string; activo?: boolean }) 
 function HoraChip({ hora, className = "" }: { hora: string; className?: string }) {
   const [num, ...suf] = hora12(hora).split(" ");
   return (
-    <span className={`inline-flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] px-2 py-2 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)] ring-1 ring-white/10 ${className}`}>
+    <span className={`inline-flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E3A8A] to-[#3B5BC0] px-2 py-2 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)] ring-1 ring-white/10 ${className}`}>
       <span className="font-display text-lg font-semibold leading-none tabular-nums">{num}</span>
-      <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
+      <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
     </span>
   );
 }
@@ -1650,7 +1650,7 @@ function Pastillas<T extends string>({ valor, opciones, onChange }: { valor: T; 
         return (
           <button key={o.v} type="button" onClick={() => onChange(o.v)} className={`inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-all ${on ? "pn-acc-tile text-white shadow-md" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
             {o.l}
-            {o.n !== undefined && <span className={`rounded-full px-1.5 text-[10px] ${on ? "bg-white/25" : "bg-secondary"}`}>{o.n}</span>}
+            {o.n !== undefined && <span className={`rounded-full px-1.5 text-[11px] ${on ? "bg-white/25" : "bg-secondary"}`}>{o.n}</span>}
           </button>
         );
       })}
@@ -1714,7 +1714,7 @@ function TarjetaDia({ icon: Icon, label, valor, detalle, onClick, delay = 0 }: {
       type="button"
       onClick={onClick}
       style={{ animationDelay: `${delay}s` }}
-      className="pn-up group relative w-full overflow-hidden rounded-[1.4rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 p-5 text-left text-white shadow-[0_24px_50px_-24px_rgba(162,28,175,.75)] ring-1 ring-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-24px_rgba(162,28,175,.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+      className="pn-kpi pn-up group relative w-full overflow-hidden rounded-[1.4rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 p-5 text-left text-white shadow-[0_24px_50px_-24px_rgba(162,28,175,.75)] ring-1 ring-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-24px_rgba(162,28,175,.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
     >
       <span className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
       <span className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-white/25 blur-2xl transition-transform duration-500 group-hover:scale-125" />
@@ -1754,12 +1754,12 @@ function ManianaCard({ turnos, abrirTurnos }: { turnos: Turno[]; abrirTurnos: ()
   const diaTxt = d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
   return (
     <section className="pn-card pn-up overflow-hidden" style={{ animationDelay: ".12s" }}>
-      <div className="relative flex flex-wrap items-center gap-3 overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-5 text-white">
+      <div className="pn-sec-top relative flex flex-wrap items-center gap-3 overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 p-5 text-white">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
         <div className="pointer-events-none absolute -right-10 -top-14 size-44 rounded-full bg-white/20 blur-3xl" />
         <span className="relative flex size-11 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/35 backdrop-blur"><CalendarDays className="size-5" /></span>
         <div className="relative min-w-0 flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">Para preparar</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/80">Para preparar</p>
           <p className="font-display text-lg font-semibold">Mañana, {diaTxt}</p>
         </div>
         <button onClick={abrirTurnos} className="relative rounded-full bg-white px-4 py-2 text-xs font-semibold text-orange-700 shadow-md hover:bg-white/90">Ver agenda</button>
@@ -1782,7 +1782,7 @@ function ManianaCard({ turnos, abrirTurnos }: { turnos: Turno[]; abrirTurnos: ()
                 {estudios.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-card px-3 py-2 text-sm ring-1 ring-border">
                     <span className="w-20 shrink-0 font-semibold tabular-nums">{hora12(t.hora)}</span>
-                    <span className="min-w-0 flex-1"><b>{t.paciente}</b> · {servicio(t)} <span className="text-muted-foreground">· {nombreCorto(t.doctor)}</span>{t.recordado1 && t.recordado1Canal !== "sin envío" && <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">✓ Recordado por {t.recordado1Canal}</span>}</span>
+                    <span className="min-w-0 flex-1"><b>{t.paciente}</b> · {servicio(t)} <span className="text-muted-foreground">· {nombreCorto(t.doctor)}</span>{t.recordado1 && t.recordado1Canal !== "sin envío" && <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300">✓ Recordado por {t.recordado1Canal}</span>}</span>
                     {t.telefono && (
                       <a href={waDe(t.telefono, `Hola ${t.paciente.split(" ")[0]}, le escribimos del Centro HEGO para recordarle su ${servicio(t)} mañana ${diaTxt} a las ${hora12(t.hora)} con ${t.doctor}.\n\n${indicacionesTexto(t.motivo)}\n\nAnte cualquier duda, escríbanos.`)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg bg-emerald-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-600"><Send className="size-3" /> Recordar</a>
                     )}
@@ -1872,7 +1872,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
               return (
                 <div key={f}>
                   <div className="mb-2.5 flex items-center gap-3">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${dif === 0 ? "bg-emerald-500 text-white shadow-[0_6px_14px_-6px_rgba(16,185,129,.9)]" : "bg-[#0b2a6b] text-white"}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ${dif === 0 ? "bg-emerald-500 text-white shadow-[0_6px_14px_-6px_rgba(16,185,129,.9)]" : "bg-[#1E3A8A] text-white"}`}>
                       {dif === 0 && <span className="size-1.5 animate-pulse rounded-full bg-white" />}<span className="first-letter:uppercase">{titulo}</span>
                     </span>
                     <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent dark:from-white/15" />
@@ -1886,9 +1886,9 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
                       return (
                         <div key={t.id} className="group relative flex items-center gap-3.5 overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-r from-white to-slate-50/70 p-3 pr-4 shadow-[0_2px_6px_rgba(15,23,42,.04),0_12px_24px_-16px_rgba(15,35,80,.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-18px_rgba(15,35,80,.45)] dark:border-white/10 dark:from-white/[0.04] dark:to-white/[0.02]">
                           <span className={`absolute inset-y-0 left-0 w-1.5 ${ESTADO_DOT[t.estado]}`} />
-                          <div className="ml-1 flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#0b2a6b] to-[#1d4ed8] py-2.5 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)]">
+                          <div className="ml-1 flex w-[4.6rem] shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-[#1E3A8A] to-[#3B5BC0] py-2.5 text-white shadow-[0_10px_20px_-10px_rgba(29,78,216,.9)]">
                             <span className="font-display text-xl font-semibold leading-none tabular-nums">{num}</span>
-                            <span className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
+                            <span className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-white/70">{suf.join(" ")}</span>
                           </div>
                           <Avatar nombre={t.paciente} size="size-11" />
                           <div className="min-w-0 flex-1">
@@ -1920,7 +1920,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
                 style={{
                   background: turnos.length
                     ? `conic-gradient(${(() => {
-                        const col: Record<Estado, string> = { Pendiente: "#f59e0b", Confirmado: "#0ea5e9", Atendido: "#10b981", Cancelado: "#ef4444", Vencida: "#94a3b8" };
+                        const col: Record<Estado, string> = { Pendiente: "#94a3b8", Confirmado: "#1E3A8A", Atendido: "#10B981", Cancelado: "#ef4444", Vencida: "#CBD5E1" };
                         let acc = 0;
                         return conteo
                           .map(({ e, n }) => {
@@ -1935,7 +1935,7 @@ function Resumen({ turnos, movs, audit, irA, abrirTurnos }: { turnos: Turno[]; m
               >
                 <div className="absolute inset-[10px] flex flex-col items-center justify-center rounded-full bg-card shadow-inner">
                   <span className="font-display text-2xl font-semibold leading-none">{turnos.length}</span>
-                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground">citas</span>
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground">citas</span>
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -2079,8 +2079,8 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
       <div className="min-w-0 flex-1">
         <p className={`flex flex-wrap items-center gap-1.5 text-sm font-semibold ${t.estado === "Atendido" ? "text-muted-foreground" : ""}`}>
           <span className="truncate">{t.paciente}</span>
-          {t.origen === "web" && <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-700">Web</span>}
-          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-pink-700">Portal</span>}
+          {t.origen === "web" && <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-700">Web</span>}
+          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-pink-700">Portal</span>}
         </p>
         <p className="truncate text-xs text-muted-foreground">{t.motivo}{t.telefono ? ` · ${t.telefono}` : ""}</p>
       </div>
@@ -2115,11 +2115,11 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
           <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
           <div className="relative flex items-center gap-3.5">
             <span className="relative flex size-12 ring-2 ring-white/30 pn-acc-tile flex-col items-center justify-center rounded-2xl text-white shadow-lg">
-              <span className="text-[9px] font-bold uppercase leading-none tracking-wider text-white/80">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
+              <span className="text-[11px] font-bold uppercase leading-none tracking-wider text-white/80">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
               <span className="font-display text-xl font-semibold leading-none">{new Date(dia + "T12:00:00").getDate()}</span>
             </span>
             <div>
-              <h3 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">Agenda del día {esHoy && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-emerald-200 ring-1 ring-emerald-300/40"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Hoy</span>}</h3>
+              <h3 className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight">Agenda del día {esHoy && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/20 px-2 py-0.5 font-sans text-[11px] font-bold uppercase tracking-wider text-emerald-200 ring-1 ring-emerald-300/40"><span className="size-1.5 animate-pulse rounded-full bg-emerald-500" /> Hoy</span>}</h3>
               <p className="text-sm text-white/75 first-letter:uppercase">{new Date(dia + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
             </div>
           </div>
@@ -2153,13 +2153,13 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                   on ? "pn-acc-tile -translate-y-0.5 text-white shadow-lg" : `ring-1 ring-transparent hover:-translate-y-0.5 hover:bg-card hover:shadow-md hover:ring-border/70 dark:hover:ring-white/10 ${trabaja ? "" : "opacity-50"}`
                 }`}
               >
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${on ? "text-white/80" : esHoyD ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${on ? "text-white/80" : esHoyD ? "text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>{f.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
                 <span className="font-display text-xl font-semibold leading-tight tabular-nums sm:text-2xl">{f.getDate()}</span>
                 <span className="mt-1 flex h-4 items-center">
                   {n ? (
-                    <span className={`rounded-full px-1.5 text-[10px] font-bold leading-4 ${on ? "bg-white/25 text-white" : "bg-[rgba(var(--acc),.14)] text-[rgb(var(--acc))]"}`}>{n} {n === 1 ? "cita" : "citas"}</span>
+                    <span className={`rounded-full px-1.5 text-[11px] font-bold leading-4 ${on ? "bg-white/25 text-white" : "bg-[rgba(var(--acc),.14)] text-[rgb(var(--acc))]"}`}>{n} {n === 1 ? "cita" : "citas"}</span>
                   ) : (
-                    <span className={`text-[9px] font-medium ${on ? "text-white/70" : "text-muted-foreground/70"}`}>{trabaja ? "Libre" : "—"}</span>
+                    <span className={`text-[11px] font-medium ${on ? "text-white/70" : "text-muted-foreground/70"}`}>{trabaja ? "Libre" : "—"}</span>
                   )}
                 </span>
                 {esHoyD && !on && <span className="absolute right-2 top-2 size-1.5 rounded-full bg-[rgb(var(--acc))]" />}
@@ -2263,7 +2263,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                       <div className={`flex gap-3 ${pasado && !t ? "opacity-45" : ""}`}>
                         <div className="w-[4.5rem] shrink-0 pt-3 text-right">
                           <span className={`text-xs font-semibold tabular-nums ${h === actual ? "" : "text-muted-foreground"}`} style={h === actual ? { color: `rgb(var(--acc))` } : undefined}>{hora12(h)}</span>
-                          {h === actual && <span className="block text-[9px] font-bold uppercase" style={{ color: `rgb(var(--acc))` }}>Ahora</span>}
+                          {h === actual && <span className="block text-[11px] font-bold uppercase" style={{ color: `rgb(var(--acc))` }}>Ahora</span>}
                         </div>
                         <div className="min-w-0 flex-1">
                           {t ? (
@@ -2331,9 +2331,9 @@ function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () =>
   }, [onCerrar]);
   return createPortal(
     <div className="pn-root fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={titulo}>
-      <div className="absolute inset-0 bg-[#071a46]/45 backdrop-blur-[3px]" onClick={onCerrar} />
+      <div className="absolute inset-0 bg-[#172E6E]/45 backdrop-blur-[3px]" onClick={onCerrar} />
       <div className="pn-up relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl">
-        <div className="h-1 w-full bg-gradient-to-r from-[#0b2a6b] via-[#0e7490] to-[#0b2a6b]" />
+        <div className="h-1 w-full bg-gradient-to-r from-[#1E3A8A] via-[#1E3A8A] to-[#1E3A8A]" />
         <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
           <h3 className="font-display text-xl font-semibold">{titulo}</h3>
           <button onClick={onCerrar} aria-label="Cerrar" className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
@@ -2499,7 +2499,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
 
             {/* 1. Profesional */}
             <div>
-              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">1</span> Profesional</p>
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[11px] text-white">1</span> Profesional</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {profs.map((a) => {
                   const on = f.doctor === a.nombre;
@@ -2523,7 +2523,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
             {/* 2. Día */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">2</span> Día</p>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[11px] text-white">2</span> Día</p>
                 <input type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value, hora: "" })} className="h-8 rounded-lg border border-input bg-background px-2 text-xs outline-none focus:border-primary" />
               </div>
               <div className="pn-noscroll flex gap-2 overflow-x-auto pb-1">
@@ -2534,7 +2534,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                   return (
                     <button key={d} type="button" onClick={() => setF({ ...f, fecha: d, hora: "" })}
                       className={`relative flex w-16 shrink-0 flex-col items-center rounded-2xl border py-2.5 transition-all duration-300 ${on ? "pn-acc-tile border-transparent text-white" : abre ? "border-border bg-card hover:border-[rgba(var(--acc),.45)]" : "border-dashed border-border bg-secondary/40 text-muted-foreground/60"}`}>
-                      <span className="text-[10px] font-semibold uppercase opacity-80">{d === hoy() ? "Hoy" : fecha.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
+                      <span className="text-[11px] font-semibold uppercase opacity-80">{d === hoy() ? "Hoy" : fecha.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
                       <span className="font-display text-xl font-semibold leading-tight">{fecha.getDate()}</span>
                       <span className={`mt-0.5 size-1.5 rounded-full ${abre ? (on ? "bg-white" : "bg-emerald-500") : "bg-slate-300"}`} />
                     </button>
@@ -2546,7 +2546,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
             {/* 3. Horario */}
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">3</span> Horario</p>
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[11px] text-white">3</span> Horario</p>
                 <button type="button" onClick={() => setOtraHora((v) => !v)} className="text-xs font-semibold hover:underline" style={{ color: `rgb(var(--acc))` }}>{otraHora ? "Ver horarios de la agenda" : "Otro horario (sobreturno)"}</button>
               </div>
               {otraHora ? (
@@ -2562,8 +2562,8 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                     return (
                       <button key={h} type="button" disabled={ocupado || pasado} title={pasado ? "Ese horario ya pasó" : undefined} onClick={() => setF({ ...f, hora: h, motivo: f.motivo || servicioEn(agendaSel, f.fecha, h) })}
                         className={`rounded-2xl px-1 py-2 tabular-nums transition-all duration-200 ${ocupado ? "cursor-not-allowed bg-secondary/40 text-muted-foreground/40" : on ? "pn-acc-tile scale-[1.03] text-white shadow-lg" : "pn-field ring-1 ring-slate-200 hover:-translate-y-0.5 hover:shadow-md hover:ring-[rgba(var(--acc),.5)] dark:ring-white/10"}`}>
-                        <span className={`whitespace-nowrap ${ocupado ? "line-through" : ""}`}><span className="text-[15px] font-semibold">{num}</span> <span className={`text-[10px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{suf.join(" ")}</span></span>
-                        {servicioEn(agendaSel, f.fecha, h) && <span className={`block truncate text-[9px] font-medium ${on ? "text-white/75" : "text-muted-foreground"}`}>{ocupado ? "Ocupado" : servicioEn(agendaSel, f.fecha, h)}</span>}
+                        <span className={`whitespace-nowrap ${ocupado ? "line-through" : ""}`}><span className="text-[15px] font-semibold">{num}</span> <span className={`text-[11px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{suf.join(" ")}</span></span>
+                        {servicioEn(agendaSel, f.fecha, h) && <span className={`block truncate text-[11px] font-medium ${on ? "text-white/75" : "text-muted-foreground"}`}>{ocupado ? "Ocupado" : servicioEn(agendaSel, f.fecha, h)}</span>}
                       </button>
                     );
                   })}
@@ -2573,7 +2573,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
 
             {/* 4. Paciente */}
             <div>
-              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[10px] text-white">4</span> Paciente y motivo</p>
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"><span className="pn-acc-tile flex size-5 items-center justify-center rounded-full text-[11px] text-white">4</span> Paciente y motivo</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -2643,7 +2643,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
         }>
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5">
           {([["proximas", "Próximas", turnos.filter((t) => t.estado === "Pendiente" || t.estado === "Confirmado").length], ["historial", "Historial", turnos.filter((t) => t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida").length], ["eliminadas", "Eliminadas", eliminadas.length]] as const).map(([v, l, n]) => (
-            <button key={v} onClick={() => { setVista(v); setFiltro("Todos"); }} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${vista === v ? "bg-[#0b2a6b] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>
+            <button key={v} onClick={() => { setVista(v); setFiltro("Todos"); }} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${vista === v ? "bg-[#1E3A8A] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>
               {v === "proximas" ? <CalendarDays className="size-3.5" /> : v === "historial" ? <ClipboardList className="size-3.5" /> : <Trash2 className="size-3.5" />} {l} <span className={`rounded-md px-1.5 tabular-nums ${vista === v ? "bg-white/20" : "bg-white dark:bg-white/10"}`}>{n}</span>
             </button>
           ))}
@@ -2659,7 +2659,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                     <p className="truncate text-xs text-muted-foreground">{x.detalle}</p>
                     <p className="text-[11px] text-muted-foreground">Eliminada por {nombreCorto(x.por)} · {fechaHora(x.fecha)}</p>
                   </div>
-                  <button onClick={() => restaurar(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>
+                  <button onClick={() => restaurar(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>
                 </li>
               ))}
             </ul>
@@ -2714,8 +2714,8 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                       <div>
                         <p className="flex items-center gap-2 font-medium">
                           {t.paciente}
-                          {t.origen === "web" && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-sky-700">Web</span>}
-                          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-pink-700">Portal</span>}
+                          {t.origen === "web" && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-sky-700">Web</span>}
+                          {t.origen === "portal" && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-pink-700">Portal</span>}
                         </p>
                         <p className="text-xs text-muted-foreground">{t.motivo}{t.telefono ? ` · ${t.telefono}` : ""}</p>
                       </div>
@@ -2731,7 +2731,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                   </td>
                   <td className="py-3 text-right">
                     <div className="inline-flex gap-1">
-                      <button onClick={() => setEditando({ ...t })} aria-label="Editar cita" title="Editar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-slate-100 hover:text-[#0b2a6b] dark:hover:bg-white/10"><Pencil className="size-4" /></button>
+                      <button onClick={() => setEditando({ ...t })} aria-label="Editar cita" title="Editar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-slate-100 hover:text-[#1E3A8A] dark:hover:bg-white/10"><Pencil className="size-4" /></button>
                       <button onClick={() => void borrar(t)} aria-label="Eliminar cita" title="Eliminar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>
                     </div>
                   </td>
@@ -2915,8 +2915,8 @@ function Dona({ ingresos, egresos }: { ingresos: number; egresos: number }) {
         />
         <defs>
           <linearGradient id="pn-dg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#10b981" />
-            <stop offset="100%" stopColor="#0ea5e9" />
+            <stop offset="0%" stopColor="#10B981" />
+            <stop offset="100%" stopColor="#3B5BC0" />
           </linearGradient>
         </defs>
       </svg>
@@ -3153,14 +3153,14 @@ const ESTADO_COBRO: Record<EstadoCobro, string> = {
 };
 const COLOR_METODO: Record<string, string> = {
   Efectivo: "from-[#0f766e] to-[#115e59]",
-  "Tarjeta débito": "from-[#1d4ed8] to-[#0b2a6b]",
-  "Tarjeta crédito": "from-[#0b2a6b] to-[#071a46]",
-  Transferencia: "from-[#0e7490] to-[#155e75]",
+  "Tarjeta débito": "from-[#3B5BC0] to-[#1E3A8A]",
+  "Tarjeta crédito": "from-[#1E3A8A] to-[#172E6E]",
+  Transferencia: "from-[#1E3A8A] to-[#155e75]",
   Nequi: "from-[#6d28d9] to-[#4c1d95]",
   Daviplata: "from-[#b91c1c] to-[#7f1d1d]",
   PSE: "from-[#0369a1] to-[#0c4a6e]",
-  "Débito": "from-[#1d4ed8] to-[#0b2a6b]",
-  "Crédito": "from-[#0b2a6b] to-[#071a46]",
+  "Débito": "from-[#3B5BC0] to-[#1E3A8A]",
+  "Crédito": "from-[#1E3A8A] to-[#172E6E]",
   "Mercado Pago": "from-slate-500 to-slate-700",
   EPS: "from-slate-500 to-slate-700",
 };
@@ -3196,7 +3196,7 @@ function imprimirRecibo(c: Cobro) {
   const eps = c.aCargoEps ?? 0;
   const filas = c.pagos.map((p) => `<tr><td>${fechaHora(p.fecha)}</td><td>${metodoTxt(p.metodo)}</td><td>${p.cobradoPor}</td><td style="text-align:right">${dinero(p.monto)}</td></tr>`).join("");
   w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Recibo ${c.id}</title>
-  <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px;color:#0b2a6b}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700;color:#0b2a6b}.m{color:#64748b;font-size:13px}.r{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}</style></head><body>
+  <style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:40px}h1{margin:0;font-size:22px;color:#1E3A8A}table{width:100%;border-collapse:collapse;margin-top:16px}td,th{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left;font-size:13px}.t{font-size:20px;font-weight:700;color:#1E3A8A}.m{color:#475569;font-size:13px}.r{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}</style></head><body>
   <h1>HEGO · Centro de especialidades médicas</h1><p class="m">Recibo de pago N° ${c.id.toUpperCase()} · ${fechaHora(c.fecha)}</p>
   <p><b>Paciente:</b> ${c.paciente}${c.dni ? ` · C.C. ${c.dni}` : ""}<br><b>Servicio:</b> ${c.concepto}<br><b>Profesional:</b> ${c.profesional}${c.obraSocial ? `<br><b>EPS:</b> ${c.obraSocial}` : ""}${c.autorizacion ? `<br><b>Autorización:</b> ${c.autorizacion}` : ""}</p>
   ${eps > 0 ? `<div class="r"><span>Valor del servicio</span><b>${dinero(c.valor + eps)}</b></div><div class="r"><span>A cargo de la EPS</span><b>${dinero(eps)}</b></div>` : ""}
@@ -3247,7 +3247,7 @@ function BotonExcel({ cobros, cierres, log }: { cobros: Cobro[]; cierres: Cierre
     <div className="flex items-center gap-2">
       <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className={inp + " h-10 w-[150px] px-2.5 text-sm"} aria-label="Mes a exportar" />
       <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { const n = await exportarFinanzasExcel(mes, cobros, cierres); log("Exportó pagos y caja a Excel", `${mes} · ${n} cobros`); toast.success("Excel descargado."); } catch { toast.error("No se pudo generar el Excel."); } setBusy(false); }}
-        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
         {busy ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel
       </button>
     </div>
@@ -3261,7 +3261,7 @@ function BotonMesExcel({ alExportar, log, que }: { alExportar: (mes: string) => 
     <div className="flex items-center gap-2">
       <input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className={inp + " h-10 w-[150px] px-2.5 text-sm"} aria-label="Mes a exportar" />
       <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { const n = await alExportar(mes); log(`Exportó ${que} a Excel`, `${mes} · ${n} registros`); toast.success("Excel descargado."); } catch { toast.error("No se pudo generar el Excel."); } setBusy(false); }}
-        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
+        className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 transition hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
         {busy ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel
       </button>
     </div>
@@ -3478,7 +3478,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
             <Campo label="Valor del servicio"><input required type="number" min="1" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value, ...(f.eps ? {} : { pagado: e.target.value }) })} className={inp + " font-semibold tabular-nums"} /></Campo>
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary p-1 dark:bg-white/5">
               {([[false, "Particular"], [true, "EPS / prepagada"]] as const).map(([v, l]) => (
-                <button key={l} type="button" onClick={() => { const pv = precioDe(f.concepto, v ? f.obraSocial : undefined); const valor = pv !== null ? String(pv) : f.valor; setF({ ...f, eps: v, valor, pagado: v ? String(pagaPaciente({ ...f, eps: true, valor })) : valor }); }} className={`rounded-lg py-2 text-xs font-semibold transition ${f.eps === v ? "bg-card text-[#0b2a6b] shadow-sm dark:text-sky-200" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+                <button key={l} type="button" onClick={() => { const pv = precioDe(f.concepto, v ? f.obraSocial : undefined); const valor = pv !== null ? String(pv) : f.valor; setF({ ...f, eps: v, valor, pagado: v ? String(pagaPaciente({ ...f, eps: true, valor })) : valor }); }} className={`rounded-lg py-2 text-xs font-semibold transition ${f.eps === v ? "bg-card text-[#1E3A8A] shadow-sm dark:text-sky-200" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
               ))}
             </div>
             {f.eps && (
@@ -3491,7 +3491,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                   <p className="mb-1.5 text-xs font-medium text-muted-foreground">El paciente paga</p>
                   <div className="grid grid-cols-3 gap-1.5">
                     {TIPOS_PAGO_EPS.map((t) => (
-                      <button key={t} type="button" onClick={() => { const nx = { ...f, tipoPagoEps: t }; setF({ ...nx, pagado: String(pagaPaciente(nx)) }); }} className={`rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition ${f.tipoPagoEps === t ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{t}</button>
+                      <button key={t} type="button" onClick={() => { const nx = { ...f, tipoPagoEps: t }; setF({ ...nx, pagado: String(pagaPaciente(nx)) }); }} className={`rounded-lg px-2 py-2 text-[11px] font-semibold leading-tight transition ${f.tipoPagoEps === t ? "bg-[#1E3A8A] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{t}</button>
                     ))}
                   </div>
                 </div>
@@ -3519,7 +3519,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">Medio de pago</p>
               <div className="grid grid-cols-3 gap-1.5">
                 {METODOS_PAGO.map((m) => (
-                  <button key={m} type="button" onClick={() => setF({ ...f, metodo: m })} className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${f.metodo === m ? "bg-[#0b2a6b] text-white shadow-md" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
+                  <button key={m} type="button" onClick={() => setF({ ...f, metodo: m })} className={`rounded-xl px-2 py-2 text-xs font-semibold transition-all ${f.metodo === m ? "bg-[#1E3A8A] text-white shadow-md" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{m}</button>
                 ))}
               </div>
             </div>
@@ -3586,7 +3586,7 @@ function CobrosVista({ turnos, user, log }: { turnos: Turno[]; user: SessionUser
                 <div className="flex flex-wrap items-center gap-3">
                   <Avatar nombre={c.paciente} />
                   <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-semibold">{c.paciente} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_COBRO[est]}`}>{est}</span></p>
+                    <p className="flex flex-wrap items-center gap-2 font-semibold">{c.paciente} <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_COBRO[est]}`}>{est}</span></p>
                     <p className="text-xs text-muted-foreground">{c.concepto} · {nombreCorto(c.profesional)} · {fechaHora(c.fecha)}{c.dni ? ` · C.C. ${c.dni}` : ""}</p>
                     {c.obraSocial && c.tipoPagoEps && <p className="text-xs text-muted-foreground">{c.obraSocial} · {c.tipoPagoEps}{c.aCargoEps ? ` · la EPS cubre ${dinero(c.aCargoEps)}` : ""}{c.autorizacion ? ` · Aut. ${c.autorizacion}` : ""}</p>}
                     {ult && <p className="text-xs text-muted-foreground">Último pago: {metodoTxt(ult.metodo)} · cobró <b className="text-foreground/80">{ult.cobradoPor}</b></p>}
@@ -3710,13 +3710,13 @@ function CajaVista({ user, log }: { user: SessionUser; log: LogFn }) {
               <Avatar nombre={r.n} />
               <div className="min-w-0 flex-1"><p className="truncate font-semibold">{r.n}</p><p className="text-xs text-muted-foreground">{r.ultimo ? `Último cobro ${new Date(r.ultimo).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}` : "Sin cobros este día"}</p></div>
               {r.cierre ? (
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${r.cierre.declarado === r.cierre.esperado ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{r.cierre.declarado === r.cierre.esperado ? "Caja OK" : "Diferencia"}</span>
-              ) : r.cant > 0 ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200">Sin cerrar</span> : null}
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${r.cierre.declarado === r.cierre.esperado ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{r.cierre.declarado === r.cierre.esperado ? "Caja OK" : "Diferencia"}</span>
+              ) : r.cant > 0 ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">Sin cerrar</span> : null}
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cobró</p><p className="text-sm font-semibold tabular-nums">{dinero(r.total)}</p></div>
-              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Efectivo</p><p className="text-sm font-semibold tabular-nums">{dinero(r.efectivo)}</p></div>
-              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pagos</p><p className="text-sm font-semibold tabular-nums">{r.cant}</p></div>
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Cobró</p><p className="text-sm font-semibold tabular-nums">{dinero(r.total)}</p></div>
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Efectivo</p><p className="text-sm font-semibold tabular-nums">{dinero(r.efectivo)}</p></div>
+              <div className="rounded-xl bg-secondary/60 p-2"><p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pagos</p><p className="text-sm font-semibold tabular-nums">{r.cant}</p></div>
             </div>
           </div>
         ))}
@@ -3840,7 +3840,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
 
   return (
     <div className="space-y-6">
-      <div className="pn-up flex items-start gap-4 rounded-[1.25rem] bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#1d4ed8] p-5 text-white shadow-lg">
+      <div className="pn-up flex items-start gap-4 rounded-[1.25rem] bg-gradient-to-r from-[#172E6E] via-[#1E3A8A] to-[#3B5BC0] p-5 text-white shadow-lg">
         <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Users className="size-5" /></span>
         <div className="text-sm">
           <p className="font-display text-lg font-semibold">Pacientes por especialidad</p>
@@ -3869,7 +3869,7 @@ function PermisosTab({ permisos, setPermisos, log, user }: { permisos: Permisos;
             const conAcceso = MODULOS.filter((m) => nivelDe(permisos, a.nombre, m) !== "ninguno").length;
             return (
               <Fragment key={a.nombre}>
-              {titulo && <p className="flex items-center gap-2 px-1 pt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground"><span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />{titulo}</p>}
+              {titulo && <p className="flex items-center gap-2 px-1 pt-3 text-[11px] font-bold uppercase tracking-[0.16em] text-muted-foreground"><span className="h-1 w-3 rounded-full bg-gradient-to-r from-sky-400 to-rose-400" />{titulo}</p>}
               <div className={`overflow-hidden rounded-2xl border transition-all ${abiertaEsta ? "border-primary/30 shadow-card ring-4 ring-primary/5" : "border-border hover:border-primary/20"}`}>
                 <button onClick={() => setAbierta(abiertaEsta ? null : a.nombre)} className="flex w-full items-center gap-4 p-4 text-left">
                   <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors ${abiertaEsta ? "gradient-deep text-white" : "bg-secondary text-primary"}`}>
@@ -3973,10 +3973,10 @@ function listaTurnos(ts: Turno[]) {
 function responder(pregunta: string, ctx: Ctx): string {
   const p = norm(pregunta);
   const tiene = (...ws: string[]) => ws.some((w) => p.includes(w));
-  const sinPermiso = (m: string) => `🔒 El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pídale a un administrador que lo habilite en Permisos.`;
+  const sinPermiso = (m: string) => `El departamento ${ctx.rol} no tiene acceso al módulo "${m}". Pídale a un administrador que lo habilite en Permisos.`;
 
   if (ctx.rol !== ROL_ADMIN && nivelDe(ctx.permisos, ctx.rol, "Asistente IA") === "ninguno") {
-    return `🔒 ${ctx.rol} no tiene habilitado el Asistente IA. Un administrador puede activarlo desde Permisos.`;
+    return `${ctx.rol} no tiene habilitado el Asistente IA. Un administrador puede activarlo desde Permisos.`;
   }
 
   if (tiene("hola", "ayuda", "que podes", "que sabe", "buen dia", "buenas")) {
@@ -4002,9 +4002,9 @@ function responder(pregunta: string, ctx: Ctx): string {
     const mayorE = [...egr].sort((a, b) => b.monto - a.monto)[0];
     const mayorI = [...ing].sort((a, b) => b.monto - a.monto)[0];
     return [
-      `💰 Ingresos: ${dinero(ti)} (${ing.length} movimientos)`,
-      `📉 Egresos: ${dinero(te)} (${egr.length} movimientos)`,
-      `📊 Balance: ${dinero(ti - te)}`,
+      `Ingresos: ${dinero(ti)} (${ing.length} movimientos)`,
+      `Egresos: ${dinero(te)} (${egr.length} movimientos)`,
+      `Balance: ${dinero(ti - te)}`,
       mayorI ? `El ingreso más alto fue "${mayorI.concepto}" por ${dinero(mayorI.monto)}.` : "",
       mayorE ? `El gasto más alto fue "${mayorE.concepto}" por ${dinero(mayorE.monto)}.` : "",
     ].filter(Boolean).join("\n");
@@ -4034,7 +4034,7 @@ function responder(pregunta: string, ctx: Ctx): string {
 
   if (tiene("cancel")) {
     const ts = ctx.turnos.filter((t) => t.estado === "Cancelado");
-    return ts.length ? `Citas canceladas (${ts.length}):\n${listaTurnos(ts)}` : "No hay citas canceladas. 👍";
+    return ts.length ? `Citas canceladas (${ts.length}):\n${listaTurnos(ts)}` : "No hay citas canceladas.";
   }
   if (tiene("pendiente", "confirmar", "sin confirmar")) {
     const ts = ctx.turnos.filter((t) => t.estado === "Pendiente");
@@ -4054,7 +4054,7 @@ function responder(pregunta: string, ctx: Ctx): string {
     return generarInsights(ctx.turnos, puede(ctx, "Finanzas") ? ctx.movs : []).join("\n");
   }
 
-  return "No estoy seguro de haber entendido 🤔. Pruebe preguntando por citas de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
+  return "No estoy seguro de haber entendido. Pruebe preguntando por citas de hoy, pendientes, un paciente, un doctor, el balance o los permisos de un departamento.";
 }
 
 const SUGERENCIAS = [
@@ -4127,7 +4127,7 @@ function AsistenteTab({ turnos, movs, permisos, audit, log, user }: { turnos: Tu
                 <Avatar nombre={user.nombre} size="size-8" />
               )}
               <div className={`max-w-[85%] whitespace-pre-line rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${m.de === "yo" ? "rounded-tr-sm gradient-deep text-white" : "rounded-tl-sm bg-card ring-1 ring-border"}`}>
-                {m.de === "yo" && m.quien !== ROL_ADMIN && <p className="mb-1 text-[10px] uppercase tracking-wider text-white/70">Como {m.quien}</p>}
+                {m.de === "yo" && m.quien !== ROL_ADMIN && <p className="mb-1 text-[11px] uppercase tracking-wider text-white/70">Como {m.quien}</p>}
                 {m.texto}
               </div>
             </div>
@@ -4397,7 +4397,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
       return;
     }
     log("Horarios actualizados", `${admin.nombre}: ${resumenAgenda(final)}`);
-    toast.success(aviso, { description: "Guardado en el servidor ✓", duration: 6000 });
+    toast.success(aviso, { description: "Guardado en el servidor", duration: 6000 });
   };
   const guardar = () => {
     if (!propia) {
@@ -4477,7 +4477,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
                 <p className="truncate font-semibold">{a.nombre}</p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
                   <span className="text-xs text-muted-foreground">{a.especialidad}{a.admin ? " · Administrador" : ""}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${etiqueta === "Solo ver" ? "bg-secondary text-muted-foreground" : "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]"}`}>{etiqueta}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${etiqueta === "Solo ver" ? "bg-secondary text-muted-foreground" : "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]"}`}>{etiqueta}</span>
                 </p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">{resumenAgenda(ag)}</p>
               </div>
@@ -4744,7 +4744,7 @@ function HorariosTab({ user, log, puedeEditarOtros, inicial = null }: { user: Se
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{slots.length ? `${slots.length} citas el próximo día` : "Agregue un horario para ver las citas"}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {slots.map((h) => { const sv = proximos[0] ? servicioEn(draft, proximos[0], h) : ""; return <span key={h} title={sv} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{hora12(h)}{sv ? <span className="ml-1 text-[10px] text-muted-foreground">· {sv.split(" ")[0]}</span> : null}</span>; })}
+                  {slots.map((h) => { const sv = proximos[0] ? servicioEn(draft, proximos[0], h) : ""; return <span key={h} title={sv} className="rounded-lg border border-border px-2 py-1 text-xs tabular-nums">{hora12(h)}{sv ? <span className="ml-1 text-[11px] text-muted-foreground">· {sv.split(" ")[0]}</span> : null}</span>; })}
                 </div>
               </div>
               <div className="flex flex-col gap-2 border-t border-border pt-4">
@@ -5097,7 +5097,7 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                   <div className="flex flex-wrap items-start gap-3">
                     <Avatar nombre={p.nombre} />
                     <div className="min-w-0 flex-1">
-                      <p className="flex flex-wrap items-center gap-2 font-semibold">{nombrePropio(p.nombre)} <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado === "Invitado" ? "Invitado · aún no entra" : p.estado}</span></p>
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">{nombrePropio(p.nombre)} <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold normal-case ring-1 ${ESTADO_ACCESO[p.estado]}`}>{p.estado === "Invitado" ? "Invitado · aún no entra" : p.estado}</span></p>
                       <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><KeyRound className="size-3" /> C.C. {p.dni}</span>
                         {p.telefono && <span className="flex items-center gap-1"><Phone className="size-3" /> {p.telefono}</span>}
@@ -5107,14 +5107,14 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
                       </div>
                       {(p.ficha?.antecedentes?.length || p.ficha?.alergias || p.ficha?.obraSocial) ? (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">EPS: {p.ficha.obraSocial}</span>}
-                          {p.ficha?.alergias && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">Alergia: {p.ficha.alergias}</span>}
-                          {p.ficha?.antecedentes?.map((a) => <span key={a} className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">{a}</span>)}
+                          {p.ficha?.obraSocial && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-300">EPS: {p.ficha.obraSocial}</span>}
+                          {p.ficha?.alergias && <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">Alergia: {p.ficha.alergias}</span>}
+                          {p.ficha?.antecedentes?.map((a) => <span key={a} className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium">{a}</span>)}
                         </div>
                       ) : null}
                     </div>
                     <button onClick={() => copiar(p.codigo)} title="Copiar código" className="flex items-center gap-2 rounded-xl bg-secondary/70 px-3 py-1.5 transition-colors hover:bg-secondary dark:bg-white/5">
-                      <span className="text-left leading-tight"><span className="block text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Código</span><span className="font-mono text-sm font-bold tracking-[0.2em]">{p.codigo}</span></span>
+                      <span className="text-left leading-tight"><span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Código</span><span className="font-mono text-sm font-bold tracking-[0.2em]">{p.codigo}</span></span>
                       <Copy className="size-3.5 text-muted-foreground" />
                     </button>
                   </div>
@@ -5275,17 +5275,17 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
 
   return (
     <div className="space-y-6">
-      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#071a46] via-[#0b2a6b] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-7">
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#172E6E] via-[#1E3A8A] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-7">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><ShieldCheck className="size-3.5" /> Auditoría</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><ShieldCheck className="size-3.5" /> Auditoría</span>
             <h2 className="mt-3 text-3xl font-semibold">Quién hizo qué y cuándo</h2>
             <p className="mt-2 text-sm text-white/75">Cada acción del panel y del portal queda registrada con usuario, fecha y detalle. Los registros no se pueden borrar ni editar.</p>
           </div>
           <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/15">
             {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [9999, "Todo"]] as const).map(([v, l]) => (
-              <button key={v} onClick={() => setRango(v)} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${rango === v ? "bg-white text-[#0b2a6b]" : "text-white/80 hover:bg-white/10"}`}>{l}</button>
+              <button key={v} onClick={() => setRango(v)} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${rango === v ? "bg-white text-[#1E3A8A]" : "text-white/80 hover:bg-white/10"}`}>{l}</button>
             ))}
           </div>
         </div>
@@ -5297,7 +5297,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
             { l: "Accesos fallidos", v: fallidos, s: fallidos ? "revise los intentos" : "sin incidentes", i: Lock, on: () => { setCat("accesos"); setQ("fallido"); } },
           ].map((k) => (
             <button key={k.l} type="button" onClick={k.on} disabled={!k.on} className="rounded-2xl bg-white/10 p-4 text-left ring-1 ring-white/15 backdrop-blur transition enabled:hover:bg-white/15">
-              <div className="flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/65">{k.l}</p><k.i className="size-4 text-white/70" /></div>
+              <div className="flex items-center justify-between"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/65">{k.l}</p><k.i className="size-4 text-white/70" /></div>
               <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{k.v}</p>
               <p className="text-[11px] text-white/60">{k.s}</p>
             </button>
@@ -5307,7 +5307,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Seccion icon={ClipboardList} titulo="Registro de eventos" sub={`${lista.length} evento${lista.length === 1 ? "" : "s"}${sensibles ? " sensibles" : ""} · ${rangoTxt}`}
-          acciones={<button type="button" onClick={() => void exportar()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Exportar a Excel</button>}>
+          acciones={<button type="button" onClick={() => void exportar()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Exportar a Excel</button>}>
           <div className="mb-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-[200px] flex-1">
@@ -5318,12 +5318,12 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
                 <option value="Todos">Todos los usuarios</option>
                 {usuarios.map((u) => <option key={u} value={u}>{u}</option>)}
               </select></div>
-              <button type="button" onClick={() => setSensibles((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${sensibles ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><ShieldAlert className="size-3.5" /> Solo sensibles</button>
+              <button type="button" onClick={() => setSensibles((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${sensibles ? "bg-[#1E3A8A] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><ShieldAlert className="size-3.5" /> Solo sensibles</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setCat("todas")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === "todas" ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>Todas</button>
+              <button onClick={() => setCat("todas")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === "todas" ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>Todas</button>
               {porCat.map((c) => (
-                <button key={c.id} onClick={() => setCat(c.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === c.id ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}><c.icon className="size-3.5" /> {c.l} <span className="opacity-70">{c.v}</span></button>
+                <button key={c.id} onClick={() => setCat(c.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === c.id ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}><c.icon className="size-3.5" /> {c.l} <span className="opacity-70">{c.v}</span></button>
               ))}
             </div>
           </div>
@@ -5332,7 +5332,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
               {dias.map((g) => (
                 <div key={g.dia}>
                   <div className="mb-2 flex items-center gap-3">
-                    <span className="inline-block rounded-full bg-[#0b2a6b] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase dark:bg-white/15">{diaTxt(g.dia)}</span>
+                    <span className="inline-block rounded-full bg-[#1E3A8A] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase dark:bg-white/15">{diaTxt(g.dia)}</span>
                     <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
                     <span className="text-[11px] text-muted-foreground">{g.items.length} evento{g.items.length === 1 ? "" : "s"}</span>
                   </div>
@@ -5342,10 +5342,10 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
                       const sens = esSensible(e.accion);
                       return (
                         <li key={e.id} className="relative flex gap-4 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
-                          <span className={`relative z-10 grid size-10 shrink-0 place-items-center rounded-xl ring-4 ring-card ${sens ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" : "bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"}`}><c.icon className="size-4" /></span>
+                          <span className={`relative z-10 grid size-10 shrink-0 place-items-center rounded-xl ring-4 ring-card ${sens ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" : "bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}><c.icon className="size-4" /></span>
                           <div className="min-w-0 flex-1 pt-0.5">
                             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{e.accion}{sens && <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">Sensible</span>}</p>
+                              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{e.accion}{sens && <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">Sensible</span>}</p>
                               <p className="text-xs tabular-nums text-muted-foreground" title={fechaHora(e.fecha)}>{horaDeIso(e.fecha)}</p>
                             </div>
                             <p className="text-xs text-muted-foreground">
@@ -5374,7 +5374,7 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
               {porCat.sort((a, b) => b.v - a.v).map((c) => (
                 <li key={c.id}>
                   <button onClick={() => setCat(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-white/5">
-                    <span className="grid size-8 place-items-center rounded-lg bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><c.icon className="size-4" /></span>
+                    <span className="grid size-8 place-items-center rounded-lg bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><c.icon className="size-4" /></span>
                     <span className="flex-1 text-sm font-medium">{c.l}</span>
                     <span className="text-sm font-semibold tabular-nums">{c.v}</span>
                   </button>
@@ -5545,7 +5545,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
             <li key={s.codigo} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5">
               <span className="w-16 shrink-0 rounded-md bg-[rgba(var(--acc),.12)] px-1.5 py-0.5 text-center font-mono text-xs font-bold text-[rgb(var(--acc))]">{s.codigo}</span>
               <span className="min-w-0 flex-1 text-sm">{s.descripcion}</span>
-              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${i === 0 ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>{i === 0 ? "Principal" : "Secundario"}</span>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${i === 0 ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>{i === 0 ? "Principal" : "Secundario"}</span>
               {i > 0 && (
                 <button type="button" title="Marcar como principal" onClick={() => onChange([s, ...seleccion.filter((x) => x.codigo !== s.codigo)])} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
                   <ArrowUpRight className="size-3.5 -rotate-45" />
@@ -5718,7 +5718,7 @@ function htmlEvolucion(p: PacienteHC, e: Evolucion) {
   ].filter(Boolean).join(" · ");
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Evolución · ${p.nombre}</title>
-<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:780px;margin:auto;font-size:14px;line-height:1.55}h1{font-size:20px;margin:0}.m{color:#64748b;font-size:12px}
+<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:780px;margin:auto;font-size:14px;line-height:1.55}h1{font-size:20px;margin:0}.m{color:#475569;font-size:12px}
 h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:#475569;margin:22px 0 6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}.dx b{font-family:ui-monospace,monospace}</style></head><body>
 <h1>HEGO · Centro de especialidades médicas · Historia Clínica</h1><p class="m">${p.nombre}${p.dni ? ` · C.C. ${p.dni}` : ""} · ${new Date(e.fecha).toLocaleString("es-CO")} · ${e.doctor}</p>
 <h2>Motivo de consulta</h2><p>${esc(e.motivo || "—")}</p>${vit ? `<h2>Signos vitales</h2><p>${vit}</p>` : ""}
@@ -5853,7 +5853,7 @@ function FichaHC({
           <p className="text-xs text-muted-foreground">Los registra enfermería o el médico. Quedan en el historial y los ve todo el equipo.</p>
         </div>
         {puedeSignos && (
-          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#0b2a6b] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#0a2459] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
+          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#172E6E] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
         )}
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -5865,13 +5865,13 @@ function FichaHC({
         ].map((x) => (
           <button type="button" key={x.l} disabled={!puedeSignos} onClick={() => setVentSignos(true)} className="pn-card pn-up p-4 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:shadow-lg">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
               <x.icon className="size-4 text-[rgb(var(--acc))]" />
             </div>
             <p className="mt-2 font-display text-2xl font-semibold tabular-nums">{x.v} <span className="text-xs font-normal text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0e7490] dark:text-sky-300"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
-              {x.f && <span className="text-[10px] text-muted-foreground">{fechaDe(x.f)}</span>}
+              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E3A8A] dark:text-sky-300"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
+              {x.f && <span className="text-[11px] text-muted-foreground">{fechaDe(x.f)}</span>}
             </div>
           </button>
         ))}
@@ -5884,7 +5884,7 @@ function FichaHC({
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-2 font-semibold">
               Enfermería ya registró los signos vitales de hoy
-              {nivelPend && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${nivelPend.clase}`}>{nivelPend.nombre}</span>}
+              {nivelPend && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${nivelPend.clase}`}>{nivelPend.nombre}</span>}
             </p>
             <p className="text-xs text-muted-foreground">{pendiente.enfermera} · {fechaHora(pendiente.fecha)}{pendiente.motivo ? ` · Motivo: ${pendiente.motivo}` : ""}</p>
             <div className="mt-2"><GrillaSignos s={pendiente.signos} compacta /></div>
@@ -5908,11 +5908,11 @@ function FichaHC({
           sub={`${ordenadas.length} ${ordenadas.length === 1 ? "consulta" : "consultas"} · ${conteo.enfermeria} de enfermería · ${estudios.length} ${estudios.length === 1 ? "estudio" : "estudios"}`}
           acciones={
             <div className="flex flex-wrap gap-1 rounded-2xl bg-secondary/80 p-1 ring-1 ring-border/60">
-              {([["todo", "Todo", "#0ea5e9"], ["evoluciones", "Médico", "#6366f1"], ["enfermeria", "Enfermería", "#10b981"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
+              {([["todo", "Todo", "#3B5BC0"], ["evoluciones", "Médico", "#6366f1"], ["enfermeria", "Enfermería", "#10B981"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
                 <button key={id} onClick={() => setVer(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${ver === id ? "bg-card text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                   <span className="size-1.5 rounded-full" style={{ background: c }} />
                   {l}
-                  <span className={`rounded-full px-1.5 text-[10px] tabular-nums ${ver === id ? "bg-secondary" : ""}`}>{conteo[id]}</span>
+                  <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${ver === id ? "bg-secondary" : ""}`}>{conteo[id]}</span>
                 </button>
               ))}
             </div>
@@ -5927,7 +5927,7 @@ function FichaHC({
                 const nuevoDia = i === 0 || new Date(vmLinea.items[i - 1]!.f).toDateString() !== new Date(it.f).toDateString();
                 const separador = nuevoDia ? (
                   <li key={`dia-${it.f}`} className="relative flex items-center gap-3 pl-[52px] pt-1">
-                    <span className="inline-block rounded-full bg-[#0b2a6b] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase shadow-sm dark:bg-white/15">{diaTxt(it.f)}</span>
+                    <span className="inline-block rounded-full bg-[#1E3A8A] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase shadow-sm dark:bg-white/15">{diaTxt(it.f)}</span>
                     <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
                   </li>
                 ) : null;
@@ -5936,12 +5936,12 @@ function FichaHC({
                   const n = it.e;
                   return (
                     <li key={`en-${n.id}`} className="hc-item relative flex gap-4" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0e7490] to-[#0b2a6b] text-white shadow-sm ring-4 ring-card"><Syringe className="size-4" /></span>
+                      <span className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1E3A8A] to-[#1E3A8A] text-white shadow-sm ring-4 ring-card"><Syringe className="size-4" /></span>
                       <div className="hc-card min-w-0 flex-1 rounded-2xl border border-slate-200 bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,.04)] dark:border-white/10">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
                           <EstadoNota n={n} />
-                          {n.editadoPor && <span className="text-[10px] text-muted-foreground" title={`Texto original: ${n.textoOriginal ?? ""}`}>· corregido por {nombreCorto(n.editadoPor)}</span>}
+                          {n.editadoPor && <span className="text-[11px] text-muted-foreground" title={`Texto original: ${n.textoOriginal ?? ""}`}>· corregido por {nombreCorto(n.editadoPor)}</span>}
                           <span className="ml-auto text-xs text-muted-foreground">{horaDeIso(n.fecha)} · {nombreCorto(n.enfermera)}</span>
                         </div>
                         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700 dark:text-slate-200">{limpiarTextoNota(n.texto)}</p>
@@ -5959,7 +5959,7 @@ function FichaHC({
                       <div className="hc-card min-w-0 flex-1 rounded-2xl border border-sky-200/70 bg-gradient-to-br from-sky-50/80 to-card p-4 dark:border-sky-500/20 dark:from-sky-500/5">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">Signos vitales · enfermería</p>
-                          {n && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${n.clase}`}>{n.nombre}</span>}
+                          {n && <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${n.clase}`}>{n.nombre}</span>}
                           <span className="ml-auto text-xs text-muted-foreground">{fechaHora(t.fecha)} · {t.enfermera}</span>
                         </div>
                         <div className="mt-2"><ChipsSignos s={t.signos} /></div>
@@ -5976,7 +5976,7 @@ function FichaHC({
                       <div className="hc-card min-w-0 flex-1 rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/70 to-card p-4 dark:border-amber-500/20 dark:from-amber-500/5">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{e.titulo || e.tipo}</p>
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 ring-1 ring-emerald-200">Estudio</span>
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200">Estudio</span>
                           <span className="ml-auto text-xs text-muted-foreground">{fechaDe(e.fecha)}</span>
                         </div>
                         {e.informe && <p className="mt-1.5 text-sm text-muted-foreground">{e.informe}</p>}
@@ -6010,12 +6010,12 @@ function FichaHC({
                       </header>
                       <div className="space-y-3 p-4">
                         <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Motivo de consulta</p>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Motivo de consulta</p>
                           <p className="font-medium">{e.motivo || "—"}</p>
                         </div>
                         {(pr || s.pulso || s.fr || s.temp || s.spo2 || s.peso || s.talla) && (
                           <div>
-                            <p className="mb-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                            <p className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                               Signos vitales
                               {e.signosPor && (
                                 <span className={`normal-case tracking-normal font-medium ${e.signosPor.rol === "enfermeria" ? "text-emerald-700 dark:text-emerald-300" : ""}`}>
@@ -6028,31 +6028,31 @@ function FichaHC({
                         )}
                         {e.nota && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Evolución del cuadro clínico</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Evolución del cuadro clínico</p>
                             <p className={`whitespace-pre-line text-sm leading-relaxed ${larga && !expandida ? "line-clamp-5" : ""}`}>{e.nota}</p>
                             {larga && i !== 0 && <button onClick={() => alternar(e.id)} className="mt-1 text-xs font-semibold text-[rgb(var(--acc))]">{expandida ? "Ver menos" : "Ver completa"}</button>}
                           </div>
                         )}
                         {e.sintomas && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Signos y síntomas</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Signos y síntomas</p>
                             <p className="whitespace-pre-line text-sm leading-relaxed">{e.sintomas}</p>
                           </div>
                         )}
                         {e.semiologia && (
                           <div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Semiología médica</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Semiología médica</p>
                             <p className="whitespace-pre-line text-sm leading-relaxed">{e.semiologia}</p>
                           </div>
                         )}
                         {dx.length > 0 && (
                           <div>
-                            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Diagnósticos</p>
+                            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Diagnósticos</p>
                             <ul className="space-y-1">
                               {dx.map((d, k) => (
                                 <li key={`${d.codigo}-${k}`} className="flex items-start gap-2 text-sm">
                                   {d.codigo && <span className="mt-0.5 shrink-0 rounded bg-[rgba(var(--acc),.12)] px-1.5 font-mono text-[11px] font-bold text-[rgb(var(--acc))]">{d.codigo}</span>}
-                                  <span>{d.descripcion}{k === 0 && dx.length > 1 && <span className="ml-1.5 text-[10px] font-semibold uppercase text-muted-foreground">Principal</span>}</span>
+                                  <span>{d.descripcion}{k === 0 && dx.length > 1 && <span className="ml-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Principal</span>}</span>
                                 </li>
                               ))}
                             </ul>
@@ -6060,7 +6060,7 @@ function FichaHC({
                         )}
                         {e.plan && (
                           <div className="rounded-xl bg-[rgba(var(--acc),.06)] px-3.5 py-3">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--acc))]">Conducta médica</p>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[rgb(var(--acc))]">Conducta médica</p>
                             <p className="mt-0.5 whitespace-pre-line text-sm leading-relaxed">{e.plan}</p>
                           </div>
                         )}
@@ -6534,7 +6534,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                 <div key={dia}>
                   <p className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     <CalendarDays className="size-3.5" /> {dia === "sin-fecha" ? "Sin fecha de registro" : new Date(`${dia}T12:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] tabular-nums">{lista.length}</span>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] tabular-nums">{lista.length}</span>
                   </p>
                   <ul className="divide-y divide-border/60 rounded-2xl border border-border/60">
                     {lista.map((p) => (
@@ -6544,7 +6544,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                           <p className="truncate font-medium">{p.nombre}</p>
                           <p className="truncate text-xs text-muted-foreground">{[p.dni ? `C.C. ${p.dni}` : null, p.telefono, p.ficha?.obraSocial].filter(Boolean).join(" · ") || "Sin datos"}</p>
                         </div>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${p.origen === "padron" ? "bg-sky-100 text-sky-800 ring-sky-200" : p.origen === "portal" ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${p.origen === "padron" ? "bg-sky-100 text-sky-800 ring-sky-200" : p.origen === "portal" ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>
                           {p.origen === "padron" ? "Cargado en clínica" : p.origen === "portal" ? "Portal" : "Desde cita"}
                         </span>
                         <button onClick={() => { setAbiertoId(p.id); setDetalle(null); window.setTimeout(() => document.getElementById(`pac-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">Abrir carpeta</button>
@@ -6711,7 +6711,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
         {verEliminados && (
           <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-white/5">
             <div className="mb-3 flex items-center justify-between">
-              <p className="flex items-center gap-2 text-sm font-semibold"><Archive className="size-4 text-[#0b2a6b]" /> Pacientes eliminados</p>
+              <p className="flex items-center gap-2 text-sm font-semibold"><Archive className="size-4 text-[#1E3A8A]" /> Pacientes eliminados</p>
               <button onClick={() => setVerEliminados(false)} className="text-xs font-semibold text-muted-foreground hover:text-foreground">Cerrar</button>
             </div>
             {eliminados.length === 0 ? <p className="text-sm text-muted-foreground">No hay pacientes eliminados.</p> : (
@@ -6723,7 +6723,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                       <p className="font-semibold">{x.nombre}</p>
                       <p className="truncate text-xs text-muted-foreground">{x.detalle} · eliminado por {nombreCorto(x.por)} el {fechaCorta(x.fecha.slice(0, 10))}</p>
                     </div>
-                    {!soloLectura && <button onClick={() => restaurarPac(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>}
+                    {!soloLectura && <button onClick={() => restaurarPac(x)} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><RotateCcw className="size-3.5" /> Restaurar</button>}
                   </li>
                 ))}
               </ul>
@@ -6779,11 +6779,11 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                         <p className="truncate text-[15px] font-semibold leading-tight">{p.nombre}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className="text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}{edad !== null ? ` · ${edad} años` : ""}</span>
-                          {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
-                          {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo cita</span>}
-                          {esCardio(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
-                          {esNefro(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
-                          {p.ficha?.alergias && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia</span>}
+                          {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
+                          {p.origen === "turno" && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">Solo cita</span>}
+                          {esCardio(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-rose-100 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700 ring-1 ring-rose-200"><HeartPulse className="size-3" /> Cardio</span>}
+                          {esNefro(ant) && <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-100 px-1.5 py-0.5 text-[11px] font-semibold text-sky-800 ring-1 ring-sky-200"><Droplets className="size-3" /> Nefro</span>}
+                          {p.ficha?.alergias && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia</span>}
                         </div>
                       </div>
                     </div>
@@ -6810,7 +6810,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                     {/* Acciones */}
                     <div className="flex items-center gap-2 lg:justify-end">
                       {nDocs > 0 && (
-                        <button onClick={() => { secCarpetaInicial = "documentos"; setAbiertoId(p.id); setSecAbrir((x) => x + 1); }} title="Documentos que subió el paciente y nadie revisó" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#0b2a6b] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#0a2459]">
+                        <button onClick={() => { secCarpetaInicial = "documentos"; setAbiertoId(p.id); setSecAbrir((x) => x + 1); }} title="Documentos que subió el paciente y nadie revisó" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#1E3A8A] px-3 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#172E6E]">
                           <Paperclip className="size-3.5" /> {nDocs} nuevo{nDocs === 1 ? "" : "s"}
                         </button>
                       )}
@@ -6873,7 +6873,7 @@ function FirmaPad({ onGuardar, onCancelar }: { onGuardar: (dataUrl: string) => v
     ctx.lineWidth = 2.4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "#0b2a6b";
+    ctx.strokeStyle = "#1E3A8A";
   }, []);
   const pos = (e: RPointerEvent<HTMLCanvasElement>) => {
     const b = e.currentTarget.getBoundingClientRect();
@@ -6958,7 +6958,7 @@ async function htmlReceta(r: Receta, firma: string | undefined) {
   let qr = "";
   try {
     const QR = (await import("qrcode")).default;
-    qr = await QR.toDataURL(`HEGO · Receta N° ${String(r.numero).padStart(6, "0")} · Código ${r.codigo} · ${r.paciente} · ${r.doctor} · ${fechaDe(r.fecha)}`, { margin: 1, width: 220, color: { dark: "#0b2a6b", light: "#ffffff" } });
+    qr = await QR.toDataURL(`HEGO · Receta N° ${String(r.numero).padStart(6, "0")} · Código ${r.codigo} · ${r.paciente} · ${r.doctor} · ${fechaDe(r.fecha)}`, { margin: 1, width: 220, color: { dark: "#1E3A8A", light: "#ffffff" } });
   } catch { /* sin QR */ }
   const logo = `${location.origin}${logoClinica}`;
   const sello = selloSvg({ nombre: r.doctor, especialidad: r.especialidad, matricula: r.matricula }, "rs");
@@ -6970,27 +6970,27 @@ async function htmlReceta(r: Receta, firma: string | undefined) {
 *{box-sizing:border-box}body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:radial-gradient(circle at 20% 0%,#e0e7ff,#f1f5f9 50%)}
 .hoja{position:relative;max-width:760px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px -35px rgba(15,23,42,.55)}
 .marca{position:absolute;inset:0;background:url('${logo}') center 58%/300px no-repeat;opacity:.05;pointer-events:none;-webkit-mask-image:radial-gradient(circle at 50% 58%,#000 0,#000 90px,transparent 150px);mask-image:radial-gradient(circle at 50% 58%,#000 0,#000 90px,transparent 150px);filter:grayscale(1)}
-.top{position:relative;background:linear-gradient(130deg,#071a46 0%,#0b2a6b 45%,#1d4ed8 100%);color:#fff;padding:26px 32px 30px;display:flex;justify-content:space-between;align-items:center;gap:16px;overflow:hidden}
+.top{position:relative;background:linear-gradient(130deg,#172E6E 0%,#1E3A8A 45%,#3B5BC0 100%);color:#fff;padding:26px 32px 30px;display:flex;justify-content:space-between;align-items:center;gap:16px;overflow:hidden}
 .top:after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%)}
 .marcas{display:flex;align-items:center;gap:14px}.marcas img{width:54px;height:54px;border-radius:14px;background:#fff;padding:5px;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
 .top h1{margin:0;font-family:Georgia,serif;font-size:21px;letter-spacing:.01em}.top .sub{margin:3px 0 0;font-size:10px;letter-spacing:.24em;text-transform:uppercase;opacity:.7}
 .top .doc{margin:8px 0 0;font-size:12.5px;opacity:.9}.rx{position:relative;z-index:1;font-family:Georgia,serif;font-size:58px;font-style:italic;line-height:1;opacity:.95;text-shadow:0 6px 20px rgba(0,0,0,.35)}
 .ecg{position:absolute;left:0;right:0;bottom:6px;height:26px;opacity:.28}
-.franja{height:5px;background:linear-gradient(90deg,#f43f5e,#8b5cf6,#0ea5e9)}
+.franja{height:5px;background:linear-gradient(90deg,#f43f5e,#8b5cf6,#3B5BC0)}
 .body{position:relative;padding:24px 32px 26px}
 .pac{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:14px 18px}
-.pac div{font-size:13px}.pac small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#64748b;margin-bottom:2px}
+.pac div{font-size:13px}.pac small{display:block;font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#475569;margin-bottom:2px}
 .pac .full{grid-column:span 2}
-h2{margin:22px 0 6px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#1d4ed8}
-.it{display:flex;gap:14px;border:1px solid #e2e8f0;border-left:4px solid #1d4ed8;border-radius:14px;padding:12px 16px;margin-top:10px;background:#fff}
-.num{flex:none;width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+h2{margin:22px 0 6px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#3B5BC0}
+.it{display:flex;gap:14px;border:1px solid #e2e8f0;border-left:4px solid #3B5BC0;border-radius:14px;padding:12px 16px;margin-top:10px;background:#fff}
+.num{flex:none;width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,#3B5BC0,#7c3aed);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
 .tx{min-width:0}.n{margin:0;font-weight:700;font-size:15.5px}.n span{font-weight:500;color:#475569}.m{margin:4px 0 0;font-size:12.5px;color:#334155}
 .pos{margin:6px 0 0;font-size:13px;color:#0f172a;background:#eff6ff;border-radius:8px;padding:6px 10px;display:inline-block}
 .dx{margin-top:18px;font-size:13px;padding:10px 14px;border-radius:12px;background:#fdf2f8;border:1px solid #fbcfe8}.dx b{color:#9d174d}
 .ind{margin-top:10px;font-size:13px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px}.ind b{color:#166534}
 .pie{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:30px;padding-top:18px;border-top:1px dashed #cbd5e1}
 .ver{display:flex;align-items:center;gap:12px}.ver img{width:92px;height:92px;border-radius:10px;border:1px solid #e2e8f0;padding:4px;background:#fff}
-.cod{font-size:10.5px;color:#64748b;line-height:1.5}.cod b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:16px;color:#0f172a;letter-spacing:.16em}
+.cod{font-size:10.5px;color:#475569;line-height:1.5}.cod b{display:block;font-family:ui-monospace,Menlo,monospace;font-size:16px;color:#0f172a;letter-spacing:.16em}
 .firma{position:relative;width:270px;height:150px}.firma .f{position:absolute;left:0;right:0;bottom:34px;text-align:center;z-index:2}.firma .f img{height:76px;mix-blend-mode:multiply}
 .firma .l{position:absolute;left:0;right:0;bottom:0;border-top:1.5px solid #334155;padding-top:6px;font-size:11.5px;text-align:center;line-height:1.35}
 .firma .sello{position:absolute;right:-26px;bottom:34px;width:140px;height:140px;transform:rotate(-12deg);opacity:.82;mix-blend-mode:multiply;z-index:1}
@@ -7016,7 +7016,7 @@ ${r.afiliado ? `<div class="full"><small>Afiliado</small>${r.afiliado}</div>` : 
 function imprimirHtml(html: string | Promise<string>) {
   const w = window.open("", "_blank", "width=840,height=1060");
   if (!w) return;
-  w.document.write("<p style='font-family:system-ui;padding:40px;color:#64748b'>Preparando documento…</p>");
+  w.document.write("<p style='font-family:system-ui;padding:40px;color:#475569'>Preparando documento…</p>");
   void Promise.resolve(html).then((h) => {
     w.document.open();
     w.document.write(h);
@@ -7099,7 +7099,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
             <div className="relative flex flex-wrap items-center gap-4">
               <span className="flex size-14 items-center justify-center rounded-2xl bg-white/12 font-display text-3xl italic ring-1 ring-white/25 backdrop-blur">Rp/</span>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Receta digital</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/60">Receta digital</p>
                 <h3 className="font-display text-2xl font-semibold tracking-tight">Nueva receta</h3>
                 <p className="mt-0.5 text-xs text-white/75">{med.nombre} · {med.especialidad}{med.matricula ? ` · ${med.matricula}` : ""}</p>
               </div>
@@ -7156,23 +7156,23 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
         <div className="space-y-6">
           <Seccion icon={FileText} titulo="Vista previa" sub="Así sale la receta" delay={0.02}>
             <div className="pn-keep relative overflow-hidden rounded-2xl bg-white text-slate-900 shadow-[0_20px_50px_-30px_rgba(15,23,42,.6)] ring-1 ring-slate-200">
-              <div className="flex items-center justify-between bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#1d4ed8] px-4 py-3 text-white">
-                <div className="flex items-center gap-2"><img src={logoClinica} alt="" className="size-7 rounded-lg bg-white p-0.5" /><div><p className="font-display text-sm font-semibold leading-none">HEGO</p><p className="text-[8px] uppercase tracking-[0.2em] opacity-70">Especialidades médicas</p></div></div>
+              <div className="flex items-center justify-between bg-gradient-to-r from-[#172E6E] via-[#1E3A8A] to-[#3B5BC0] px-4 py-3 text-white">
+                <div className="flex items-center gap-2"><img src={logoClinica} alt="" className="size-7 rounded-lg bg-white p-0.5" /><div><p className="font-display text-sm font-semibold leading-none">HEGO</p><p className="text-[11px] uppercase tracking-[0.2em] opacity-70">Especialidades médicas</p></div></div>
                 <span className="font-display text-2xl italic">Rp/</span>
               </div>
               <div className="h-1 bg-gradient-to-r from-rose-500 via-violet-500 to-sky-500" />
               <div className="space-y-2 p-4 text-[11px]">
-                <div className="rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"><p className="text-[8px] font-bold uppercase tracking-[0.14em] text-slate-500">Paciente</p><p className="font-semibold">{pac?.nombre ?? "—"}</p></div>
+                <div className="rounded-lg bg-slate-50 px-2.5 py-2 ring-1 ring-slate-200"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Paciente</p><p className="font-semibold">{pac?.nombre ?? "—"}</p></div>
                 {items.filter((x) => x.droga.trim()).length === 0 ? (
                   <p className="py-2 text-center text-slate-400">Los medicamentos aparecen aquí</p>
                 ) : items.filter((x) => x.droga.trim()).map((x, i) => (
                   <div key={i} className="flex gap-2 rounded-lg border-l-[3px] border-blue-600 bg-white px-2 py-1.5 ring-1 ring-slate-200">
-                    <span className="flex size-4 shrink-0 items-center justify-center rounded bg-blue-600 text-[9px] font-bold text-white">{i + 1}</span>
+                    <span className="flex size-4 shrink-0 items-center justify-center rounded bg-blue-600 text-[11px] font-bold text-white">{i + 1}</span>
                     <div className="min-w-0"><p className="truncate font-semibold">{x.droga} <span className="font-normal text-slate-500">{x.presentacion}</span></p>{x.posologia && <p className="truncate text-slate-600">{x.posologia}</p>}</div>
                   </div>
                 ))}
                 <div className="flex items-end justify-between border-t border-dashed border-slate-300 pt-2">
-                  <span className="flex size-10 items-center justify-center rounded-md ring-1 ring-slate-200"><QrCode className="size-6 text-[#0b2a6b]" /></span>
+                  <span className="flex size-10 items-center justify-center rounded-md ring-1 ring-slate-200"><QrCode className="size-6 text-[#1E3A8A]" /></span>
                   <div className="relative h-24 w-40">
                     <SelloMedico m={med} className="absolute -right-1 bottom-1 size-24 -rotate-12 opacity-80 mix-blend-multiply" />
                     {firma && <img src={firma} alt="" className="absolute inset-x-0 bottom-5 mx-auto h-12 mix-blend-multiply" />}
@@ -7264,7 +7264,7 @@ function RecetasTab({ user, log, turnos, inicial }: { user: SessionUser; log: Lo
                       <p className="flex flex-wrap items-center gap-2 font-semibold">
                         {r.paciente}
                         <span className="text-xs font-normal text-muted-foreground">N° {String(r.numero).padStart(6, "0")}</span>
-                        {r.anulada && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-200">Anulada</span>}
+                        {r.anulada && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200">Anulada</span>}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">{r.items.map((i) => `${i.droga} ${i.presentacion}`).join(" · ")}</p>
                       <p className="text-[11px] text-muted-foreground">{fechaHora(r.fecha)} · {nombreCorto(r.doctor)} · Código {r.codigo}</p>
@@ -7474,7 +7474,7 @@ function DocumentosPaciente({ p, user, log, soloLectura = false, compacto = fals
   const COLOR: Record<string, string> = { Laboratorio: "from-rose-500 to-red-600", "Imágenes (Rx, eco, TAC)": "from-sky-500 to-blue-700", Electrocardiograma: "from-pink-500 to-rose-600", "Holter / MAPA": "from-violet-500 to-indigo-600", Ecocardiograma: "from-cyan-500 to-sky-700", "Orden o fórmula médica": "from-amber-400 to-orange-600" };
   return (
     <section className={`overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm dark:border-white/10 ${compacto ? "" : "mb-2"}`}>
-      <button type="button" onClick={() => compacto && setAbierto((v) => !v)} className={`relative flex w-full flex-wrap items-center gap-3 overflow-hidden bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#0e7490] px-4 py-3.5 text-left text-white ${compacto ? "cursor-pointer" : "cursor-default"}`}>
+      <button type="button" onClick={() => compacto && setAbierto((v) => !v)} className={`relative flex w-full flex-wrap items-center gap-3 overflow-hidden bg-gradient-to-r from-[#172E6E] via-[#1E3A8A] to-[#1E3A8A] px-4 py-3.5 text-left text-white ${compacto ? "cursor-pointer" : "cursor-default"}`}>
         <span className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
         <span className="relative grid size-10 place-items-center rounded-xl bg-white/15 ring-1 ring-white/25"><Paperclip className="size-5" /></span>
         <span className="relative min-w-0 flex-1">
@@ -7507,7 +7507,7 @@ function DocumentosPaciente({ p, user, log, soloLectura = false, compacto = fals
                   <li key={d.id} className={`group relative flex items-center gap-3 overflow-hidden rounded-2xl border p-3 transition hover:-translate-y-0.5 hover:shadow-md ${nuevo ? "border-amber-300 bg-amber-50/60 dark:border-amber-500/40 dark:bg-amber-500/5" : "border-border/70 bg-card dark:border-white/10"}`}>
                     <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm ${COLOR[d.categoria] ?? "from-slate-500 to-slate-700"}`}>{d.tipo.startsWith("image/") ? <ScanLine className="size-5" /> : d.tipo.includes("pdf") ? <FileText className="size-5" /> : <Paperclip className="size-5" />}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold">{d.nombre}{nuevo && <span className="shrink-0 rounded-full bg-amber-400 px-1.5 text-[9px] font-bold uppercase text-amber-950">Nuevo</span>}</p>
+                      <p className="flex items-center gap-1.5 truncate text-sm font-semibold">{d.nombre}{nuevo && <span className="shrink-0 rounded-full bg-amber-400 px-1.5 text-[11px] font-bold uppercase text-amber-950">Nuevo</span>}</p>
                       <p className="truncate text-[11px] text-muted-foreground">{d.categoria}{d.fechaEstudio ? ` · examen del ${fechaDe(d.fechaEstudio)}` : ""} · {pesoDoc(d.tamano)}</p>
                       <p className="truncate text-[11px] text-muted-foreground">{d.origen === "paciente" ? "Lo subió el paciente" : `Cargado por ${nombreCorto(d.subidoPor)}`} · {fechaHora(d.fecha)}{d.vistoPor ? ` · ✓ visto por ${nombreCorto(d.vistoPor)}` : ""}</p>
                       {d.nota && <p className="mt-1 line-clamp-2 rounded-lg bg-secondary/60 px-2 py-1 text-[11px] italic dark:bg-white/5">"{d.nota}"</p>}
@@ -7555,16 +7555,16 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
   const y = (v: number) => H - PY - ((v - lo) / (hi - lo || 1)) * (H - PY * 2);
   const x = (i: number) => (sel.pts.length === 1 ? W / 2 : PX + (i * (W - PX * 2)) / (sel.pts.length - 1));
   const linea = sel.pts.map((p, i) => `${i ? "L" : "M"} ${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ");
-  const color = (v: number) => (flagDe(sel.d, v) === "ok" ? "#10b981" : flagDe(sel.d, v) === "alto" ? "#ef4444" : "#f59e0b");
+  const color = (v: number) => (flagDe(sel.d, v) === "ok" ? "#10B981" : flagDe(sel.d, v) === "alto" ? "#ef4444" : "#f59e0b");
   return (
     <div className="mb-6 overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm dark:border-white/10">
-      <div className="relative overflow-hidden bg-gradient-to-r from-[#071a46] via-[#0b2a6b] to-[#be123c] px-4 py-3.5 text-white">
+      <div className="relative overflow-hidden bg-gradient-to-r from-[#172E6E] via-[#1E3A8A] to-[#be123c] px-4 py-3.5 text-white">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
         <p className="relative flex items-center gap-2 pr-40 font-display text-lg font-semibold"><Activity className="size-4" /> Seguimiento de laboratorio</p>
         <p className="relative text-xs text-white/75">{conRes.length} análisis cargado{conRes.length === 1 ? "" : "s"} · cómo vino cada valor en cada control</p>
         <div className="absolute right-3 top-1/2 flex -translate-y-1/2 rounded-xl bg-white/15 p-1 ring-1 ring-white/25">
           {([["tabla", "Tabla"], ["grafico", "Gráficos"]] as const).map(([v, l]) => (
-            <button key={v} type="button" onClick={() => setVista(v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${vista === v ? "bg-white text-[#0b2a6b] shadow" : "text-white/80 hover:text-white"}`}>{l}</button>
+            <button key={v} type="button" onClick={() => setVista(v)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${vista === v ? "bg-white text-[#1E3A8A] shadow" : "text-white/80 hover:text-white"}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -7578,7 +7578,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
                   <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Valor</th>
                   {fechas.map((l, i) => (
                     <th key={l.id} className={`px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wider ${i === fechas.length - 1 ? "rounded-t-xl bg-[rgba(var(--acc),.08)] text-[rgb(var(--acc))]" : "text-muted-foreground"}`}>
-                      {(() => { const d = new Date(l.fechaResultado ?? l.fecha); return <><span className="block whitespace-nowrap text-xs normal-case tracking-normal">{d.getDate()} {d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span><span className="block text-[10px] font-medium tracking-normal opacity-70">{d.getFullYear()}{i === fechas.length - 1 ? " · último" : ""}</span></>; })()}
+                      {(() => { const d = new Date(l.fechaResultado ?? l.fecha); return <><span className="block whitespace-nowrap text-xs normal-case tracking-normal">{d.getDate()} {d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span><span className="block text-[11px] font-medium tracking-normal opacity-70">{d.getFullYear()}{i === fechas.length - 1 ? " · último" : ""}</span></>; })()}
                     </th>
                   ))}
                   <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Normal</th>
@@ -7597,7 +7597,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
                           {typeof v === "number" ? (
                             <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 font-semibold ${f === "ok" ? "" : f === "alto" ? "bg-red-50 text-red-600 dark:bg-red-500/10" : "bg-amber-50 text-amber-700 dark:bg-amber-500/10"}`}>
                               {v}
-                              {typeof prev === "number" && prev !== v && <span className={`text-[10px] ${f === "ok" ? "text-emerald-600" : "text-red-500"}`}>{v > prev ? "▲" : "▼"}</span>}
+                              {typeof prev === "number" && prev !== v && <span className={`text-[11px] ${f === "ok" ? "text-emerald-600" : "text-red-500"}`}>{v > prev ? "▲" : "▼"}</span>}
                             </span>
                           ) : <span className="text-muted-foreground/40">—</span>}
                         </td>
@@ -7625,11 +7625,11 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
               <span className={`size-2.5 shrink-0 rounded-full ${f === "ok" ? "bg-emerald-500" : f === "alto" ? "bg-red-500" : "bg-amber-500"}`} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold">{d.nombre}</span>
-                <span className="block text-[10px] text-muted-foreground">{rangoTxt(d)}</span>
+                <span className="block text-[11px] text-muted-foreground">{rangoTxt(d)}</span>
               </span>
               <span className="text-right">
                 <span className={`block font-display text-lg font-semibold tabular-nums ${f === "ok" ? "" : f === "alto" ? "text-red-600" : "text-amber-600"}`}>{ult.v}</span>
-                {ant && <span className={`block text-[10px] font-semibold ${dif === 0 ? "text-muted-foreground" : flagDe(d, ult.v) === "ok" ? "text-emerald-600" : "text-red-500"}`}>{dif === 0 ? "= igual" : `${dif > 0 ? "▲" : "▼"} ${Math.abs(Math.round(dif * 100) / 100)}`}</span>}
+                {ant && <span className={`block text-[11px] font-semibold ${dif === 0 ? "text-muted-foreground" : flagDe(d, ult.v) === "ok" ? "text-emerald-600" : "text-red-500"}`}>{dif === 0 ? "= igual" : `${dif > 0 ? "▲" : "▼"} ${Math.abs(Math.round(dif * 100) / 100)}`}</span>}
               </span>
             </button>
           );
@@ -7642,7 +7642,7 @@ function SeguimientoLab({ labs }: { labs: PedidoLab[] }) {
         </div>
         <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full" role="img" aria-label={`Evolución de ${sel.d.nombre}`}>
           {(sel.d.min !== undefined || sel.d.max !== undefined) && (
-            <rect x={PX - 10} width={W - PX * 2 + 20} y={y(Math.min(sel.d.max ?? hi, hi))} height={Math.max(0, y(Math.max(sel.d.min ?? lo, lo)) - y(Math.min(sel.d.max ?? hi, hi)))} rx="8" fill="#10b981" fillOpacity=".09" stroke="#10b981" strokeOpacity=".25" strokeDasharray="4 4" />
+            <rect x={PX - 10} width={W - PX * 2 + 20} y={y(Math.min(sel.d.max ?? hi, hi))} height={Math.max(0, y(Math.max(sel.d.min ?? lo, lo)) - y(Math.min(sel.d.max ?? hi, hi)))} rx="8" fill="#10B981" fillOpacity=".09" stroke="#10B981" strokeOpacity=".25" strokeDasharray="4 4" />
           )}
           {([["max", sel.d.max, "#ef4444"], ["min", sel.d.min, "#f59e0b"]] as const).map(([k, v, c]) =>
             v === undefined || v < lo || v > hi ? null : (
@@ -7678,7 +7678,7 @@ const ESTADO_LAB: Record<EstadoLab, string> = {
 function htmlOrdenLab(p: PedidoLab, med: ReturnType<typeof datosMedico>, firma?: string) {
   const paneles = p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)).filter(Boolean) as typeof PANELES_LAB;
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden de laboratorio</title>
-<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:720px;margin:auto}h1{margin:0;font-size:20px}.m{color:#64748b;font-size:13px}
+<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:720px;margin:auto}h1{margin:0;font-size:20px}.m{color:#475569;font-size:13px}
 .box{border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-top:14px}.box h3{margin:0 0 6px;font-size:14px}.box p{margin:0;font-size:13px;color:#334155}
 .tag{display:inline-block;background:#fee2e2;color:#b91c1c;font-weight:700;font-size:12px;padding:3px 8px;border-radius:6px;margin-right:6px}
 .firme{text-align:right;margin-top:40px}.firme img{height:64px}.firme div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
@@ -7833,13 +7833,13 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                       <label key={d.id} className="block">
                         <span className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
                           {d.nombre}
-                          {f !== "ok" && <span className={`rounded px-1.5 text-[10px] font-bold uppercase ${f === "alto" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{f}</span>}
+                          {f !== "ok" && <span className={`rounded px-1.5 text-[11px] font-bold uppercase ${f === "alto" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-800"}`}>{f}</span>}
                         </span>
                         <div className="relative">
                           <input inputMode="decimal" value={v} onChange={(e) => setValores({ ...valores, [d.id]: e.target.value })} className={`${inp} pr-20 ${f !== "ok" ? "!border-red-300" : ""}`} />
                           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">{d.unidad}</span>
                         </div>
-                        <span className="mt-1 block text-[10px] text-muted-foreground">Ref: {d.min !== undefined ? `≥ ${d.min}` : ""}{d.min !== undefined && d.max !== undefined ? " y " : ""}{d.max !== undefined ? `≤ ${d.max}` : ""}</span>
+                        <span className="mt-1 block text-[11px] text-muted-foreground">Ref: {d.min !== undefined ? `≥ ${d.min}` : ""}{d.min !== undefined && d.max !== undefined ? " y " : ""}{d.max !== undefined ? `≤ ${d.max}` : ""}</span>
                       </label>
                     );
                   })}
@@ -7873,8 +7873,8 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                   <div className="min-w-0 flex-1">
                     <p className="flex flex-wrap items-center gap-2 font-semibold">
                       {p.paciente}
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_LAB[p.estado]}`}>{p.estado}</span>
-                      {p.urgente && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">Urgente</span>}
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_LAB[p.estado]}`}>{p.estado}</span>
+                      {p.urgente && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">Urgente</span>}
                     </p>
                     <p className="text-xs text-muted-foreground">{fechaHora(p.fecha)} · {nombreCorto(p.doctor)} · {p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}</p>
                   </div>
@@ -7902,7 +7902,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                             {v} <span className="text-[11px] font-normal text-muted-foreground">{d.unidad}</span>
                             {prev !== undefined && prev !== v && (prev < v ? <TrendingUp className="ml-auto size-3.5" /> : <TrendingDown className="ml-auto size-3.5" />)}
                           </p>
-                          {prev !== undefined && <p className="text-[10px] text-muted-foreground">Anterior: {prev}</p>}
+                          {prev !== undefined && <p className="text-[11px] text-muted-foreground">Anterior: {prev}</p>}
                         </div>
                       );
                     })}
@@ -7922,7 +7922,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
 type VistaFact = "comprobantes" | "porfacturar" | "obras" | "tarifas" | "datos";
 const ESTADO_FACT: Record<Factura["estado"], string> = {
   Emitida: "bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10",
-  Cobrada: "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10",
+  Cobrada: "bg-[#1E3A8A]/[.06] text-[#1E3A8A] ring-[#1E3A8A]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10",
   Anulada: "bg-red-50 text-red-700 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20",
 };
 
@@ -7939,19 +7939,19 @@ function htmlFactura(f: Factura, c: ConfigFactura = {}) {
 <style>
 *{box-sizing:border-box}body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#0f172a;margin:0;padding:32px;background:radial-gradient(circle at 20% 0%,#e0e7ff,#f1f5f9 50%)}
 .hoja{position:relative;max-width:800px;margin:auto;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 30px 80px -35px rgba(15,23,42,.55)}
-.top{position:relative;background:linear-gradient(130deg,#071a46 0%,#0b2a6b 45%,#1d4ed8 100%);color:#fff;padding:26px 32px;display:flex;justify-content:space-between;align-items:center;gap:18px}
-.top:after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,#e11d48,#7c3aed,#0ea5e9)}
+.top{position:relative;background:linear-gradient(130deg,#172E6E 0%,#1E3A8A 45%,#3B5BC0 100%);color:#fff;padding:26px 32px;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,#e11d48,#7c3aed,#3B5BC0)}
 .marca{display:flex;gap:14px;align-items:center}.marca img{width:58px;height:58px;border-radius:16px;background:#fff;padding:4px}
 .marca h1{margin:0;font-size:20px;letter-spacing:.5px}.marca p{margin:3px 0 0;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;opacity:.75}
 .doc{text-align:right}.doc .t{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;opacity:.75}.doc .n{font-size:24px;font-weight:800;margin-top:2px}.doc .f{font-size:12px;opacity:.8;margin-top:2px}
 .datos{padding:12px 32px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:11.5px;color:#475569}
 .cuerpo{padding:24px 32px}
-.cajas{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}.caja{border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px}.caja .l{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:4px}.caja .v{font-size:15px;font-weight:700}.caja .s{font-size:12px;color:#475569;margin-top:2px}
-table{width:100%;border-collapse:separate;border-spacing:0;margin-top:20px;font-size:13px}thead th{background:#0b2a6b;color:#fff;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:10px;text-align:left}thead th:first-child{border-radius:10px 0 0 10px}thead th:last-child{border-radius:0 10px 10px 0}
+.cajas{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}.caja{border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px}.caja .l{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#475569;margin-bottom:4px}.caja .v{font-size:15px;font-weight:700}.caja .s{font-size:12px;color:#475569;margin-top:2px}
+table{width:100%;border-collapse:separate;border-spacing:0;margin-top:20px;font-size:13px}thead th{background:#1E3A8A;color:#fff;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;padding:10px;text-align:left}thead th:first-child{border-radius:10px 0 0 10px}thead th:last-child{border-radius:0 10px 10px 0}
 td{padding:11px 10px;border-bottom:1px solid #eef2f7}.c{text-align:center}.r{text-align:right}.b{font-weight:700}
 .tot{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin-top:18px}.letras{font-size:12px;color:#475569;max-width:58%}.letras b{color:#0f172a;display:inline-block}.letras b::first-letter{text-transform:uppercase}
-.suma{min-width:260px;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0}.suma div{display:flex;justify-content:space-between;padding:8px 14px;font-size:13px}.suma .g{background:linear-gradient(130deg,#0b2a6b,#1d4ed8);color:#fff;font-size:18px;font-weight:800;padding:12px 14px}
-.nota{margin-top:22px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:10.5px;color:#64748b;line-height:1.55}
+.suma{min-width:260px;border-radius:14px;overflow:hidden;border:1px solid #e2e8f0}.suma div{display:flex;justify-content:space-between;padding:8px 14px;font-size:13px}.suma .g{background:linear-gradient(130deg,#1E3A8A,#3B5BC0);color:#fff;font-size:18px;font-weight:800;padding:12px 14px}
+.nota{margin-top:22px;padding-top:12px;border-top:1px dashed #cbd5e1;font-size:10.5px;color:#475569;line-height:1.55}
 .anulada{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);font-size:84px;font-weight:900;color:rgba(220,38,38,.16);letter-spacing:8px;pointer-events:none}
 @media print{body{background:#fff;padding:0}.hoja{box-shadow:none;border-radius:0}}
 </style></head><body><div class="hoja">
@@ -8209,9 +8209,9 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
               {vmComp.items.map((f) => (
                 <li key={f.id} className="flex flex-col gap-3 py-3.5 lg:flex-row lg:flex-wrap lg:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo === "Nota crédito" ? "from-slate-500 to-slate-700" : f.tipo.startsWith("Factura") ? "from-[#0b2a6b] to-[#071a46]" : f.tipo.startsWith("Cuenta") ? "from-[#0e7490] to-[#155e75]" : "from-[#1d4ed8] to-[#0b2a6b]"}`}>{siglaComp(f.tipo)}</span>
+                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xs font-bold text-white shadow-md ${f.tipo === "Nota crédito" ? "from-slate-500 to-slate-700" : f.tipo.startsWith("Factura") ? "from-[#1E3A8A] to-[#172E6E]" : f.tipo.startsWith("Cuenta") ? "from-[#1E3A8A] to-[#155e75]" : "from-[#3B5BC0] to-[#1E3A8A]"}`}>{siglaComp(f.tipo)}</span>
                     <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} {f.tipo !== "Nota crédito" && <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-semibold">{f.receptor} {f.tipo !== "Nota crédito" && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>}</p>
                       <p className="text-xs text-muted-foreground">{f.tipo} N.º {f.numero} · {fechaHora(f.fecha)} · {f.cobertura}{f.periodo ? ` · ${f.periodo}` : ""}</p>
                       {f.refFactura && <p className="text-xs text-muted-foreground">Corrige la factura N.º {f.refFactura.numero} · {f.motivo}</p>}
                       {f.anulacion && <p className="text-xs text-red-700 dark:text-red-300">Anulada por {nombreCorto(f.anulacion.por)}: {f.anulacion.motivo}{f.anulacion.notaCredito ? ` · Nota crédito N.º ${f.anulacion.notaCredito}` : ""}</p>}
@@ -8222,7 +8222,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                   <div className="flex flex-wrap gap-1.5">
                     <button onClick={() => imprimirHtml(htmlFactura(f, config))} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Imprimir</button>
                     {f.estado === "Emitida" && f.cobertura === "Particular" && f.tipo !== "Nota crédito" && (
-                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Marcar cobrada</button>
+                      <button onClick={() => { setFacturas((p) => p.map((x) => (x.id === f.id ? { ...x, estado: "Cobrada" } : x))); log("Comprobante cobrado", `${f.numero}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Marcar cobrada</button>
                     )}
                     {f.estado !== "Anulada" && f.tipo !== "Nota crédito" && (
                       <button onClick={() => setAnulando(anulando?.id === f.id ? null : { id: f.id, motivo: "" })} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-red-50 hover:text-red-600">Anular</button>
@@ -8255,7 +8255,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                 const total = g.cobros.reduce((a, c) => a + (c.aCargoEps ?? 0), 0);
                 return (
                   <li key={`${g.eps}|${g.mes}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 p-3.5 dark:border-white/10">
-                    <span className="grid size-11 place-items-center rounded-xl bg-[#0b2a6b] text-white"><Building2 className="size-5" /></span>
+                    <span className="grid size-11 place-items-center rounded-xl bg-[#1E3A8A] text-white"><Building2 className="size-5" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{g.eps} <span className="font-normal text-muted-foreground first-letter:uppercase">· {mesTxt(g.mes)}</span></p>
                       <p className="text-xs text-muted-foreground">{g.cobros.length} atención{g.cobros.length === 1 ? "" : "es"} · {[...new Set(g.cobros.map((c) => c.paciente))].slice(0, 3).join(", ")}{new Set(g.cobros.map((c) => c.paciente)).size > 3 ? "…" : ""}</p>
@@ -8311,18 +8311,18 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
               {porOS.map(([os, v]) => (
                 <div key={os} className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
                   <div className="flex flex-wrap items-center gap-4 bg-slate-50/80 p-4 dark:bg-white/5">
-                    <span className="grid size-11 place-items-center rounded-xl bg-[#0b2a6b] text-white"><Building2 className="size-5" /></span>
+                    <span className="grid size-11 place-items-center rounded-xl bg-[#1E3A8A] text-white"><Building2 className="size-5" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold">{os}</p>
                       <p className="text-xs text-muted-foreground">{v.n} cuenta{v.n === 1 ? "" : "s"} · facturado {dinero(v.total)}</p>
                       <div className="mt-2 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
-                        <div className="h-full rounded-full bg-[#0e7490]" style={{ width: `${v.total ? ((v.total - v.pend) / v.total) * 100 : 0}%` }} />
+                        <div className="h-full rounded-full bg-[#1E3A8A]" style={{ width: `${v.total ? ((v.total - v.pend) / v.total) * 100 : 0}%` }} />
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4 text-right text-xs">
                       <div><p className="text-muted-foreground">Pagado</p><p className="font-semibold tabular-nums">{dinero(v.abonado)}</p></div>
-                      <div><p className="text-muted-foreground">Glosado</p><p className="font-semibold tabular-nums">{dinero(v.glosado)}</p>{v.enDiscusion > 0 && <p className="text-[10px] text-muted-foreground">{dinero(v.enDiscusion)} en discusión</p>}</div>
-                      <div><p className="text-muted-foreground">Saldo</p><p className="font-display text-lg font-semibold tabular-nums text-[#0b2a6b] dark:text-sky-200">{dinero(v.pend)}</p></div>
+                      <div><p className="text-muted-foreground">Glosado</p><p className="font-semibold tabular-nums">{dinero(v.glosado)}</p>{v.enDiscusion > 0 && <p className="text-[11px] text-muted-foreground">{dinero(v.enDiscusion)} en discusión</p>}</div>
+                      <div><p className="text-muted-foreground">Saldo</p><p className="font-display text-lg font-semibold tabular-nums text-[#1E3A8A] dark:text-sky-200">{dinero(v.pend)}</p></div>
                     </div>
                   </div>
                   <ul className="divide-y divide-slate-100 dark:divide-white/5">
@@ -8335,7 +8335,7 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                           <div className="flex flex-wrap items-start gap-3">
                             <div className="min-w-0 flex-1">
                               <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{f.tipo} N.º {f.numero}
-                                <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${saldo <= 0 ? "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{saldo <= 0 ? "Pagada" : f.radicacion ? "Radicada" : "Sin radicar"}</span>
+                                <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${saldo <= 0 ? "bg-[#1E3A8A]/[.06] text-[#1E3A8A] ring-[#1E3A8A]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>{saldo <= 0 ? "Pagada" : f.radicacion ? "Radicada" : "Sin radicar"}</span>
                               </p>
                               <p className="text-xs text-muted-foreground">{fechaDe(f.fecha)}{f.periodo ? ` · ${f.periodo}` : ""} · {f.items.length} ítem{f.items.length === 1 ? "" : "s"}{f.docReceptor ? ` · ${f.docReceptor}` : ""}</p>
                               {f.radicacion && <p className="text-xs text-muted-foreground">Radicado {f.radicacion.numero} el {fechaDe(f.radicacion.fecha)}{dias !== null && saldo > 0 ? (dias === 0 ? " · hoy" : ` · hace ${dias} día${dias === 1 ? "" : "s"}`) : ""}</p>}
@@ -8351,10 +8351,10 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                                 <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
                                   <span className="font-semibold">Glosa</span><span className="min-w-0 flex-1 truncate text-muted-foreground">{g.motivo}</span>
                                   <span className="font-semibold tabular-nums">{dinero(g.valor)}</span>
-                                  <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">{g.estado}</span>
+                                  <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10">{g.estado}</span>
                                   {g.estado === "En discusión" && (
                                     <>
-                                      <button onClick={() => cambiarGlosa(f, g, "Levantada")} className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#0b2a6b] hover:bg-white dark:text-sky-200">Levantada (la EPS paga)</button>
+                                      <button onClick={() => cambiarGlosa(f, g, "Levantada")} className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A] hover:bg-white dark:text-sky-200">Levantada (la EPS paga)</button>
                                       <button onClick={() => cambiarGlosa(f, g, "Aceptada")} className="rounded-md px-2 py-0.5 text-[11px] font-semibold text-slate-600 hover:bg-white dark:text-slate-300">Aceptar (se descuenta)</button>
                                     </>
                                   )}
@@ -8362,14 +8362,14 @@ function FacturacionTab({ user, log, turnos, vista, setVista }: { user: SessionU
                               ))}
                               {(f.abonos ?? []).map((x) => (
                                 <div key={x.id} className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-1.5 text-xs">
-                                  <Check className="size-3.5 text-[#0e7490]" /><span className="text-muted-foreground">Pago recibido el {fechaDe(diaLocal(x.fecha))}{x.nota ? ` · ${x.nota}` : ""}</span>
+                                  <Check className="size-3.5 text-[#1E3A8A]" /><span className="text-muted-foreground">Pago recibido el {fechaDe(diaLocal(x.fecha))}{x.nota ? ` · ${x.nota}` : ""}</span>
                                   <span className="ml-auto font-semibold tabular-nums">{dinero(x.valor)}</span>
                                 </div>
                               ))}
                             </div>
                           ) : null}
                           <div className="mt-3 flex flex-wrap gap-1.5">
-                            {!f.radicacion && <button onClick={() => setAccion({ id: f.id, tipo: "radicar", a: "", b: hoy() })} className={`${btn} bg-[#0b2a6b] text-white hover:bg-[#0a2459]`}><Send className="size-3.5" /> Registrar radicación</button>}
+                            {!f.radicacion && <button onClick={() => setAccion({ id: f.id, tipo: "radicar", a: "", b: hoy() })} className={`${btn} bg-[#1E3A8A] text-white hover:bg-[#172E6E]`}><Send className="size-3.5" /> Registrar radicación</button>}
                             {saldo > 0 && <button onClick={() => setAccion({ id: f.id, tipo: "abono", a: String(saldo), b: "" })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Wallet className="size-3.5" /> Registrar pago</button>}
                             {saldo > 0 && <button onClick={() => setAccion({ id: f.id, tipo: "glosa", a: "", b: "" })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><AlertTriangle className="size-3.5" /> Registrar glosa</button>}
                             <button onClick={() => imprimirHtml(htmlFactura(f, config))} className={`${btn} text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10`}><Printer className="size-3.5" /> Imprimir</button>
@@ -8436,14 +8436,14 @@ function TarifasFact({ tarifas, setTarifas, puede, log, epsConocidas = [] }: { t
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">Ver tarifas de:</span>
         {["Particular", ...opciones].map((e) => (
-          <button key={e} type="button" onClick={() => setCob(e)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cob === e ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>
-            {e}{e !== "Particular" && <span className={`rounded px-1 text-[10px] ${cob === e ? "bg-white/20" : "bg-slate-100 dark:bg-white/10"}`}>{conConvenio(e)}</span>}
+          <button key={e} type="button" onClick={() => setCob(e)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cob === e ? "bg-[#1E3A8A] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}>
+            {e}{e !== "Particular" && <span className={`rounded px-1 text-[11px] ${cob === e ? "bg-white/20" : "bg-slate-100 dark:bg-white/10"}`}>{conConvenio(e)}</span>}
           </button>
         ))}
         {puede && (
           <form onSubmit={(ev) => { ev.preventDefault(); const n = nuevaEps.trim(); if (!n) return; setExtra((x) => [...x, n]); setCob(n); setNuevaEps(""); }} className="flex items-center gap-1.5">
             <input value={nuevaEps} onChange={(e) => setNuevaEps(e.target.value)} placeholder="Otra EPS…" className={inp + " h-8 w-36 text-xs"} />
-            <button type="submit" className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10"><Plus className="size-3.5" /> Agregar</button>
+            <button type="submit" className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[#1E3A8A] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10"><Plus className="size-3.5" /> Agregar</button>
           </form>
         )}
       </div>
@@ -8523,17 +8523,17 @@ function DatosFact({ config, setConfig, puede, log }: { config: ConfigFactura; s
 }
 
 /* ═══════════════════════ ANALÍTICA Y REPORTES ═══════════════════════ */
-const PALETA = ["#0b2a6b", "#0e7490", "#1d4ed8", "#0f766e", "#475569", "#155e75", "#3b5b9a", "#64748b"];
+const PALETA = ["#1E3A8A", "#1E3A8A", "#3B5BC0", "#0f766e", "#475569", "#155e75", "#3b5b9a", "#475569"];
 
-function BarrasV({ datos, color = "#0b2a6b", fmt = (n: number) => String(n), alto = "h-48" }: { datos: { l: string; v: number }[]; color?: string; fmt?: (n: number) => string; alto?: string }) {
+function BarrasV({ datos, color = "#1E3A8A", fmt = (n: number) => String(n), alto = "h-48" }: { datos: { l: string; v: number }[]; color?: string; fmt?: (n: number) => string; alto?: string }) {
   const max = Math.max(1, ...datos.map((d) => d.v));
   return (
     <div className={`flex ${alto} items-end gap-2`}>
       {datos.map((d, i) => (
         <div key={d.l + i} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
-          <span className="text-[10px] font-semibold tabular-nums text-muted-foreground">{d.v ? fmt(d.v) : ""}</span>
+          <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">{d.v ? fmt(d.v) : ""}</span>
           <div className="w-full max-w-[44px] rounded-t-md transition-all duration-700 group-hover:opacity-90" style={{ height: `${Math.max(2, (d.v / max) * 100)}%`, background: `linear-gradient(180deg, ${color}, ${color}cc)`, animation: `pn-up .6s ease-out ${i * 0.04}s both` }} />
-          <span className="w-full truncate text-center text-[10px] text-muted-foreground">{d.l}</span>
+          <span className="w-full truncate text-center text-[11px] text-muted-foreground">{d.l}</span>
         </div>
       ))}
     </div>
@@ -8565,22 +8565,22 @@ function BarrasDobles({ datos, a, b, fmt }: { datos: { l: string; a: number; b: 
   const max = Math.max(1, ...datos.flatMap((d) => [d.a, d.b]));
   return (
     <div>
-      <div className="mb-3 flex gap-4 text-[11px] text-muted-foreground"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#0b2a6b]" />{a}</span><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#94a3b8]" />{b}</span></div>
+      <div className="mb-3 flex gap-4 text-[11px] text-muted-foreground"><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#1E3A8A]" />{a}</span><span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-[#94a3b8]" />{b}</span></div>
       <div className="flex h-44 items-end gap-3">
         {datos.map((d, i) => (
           <div key={d.l + i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5" title={`${a}: ${fmt(d.a)} · ${b}: ${fmt(d.b)}`}>
             <div className="flex h-full w-full items-end justify-center gap-1">
-              <div className="w-1/2 max-w-[18px] rounded-t-sm bg-[#0b2a6b]" style={{ height: `${Math.max(2, (d.a / max) * 100)}%` }} />
+              <div className="w-1/2 max-w-[18px] rounded-t-sm bg-[#1E3A8A]" style={{ height: `${Math.max(2, (d.a / max) * 100)}%` }} />
               <div className="w-1/2 max-w-[18px] rounded-t-sm bg-[#94a3b8]" style={{ height: `${Math.max(2, (d.b / max) * 100)}%` }} />
             </div>
-            <span className="w-full truncate text-center text-[10px] text-muted-foreground">{d.l}</span>
+            <span className="w-full truncate text-center text-[11px] text-muted-foreground">{d.l}</span>
           </div>
         ))}
       </div>
     </div>
   );
 }
-function DonaPct({ pct, etiqueta, sub, color = "#0b2a6b" }: { pct: number; etiqueta: string; sub: string; color?: string }) {
+function DonaPct({ pct, etiqueta, sub, color = "#1E3A8A" }: { pct: number; etiqueta: string; sub: string; color?: string }) {
   return (
     <div className="flex flex-col items-center text-center">
       <div className="relative size-32">
@@ -8598,7 +8598,7 @@ function DonaPct({ pct, etiqueta, sub, color = "#0b2a6b" }: { pct: number; etiqu
 function Dato({ l, v, s, icon: Icon }: { l: string; v: string; s?: string; icon: LucideIcon }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-card p-4 dark:border-white/10">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><Icon className="size-4.5" /></span>
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Icon className="size-4.5" /></span>
       <div className="min-w-0">
         <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{l}</p>
         <p className="font-display text-xl font-semibold tabular-nums">{v}</p>
@@ -8796,8 +8796,8 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       return `<h2>${esc(titulo)}</h2>${filas.length ? `<table>${filas.slice(0, 10).map((x) => `<tr><td>${esc(x.l)}</td><td class="r">${esc(fmt(x.v))}</td><td class="r m">${tot ? Math.round((x.v / tot) * 100) : 0}%</td></tr>`).join("")}</table>` : '<p class="m">Sin datos en el período.</p>'}`;
     };
     imprimirHtml(`<!doctype html><html lang="es-CO"><head><meta charset="utf-8"><title>Informe de gestión HEGO</title><style>
-      body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:860px;margin:auto}h1{margin:0;color:#0b2a6b;font-size:24px}h2{font-size:14px;color:#0b2a6b;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:1px}
-      .m{color:#64748b;font-size:12px}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.k div{border:1px solid #e2e8f0;border-radius:12px;padding:12px}.k b{display:block;font-size:20px;color:#0b2a6b;margin:4px 0}
+      body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:860px;margin:auto}h1{margin:0;color:#1E3A8A;font-size:24px}h2{font-size:14px;color:#1E3A8A;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:1px}
+      .m{color:#475569;font-size:12px}.k{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px}.k div{border:1px solid #e2e8f0;border-radius:12px;padding:12px}.k b{display:block;font-size:20px;color:#1E3A8A;margin:4px 0}
       table{width:100%;border-collapse:collapse;font-size:12.5px}td{padding:6px 4px;border-bottom:1px solid #f1f5f9}.r{text-align:right}.cols{display:grid;grid-template-columns:1fr 1fr;gap:0 28px}li{font-size:12.5px;margin:4px 0}
     </style></head><body>
       <h1>Informe de gestión · HEGO</h1><p class="m">${esc(periodoTxt)}${todo ? "" : ` (${esc(fechaDe(desde))} al ${esc(fechaDe(hoyIso))})`} · Profesional: ${esc(doc)} · Generado el ${esc(fechaHora(new Date().toISOString()))}</p>
@@ -8818,7 +8818,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       <div className="pn-card flex flex-wrap items-center gap-3 p-3">
         <div className="inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5">
           {[[7, "7 días"], [30, "30 días"], [90, "3 meses"], [365, "12 meses"], [99999, "Todo"]].map(([d, l]) => (
-            <button key={d} onClick={() => setDias(d as number)} className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${dias === d ? "bg-[#0b2a6b] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>{l}</button>
+            <button key={d} onClick={() => setDias(d as number)} className={`rounded-lg px-3.5 py-2 text-xs font-semibold transition ${dias === d ? "bg-[#1E3A8A] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>{l}</button>
           ))}
         </div>
         <div className="w-full sm:w-[290px]"><select value={doc} onChange={(e) => setDoc(e.target.value)} className={inp + " h-10"} aria-label="Profesional">
@@ -8826,8 +8826,8 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
           {ADMINS.map((a) => <option key={a.id} value={a.nombre}>{a.nombre}</option>)}
         </select></div>
         <div className="ml-auto flex flex-wrap gap-2">
-          <button type="button" onClick={informePdf} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#0b2a6b] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><Printer className="size-4" /> Informe PDF</button>
-          <button type="button" onClick={() => void excelCompleto()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0b2a6b] px-4 text-sm font-semibold text-white hover:bg-[#0a2459]">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel completo</button>
+          <button type="button" onClick={informePdf} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><Printer className="size-4" /> Informe PDF</button>
+          <button type="button" onClick={() => void excelCompleto()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#1E3A8A] px-4 text-sm font-semibold text-white hover:bg-[#172E6E]">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Excel completo</button>
         </div>
       </div>
 
@@ -8849,7 +8849,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
           <ul className="grid gap-2.5 lg:grid-cols-2">
             {alertas.map((a) => (
               <li key={a.t} className="flex gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-white/10 dark:bg-white/5">
-                <span className="mt-1 size-2 shrink-0 rounded-full bg-[#0e7490]" />
+                <span className="mt-1 size-2 shrink-0 rounded-full bg-[#1E3A8A]" />
                 <div><p className="text-sm font-semibold">{a.t}</p><p className="text-xs text-muted-foreground">{a.d}</p></div>
               </li>
             ))}
@@ -8858,8 +8858,8 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       )}
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Seccion icon={CalendarDays} titulo="Citas por mes" sub="Últimos 12 meses, sin canceladas"><BarrasV datos={turnosMes} color="#0b2a6b" /></Seccion>
-        <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes · últimos 12 meses" delay={0.05}><BarrasV datos={ingresosMes} color="#0e7490" fmt={(n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : n >= 1e3 ? `${Math.round(n / 1e3)} mil` : String(n))} /></Seccion>
+        <Seccion icon={CalendarDays} titulo="Citas por mes" sub="Últimos 12 meses, sin canceladas"><BarrasV datos={turnosMes} color="#1E3A8A" /></Seccion>
+        <Seccion icon={TrendingUp} titulo="Ingresos por mes" sub="Pagos de pacientes · últimos 12 meses" delay={0.05}><BarrasV datos={ingresosMes} color="#1E3A8A" fmt={(n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : n >= 1e3 ? `${Math.round(n / 1e3)} mil` : String(n))} /></Seccion>
       </div>
 
       <Seccion icon={Clock} titulo="Cuándo piden citas" sub={pico.v ? `Hora pico: ${DIAS_SEM[pico.d]} a las ${hora12(`${String(FRANJAS[pico.h]).padStart(2, "0")}:00`)} · útil para organizar horarios y personal` : "Días y horas con más citas en el período"}>
@@ -8871,7 +8871,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
                 <tr key={d}>
                   <td className="pr-2 text-right font-semibold text-muted-foreground">{DIAS_SEM[d]}</td>
                   {fila.map((v, h) => (
-                    <td key={h} title={`${DIAS_SEM[d]} ${FRANJAS[h]}:00 · ${v} cita${v === 1 ? "" : "s"}`} className="h-9 rounded-md text-center font-semibold tabular-nums" style={{ background: v ? `rgba(11,42,107,${0.12 + (v / maxMapa) * 0.78})` : "rgba(148,163,184,.12)", color: v / maxMapa > 0.45 ? "#fff" : "#0b2a6b" }}>{v || ""}</td>
+                    <td key={h} title={`${DIAS_SEM[d]} ${FRANJAS[h]}:00 · ${v} cita${v === 1 ? "" : "s"}`} className="h-9 rounded-md text-center font-semibold tabular-nums" style={{ background: v ? `rgba(11,42,107,${0.12 + (v / maxMapa) * 0.78})` : "rgba(148,163,184,.12)", color: v / maxMapa > 0.45 ? "#fff" : "#1E3A8A" }}>{v || ""}</td>
                   ))}
                 </tr>
               ))}
@@ -8882,7 +8882,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
 
       <div className="grid gap-6 xl:grid-cols-3">
         <Seccion icon={Stethoscope} titulo="Citas por doctor" sub="En el período"><BarrasH datos={porDoctor} /></Seccion>
-        <Seccion icon={ClipboardList} titulo="Estado de las citas" sub="En el período" delay={0.05}><BarrasH datos={porEstado} colores={["#0b2a6b", "#0e7490", "#94a3b8", "#cbd5e1"]} /></Seccion>
+        <Seccion icon={ClipboardList} titulo="Estado de las citas" sub="En el período" delay={0.05}><BarrasH datos={porEstado} colores={["#1E3A8A", "#1E3A8A", "#94a3b8", "#cbd5e1"]} /></Seccion>
         <Seccion icon={Globe} titulo="Por dónde llegan" sub="Origen de las citas" delay={0.1}><BarrasH datos={porOrigen} /></Seccion>
         <Seccion icon={Activity} titulo="Motivos de consulta" sub="Los más frecuentes" delay={0.15}><BarrasH datos={porMotivo} max={6} /></Seccion>
         <Seccion icon={Receipt} titulo="Ingresos por servicio" sub="Lo que más ingresa" delay={0.2}><BarrasH datos={porServicio} fmt={dinero} max={6} /></Seccion>
@@ -8898,18 +8898,18 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
         <Seccion icon={Users} titulo="Pacientes" sub="Nuevos y recurrentes en el período">
           <div className="grid grid-cols-2 gap-4">
             <DonaPct pct={pacIdsPeriodo.size ? (recurrentes / pacIdsPeriodo.size) * 100 : 0} etiqueta="Recurrentes" sub={`${recurrentes} de ${pacIdsPeriodo.size} atendidos`} />
-            <DonaPct pct={pacIdsPeriodo.size ? ((pacIdsPeriodo.size - recurrentes) / pacIdsPeriodo.size) * 100 : 0} etiqueta="Primera vez" sub={`${pacIdsPeriodo.size - recurrentes} pacientes`} color="#0e7490" />
+            <DonaPct pct={pacIdsPeriodo.size ? ((pacIdsPeriodo.size - recurrentes) / pacIdsPeriodo.size) * 100 : 0} etiqueta="Primera vez" sub={`${pacIdsPeriodo.size - recurrentes} pacientes`} color="#1E3A8A" />
           </div>
         </Seccion>
         <Seccion icon={ShieldCheck} titulo="Pacientes por EPS" sub="Todos los pacientes" delay={0.05}><BarrasH datos={porEps} max={6} /></Seccion>
-        <Seccion icon={Users} titulo="Pacientes por edad" sub={`${conEdad.length} con fecha de nacimiento`} delay={0.1}><BarrasV datos={porEdad} color="#0e7490" alto="h-40" /></Seccion>
+        <Seccion icon={Users} titulo="Pacientes por edad" sub={`${conEdad.length} con fecha de nacimiento`} delay={0.1}><BarrasV datos={porEdad} color="#1E3A8A" alto="h-40" /></Seccion>
       </div>
 
       <Seccion icon={Activity} titulo="Indicadores clínicos" sub="Último valor registrado de cada paciente">
         <div className="grid gap-6 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[#0e7490]"><Droplets className="size-3.5" /> Estadios de ERC (KDIGO)</p>
-            <BarrasV datos={estadios} color="#0e7490" alto="h-40" />
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-[#1E3A8A]"><Droplets className="size-3.5" /> Estadios de ERC (KDIGO)</p>
+            <BarrasV datos={estadios} color="#1E3A8A" alto="h-40" />
           </div>
           <div className="flex items-center justify-center rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
             <DonaPct pct={conTA.length ? (controlados / conTA.length) * 100 : 0} etiqueta="Presión controlada" sub={`${controlados} de ${conTA.length} · < 140/90`} />
@@ -8925,13 +8925,13 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
             ].map((x) => (
               <div key={x.l} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5 dark:border-white/10">
                 <span className="text-sm">{x.l}</span>
-                <span className="font-display text-xl font-semibold tabular-nums text-[#0b2a6b] dark:text-sky-200">{x.v}</span>
+                <span className="font-display text-xl font-semibold tabular-nums text-[#1E3A8A] dark:text-sky-200">{x.v}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="mt-6">
-          <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#0b2a6b] dark:text-sky-200">Diagnósticos más frecuentes en el período</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-sky-200">Diagnósticos más frecuentes en el período</p>
           <BarrasH datos={topDx} max={8} />
         </div>
       </Seccion>
@@ -8939,16 +8939,16 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
       <Seccion icon={Download} titulo="Reportes para descargar" sub={`Excel del período elegido (${periodoTxt.toLowerCase()}${doc !== "Todos" ? ` · ${nombreCorto(doc)}` : ""})`}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {reportes.map((r) => (
-            <button key={r.t} onClick={async () => { try { await descargarExcel(nombreArchivo(r.t.toLowerCase()), r.hojas()); log("Reporte exportado", `${r.t} · ${periodoTxt}`); } catch { toast.error("No se pudo generar el Excel."); } }} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-card p-4 text-left transition hover:-translate-y-0.5 hover:border-[#0b2a6b]/30 hover:shadow-md dark:border-white/10">
-              <span className="grid size-10 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><r.icon className="size-4" /></span>
+            <button key={r.t} onClick={async () => { try { await descargarExcel(nombreArchivo(r.t.toLowerCase()), r.hojas()); log("Reporte exportado", `${r.t} · ${periodoTxt}`); } catch { toast.error("No se pudo generar el Excel."); } }} className="group flex items-center gap-3 rounded-2xl border border-slate-200 bg-card p-4 text-left transition hover:-translate-y-0.5 hover:border-[#1E3A8A]/30 hover:shadow-md dark:border-white/10">
+              <span className="grid size-10 place-items-center rounded-xl bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><r.icon className="size-4" /></span>
               <span className="min-w-0 flex-1">
                 <span className="block font-semibold">{r.t}</span>
                 <span className="block text-xs text-muted-foreground">{r.d}</span>
               </span>
-              <FileSpreadsheet className="size-4 text-muted-foreground transition group-hover:text-[#0b2a6b]" />
+              <FileSpreadsheet className="size-4 text-muted-foreground transition group-hover:text-[#1E3A8A]" />
             </button>
           ))}
-          <button onClick={() => void excelCompleto()} className="group flex items-center gap-3 rounded-2xl bg-[#0b2a6b] p-4 text-left text-white transition hover:-translate-y-0.5 hover:shadow-md">
+          <button onClick={() => void excelCompleto()} className="group flex items-center gap-3 rounded-2xl bg-[#1E3A8A] p-4 text-left text-white transition hover:-translate-y-0.5 hover:shadow-md">
             <span className="grid size-10 place-items-center rounded-xl bg-white/15"><FileSpreadsheet className="size-4" /></span>
             <span className="min-w-0 flex-1"><span className="block font-semibold">Todo en un Excel</span><span className="block text-xs text-white/75">Resumen + todas las hojas</span></span>
             <Download className="size-4" />
@@ -9194,7 +9194,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
         <div className="pn-orb pointer-events-none absolute -right-16 -top-20 size-72 rounded-full bg-rose-400/20 blur-3xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Zap className="size-3.5" /> Automatizaciones</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Zap className="size-3.5" /> Automatizaciones</span>
             <h2 className="mt-3 text-3xl font-semibold">Notificaciones de la clínica</h2>
             <p className="mt-2 text-sm text-white/70">
               {NOTIFICACIONES.length} notificaciones para pacientes, médicos y equipo: citas, recordatorios, resultados, recetas, pagos, EPS, cumpleaños y más. Active las que la clínica quiere usar; las activas quedan habilitadas para el envío automático por WhatsApp, correo, SMS o aviso en el panel.
@@ -9210,7 +9210,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
           ].map((k) => (
             <div key={k.l} className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/60">{k.l}</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/60">{k.l}</p>
                 <k.i className="size-4 text-white/70" />
               </div>
               <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{k.v}</p>
@@ -9271,19 +9271,19 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
               <div className="w-full sm:w-52"><select value={paraF} onChange={(e) => setParaF(e.target.value as typeof paraF)} className={inp + " h-10"} aria-label="Para quién">
                 {["Todos", "Paciente", "Médico", "Enfermería", "Recepción", "Administración", "Dirección"].map((x) => <option key={x} value={x}>{x === "Todos" ? "Para todos" : `Para: ${x}`}</option>)}
               </select></div>
-              <button type="button" onClick={() => setSoloActivas((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${soloActivas ? "bg-[#0b2a6b] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><Check className="size-3.5" /> Solo activas</button>
+              <button type="button" onClick={() => setSoloActivas((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${soloActivas ? "bg-[#1E3A8A] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><Check className="size-3.5" /> Solo activas</button>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               {(["Todos", "WhatsApp", "Correo", "SMS", "Panel"] as const).map((c) => {
                 const Ic = c === "Todos" ? Bell : ICONO_CANAL[c];
                 return (
-                  <button key={c} type="button" onClick={() => setCanalF(c)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${canalF === c ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>
+                  <button key={c} type="button" onClick={() => setCanalF(c)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${canalF === c ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>
                     <Ic className="size-3.5" /> {c === "Todos" ? "Todos los canales" : c}{c !== "Todos" && <span className="opacity-70">· {porCanal.find((x) => x.c === c)?.n ?? 0} activas</span>}
                   </button>
                 );
               })}
               <div className="ml-auto flex gap-1.5">
-                <button type="button" onClick={() => alternarVarias(visiblesN.map((n) => n.id), true)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Activar las {visiblesN.length} que se ven</button>
+                <button type="button" onClick={() => alternarVarias(visiblesN.map((n) => n.id), true)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">Activar las {visiblesN.length} que se ven</button>
                 <button type="button" onClick={() => alternarVarias(visiblesN.map((n) => n.id), false)} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/10">Pausar</button>
               </div>
             </div>
@@ -9298,10 +9298,10 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
             return (
               <section key={g.id} className="pn-card overflow-hidden">
                 <button onClick={() => setGrupoAbierto(grupoAbierto === g.id ? "" : g.id)} className="flex w-full items-center gap-4 p-4 text-left sm:p-5">
-                  <span className="grid size-11 place-items-center rounded-2xl bg-[#0b2a6b] text-white shadow-sm"><Ic className="size-5" /></span>
+                  <span className="grid size-11 place-items-center rounded-2xl bg-[#1E3A8A] text-white shadow-sm"><Ic className="size-5" /></span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{g.titulo}</p>
-                    <div className="mt-1.5 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-[#0e7490] transition-all" style={{ width: `${(act / g.items.length) * 100}%` }} /></div>
+                    <div className="mt-1.5 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-[#1E3A8A] transition-all" style={{ width: `${(act / g.items.length) * 100}%` }} /></div>
                   </div>
                   <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-700 dark:bg-white/10 dark:text-slate-200">{act}/{g.items.length} activas</span>
                   <ChevronDown className={`size-4 text-muted-foreground transition-transform ${abierto ? "rotate-180" : ""}`} />
@@ -9309,7 +9309,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
                 {abierto && (
                   <div className="border-t border-slate-100 px-4 pb-4 pt-2 dark:border-white/10 sm:px-5">
                     <div className="mb-1 flex justify-end">
-                      <button onClick={() => alternarVarias(g.items.map((i) => i.id), act < g.items.length)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-[#0b2a6b] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">{act < g.items.length ? "Activar todo el grupo" : "Pausar todo el grupo"}</button>
+                      <button onClick={() => alternarVarias(g.items.map((i) => i.id), act < g.items.length)} className="rounded-lg px-2.5 py-1 text-xs font-semibold text-[#1E3A8A] hover:bg-slate-100 dark:text-sky-200 dark:hover:bg-white/10">{act < g.items.length ? "Activar todo el grupo" : "Pausar todo el grupo"}</button>
                     </div>
                     <ul className="divide-y divide-slate-100 dark:divide-white/5">
                       {items.map((i) => (
@@ -9318,8 +9318,8 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
                             <p className="text-sm font-semibold">{i.nombre}</p>
                             <p className="text-xs text-muted-foreground">{i.cuando}</p>
                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-md bg-[#0b2a6b]/[.06] px-2 py-0.5 text-[10px] font-semibold text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200">Para: {i.para}</span>
-                              {i.canales.map((c) => { const Ci = ICONO_CANAL[c]; return <span key={c} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-white/5 dark:text-slate-300"><Ci className="size-3" /> {c}</span>; })}
+                              <span className="rounded-md bg-[#1E3A8A]/[.06] px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200">Para: {i.para}</span>
+                              {i.canales.map((c) => { const Ci = ICONO_CANAL[c]; return <span key={c} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/5 dark:text-slate-300"><Ci className="size-3" /> {c}</span>; })}
                             </div>
                           </div>
                           <Interruptor on={!!activas[i.id]} onChange={(v) => alternar(i.id, v)} label="" />
@@ -9444,7 +9444,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
       <span className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent transition-all duration-700 group-hover:left-[130%]" />
       <div className="relative flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{l}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{l}</p>
           <p className="mt-2 truncate font-display text-2xl font-semibold tracking-tight">{v}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{d}</p>
         </div>
@@ -9471,7 +9471,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
         {/* Menú de la carpeta */}
         <nav aria-label="Secciones de la carpeta" className="border-b border-border/60 bg-gradient-to-b from-[rgba(var(--acc),.08)] via-[rgba(var(--acc),.03)] to-transparent p-3 md:border-b-0 md:border-r">
           <div className="md:sticky md:top-4">
-            <p className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[rgb(var(--acc))]">Carpeta del paciente</p>
+            <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[rgb(var(--acc))]">Carpeta del paciente</p>
             <div className="pn-noscroll flex gap-1 overflow-x-auto md:block md:space-y-3 md:overflow-visible">
               {GRUPOS_CARPETA.map((g) => (
                 <div key={g.titulo} className="flex shrink-0 gap-1 md:block">
@@ -9490,7 +9490,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                         >
                           <span className={`grid size-7 shrink-0 place-items-center rounded-lg ${on ? "bg-white/20" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"}`}><s.icon className="size-3.5" /></span>
                           <span className="min-w-0 flex-1 truncate">{s.label}</span>
-                          {alerta ? <span className={`size-2 rounded-full ${on ? "bg-white" : "bg-rose-500"}`} title="Saldo pendiente" /> : n > 0 ? <span className={`min-w-5 rounded-full px-1.5 text-center text-[10px] font-bold tabular-nums ${on ? "bg-white/25" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"}`}>{n}</span> : null}
+                          {alerta ? <span className={`size-2 rounded-full ${on ? "bg-white" : "bg-rose-500"}`} title="Saldo pendiente" /> : n > 0 ? <span className={`min-w-5 rounded-full px-1.5 text-center text-[11px] font-bold tabular-nums ${on ? "bg-white/25" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"}`}>{n}</span> : null}
                         </button>
                       );
                     })}
@@ -9517,7 +9517,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                     <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 ring-4 ring-[#0b1f4d]" title="Paciente activo" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Carpeta del paciente</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/60">Carpeta del paciente</p>
                     <h4 className="mt-1 truncate font-display text-[28px] font-semibold leading-tight tracking-tight">{p.nombre}</h4>
                     <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] font-semibold">
                       {p.dni && <span className="rounded-full bg-white/12 px-2.5 py-1 ring-1 ring-white/20">C.C. {p.dni}</span>}
@@ -9540,7 +9540,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                 </div>
                 {(p.ficha?.antecedentes ?? []).length > 0 && (
                   <div className="relative mt-5 flex flex-wrap items-center gap-1.5 border-t border-white/10 pt-4">
-                    <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Antecedentes</span>
+                    <span className="mr-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">Antecedentes</span>
                     {(p.ficha?.antecedentes ?? []).map((a) => (
                       <span key={a} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${esCardio([a]) ? "bg-rose-400/25 text-rose-50 ring-rose-200/30" : esNefro([a]) ? "bg-sky-400/25 text-sky-50 ring-sky-200/30" : "bg-white/10 text-white/90 ring-white/20"}`}>{a}</span>
                     ))}
@@ -9696,7 +9696,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                     <li key={l.id} className="rounded-xl border border-border/60 p-3.5">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
                         {l.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_LAB[l.estado]}`}>{l.estado}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_LAB[l.estado]}`}>{l.estado}</span>
                         <span className="ml-auto text-xs font-normal text-muted-foreground">{fechaDe(l.fecha)}</span>
                       </p>
                       {Object.keys(l.resultados).length > 0 && (
@@ -9725,7 +9725,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                     <Fila key={r.id}>
                       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-700 font-display text-xs italic text-white">Rp</span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">N° {String(r.numero).padStart(6, "0")} {r.anulada && <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">Anulada</span>}</p>
+                        <p className="text-sm font-medium">N° {String(r.numero).padStart(6, "0")} {r.anulada && <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">Anulada</span>}</p>
                         <p className="truncate text-xs text-muted-foreground">{r.items.map((i) => `${i.droga} ${i.presentacion}`).join(" · ")}</p>
                       </div>
                       <span className="text-xs text-muted-foreground">{fechaDe(r.fecha)}</span>
@@ -9749,7 +9749,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                         <p className="text-sm font-medium">{m.nombre} <span className="font-normal text-muted-foreground">{m.dosis}</span></p>
                         <p className="text-xs text-muted-foreground">{m.horarios.join(" · ")}{m.indicacion ? ` — ${m.indicacion}` : ""}</p>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.activo ? "bg-emerald-100 text-emerald-800" : "bg-secondary text-muted-foreground"}`}>{m.activo ? "Activa" : "Suspendida"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${m.activo ? "bg-emerald-100 text-emerald-800" : "bg-secondary text-muted-foreground"}`}>{m.activo ? "Activa" : "Suspendida"}</span>
                     </Fila>
                   ))}
                   {recetas.filter((r) => !r.anulada).flatMap((r) => r.items.map((i, k) => (
@@ -9776,7 +9776,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                     <Fila key={t.id}>
                       <span className={`flex size-9 shrink-0 flex-col items-center justify-center rounded-lg text-white ${t.fecha >= hoy ? "bg-gradient-to-br from-sky-500 to-blue-700" : "bg-slate-400"}`}>
                         <span className="text-[11px] font-bold leading-none">{t.fecha.slice(8, 10)}</span>
-                        <span className="text-[8px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-CO", { month: "short" })}</span>
+                        <span className="text-[11px] uppercase leading-none">{new Date(`${t.fecha}T12:00`).toLocaleDateString("es-CO", { month: "short" })}</span>
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">{hora12(t.hora)} · {t.motivo || "Consulta"}</p>
@@ -9800,7 +9800,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                   { l: "Comprobantes", v: String(facturas.length), c: "" },
                 ].map((x) => (
                   <div key={x.l} className="rounded-xl bg-secondary/40 px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
                     <p className={`mt-1 font-display text-xl font-semibold tabular-nums ${x.c}`}>{x.v}</p>
                   </div>
                 ))}
@@ -9827,7 +9827,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                         <p className="text-sm font-medium">{f.tipo} {f.numero}</p>
                         <p className="text-xs text-muted-foreground">{fechaHora(f.fecha)} · {f.cobertura}</p>
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_FACT[f.estado]}`}>{f.estado}</span>
                       <p className="text-sm font-semibold tabular-nums">{dinero(f.total)}</p>
                     </Fila>
                   ))}
@@ -9891,10 +9891,10 @@ function GrillaSignos({ s, compacta = false }: { s: Triage["signos"]; compacta?:
     <div className={`grid grid-cols-2 overflow-hidden rounded-2xl border border-border/70 bg-card sm:grid-cols-4 ${compacta ? "text-xs" : ""}`}>
       {celdas.map((c, i) => (
         <div key={c.l} className={`border-border/60 px-3.5 py-2.5 ${i % 2 === 1 ? "border-l" : ""} ${i % 4 !== 0 ? "sm:border-l" : "sm:border-l-0"} ${i >= 2 ? "border-t" : ""} ${i >= 4 ? "sm:border-t" : "sm:border-t-0"}`}>
-          <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{c.l}</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{c.l}</p>
           <p className={`mt-0.5 font-semibold tabular-nums ${compacta ? "text-sm" : "text-base"}`}>
             {c.tono && c.v !== "—" ? (
-              <span className={`inline-flex rounded-full px-2 py-0.5 ring-1 ${TONO_HC[c.tono]}`}>{c.v}{c.u && c.l !== "Clasificación IMC" ? <span className="ml-1 text-[10px] font-normal opacity-80">{c.u}</span> : null}</span>
+              <span className={`inline-flex rounded-full px-2 py-0.5 ring-1 ${TONO_HC[c.tono]}`}>{c.v}{c.u && c.l !== "Clasificación IMC" ? <span className="ml-1 text-[11px] font-normal opacity-80">{c.u}</span> : null}</span>
             ) : (
               <span className={c.alerta ? "text-amber-600" : ""}>
                 {c.v}
@@ -9902,7 +9902,7 @@ function GrillaSignos({ s, compacta = false }: { s: Triage["signos"]; compacta?:
               </span>
             )}
           </p>
-          {c.l === "Presión arterial" && pr && <p className="mt-0.5 text-[10px] text-muted-foreground">{pr.nivel}</p>}
+          {c.l === "Presión arterial" && pr && <p className="mt-0.5 text-[11px] text-muted-foreground">{pr.nivel}</p>}
         </div>
       ))}
     </div>
@@ -9988,7 +9988,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
         <div className="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden">
           {/* Pacientes de hoy */}
           <aside className="dark flex min-h-0 flex-col border-b border-white/10 bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] p-4 text-foreground lg:border-b-0 lg:border-r">
-            <p className="flex items-center justify-between px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Citas de hoy <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tracking-normal text-white">{turnosHoy.length}</span></p>
+            <p className="flex items-center justify-between px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">Citas de hoy <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] tracking-normal text-white">{turnosHoy.length}</span></p>
             <ul className="pn-noscroll mt-2 max-h-64 space-y-1.5 overflow-y-auto lg:max-h-none lg:flex-1">
               {turnosHoy.map((t) => {
                 const p = pacDeTurno(t);
@@ -10007,9 +10007,9 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
                         <span className="block truncate text-[11px] text-white/55">{(t.motivo || "Consulta").split(" · ")[0]} · {nombreCorto(t.doctor).replace(/^Dr\. Carlos /, "Dr. ")}</span>
                       </span>
                       {tr ? (
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${tr.evolucionId ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-emerald-100 text-emerald-800 ring-emerald-200"}`}>{tr.evolucionId ? "Atendido" : "Tomados"}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${tr.evolucionId ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-emerald-100 text-emerald-800 ring-emerald-200"}`}>{tr.evolucionId ? "Atendido" : "Tomados"}</span>
                       ) : (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 ring-1 ring-amber-200">Pendiente</span>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">Pendiente</span>
                       )}
                     </button>
                   </li>
@@ -10018,7 +10018,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
               {turnosHoy.length === 0 && <li className="px-2 py-6 text-center text-sm text-muted-foreground">No hay citas para hoy.</li>}
             </ul>
             <div className="mt-3 border-t border-white/10 pt-3">
-              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/60">Otro paciente</p>
+              <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">Otro paciente</p>
               <SelectorPaciente pacientes={pacientes} valor={pacId} onChange={elegir} arriba />
             </div>
           </aside>
@@ -10066,12 +10066,12 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className={`rounded-2xl p-4 ring-1 transition-colors ${imc ? TONO_HC[imc.tono] : "bg-secondary/60 ring-border"}`}>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">Índice de masa corporal</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-80">Índice de masa corporal</p>
                     <p className="mt-1 font-display text-3xl font-semibold tabular-nums">{imc ? imc.valor : "—"} <span className="text-sm font-normal opacity-70">{imc ? "kg/m²" : ""}</span></p>
                     <p className="text-sm font-semibold">{imc ? imc.texto : "Ingrese talla y peso"}</p>
                   </div>
                   <div className="rounded-2xl bg-secondary/40 p-4 ring-1 ring-border/70">
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Clasificación del IMC (OMS)</p>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Clasificación del IMC (OMS)</p>
                     <ul className="space-y-1 text-xs">
                       {[["< 18,5", "Bajo peso"], ["18,5 – 24,9", "Peso normal"], ["25 – 29,9", "Sobrepeso"], ["30 – 34,9", "Obesidad grado I"], ["35 – 39,9", "Obesidad grado II"], ["≥ 40", "Obesidad grado III"]].map(([r, t]) => (
                         <li key={t} className={`flex justify-between rounded-md px-2 py-0.5 ${imc?.texto === t ? "bg-[rgba(var(--acc),.12)] font-semibold text-foreground" : "text-muted-foreground"}`}><span>{t}</span><span className="tabular-nums">{r}</span></li>
@@ -10083,7 +10083,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
 
                 {previos.length > 0 && (
                   <div>
-                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Última medición · {fechaHora(previos[0]!.fecha)} · {previos[0]!.enfermera}</p>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Última medición · {fechaHora(previos[0]!.fecha)} · {previos[0]!.enfermera}</p>
                     <GrillaSignos s={previos[0]!.signos} compacta />
                   </div>
                 )}
@@ -10150,7 +10150,7 @@ function TriageTab({ user, log, turnos, esMedico, abrirHistoria, soloLectura = f
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <Avatar nombre={t.paciente} size="size-10" />
                   <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 truncate font-semibold">{t.paciente}{(() => { const al = pacientes.find((x) => esDe(x, t.pacienteId))?.ficha?.alergias; return al ? <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span> : null; })()}</p>
+                    <p className="flex flex-wrap items-center gap-2 truncate font-semibold">{t.paciente}{(() => { const al = pacientes.find((x) => esDe(x, t.pacienteId))?.ficha?.alergias; return al ? <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span> : null; })()}</p>
                     <p className="text-[11px] text-muted-foreground">{horaDeIso(t.fecha)} · {t.enfermera}</p>
                   </div>
                   {t.evolucionId ? (
@@ -10279,7 +10279,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                <div className="flex flex-wrap items-center gap-3">
                 <Avatar nombre={n.nombre} size="size-9" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">{areaDe(n)}</span>}{propios(n.id) && <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 ring-1 ring-violet-200">Permisos personalizados</span>}</p>
+                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{areaDe(n)}</span>}{propios(n.id) && <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Permisos personalizados</span>}</p>
                   <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)}</p>
                   {(() => {
                     const mods = MODULOS.map((m) => ({ m, nv: nivelPersona(permisos, n.id, areaDe(n), m) })).filter((x) => x.nv !== "ninguno");
@@ -10287,7 +10287,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                       <div className="mt-1.5 flex flex-wrap items-center gap-1">
                         {mods.length === 0 && <span className="text-[11px] text-rose-600">No ve ningún módulo</span>}
                         {mods.map(({ m, nv }) => (
-                          <span key={m} title={nv === "editar" ? "Puede ver y modificar" : "Solo ver"} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${nv === "editar" ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>
+                          <span key={m} title={nv === "editar" ? "Puede ver y modificar" : "Solo ver"} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${nv === "editar" ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>
                             {nv === "editar" ? <Pencil className="size-2.5" /> : <Eye className="size-2.5" />} {m}
                           </span>
                         ))}
@@ -10352,7 +10352,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
                             <div className="flex shrink-0 rounded-lg bg-secondary p-0.5 dark:bg-white/5">
                               {(["ninguno", "ver", "editar"] as Nivel[]).map((op) => (
                                 <button key={op} type="button" disabled={!puedePermisos} onClick={() => cambiarNivel(n, m, op)}
-                                  className={`rounded-md px-2 py-1 text-[10px] font-semibold transition ${nv === op ? (op === "ninguno" ? "bg-slate-500 text-white" : op === "ver" ? "bg-sky-500 text-white" : "bg-emerald-500 text-white") : "text-muted-foreground hover:text-foreground"} disabled:cursor-not-allowed`}>
+                                  className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${nv === op ? (op === "ninguno" ? "bg-slate-500 text-white" : op === "ver" ? "bg-sky-500 text-white" : "bg-emerald-500 text-white") : "text-muted-foreground hover:text-foreground"} disabled:cursor-not-allowed`}>
                                   {op === "ninguno" ? "No" : op === "ver" ? "Ver" : "Editar"}
                                 </button>
                               ))}
@@ -10517,11 +10517,11 @@ function SitioTab({ log }: { log: LogFn }) {
   return (
     <div className="space-y-6">
       {/* Resumen de la web */}
-      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#071a46] via-[#0b2a6b] to-[#0e7490] p-6 text-white shadow-elevated sm:p-7">
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#172E6E] via-[#1E3A8A] to-[#1E3A8A] p-6 text-white shadow-elevated sm:p-7">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
         <div className="relative grid gap-6 lg:grid-cols-[1fr_340px]">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Globe className="size-3.5" /> Sitio web público</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><Globe className="size-3.5" /> Sitio web público</span>
             <h2 className="mt-3 text-3xl font-semibold">Lo que ven los pacientes</h2>
             <p className="mt-2 max-w-xl text-sm text-white/75">Contacto, horarios, avisos, redes, días de cierre y música de espera. Lo que publique aquí se actualiza en toda la web al instante.</p>
             <div className="mt-5 flex flex-wrap gap-1.5">
@@ -10531,14 +10531,14 @@ function SitioTab({ log }: { log: LogFn }) {
             </div>
           </div>
           <div className="rounded-2xl bg-white/10 p-4 ring-1 ring-white/15 backdrop-blur">
-            <div className="flex items-center justify-between"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/70">Información completa</p><p className="font-display text-2xl font-semibold tabular-nums">{completo}%</p></div>
+            <div className="flex items-center justify-between"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/70">Información completa</p><p className="font-display text-2xl font-semibold tabular-nums">{completo}%</p></div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${completo}%` }} /></div>
             <ul className="mt-3 space-y-1.5">
               {checklist.map((c) => (
                 <li key={c.t} className="flex items-center gap-2 text-xs">
-                  <span className={`grid size-4 place-items-center rounded-full ${c.ok ? "bg-white text-[#0b2a6b]" : "ring-1 ring-white/40"}`}>{c.ok && <Check className="size-3" strokeWidth={3} />}</span>
+                  <span className={`grid size-4 place-items-center rounded-full ${c.ok ? "bg-white text-[#1E3A8A]" : "ring-1 ring-white/40"}`}>{c.ok && <Check className="size-3" strokeWidth={3} />}</span>
                   <span className={c.ok ? "font-semibold" : "text-white/70"}>{c.t}</span>
-                  <span className="ml-auto truncate text-[10px] text-white/55">{c.d}</span>
+                  <span className="ml-auto truncate text-[11px] text-white/55">{c.d}</span>
                 </li>
               ))}
             </ul>
@@ -10552,8 +10552,8 @@ function SitioTab({ log }: { log: LogFn }) {
           <Globe className="size-4 text-[rgb(var(--acc))]" />
           {cambios ? <span className="font-semibold">Tiene cambios sin publicar</span> : <span className="text-muted-foreground">Todo lo que guarde aquí se ve en la web pública.</span>}
         </p>
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-[#0b2a6b]/[.06] text-[#0b2a6b] ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>
-          <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-[#0e7490]" : "bg-slate-400"}`} />
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${modoServidor() ? "bg-[#1E3A8A]/[.06] text-[#1E3A8A] ring-[#1E3A8A]/15 dark:bg-white/10 dark:text-sky-200" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>
+          <span className={`size-1.5 rounded-full ${modoServidor() ? "bg-[#1E3A8A]" : "bg-slate-400"}`} />
           {modoServidor() ? "Conectado al servidor: lo ven todos" : "Modo local: solo en este navegador"}
         </span>
         <div className="flex gap-2">
@@ -10612,9 +10612,9 @@ function SitioTab({ log }: { log: LogFn }) {
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vista previa</p>
             <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10">
-              <div className={`${aviso.tono === "importante" ? "bg-[#7f1d1d]" : "bg-[#0e7490]"} flex flex-wrap items-center justify-center gap-2 px-3 py-2 text-center text-xs text-white ${aviso.activo ? "" : "opacity-50"}`}>
+              <div className={`${aviso.tono === "importante" ? "bg-[#7f1d1d]" : "bg-[#1E3A8A]"} flex flex-wrap items-center justify-center gap-2 px-3 py-2 text-center text-xs text-white ${aviso.activo ? "" : "opacity-50"}`}>
                 <Megaphone className="size-3.5" /> <span className="font-medium">{aviso.texto || "Su aviso aparece aquí"}</span>
-                {aviso.enlace && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold ring-1 ring-white/30">{aviso.textoEnlace || "Ver más"}</span>}
+                {aviso.enlace && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold ring-1 ring-white/30">{aviso.textoEnlace || "Ver más"}</span>}
               </div>
               <div className="space-y-2 bg-slate-50 p-4 dark:bg-white/5"><div className="h-2.5 w-24 rounded bg-slate-300 dark:bg-white/20" /><div className="h-2 w-3/4 rounded bg-slate-200 dark:bg-white/10" /><div className="h-2 w-1/2 rounded bg-slate-200 dark:bg-white/10" /></div>
             </div>
@@ -10644,7 +10644,7 @@ function SitioTab({ log }: { log: LogFn }) {
               const pasado = c.fecha < isoDe(new Date());
               return (
                 <li key={c.fecha} className={`flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5 dark:border-white/10 ${pasado ? "opacity-50" : ""}`}>
-                  <span className="grid size-10 place-items-center rounded-xl bg-[#0b2a6b]/[.07] text-center leading-none text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><span><span className="block text-sm font-bold">{c.fecha.slice(8, 10)}</span><span className="text-[9px] uppercase">{new Date(`${c.fecha}T12:00:00`).toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span></span></span>
+                  <span className="grid size-10 place-items-center rounded-xl bg-[#1E3A8A]/[.07] text-center leading-none text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><span><span className="block text-sm font-bold">{c.fecha.slice(8, 10)}</span><span className="text-[11px] uppercase">{new Date(`${c.fecha}T12:00:00`).toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span></span></span>
                   <div className="min-w-0 flex-1"><p className="text-sm font-semibold first-letter:uppercase">{fechaLarga(c.fecha)}</p><p className="truncate text-xs text-muted-foreground">{c.motivo || "Sin atención"}{pasado ? " · ya pasó" : ""}</p></div>
                   <button onClick={() => set({ cierres: (d.cierres ?? []).filter((x) => x.fecha !== c.fecha) })} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600" aria-label="Quitar"><Trash2 className="size-4" /></button>
                 </li>
@@ -10657,7 +10657,7 @@ function SitioTab({ log }: { log: LogFn }) {
           <div className="space-y-3">
             {([["instagram", "Instagram", Instagram, "@hegoclinica"], ["facebook", "Facebook", Facebook, "hegoclinica"], ["tiktok", "TikTok", Music2, "@hegoclinica"], ["youtube", "YouTube", Youtube, "@hegoclinica"], ["linkedin", "LinkedIn", Linkedin, "hego"]] as const).map(([k, l, I, ph]) => (
               <label key={k} className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0b2a6b] text-white"><I className="size-4" /></span>
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#1E3A8A] text-white"><I className="size-4" /></span>
                 <span className="w-24 text-sm font-semibold">{l}</span>
                 <input value={redes[k] ?? ""} onChange={(e) => set({ redes: { ...redes, [k]: e.target.value } })} placeholder={ph} className={inp + " h-10 flex-1"} />
               </label>
@@ -10774,10 +10774,10 @@ function FondoEspecialidadMedico({ id }: { id: string }) {
 type Mensaje = { id: string; canal: string; deId: string; de: string; area: string; texto: string; fecha: string; importante?: boolean };
 const KEY_MENSAJES = "gb_mensajes";
 const CANALES: { id: string; nombre: string; desc: string; icon: LucideIcon; color: string; soloJefes?: boolean; medicos?: boolean }[] = [
-  { id: "general", nombre: "General", desc: "Todo el equipo de la clínica", icon: MessagesSquare, color: "#0ea5e9" },
+  { id: "general", nombre: "General", desc: "Todo el equipo de la clínica", icon: MessagesSquare, color: "#3B5BC0" },
   { id: "avisos", nombre: "Avisos de dirección", desc: "Publican los médicos y Dirección; todos leen", icon: Megaphone, color: "#f59e0b", soloJefes: true },
   { id: "turnos", nombre: "Citas y recepción", desc: "Agenda, pacientes que llegan, cambios de horario", icon: CalendarDays, color: "#8b5cf6" },
-  { id: "enfermeria", nombre: "Enfermería", desc: "Triage, insumos y novedades de la cita", icon: Syringe, color: "#10b981" },
+  { id: "enfermeria", nombre: "Enfermería", desc: "Triage, insumos y novedades de la cita", icon: Syringe, color: "#10B981" },
   { id: "medicos", nombre: "Médicos", desc: "Solo médicos y Dirección", icon: Stethoscope, color: "#f43f5e", medicos: true },
 ];
 const FONDOS_CHAT: { id: string; nombre: string; css: CSSProperties; oscuro?: boolean }[] = [
@@ -10925,7 +10925,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
                   <span className="block truncate text-sm font-semibold">{x.nombre}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{x.desc}</span>
                 </span>
-                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{n}</span>}
+                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">{n}</span>}
               </button>
             );
           })}
@@ -10946,7 +10946,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
                   <span className="block truncate text-sm font-medium">{d.nombre}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{d.area}</span>
                 </span>
-                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">{n}</span>}
+                {n > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-bold text-white">{n}</span>}
               </button>
             );
           })}
@@ -11021,9 +11021,9 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
                     {!mio && !seguido && <span className={`mb-0.5 px-1 text-[11px] font-semibold ${fondo.oscuro ? "text-white/70" : "text-muted-foreground"}`}>{m.de} <span className="font-normal opacity-70">· {m.area}</span></span>}
                     <div className={`relative whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm shadow-sm ${m.importante ? "ring-2 ring-amber-400" : ""} ${mio ? "rounded-br-md text-white" : "rounded-bl-md bg-card text-foreground ring-1 ring-border/60"}`}
                       style={mio ? { background: `linear-gradient(140deg, rgb(var(--acc)), rgba(var(--acc),.8))` } : undefined}>
-                      {m.importante && <span className={`mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider ${mio ? "text-amber-200" : "text-amber-600"}`}><Pin className="size-3" /> Importante</span>}
+                      {m.importante && <span className={`mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${mio ? "text-amber-200" : "text-amber-600"}`}><Pin className="size-3" /> Importante</span>}
                       {m.texto}
-                      <span className={`ml-2 inline-block translate-y-0.5 text-[10px] ${mio ? "text-white/70" : "text-muted-foreground"}`}>{horaTxt(m.fecha)}</span>
+                      <span className={`ml-2 inline-block translate-y-0.5 text-[11px] ${mio ? "text-white/70" : "text-muted-foreground"}`}>{horaTxt(m.fecha)}</span>
                     </div>
                   </div>
                   {(mio || (jefe && !dm)) && (
@@ -11058,7 +11058,7 @@ function ComunicacionTab({ user, log }: { user: SessionUser; log: LogFn }) {
               )}
               <Button type="submit" disabled={!texto.trim()} className="h-11 w-11 shrink-0 rounded-2xl p-0" aria-label="Enviar"><Send className="size-4" /></Button>
             </div>
-            <p className="mt-1.5 px-1 text-[10px] text-muted-foreground">Enter para enviar · Shift + Enter para un renglón nuevo{jefe ? " · 📌 marca el mensaje como importante" : ""}</p>
+            <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">Enter para enviar · Shift + Enter para un renglón nuevo{jefe ? " · 📌 marca el mensaje como importante" : ""}</p>
           </form>
         ) : (
           <p className="border-t border-border/60 bg-card p-4 text-center text-sm text-muted-foreground"><Lock className="mr-1 inline size-4" /> En este canal publican los médicos y Dirección.</p>
@@ -11366,7 +11366,7 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
               <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3.5 ${h ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-500/5" : "border-border/70 bg-card"}`}>
                 <HoraMini hora={t.hora} />
                 <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 font-semibold">{t.paciente}{al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span>}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-semibold">{t.paciente}{al && <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia: {al}</span>}</p>
                   <p className="text-xs text-muted-foreground">{t.motivo} · {nombreCorto(t.doctor)}</p>
                 </div>
                 {h ? (
@@ -11389,11 +11389,11 @@ function ProcedimientosHoy({ user, log, turnos, pacientes, soloLectura }: { user
 /* ---------- Botones de lo que hace enfermería ---------- */
 type AccionEnf = { id: string; t: string; d: string; icon: LucideIcon; c: string };
 const ACCIONES_ENF: AccionEnf[] = [
-  { id: "signos", t: "Signos vitales", d: "Presión arterial, pulso, temperatura, saturación, peso y talla", icon: HeartPulse, c: "#0ea5e9" },
+  { id: "signos", t: "Signos vitales", d: "Presión arterial, pulso, temperatura, saturación, peso y talla", icon: HeartPulse, c: "#3B5BC0" },
   { id: "Glucometría", t: "Glucometría", d: "Glucosa capilar en mg/dL", icon: Droplets, c: "#f97316" },
   { id: "Electrocardiograma", t: "Electrocardiograma", d: "Toma del ECG de 12 derivaciones", icon: Activity, c: "#ef4444" },
   { id: "Toma de muestra", t: "Toma de muestra", d: "Sangre, orina, heces, cultivos y otras muestras", icon: FlaskConical, c: "#eab308" },
-  { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10b981" },
+  { id: "Administración de medicamento", t: "Medicamento aplicado", d: "Medicamento, dosis, vía y hora", icon: Pill, c: "#10B981" },
   { id: "Holter / MAPA", t: "Holter / Presurómetro", d: "Colocación o retiro del Holter o del presurómetro (MAPA)", icon: Clock, c: "#6366f1" },
   { id: "Curación", t: "Curación", d: "Curaciones y procedimientos menores", icon: Syringe, c: "#ec4899" },
   { id: "Nota de enfermería", t: "Nota de enfermería", d: "Observaciones, educación al paciente o novedades", icon: NotebookPen, c: "#14b8a6" },
@@ -11446,10 +11446,10 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
           <div className="mt-3 flex flex-wrap gap-2">
             {visibles.map((p) => (
               <button key={p.id} type="button" onClick={() => setPacSel(p.id === pacSel ? "" : p.id)}
-                className={`inline-flex items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[#0b2a6b] text-white ring-transparent shadow-md" : "bg-card ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 dark:ring-white/10 dark:hover:bg-white/5"}`}>
+                className={`inline-flex items-center gap-2.5 rounded-xl py-1.5 pl-1.5 pr-3.5 text-sm font-medium ring-1 transition ${p.id === pacSel ? "bg-[#1E3A8A] text-white ring-transparent shadow-md" : "bg-card ring-slate-200 hover:bg-slate-50 hover:ring-slate-300 dark:ring-white/10 dark:hover:bg-white/5"}`}>
                 <Avatar nombre={p.nombre} size="size-8 !rounded-lg" />
                 {p.nombre}
-                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-md px-1.5 text-[10px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"}`}>cita hoy</span>}
+                {conCitaHoy.has(norm(p.nombre)) && <span className={`rounded-md px-1.5 text-[11px] font-bold ${p.id === pacSel ? "bg-white/25" : "bg-slate-100 text-slate-600 ring-1 ring-slate-200"}`}>cita hoy</span>}
                 {p.ficha?.alergias && <AlertTriangle className={`size-3.5 ${p.id === pacSel ? "text-white" : "text-red-500"}`} />}
               </button>
             ))}
@@ -11472,12 +11472,12 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
               </div>
             </div>
             <div className="space-y-2 text-sm">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos signos vitales</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos signos vitales</p>
               {ultSignos ? <div><GrillaSignos s={ultSignos.signos} compacta /><p className="mt-1 text-[11px] text-muted-foreground">{fechaHora(ultSignos.fecha)} · {ultSignos.enfermera}</p></div> : <p className="text-xs text-muted-foreground">Sin registros.</p>}
-              <p className="pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos registros de enfermería</p>
+              <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Últimos registros de enfermería</p>
               {ultNotas.length ? (
                 <ul className="space-y-1">
-                  {ultNotas.map((n) => <li key={n.id} className="text-xs"><span className={`mr-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>{limpiarTextoNota(n.texto)}</li>)}
+                  {ultNotas.map((n) => <li key={n.id} className="text-xs"><span className={`mr-1.5 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>{limpiarTextoNota(n.texto)}</li>)}
                 </ul>
               ) : <p className="text-xs text-muted-foreground">Sin registros.</p>}
             </div>
@@ -11541,8 +11541,8 @@ function BuscadorMedicamento({ value, onChange, onElegir, placeholder = "Escriba
         <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-xl dark:border-white/10">
           {lista.map((m, i) => (
             <li key={m.nombre}>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(m); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition ${i === sel ? "bg-[#0b2a6b]/[.06] dark:bg-white/10" : ""}`}>
-                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[#0b2a6b]/[.07] text-[#0b2a6b] dark:bg-white/10 dark:text-sky-200"><Pill className="size-3.5" /></span>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(m); }} onMouseEnter={() => setSel(i)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left transition ${i === sel ? "bg-[#1E3A8A]/[.06] dark:bg-white/10" : ""}`}>
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Pill className="size-3.5" /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold">{m.nombre}{m.marcas?.length ? <span className="font-normal text-muted-foreground"> · {m.marcas.slice(0, 2).join(", ")}</span> : null}</span>
                   <span className="block truncate text-[11px] text-muted-foreground">{m.dosis.slice(0, 4).join(" · ")} — {m.vias.join(", ")}</span>
@@ -11579,7 +11579,7 @@ function TextoPredictivo({ value, onChange, sugerencias, vacias = [], placeholde
         <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-card p-1.5 shadow-xl dark:border-white/10">
           {lista.map((x, i) => (
             <li key={x}>
-              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(x); }} onMouseEnter={() => setSel(i)} className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#0b2a6b]/[.06] font-semibold dark:bg-white/10" : ""}`}>{x}</button>
+              <button type="button" onMouseDown={(e) => { e.preventDefault(); elegir(x); }} onMouseEnter={() => setSel(i)} className={`w-full rounded-xl px-3 py-2 text-left text-sm transition ${i === sel ? "bg-[#1E3A8A]/[.06] font-semibold dark:bg-white/10" : ""}`}>{x}</button>
             </li>
           ))}
         </ul>
@@ -11606,7 +11606,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
   const Chips = ({ k, ops }: { k: keyof CamposEnf; ops: string[] }) => (
     <div className="flex flex-wrap gap-1.5">
       {ops.map((o) => (
-        <button key={o} type="button" onClick={() => setF((x) => ({ ...x, [k]: o }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${f[k] === o ? "bg-[#0b2a6b] text-white shadow-md ring-transparent" : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{o}</button>
+        <button key={o} type="button" onClick={() => setF((x) => ({ ...x, [k]: o }))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 transition ${f[k] === o ? "bg-[#1E3A8A] text-white shadow-md ring-transparent" : "bg-card text-muted-foreground ring-border hover:text-foreground"}`}>{o}</button>
       ))}
     </div>
   );
@@ -11729,7 +11729,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
                   <div className="-mt-2 flex flex-wrap items-center gap-1.5 sm:col-span-2">
                     <span className="text-[11px] font-medium text-muted-foreground">Dosis habituales:</span>
                     {m.dosis.map((d) => (
-                      <button key={d} type="button" onClick={() => setF((x) => ({ ...x, dosis: d }))} className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${f.dosis === d ? "bg-[#0b2a6b] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200"}`}>{d}</button>
+                      <button key={d} type="button" onClick={() => setF((x) => ({ ...x, dosis: d }))} className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${f.dosis === d ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200"}`}>{d}</button>
                     ))}
                   </div>
                 );
@@ -11745,7 +11745,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
               <div className="sm:col-span-2">{campo("Qué se hizo", <Chips k="tipo" ops={["Colocación de Holter 24 h", "Retiro de Holter", "Colocación del presurómetro", "Retiro del presurómetro"]} />, true)}</div>
               {(f.tipo === "Colocación del presurómetro" || f.tipo === "Retiro del presurómetro") && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 text-xs leading-relaxed text-slate-700 sm:col-span-2 dark:border-white/10 dark:bg-white/5 dark:text-slate-300" translate="no">
-                  <p className="mb-1 font-semibold text-[#0b2a6b] dark:text-sky-200">MAPA · Monitoreo Ambulatorio de la Presión Arterial</p>
+                  <p className="mb-1 font-semibold text-[#1E3A8A] dark:text-sky-200">MAPA · Monitoreo Ambulatorio de la Presión Arterial</p>
                   {f.tipo === "Colocación del presurómetro"
                     ? <>Se le entrega al paciente el <b>presurómetro con el instructivo de uso</b>. Él mismo toma su presión <b>en casa durante 7 días</b>, según la indicación médica, y después devuelve el equipo con el <b>registro de las mediciones</b> para que el médico lo evalúe. No es una visita domiciliaria.</>
                     : <>El paciente devuelve el presurómetro y el <b>registro de las mediciones de los 7 días</b>. El médico lo evalúa en la historia clínica.</>}
@@ -11792,7 +11792,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
 
 function EstadoNota({ n }: { n: NotaEnfermeria }) {
   return n.estado === "Confirmado" ? (
-    <span className="inline-flex items-center gap-1 rounded-md bg-[#0b2a6b]/[.06] px-2 py-0.5 text-[11px] font-semibold text-[#0b2a6b] ring-1 ring-[#0b2a6b]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10"><Check className="size-3" strokeWidth={3} /> Confirmado</span>
+    <span className="inline-flex items-center gap-1 rounded-md bg-[#1E3A8A]/[.06] px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A] ring-1 ring-[#1E3A8A]/15 dark:bg-white/10 dark:text-sky-200 dark:ring-white/10"><Check className="size-3" strokeWidth={3} /> Confirmado</span>
   ) : (
     <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"><span className="size-1.5 rounded-full bg-slate-400" /> Pendiente</span>
   );
@@ -11831,7 +11831,7 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLe
   const alternar = (id: string) => setSel((s) => { const x = new Set(s); if (x.has(id)) x.delete(id); else x.add(id); return x; });
   const pend = deHoy.filter((n) => n.estado !== "Confirmado").length;
   const btn = "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition";
-  const caja = (on: boolean) => `grid size-5 shrink-0 place-items-center rounded-md border transition ${on ? "border-[#0b2a6b] bg-[#0b2a6b] text-white" : "border-slate-300 bg-white text-transparent hover:border-[#0b2a6b]/60 dark:border-white/20 dark:bg-transparent"}`;
+  const caja = (on: boolean) => `grid size-5 shrink-0 place-items-center rounded-md border transition ${on ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : "border-slate-300 bg-white text-transparent hover:border-[#1E3A8A]/60 dark:border-white/20 dark:bg-transparent"}`;
   return (
     <Seccion icon={NotebookPen} titulo="Registros de enfermería de hoy" sub={`${deHoy.length} ${deHoy.length === 1 ? "registro" : "registros"} · ${pend ? `${pend} ${pend === 1 ? "pendiente" : "pendientes"} de confirmar` : "todo confirmado"}`}>
       {deHoy.length === 0 ? (
@@ -11846,7 +11846,7 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLe
               </button>
               {sel.size > 0 && (
                 <div className="ml-auto flex flex-wrap gap-1.5">
-                  <button type="button" onClick={() => confirmar([...sel])} className={`${btn} bg-[#0b2a6b] text-white shadow-sm hover:bg-[#0a2459]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                  <button type="button" onClick={() => confirmar([...sel])} className={`${btn} bg-[#1E3A8A] text-white shadow-sm hover:bg-[#172E6E]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
                   <button type="button" onClick={() => pendiente([...sel])} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Clock className="size-3.5" /> Pendiente</button>
                   <button type="button" onClick={() => borrar([...sel])} className={`${btn} text-slate-500 hover:bg-red-50 hover:text-red-700`}><Trash2 className="size-3.5" /> Eliminar</button>
                 </div>
@@ -11858,16 +11858,16 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLe
               const al = pacientes.find((p) => p.id === n.pacienteId || p.portalId === n.pacienteId)?.ficha?.alergias;
               const on = sel.has(n.id);
               return (
-                <li key={n.id} className={`rounded-2xl border bg-card p-3.5 transition ${on ? "border-[#0b2a6b]/50 ring-2 ring-[#0b2a6b]/10" : "border-slate-200 dark:border-white/10"}`}>
+                <li key={n.id} className={`rounded-2xl border bg-card p-3.5 transition ${on ? "border-[#1E3A8A]/50 ring-2 ring-[#1E3A8A]/10" : "border-slate-200 dark:border-white/10"}`}>
                   <div className="flex flex-wrap items-start gap-3">
                     {puede && <button type="button" onClick={() => alternar(n.id)} aria-label="Seleccionar" aria-pressed={on} className={caja(on) + " mt-2.5"}><Check className="size-3.5" strokeWidth={3} /></button>}
                     <Avatar nombre={n.paciente} size="size-10" />
                     <div className="min-w-0 flex-1">
                       <p className="flex flex-wrap items-center gap-2 font-semibold">
                         {n.paciente}
-                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
+                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${COLOR_NOTA[n.tipo] ?? COLOR_NOTA["Nota de enfermería"]}`}>{n.tipo}</span>
                         <EstadoNota n={n} />
-                        {al && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-red-100"><AlertTriangle className="size-3" /> {al}</span>}
+                        {al && <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-100"><AlertTriangle className="size-3" /> {al}</span>}
                       </p>
                       {edit?.id === n.id ? (
                         <div className="mt-2 space-y-2">
@@ -11889,7 +11889,7 @@ function RegistrosEnfHoy({ pacientes, esMedico, abrirHistoria, user, log, soloLe
                       {n.estado === "Confirmado" ? (
                         <button type="button" onClick={() => pendiente([n.id])} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Clock className="size-3.5" /> Marcar pendiente</button>
                       ) : (
-                        <button type="button" onClick={() => confirmar([n.id])} className={`${btn} bg-[#0b2a6b] text-white shadow-sm hover:bg-[#0a2459]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
+                        <button type="button" onClick={() => confirmar([n.id])} className={`${btn} bg-[#1E3A8A] text-white shadow-sm hover:bg-[#172E6E]`}><Check className="size-3.5" strokeWidth={3} /> Confirmar</button>
                       )}
                       <button type="button" onClick={() => setEdit({ id: n.id, texto: n.texto })} className={`${btn} bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-200 dark:ring-white/10`}><Pencil className="size-3.5" /> Editar</button>
                       <button type="button" onClick={() => borrar([n.id])} className={`${btn} ml-auto text-slate-500 hover:bg-red-50 hover:text-red-700`}><Trash2 className="size-3.5" /> Eliminar</button>
@@ -11997,7 +11997,7 @@ function MinisterioTab({ user, log, turnos, abrirPaciente }: { user: SessionUser
         <div className="relative flex flex-wrap items-center gap-5">
           <span className="flex size-16 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/25 backdrop-blur"><Landmark className="size-8" /></span>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/60">Colombia · Ministerio de Salud</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/60">Colombia · Ministerio de Salud</p>
             <h3 className="font-display text-2xl font-semibold tracking-tight">Conexión con el Ministerio</h3>
             <p className="mt-1 max-w-2xl text-sm text-white/75">Desde abril de 2026 cada consulta debe generar un Resumen Digital de Atención (RDA) y enviarse al Ministerio. El panel ya guarda la historia clínica; falta que la clínica obtenga las llaves para activar el envío.</p>
           </div>
@@ -12245,7 +12245,7 @@ function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
             <span className="absolute inset-0 animate-ping rounded-full bg-white/20" />
             <Mic className="relative size-5" />
           </span>
-          <span className="text-left leading-tight"><span className="block text-sm font-semibold">Asistente IA</span><span className="block text-[10px] text-white/75">Háblele o escríbale</span></span>
+          <span className="text-left leading-tight"><span className="block text-sm font-semibold">Asistente IA</span><span className="block text-[11px] text-white/75">Háblele o escríbale</span></span>
         </button>
       )}
 
@@ -12278,11 +12278,11 @@ function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
               {msgs.map((m) => (
                 <div key={m.id} className={`flex ${m.de === "yo" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-200`}>
                   <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm ${m.de === "yo" ? "rounded-br-sm bg-gradient-to-br from-indigo-600 to-violet-700 text-white" : "rounded-bl-sm bg-card ring-1 ring-border"}`}>
-                    {m.audio && <p className="mb-0.5 flex items-center gap-1 text-[10px] uppercase tracking-wider text-white/70"><Mic className="size-3" /> Audio</p>}
+                    {m.audio && <p className="mb-0.5 flex items-center gap-1 text-[11px] uppercase tracking-wider text-white/70"><Mic className="size-3" /> Audio</p>}
                     <p className="whitespace-pre-line">{m.texto}</p>
                     {m.acciones && (
                       <div className="mt-2.5 space-y-1.5 rounded-xl bg-violet-50 p-2.5 ring-1 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/30">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">Para confirmar</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700 dark:text-violet-300">Para confirmar</p>
                         {m.acciones.map((x, i) => <p key={i} className="flex gap-1.5 text-[13px]"><Check className="mt-0.5 size-3.5 shrink-0 text-violet-600" />{x.descripcion}</p>)}
                         {m.estado === "pendiente" && (
                           <div className="flex gap-2 pt-1">
@@ -12320,7 +12320,7 @@ function AsistenteVoz({ user, log }: { user: SessionUser; log: LogFn }) {
                   )}
                 </form>
               )}
-              <p className="mt-2 text-center text-[10px] text-muted-foreground">La IA propone; usted confirma. Puede equivocarse: revise antes de confirmar.</p>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">La IA propone; usted confirma. Puede equivocarse: revise antes de confirmar.</p>
             </div>
           </div>
         </div>

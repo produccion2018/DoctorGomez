@@ -120,7 +120,7 @@ export const Route = createFileRoute("/portal")({
 /* ===================================================================== */
 
 type Seccion = "inicio" | "turnos" | "controles" | "medicacion" | "estudios" | "pagos" | "autorizaciones" | "ficha";
-type Tono = "verde" | "ambar" | "naranja" | "rojo" | "critico" | "azul" | "violeta";
+type Tono = "verde" | "ambar" | "naranja" | "rojo" | "critico" | "azul" | "violeta" | "gris";
 
 const SECCIONES: { id: Seccion; label: string; icon: LucideIcon; grupo: string }[] = [
   { id: "inicio", label: "Inicio", icon: Home, grupo: "Mi salud" },
@@ -141,10 +141,11 @@ const TONO: Record<Tono, string> = {
   critico: "bg-red-600 text-white ring-red-600",
   azul: "bg-sky-500/10 text-sky-700 ring-sky-500/25 dark:text-sky-300",
   violeta: "bg-violet-500/10 text-violet-700 ring-violet-500/25 dark:text-violet-300",
+  gris: "bg-slate-100 text-slate-600 ring-slate-200 dark:text-slate-300",
 };
 
 const inp =
-  "h-12 w-full rounded-xl border border-input bg-background/70 px-4 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/15 dark:bg-white/5";
+  "h-12 w-full rounded-xl border border-input bg-white px-4 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-primary focus:ring-4 focus:ring-primary/15 dark:bg-white/5";
 
 const ars = (n: number) => "$ " + n.toLocaleString("es-CO");
 const fechaTxt = (f: string) => new Date(f + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
@@ -287,7 +288,7 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
   };
 
   return (
-    <div className="grid min-h-screen bg-background lg:grid-cols-[1.1fr_1fr]">
+    <div className="saas grid min-h-screen bg-background lg:grid-cols-[1.1fr_1fr]">
       <div className="relative hidden overflow-hidden bg-deep lg:block">
         <img src={heroDoctors} alt="" className="hero-kenburns absolute inset-0 size-full object-cover opacity-45" />
         <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep/80 to-deep/30" />
@@ -295,7 +296,7 @@ function Login({ onOk }: { onOk: (id: string) => void }) {
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-white/25"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[10px] uppercase tracking-[0.2em] text-white/70">Especialidades médicas</span></span>
+            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[11px] uppercase tracking-[0.2em] text-white/70">Especialidades médicas</span></span>
           </Link>
           <div className="max-w-md space-y-5">
             <span className="glass inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-xs font-semibold uppercase tracking-[0.2em]"><span className="pulse-dot size-1.5 rounded-full bg-emerald-400" /> Portal del paciente</span>
@@ -409,7 +410,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
     <>
           <div className="flex items-center justify-between gap-2 px-6 pb-4 pt-6"><Link to="/" className="flex items-center gap-2.5">
             <span className="flex size-10 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5"><img src={logoClinica} alt="" className="size-full object-cover" /></span>
-            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
+            <span className="leading-tight"><span className="block text-sm font-bold">HEGO</span><span className="block text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Portal del paciente</span></span>
           </Link><button onClick={() => setMenu(false)} aria-label="Cerrar menú" className="rounded-lg p-2 text-muted-foreground hover:bg-secondary lg:hidden"><X className="size-5" /></button></div>
           <div className="mx-4 flex items-center gap-3 rounded-2xl border border-border/60 bg-background/60 p-3 dark:bg-white/5">
             <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500 to-violet-600 text-sm font-bold text-white shadow-md">{iniciales}</span>
@@ -421,7 +422,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
           <nav className="pn-noscroll mt-4 flex-1 space-y-5 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
             {grupos.map((g) => (
               <div key={g}>
-                <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">{g}</p>
+                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/70">{g}</p>
                 {SECCIONES.filter((s) => s.grupo === g).map((s) => {
                   const on = sec === s.id;
                   const n = badge(s.id);
@@ -430,7 +431,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                       className={`group mb-0.5 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${on ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-[0_10px_24px_-10px_rgba(14,165,233,.8)]" : "text-muted-foreground hover:bg-secondary hover:text-foreground dark:hover:bg-white/5"}`}>
                       <s.icon className={`size-[18px] ${on ? "" : "transition-transform group-hover:scale-110"}`} />
                       <span className="flex-1 text-left">{s.label}</span>
-                      {n > 0 && <span className={`rounded-full px-1.5 text-[10px] font-bold ${on ? "bg-white/25" : "bg-amber-400 text-amber-950"}`}>{s.id === "pagos" ? "!" : n}</span>}
+                      {n > 0 && <span className={`rounded-full px-1.5 text-[11px] font-bold ${on ? "bg-white/25" : "bg-amber-400 text-amber-950"}`}>{s.id === "pagos" ? "!" : n}</span>}
                     </button>
                   );
                 })}
@@ -448,9 +449,9 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
   );
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb] dark:bg-[#070d1a]">
+    <div className="saas min-h-screen bg-[#f5f7fb] dark:bg-[#070d1a]">
       {/* fondo */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+      <div aria-hidden="true" className="pn-fondo pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-40 -top-40 size-[520px] rounded-full bg-sky-400/15 blur-[120px] dark:bg-sky-500/10" />
         <div className="absolute -right-40 top-1/3 size-[460px] rounded-full bg-rose-400/10 blur-[120px] dark:bg-rose-500/10" />
         <div className="absolute bottom-0 left-1/3 size-[420px] rounded-full bg-violet-400/10 blur-[120px] dark:bg-violet-500/10" />
@@ -466,7 +467,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
 
       <div className="relative lg:grid lg:grid-cols-[272px_1fr]">
         {/* Sidebar (escritorio) */}
-        <aside className={`dark hidden border-r border-white/10 bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] text-foreground lg:sticky lg:flex lg:h-screen lg:flex-col dark:bg-white/[0.03] ${vista ? "lg:top-10 lg:h-[calc(100vh-2.5rem)]" : "lg:top-0"}`}>
+        <aside className={`pt-side dark hidden border-r border-white/10 bg-gradient-to-b from-[#0b1d4a] via-[#0a1838] to-[#081229] text-foreground lg:sticky lg:flex lg:h-screen lg:flex-col dark:bg-white/[0.03] ${vista ? "lg:top-10 lg:h-[calc(100vh-2.5rem)]" : "lg:top-0"}`}>
           {interiorSidebar}
         </aside>
 
@@ -486,7 +487,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
             <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-8">
               <div className="flex min-w-0 items-center gap-2.5 lg:hidden">
                 <button onClick={() => setMenu(true)} aria-label="Abrir menú" className="flex size-10 shrink-0 items-center justify-center rounded-xl gradient-deep text-white shadow-md"><Menu className="size-5" /></button>
-                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-bold">{SECCIONES.find((x) => x.id === sec)?.label}</span><span className="block text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Mi portal</span></span>
+                <span className="min-w-0 leading-tight"><span className="block truncate text-sm font-bold">{SECCIONES.find((x) => x.id === sec)?.label}</span><span className="block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Mi portal</span></span>
               </div>
               <p className="hidden text-sm text-muted-foreground lg:block">
                 <span className="inline-block first-letter:uppercase">{new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span>
@@ -495,7 +496,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
                 <ThemeToggle />
                 <Button variant="ghost" size="icon" onClick={() => setCampana((v) => !v)} aria-label="Avisos" className="relative">
                   <Bell className="size-5" />
-                  {avisos.length > 0 && <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">{avisos.length}</span>}
+                  {avisos.length > 0 && <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-rose-500 text-[11px] font-bold text-white">{avisos.length}</span>}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={onSalir} aria-label="Salir" className="lg:hidden"><LogOut className="size-4" /></Button>
                 {campana && (
@@ -520,13 +521,13 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
               {SECCIONES.filter((x) => ["inicio", "turnos", "controles", "estudios"].includes(x.id)).map((x) => {
                 const on = sec === x.id;
                 return (
-                  <button key={x.id} onClick={() => ctx.ir(x.id)} className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold transition-colors ${on ? "text-primary dark:text-sky-400" : "text-muted-foreground"}`}>
+                  <button key={x.id} onClick={() => ctx.ir(x.id)} className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-semibold transition-colors ${on ? "text-primary dark:text-sky-400" : "text-muted-foreground"}`}>
                     <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-all ${on ? "bg-primary/10 dark:bg-sky-400/15" : ""}`}><x.icon className="size-5" /></span>
                     {x.id === "controles" ? "Presión" : x.id === "estudios" ? "Estudios" : x.id === "turnos" ? "Citas" : x.label}
                   </button>
                 );
               })}
-              <button onClick={() => setMenu(true)} className="relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] font-semibold text-muted-foreground">
+              <button onClick={() => setMenu(true)} className="relative flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[11px] font-semibold text-muted-foreground">
                 <span className="flex h-8 w-12 items-center justify-center rounded-full"><Menu className="size-5" /></span>
                 Más
                 {(badge("autorizaciones") > 0 || badge("pagos") > 0) && <span className="absolute right-3 top-1 size-2 rounded-full bg-amber-400" />}
@@ -584,7 +585,7 @@ function useAvisos(ctx: Ctx) {
 
 function Tarjeta({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-3xl border border-white/70 bg-[linear-gradient(165deg,rgba(255,255,255,.97),rgba(244,248,255,.9))] p-6 shadow-[inset_0_1px_0_#fff,0_2px_6px_rgba(15,23,42,.05),0_24px_50px_-24px_rgba(15,35,80,.35)] ring-1 ring-sky-100/80 backdrop-blur-xl dark:border-white/10 dark:bg-none dark:bg-white/[0.04] dark:shadow-none dark:ring-white/10 ${className}`}>
+    <div className={`pn-card relative overflow-hidden rounded-3xl border border-white/70 bg-[linear-gradient(165deg,rgba(255,255,255,.97),rgba(244,248,255,.9))] p-6 shadow-[inset_0_1px_0_#fff,0_2px_6px_rgba(15,23,42,.05),0_24px_50px_-24px_rgba(15,35,80,.35)] ring-1 ring-sky-100/80 backdrop-blur-xl dark:border-white/10 dark:bg-none dark:bg-white/[0.04] dark:shadow-none dark:ring-white/10 ${className}`}>
       <span className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-sky-400/10 blur-3xl" />
       <div className="relative">{children}</div>
     </div>
@@ -605,7 +606,7 @@ function Titulo({ icon: Icon, titulo, sub, accion }: { icon: LucideIcon; titulo:
             {sub && <p className="text-sm text-white/75">{sub}</p>}
           </div>
         </div>
-        {accion && <div className="[&_a]:!bg-white [&_a]:!text-[#0b2a6b] [&_a]:shadow-lg [&_button]:!bg-white [&_button]:!text-[#0b2a6b] [&_button]:shadow-lg">{accion}</div>}
+        {accion && <div className="[&_a]:!bg-white [&_a]:!text-[#1E3A8A] [&_a]:shadow-lg [&_button]:!bg-white [&_button]:!text-[#1E3A8A] [&_button]:shadow-lg">{accion}</div>}
       </div>
     </div>
   );
@@ -642,7 +643,7 @@ function Vacio({ icon: Icon, texto, accion }: { icon: LucideIcon; texto: string;
   );
 }
 
-const ESTADO_T: Record<TurnoClinica["estado"], Tono> = { Pendiente: "ambar", Confirmado: "azul", Atendido: "verde", Cancelado: "rojo", Vencida: "rojo" };
+const ESTADO_T: Record<TurnoClinica["estado"], Tono> = { Pendiente: "gris", Confirmado: "azul", Atendido: "verde", Cancelado: "rojo", Vencida: "gris" };
 
 function proximos(turnos: TurnoClinica[]) {
   const h = hoyIso();
@@ -656,7 +657,7 @@ function FilaTurno({ t, onCancelar }: { t: TurnoClinica; onCancelar?: () => void
     <div className="rounded-2xl border border-border/70 bg-background/50 p-4 transition-colors hover:bg-secondary/40 dark:border-white/10 dark:bg-white/[0.02]">
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex w-16 shrink-0 flex-col items-center rounded-2xl gradient-deep py-2 text-white shadow-md">
-          <span className="text-[10px] font-semibold uppercase text-white/70">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
+          <span className="text-[11px] font-semibold uppercase text-white/70">{new Date(t.fecha + "T12:00:00").toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
           <span className="font-display text-2xl font-semibold leading-none">{Number(t.fecha.slice(8))}</span>
           <span className="text-[11px] tabular-nums">{hora12(t.hora)}</span>
         </div>
@@ -787,7 +788,7 @@ function Inicio({ ctx }: { ctx: Ctx }) {
               const dif = (pesos[pesos.length - 1]!.peso ?? 0) - (pesos[0]!.peso ?? 0);
               return <p className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold ${Math.abs(dif) >= 2 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>{dif >= 0 ? <TrendingUp className="size-3.5" /> : <TrendingDown className="size-3.5" />} {dif > 0 ? "+" : ""}{dif.toFixed(1)} kg en sus registros</p>;
             })()}
-            <div className="mt-3"><Sparkline valores={pesos.map((c) => c.peso ?? 0)} color="#0ea5e9" /></div>
+            <div className="mt-3"><Sparkline valores={pesos.map((c) => c.peso ?? 0)} color="#3B5BC0" /></div>
           </Tarjeta>
         </button>
         <button onClick={() => ctx.ir("estudios")} className="text-left">
@@ -975,7 +976,7 @@ function Turnos({ ctx }: { ctx: Ctx }) {
 
       {pidiendo && (
         <Tarjeta className="animate-in fade-in zoom-in-95 duration-300 !p-0">
-          <div className="relative overflow-hidden rounded-t-3xl bg-[linear-gradient(120deg,#0b2a6b,#123a86_55%,#0e7490)] px-6 py-5 text-white">
+          <div className="relative overflow-hidden rounded-t-3xl bg-[linear-gradient(120deg,#1E3A8A,#123a86_55%,#0e7490)] px-6 py-5 text-white">
             <span className="pointer-events-none absolute -right-10 -top-14 size-44 rounded-full bg-white/10 blur-2xl" />
             <div className="relative flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1012,13 +1013,13 @@ function Turnos({ ctx }: { ctx: Ctx }) {
               const n = e.doctorIds.length;
               return (
                 <button key={e.slug} onClick={() => { setEsp(e.slug); setDoc(""); setFecha(""); setHora(""); }}
-                  className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${on ? "border-[#0b2a6b] bg-[#0b2a6b]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
-                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${on ? "gradient-deep text-white" : "bg-slate-100 text-[#0b2a6b] group-hover:bg-[#0b2a6b]/10 dark:bg-white/5 dark:text-sky-300"}`}><I className="size-[18px]" /></span>
+                  className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 ${on ? "border-[#1E3A8A] bg-[#1E3A8A]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
+                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${on ? "gradient-deep text-white" : "bg-slate-100 text-[#1E3A8A] group-hover:bg-[#1E3A8A]/10 dark:bg-white/5 dark:text-sky-300"}`}><I className="size-[18px]" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{e.nombre}</span>
                     <span className="block truncate text-[11px] text-muted-foreground">{n > 1 ? `${n} especialistas` : "1 especialista"}</span>
                   </span>
-                  {on ? <CheckCircle2 className="size-5 shrink-0 text-[#0b2a6b] dark:text-sky-300" /> : <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" />}
+                  {on ? <CheckCircle2 className="size-5 shrink-0 text-[#1E3A8A] dark:text-sky-300" /> : <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" />}
                 </button>
               );
             })}
@@ -1030,10 +1031,10 @@ function Turnos({ ctx }: { ctx: Ctx }) {
                 {doctores.map((d) => {
                   const ag = agendaDe(agendas, d.foto);
                   return (
-                    <button key={d.id} disabled={!ag.activo} onClick={() => { setDoc(d.id); setFecha(""); setHora(""); }} className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 disabled:opacity-50 ${doc === d.id ? "border-[#0b2a6b] bg-[#0b2a6b]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
+                    <button key={d.id} disabled={!ag.activo} onClick={() => { setDoc(d.id); setFecha(""); setHora(""); }} className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-200 disabled:opacity-50 ${doc === d.id ? "border-[#1E3A8A] bg-[#1E3A8A]/[.04] shadow-[0_10px_24px_-14px_rgba(11,42,107,.55)] dark:border-sky-400 dark:bg-sky-400/10" : "border-slate-200/80 bg-white/70 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_24px_-16px_rgba(15,35,80,.4)] dark:border-white/10 dark:bg-white/[.03]"}`}>
                       <img src={fotoDoctor(d.foto)} alt="" className="size-14 rounded-xl object-cover object-top ring-2 ring-white shadow-sm dark:ring-white/10" />
                       <span className="min-w-0 flex-1"><span className="block font-semibold leading-tight">{d.nombre}</span><span className="mt-0.5 block text-xs text-muted-foreground">{resumenAgenda(ag)}</span></span>
-                      {doc === d.id && <CheckCircle2 className="size-5 shrink-0 text-[#0b2a6b] dark:text-sky-300" />}
+                      {doc === d.id && <CheckCircle2 className="size-5 shrink-0 text-[#1E3A8A] dark:text-sky-300" />}
                     </button>
                   );
                 })}
@@ -1058,14 +1059,14 @@ function Turnos({ ctx }: { ctx: Ctx }) {
                 <div className="grid gap-px bg-slate-200/70 sm:grid-cols-3 dark:bg-white/10">
                   {[["Especialidad", especialidad?.nombre ?? ""], ["Profesional", doctor?.nombre ?? ""], ["Fecha y hora", `${fechaTxt(fecha)} · ${hora ? hora12(hora) : ""}`]].map(([k, v]) => (
                     <div key={k} className="bg-white px-4 py-3 dark:bg-slate-950">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{k}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{k}</p>
                       <p className="mt-0.5 text-sm font-semibold first-letter:uppercase">{v}</p>
                     </div>
                   ))}
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5 text-emerald-600" /> La clínica revisará su pedido y le confirmará la cita.</p>
-                  <Button onClick={confirmar} className="btn-glow rounded-xl !bg-[#0b2a6b] px-5 hover:!bg-[#0b2a6b]/90"><Check className="size-4" /> Confirmar pedido</Button>
+                  <Button onClick={confirmar} className="btn-glow rounded-xl !bg-[#1E3A8A] px-5 hover:!bg-[#1E3A8A]/90"><Check className="size-4" /> Confirmar pedido</Button>
                 </div>
               </div>
             </div>
@@ -1124,11 +1125,11 @@ function GraficoPresion({ datos }: { datos: Control[] }) {
         ))}
         <path d={`${linea("sistolica")} L ${x(lista.length - 1)} ${H - P} L ${x(0)} ${H - P} Z`} fill="url(#gs)" className="pn-area" />
         <path d={linea("sistolica")} fill="none" stroke="#fb7185" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="pn-draw" style={{ ["--len" as string]: 2000 }} />
-        <path d={linea("diastolica")} fill="none" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="pn-draw" style={{ ["--len" as string]: 2000, animationDelay: ".2s" }} />
+        <path d={linea("diastolica")} fill="none" stroke="#93A9E8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="pn-draw" style={{ ["--len" as string]: 2000, animationDelay: ".2s" }} />
         {lista.map((d, i) => (
           <g key={d.id}>
             <circle cx={x(i)} cy={y(d.sistolica)} r="4" fill="#0f172a" stroke="#fb7185" strokeWidth="2" />
-            <circle cx={x(i)} cy={y(d.diastolica)} r="4" fill="#0f172a" stroke="#38bdf8" strokeWidth="2" />
+            <circle cx={x(i)} cy={y(d.diastolica)} r="4" fill="#0f172a" stroke="#93A9E8" strokeWidth="2" />
           </g>
         ))}
       </svg>
@@ -1215,7 +1216,7 @@ function Controles({ ctx }: { ctx: Ctx }) {
               { l: "Mediciones", v: String(ctx.controles.length) },
             ].map((x) => (
               <Tarjeta key={x.l} className="!p-4 text-center">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{x.l}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{x.l}</p>
                 <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{x.v}</p>
               </Tarjeta>
             ))}
@@ -1309,7 +1310,7 @@ function Medicacion({ ctx }: { ctx: Ctx }) {
               <Subtitulo icon={CalendarCheck}>Hoy</Subtitulo>
               <div className="flex items-center gap-3">
                 <div className="relative size-14">
-                  <svg viewBox="0 0 36 36" className="size-14 -rotate-90"><circle cx="18" cy="18" r="15" fill="none" className="stroke-secondary dark:stroke-white/10" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="url(#ga)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(adherencia / 100) * 94.2} 94.2`} className="pn-donut" /><defs><linearGradient id="ga"><stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#0ea5e9" /></linearGradient></defs></svg>
+                  <svg viewBox="0 0 36 36" className="size-14 -rotate-90"><circle cx="18" cy="18" r="15" fill="none" className="stroke-secondary dark:stroke-white/10" strokeWidth="4" /><circle cx="18" cy="18" r="15" fill="none" stroke="url(#ga)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(adherencia / 100) * 94.2} 94.2`} className="pn-donut" /><defs><linearGradient id="ga"><stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#3B5BC0" /></linearGradient></defs></svg>
                   <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">{adherencia}%</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Cumplimiento<br />últimos 7 días</p>
@@ -1412,7 +1413,7 @@ function imprimirEstudio(e: Estudio, paciente: PacientePortal) {
 function Valor({ label, valor, unidad, tono, nota }: { label: string; valor: number; unidad: string; tono: Tono; nota?: string }) {
   return (
     <div className={`rounded-2xl p-3 ring-1 ${TONO[tono]}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider opacity-80">{label}</p>
       <p className="font-display text-xl font-semibold tabular-nums">{valor} <span className="text-xs font-normal opacity-80">{unidad}</span></p>
       {nota && <p className="text-[11px] opacity-90">{nota}</p>}
     </div>
