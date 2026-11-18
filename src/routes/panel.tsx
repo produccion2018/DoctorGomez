@@ -101,6 +101,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  Ruler,
   UserCheck,
   UserX,
   Pin,
@@ -5882,45 +5883,33 @@ function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf
         </Seccion>
       )}
 
-      <div id="ficha-hc" className="grid scroll-mt-24 gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-        {/* Lista de pacientes */}
-        <section className="pn-card pn-up flex max-h-[calc(100vh-10rem)] min-h-[420px] flex-col overflow-hidden xl:sticky xl:top-6">
-          <div className="pn-sec-top relative overflow-hidden px-4 pb-4 pt-5 text-white">
-            <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
-            <div className="pointer-events-none absolute -right-10 -top-14 size-40 rounded-full bg-white/15 blur-3xl" />
-            <div className="relative mb-3 flex items-center justify-between">
-              <p className="flex items-center gap-2 font-display text-lg font-semibold"><Users className="size-4" /> Pacientes</p>
-              <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/25">{visibles.length}</span>
-            </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " pl-10 !bg-white text-foreground"} />
-            </div>
-          </div>
-          <ul className="pn-noscroll flex-1 space-y-1.5 overflow-y-auto p-3">
-            {visibles.map((p) => {
-              const u = ultimaDe(p);
-              const on = p.id === selId;
-              return (
-                <li key={p.id}>
-                  <button
-                    onClick={() => { setSelId(p.id); setNueva(false); }}
-                    className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 text-left transition-all ${on ? "bg-gradient-to-r from-[rgba(var(--acc),.16)] to-[rgba(var(--acc),.04)] shadow-sm ring-1 ring-[rgba(var(--acc),.4)]" : "hover:translate-x-0.5 hover:bg-secondary/80"}`}
-                  >
-                    {on && <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-[rgb(var(--acc))]" />}
-                    <Avatar nombre={p.nombre} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold">{p.nombre}</span>
-                      <span className="block truncate text-[11px] text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"} · {u ? `última consulta ${fechaDe(u.fecha)}` : "sin consultas"}</span>
-                    </span>
-                    {p.ficha?.alergias ? <AlertTriangle className="size-3.5 shrink-0 text-red-500" /> : <ChevronDown className={`size-4 shrink-0 -rotate-90 text-muted-foreground transition-transform ${on ? "text-[rgb(var(--acc))]" : "opacity-0 group-hover:translate-x-0.5 group-hover:opacity-100"}`} />}
-                  </button>
-                </li>
-              );
-            })}
-            {visibles.length === 0 && <li className="px-2 py-8 text-center text-sm text-muted-foreground">Sin pacientes. Cárguelos en Pacientes.</li>}
-          </ul>
-        </section>
+      <div id="ficha-hc" className="scroll-mt-24 space-y-4">
+        {/* Buscador de paciente (la historia ocupa todo el ancho) */}
+        <div className="relative max-w-xl">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={sel ? `Cambiar de paciente: buscar por nombre o cédula` : "Buscar paciente por nombre o cédula"} className={inp + " bg-white pl-10 pr-9"} />
+          {q && <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-slate-100"><X className="size-4" /></button>}
+          {norm(q).trim().length >= 2 && (
+            <ul className="absolute inset-x-0 top-full z-30 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-xl">
+              {visibles.slice(0, 12).map((p) => {
+                const u = ultimaDe(p);
+                return (
+                  <li key={p.id}>
+                    <button type="button" onClick={() => { setSelId(p.id); setNueva(false); setQ(""); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-[#EEF2FB] dark:hover:bg-white/5">
+                      <Avatar nombre={p.nombre} size="size-9 !rounded-xl" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{nombrePropio(p.nombre)}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"} · {u ? `última consulta ${fechaDe(u.fecha)}` : "sin consultas"}</span>
+                      </span>
+                      {p.ficha?.alergias && <AlertTriangle className="size-3.5 shrink-0 text-red-500" />}
+                    </button>
+                  </li>
+                );
+              })}
+              {visibles.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">No se encontró ese paciente.</li>}
+            </ul>
+          )}
+        </div>
 
         {!sel ? (
           <section className="pn-card pn-up p-6">
@@ -6047,6 +6036,8 @@ function FichaHC({
   const conPeso = regs.find((e) => e.signos.peso && (e.signos.talla || regs.some((x) => x.signos.talla)));
   const talla = regs.find((e) => e.signos.talla)?.signos.talla;
   const imc = conPeso ? calcularImc(conPeso.signos.peso, conPeso.signos.talla ?? talla) : null;
+  const pesoR = regs.find((e) => e.signos.peso);
+  const tallaR = regs.find((e) => e.signos.talla);
   const dxActivos = Array.from(new Map(ordenadas.flatMap(dxDe).map((d) => [d.codigo || d.descripcion, d])).values()).slice(0, 8);
 
   type Item = { tipo: "evol"; f: string; e: Evolucion } | { tipo: "estudio"; f: string; e: Estudio } | { tipo: "triage"; f: string; e: Triage } | { tipo: "enf"; f: string; e: NotaEnfermeria };
@@ -6116,29 +6107,64 @@ function FichaHC({
           <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#172E6E]"><Plus className="size-4" /> Registrar signos vitales</button>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         {[
           { icon: Activity, l: "Presión arterial", v: ta ? `${ta.s}/${ta.d}` : "—", u: "mmHg", f: ta?.f, b: ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : null, sig: true },
-          { icon: HeartPulse, l: "Frecuencia cardíaca", v: fc ? String(fc.signos.pulso) : "—", u: "lpm", f: fc?.fecha, b: fc ? (fueraDeRango("fc", fc.signos.pulso) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
+          { icon: HeartPulse, l: "Frec. cardíaca", v: fc ? String(fc.signos.pulso) : "—", u: "lpm", f: fc?.fecha, b: fc ? (fueraDeRango("fc", fc.signos.pulso) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
           { icon: Thermometer, l: "Temperatura", v: temp ? String(temp.signos.temp) : "—", u: "°C", f: temp?.fecha, b: temp ? (fueraDeRango("temp", temp.signos.temp) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
-          { icon: Scale, l: "IMC", v: imc ? String(imc.valor) : "—", u: "kg/m²", f: conPeso?.fecha, b: imc ? { t: imc.texto, tono: imc.tono } : null, sig: true },
-          { icon: Droplets, l: "AGT", v: glu ? String(glu.v) : "—", u: "mg/dL", f: glu?.n.fecha, b: glu ? nivelGlu(glu.v, glu.m) : null, sig: false, extra: `Glucometría${glu?.m ? ` · ${glu.m.toLowerCase()}` : ""}` },
+          { icon: Scale, l: "Peso", v: pesoR ? String(pesoR.signos.peso) : "—", u: "kg", f: pesoR?.fecha, b: null, sig: true },
+          { icon: Ruler, l: "Talla", v: tallaR ? String(tallaR.signos.talla) : "—", u: "cm", f: tallaR?.fecha, b: null, sig: true },
+          { icon: Droplets, l: "HGT", v: glu ? String(glu.v) : "—", u: "mg/dL", f: glu?.n.fecha, b: glu ? nivelGlu(glu.v, glu.m) : null, sig: false, extra: glu?.m ? `Glucometría · ${glu.m.toLowerCase()}` : "Glucometría" },
         ].map((x) => (
-          <button type="button" key={x.l} disabled={!puedeSignos || !x.sig} onClick={() => setVentSignos(true)} title={x.sig ? "" : "Se registra en Controles → Glucometría"}
-            className="pn-card pn-up group relative overflow-hidden px-3.5 pb-3 pt-3 text-left transition enabled:hover:border-[#1E3A8A]/35">
-            <div className="flex items-center gap-2">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><x.icon className="size-3.5" /></span>
-              <p className="line-clamp-2 min-w-0 text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">{x.l}</p>
+          <button type="button" key={x.l} disabled={!puedeSignos || !x.sig} onClick={() => setVentSignos(true)} title={x.sig ? x.l : "Se registra en Controles → Glucometría"}
+            className="pn-card pn-up group relative flex min-h-[112px] flex-col overflow-hidden px-3 pb-2.5 pt-3 text-left transition enabled:hover:border-[#1E3A8A]/35">
+            <div className="flex items-center gap-1.5">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><x.icon className="size-3.5" /></span>
+              <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{x.l}</p>
             </div>
-            <p className="mt-2 text-xl font-bold tabular-nums tracking-tight">{x.v} <span className="text-xs font-medium text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
-            <div className="mt-1 flex min-h-5 flex-wrap items-center gap-1.5">
-              {x.b ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : <span className="text-[11px] text-muted-foreground">{puedeSignos && x.sig ? "Toque para registrar" : "Sin registros"}</span>}
-              {x.f && <span className="text-[11px] text-muted-foreground">{fechaDe(x.f)}</span>}
+            <p className="mt-2 text-lg font-bold leading-tight tabular-nums tracking-tight">{x.v} <span className="text-[11px] font-medium text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
+            <div className="mt-auto pt-1.5">
+              {x.b ? <span className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : null}
+              <p className="truncate text-[11px] text-muted-foreground">{x.f ? fechaDe(x.f) : puedeSignos && x.sig ? "Toque para registrar" : "Sin registros"}{"extra" in x && x.extra ? ` · ${x.extra}` : ""}</p>
             </div>
-            {"extra" in x && x.extra && <p className="mt-0.5 truncate text-[11px] text-muted-foreground first-letter:uppercase">{x.extra}</p>}
           </button>
         ))}
       </div>
+
+      {/* IMC con su clasificación (OMS) */}
+      {(() => {
+        const v = imc?.valor;
+        const cls = v === undefined ? null : v < 18.5 ? { t: "Bajo peso", c: "bg-sky-100 text-sky-800 ring-sky-200" } : v < 25 ? { t: "Peso normal", c: "bg-emerald-100 text-emerald-800 ring-emerald-200" } : v < 30 ? { t: "Sobrepeso", c: "bg-amber-100 text-amber-800 ring-amber-200" } : v < 35 ? { t: "Obesidad grado I", c: "bg-orange-100 text-orange-800 ring-orange-200" } : v < 40 ? { t: "Obesidad grado II", c: "bg-red-100 text-red-700 ring-red-200" } : { t: "Obesidad grado III (mórbida)", c: "bg-red-600 text-white ring-red-700" };
+        const rangos = [{ t: "Bajo peso", d: "< 18,5", w: 18.5 }, { t: "Normal", d: "18,5–24,9", w: 6.5 }, { t: "Sobrepeso", d: "25–29,9", w: 5 }, { t: "Obesidad I", d: "30–34,9", w: 5 }, { t: "Obesidad II", d: "35–39,9", w: 5 }, { t: "Obesidad III", d: "≥ 40", w: 10 }];
+        const colores = ["#93A9E8", "#10B981", "#F59E0B", "#F97316", "#EF4444", "#B91C1C"];
+        const pos = v === undefined ? null : Math.min(100, Math.max(0, (v / 50) * 100));
+        return (
+          <div className="pn-card pn-up flex flex-wrap items-center gap-5 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 items-center justify-center rounded-xl bg-[#1E3A8A] text-white"><Scale className="size-5" /></span>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Índice de masa corporal</p>
+                <p className="text-2xl font-bold leading-tight tabular-nums tracking-tight">{v ?? "—"} <span className="text-xs font-medium text-muted-foreground">{v !== undefined ? "kg/m²" : ""}</span></p>
+              </div>
+            </div>
+            <div className="min-w-[16rem] flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {cls ? <span className={`rounded-lg px-2.5 py-1 text-xs font-bold ring-1 ${cls.c}`}>{cls.t}</span> : <span className="text-sm text-muted-foreground">Sin peso y talla registrados por enfermería</span>}
+                {conPeso && <span className="text-[11px] text-muted-foreground">Clasificación OMS · {fechaDe(conPeso.fecha)}</span>}
+              </div>
+              <div className="relative mt-3">
+                <div className="flex h-2 overflow-hidden rounded-full">
+                  {rangos.map((r, i) => <span key={r.t} style={{ flexGrow: r.w, background: colores[i] }} className="opacity-80" />)}
+                </div>
+                {pos !== null && <span className="absolute -top-1 size-4 -translate-x-1/2 rounded-full border-2 border-white bg-[#0F172A] shadow" style={{ left: `${pos}%` }} />}
+                <div className="mt-1.5 hidden justify-between text-[11px] text-muted-foreground sm:flex">
+                  {rangos.map((r) => <span key={r.t} className="text-center"><b className="block font-semibold text-foreground/80">{r.t}</b>{r.d}</span>)}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       {ventSignos && <VentanaSignos user={user} log={log} turnos={turnosHC} soloLectura={false} inicial={p.id} onCerrar={() => setVentSignos(false)} />}
 
       {pendiente && !nueva && (
