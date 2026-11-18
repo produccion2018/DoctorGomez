@@ -48,6 +48,8 @@ export type ProtocoloMdpa = {
   descartarPrimerDia: boolean;
   instrucciones?: string;
   antesMedicacion?: boolean;
+  /** Guía con la que se clasifica el promedio domiciliario (por defecto ESC 2024). */
+  guia?: GuiaMdpa;
 };
 
 export type MonitoreoMdpa = {
@@ -69,15 +71,80 @@ export type MonitoreoMdpa = {
 };
 
 /* ───────────── Criterios clínicos (configuración versionada) ───────────── */
+/**
+ * Umbrales para el PROMEDIO DOMICILIARIO (no consultorio), revisados nov-2026:
+ * - ESC 2024 (Guía de presión elevada e hipertensión): no elevada < 120/70; elevada 120–134 / 70–84; hipertensión ≥ 135/85.
+ *   Objetivo en tratamiento: sistólica 120–129 si se tolera.
+ * - AHA/ACC 2025 (reemplaza a 2017; valores domiciliarios equivalentes): normal < 120/80; elevada 120–129 / < 80;
+ *   etapa 1: 130–134 / 80–84; etapa 2: ≥ 135/85. Objetivo < 130/80 (idealmente sistólica < 120). Severa > 180/120.
+ * - ESH 2023 (y documento de posición ESH 2021 sobre AMPA): normal < 130/80; hipertensión ≥ 135/85. Grado 3 en consultorio ≥ 180/110.
+ * - ISH 2020: hipertensión domiciliaria ≥ 135/85. Objetivo < 130/80 (< 140/90 en ≥ 65 años según tolerancia).
+ */
+export type GuiaMdpa = "ESC 2024" | "AHA/ACC 2025" | "ESH 2023" | "ISH 2020";
+export type CategoriaMdpa = { nombre: string; rango: string; tono: "verde" | "ambar" | "naranja" | "rojo" };
+type DefGuia = { nombre: string; categorias: (CategoriaMdpa & { desde: { s: number; d: number } })[]; objetivo: { s: number; d: number }; notaObjetivo: string };
+
+export const GUIAS_MDPA: Record<GuiaMdpa, DefGuia> = {
+  "ESC 2024": {
+    nombre: "ESC 2024 · Sociedad Europea de Cardiología",
+    categorias: [
+      { nombre: "No elevada", rango: "< 120/70", tono: "verde", desde: { s: 0, d: 0 } },
+      { nombre: "Presión elevada", rango: "120–134 / 70–84", tono: "ambar", desde: { s: 120, d: 70 } },
+      { nombre: "Hipertensión", rango: "≥ 135/85", tono: "rojo", desde: { s: 135, d: 85 } },
+    ],
+    objetivo: { s: 130, d: 80 },
+    notaObjetivo: "En tratamiento: sistólica 120–129 mmHg si se tolera; más flexible en fragilidad, ≥ 85 años o hipotensión ortostática.",
+  },
+  "AHA/ACC 2025": {
+    nombre: "AHA/ACC 2025 · Asociación Americana del Corazón / Colegio Americano de Cardiología",
+    categorias: [
+      { nombre: "Normal", rango: "< 120/80", tono: "verde", desde: { s: 0, d: 0 } },
+      { nombre: "Presión elevada", rango: "120–129 / < 80", tono: "ambar", desde: { s: 120, d: 999 } },
+      { nombre: "Hipertensión etapa 1", rango: "130–134 / 80–84", tono: "naranja", desde: { s: 130, d: 80 } },
+      { nombre: "Hipertensión etapa 2", rango: "≥ 135/85", tono: "rojo", desde: { s: 135, d: 85 } },
+    ],
+    objetivo: { s: 130, d: 80 },
+    notaObjetivo: "Objetivo < 130/80 mmHg, idealmente sistólica < 120 mmHg.",
+  },
+  "ESH 2023": {
+    nombre: "ESH 2023 · Sociedad Europea de Hipertensión",
+    categorias: [
+      { nombre: "Normal", rango: "< 130/80", tono: "verde", desde: { s: 0, d: 0 } },
+      { nombre: "Zona limítrofe", rango: "130–134 / 80–84", tono: "ambar", desde: { s: 130, d: 80 } },
+      { nombre: "Hipertensión", rango: "≥ 135/85", tono: "rojo", desde: { s: 135, d: 85 } },
+    ],
+    objetivo: { s: 130, d: 80 },
+    notaObjetivo: "Objetivo < 130/80 mmHg en la mayoría; < 140/90 en ≥ 80 años según tolerancia.",
+  },
+  "ISH 2020": {
+    nombre: "ISH 2020 · Sociedad Internacional de Hipertensión",
+    categorias: [
+      { nombre: "Sin hipertensión", rango: "< 135/85", tono: "verde", desde: { s: 0, d: 0 } },
+      { nombre: "Hipertensión", rango: "≥ 135/85", tono: "rojo", desde: { s: 135, d: 85 } },
+    ],
+    objetivo: { s: 130, d: 80 },
+    notaObjetivo: "Objetivo < 130/80 mmHg (< 140/90 en ≥ 65 años según tolerancia).",
+  },
+};
+export const GUIA_POR_DEFECTO: GuiaMdpa = "ESC 2024";
+
+/** Clasifica un promedio domiciliario según la guía elegida (la categoría más alta que cumpla sistólica O diastólica). */
+export function clasificarDomiciliaria(s: number, d: number, guia: GuiaMdpa = GUIA_POR_DEFECTO): CategoriaMdpa {
+  const cats = GUIAS_MDPA[guia].categorias;
+  let r = cats[0]!;
+  for (const c of cats) if (s >= c.desde.s || d >= c.desde.d) r = c;
+  return { nombre: r.nombre, rango: r.rango, tono: r.tono };
+}
+
 export const CRITERIOS_MDPA = {
-  version: "2026.1",
-  fuentes: "ESC 2024 (presión elevada e hipertensión) · ESH 2023 · AHA/ACC 2017 · ISH 2020",
-  /** Promedio domiciliario: hipertensión ≥ 135/85; elevada 120–134 / 70–84; no elevada < 120/70 (ESC 2024, ESH 2023). */
+  version: "2026.2",
+  fuentes: "ESC 2024 · AHA/ACC 2025 · ESH 2023 · ISH 2020",
+  /** Umbral domiciliario de hipertensión, común a todas las guías vigentes. */
   hta: { s: 135, d: 85 },
   elevada: { s: 120, d: 70 },
-  /** Objetivo por defecto si el médico no fija uno individual. */
-  objetivoPorDefecto: { s: 135, d: 85 },
-  /** Cifras para alerta urgente (crisis hipertensiva) y de atención. */
+  /** Objetivo por defecto en tratamiento (todas las guías vigentes: < 130/80). El médico lo ajusta por paciente. */
+  objetivoPorDefecto: { s: 130, d: 80 },
+  /** Alerta urgente: ≥ 180 y/o ≥ 110 (grado 3 ESH; AHA/ACC 2025 define hipertensión severa > 180/120). */
   urgente: { s: 180, d: 110 },
   atencion: { s: 160, d: 100 },
   hipotension: { s: 90, d: 60 },
@@ -101,6 +168,7 @@ export const PROTOCOLO_ESTANDAR: ProtocoloMdpa = {
   objetivo: { ...CRITERIOS_MDPA.objetivoPorDefecto },
   descartarPrimerDia: true,
   antesMedicacion: true,
+  guia: GUIA_POR_DEFECTO,
 };
 
 /* ───────────── Validación de una medición ───────────── */
@@ -213,12 +281,17 @@ export function analizar(m: MonitoreoMdpa, hoy = new Date().toLocaleDateString("
 
   // Interpretación orientativa (nunca diagnóstico definitivo)
   const c = CRITERIOS_MDPA;
+  const guia = p.guia ?? GUIA_POR_DEFECTO;
+  const categoria = clasificarDomiciliaria(pS, pD, guia);
   let interpretacion: string;
   if (!suficiente) interpretacion = `Datos insuficientes para una conclusión: se necesitan al menos ${c.minDiasValidos} días válidos y ${c.minMediciones} mediciones (hay ${diasValidos} días y ${validas.length} mediciones válidas).`;
   else if (pS < c.hipotension.s || pD < c.hipotension.d) interpretacion = `Promedio domiciliario bajo (${pS}/${pD} mmHg): posible hipotensión; valorar síntomas y tratamiento.`;
-  else if (pS >= obj.s || pD >= obj.d) interpretacion = `Presión arterial domiciliaria elevada respecto del objetivo (${pS}/${pD} mmHg vs. ${obj.s}/${obj.d}).${pS >= c.hta.s || pD >= c.hta.d ? " Compatible con hipertensión no controlada o hipertensión según el contexto clínico (umbral domiciliario ≥ 135/85)." : ""}`;
-  else if (pS >= c.elevada.s || pD >= c.elevada.d) interpretacion = `Presión arterial domiciliaria dentro del objetivo individual (${pS}/${pD} mmHg), en rango de presión elevada (120–134 / 70–84) según ESC 2024.`;
-  else interpretacion = `Presión arterial domiciliaria dentro del objetivo y no elevada (${pS}/${pD} mmHg).`;
+  else {
+    const base = `Promedio domiciliario ${pS}/${pD} mmHg: «${categoria.nombre}» (${categoria.rango}) según ${guia}.`;
+    const vsObj = pS >= obj.s || pD >= obj.d ? ` Por encima del objetivo individual (< ${obj.s}/${obj.d}).` : ` Dentro del objetivo individual (< ${obj.s}/${obj.d}).`;
+    const hta = pS >= c.hta.s || pD >= c.hta.d ? " Alcanza el umbral domiciliario de hipertensión (≥ 135/85): en paciente tratado sugiere hipertensión no controlada; sin tratamiento, compatible con hipertensión según el contexto clínico." : "";
+    interpretacion = base + vsObj + hta;
+  }
 
   let estado: EstadoMdpa;
   if (m.revision) estado = "Revisado por el médico";
@@ -231,7 +304,7 @@ export function analizar(m: MonitoreoMdpa, hoy = new Date().toLocaleDateString("
   return {
     todas, validas, excluidas: todas.length - validas.length, pS, pD, deS, deD, fc: prom(FC), porMomento, porDia, dias: dias.length, diasValidos,
     esperadas, cumplimiento, sobre, bajo, pctSobre: validas.length ? Math.round((sobre / validas.length) * 100) : 0, pctBajo: validas.length ? Math.round((bajo / validas.length) * 100) : 0,
-    suficiente, tendencia: tend, alertas, interpretacion, estado, fin, diaN, ultima: todas[todas.length - 1],
+    suficiente, tendencia: tend, alertas, interpretacion, guia, categoria, estado, fin, diaN, ultima: todas[todas.length - 1],
     calidad: todas.length ? Math.round(((todas.length - todas.filter((x) => x.retrospectiva).length) / todas.length) * 100) : 0,
   };
 }

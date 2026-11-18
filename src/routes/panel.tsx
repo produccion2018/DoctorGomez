@@ -129,7 +129,7 @@ import {
 } from "lucide-react";
 import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
 import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia, ESTUDIOS_DIAGNOSTICOS, type TipoOrden } from "@/data/sugerencias";
-import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, CRITERIOS_MDPA, PATRON_NOCTURNO, AVISO_IA, analizar, finDe, type MonitoreoMdpa, type MomentoMdpa, type ProtocoloMdpa } from "@/lib/mdpa";
+import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, CRITERIOS_MDPA, GUIAS_MDPA, GUIA_POR_DEFECTO, type GuiaMdpa, PATRON_NOCTURNO, AVISO_IA, analizar, finDe, type MonitoreoMdpa, type MomentoMdpa, type ProtocoloMdpa } from "@/lib/mdpa";
 import { Svg, svgSerie, svgMomentos, svgDiario, htmlInformeMdpa, GuiaMedicion } from "@/components/mdpa";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
@@ -1164,7 +1164,7 @@ function CampanaPanel({ turnos, user, irA, abrirPac }: { turnos: Turno[]; user: 
       .filter((c) => ahora - new Date(c.fecha).getTime() < 14 * 86400000)
       .map((c) => ({ c, k: clasificarPresion(c.sistolica, c.diastolica) }))
       .filter((x) => x.k.tono === "rojo" || x.k.tono === "critico")
-      .map(({ c, k }) => ({ id: `pa-${c.id}`, titulo: k.tono === "critico" ? "¡Crisis hipertensiva!" : "Presión alta registrada", texto: `${nombreP(c.pacienteId)} · ${c.sistolica}/${c.diastolica} mmHg`, icon: HeartPulse, tono: "rojo" as Tono, tab: "pacientes" as Tab, fecha: c.fecha })),
+      .map(({ c, k }) => ({ id: `pa-${c.id}`, titulo: k.tono === "critico" ? "Hipertensión severa (> 180/120)" : "Presión alta registrada", texto: `${nombreP(c.pacienteId)} · ${c.sistolica}/${c.diastolica} mmHg`, icon: HeartPulse, tono: "rojo" as Tono, tab: "pacientes" as Tab, fecha: c.fecha })),
     ...pacientes
       .filter((p) => p.ultimoIngreso && p.estado === "Activo" && ahora - new Date(p.ultimoIngreso).getTime() < 2 * 86400000 && ahora - new Date(p.fecha).getTime() < 14 * 86400000)
       .map((p) => ({ id: `ingreso-${p.id}`, titulo: "Paciente activó su portal", texto: p.nombre, icon: LogIn, tono: "verde" as Tono, tab: "pacientes" as Tab, fecha: p.ultimoIngreso! })),
@@ -9879,7 +9879,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
     if (!y || x.f > y.f) ultimaTA.set(x.id, x);
   });
   const conTA = [...ultimaTA.values()];
-  const controlados = conTA.filter((x) => x.s < 140 && x.d < 90).length;
+  const controlados = conTA.filter((x) => x.s < 130 && x.d < 80).length;
   const feviRed = evols.filter((e) => e.cardio?.fevi && e.cardio.fevi < 41).length;
   const recetasR = recetas.filter((r) => enRango(r.fecha) && delDoc(r.doctor)).length;
   const labsR = labs.filter((l) => enRango(l.fecha) && delDoc(l.doctor)).length;
@@ -9914,7 +9914,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
     { Indicador: "Facturado", Valor: dinero(facturado) }, { Indicador: "Egresos", Valor: dinero(egresosR) }, { Indicador: "Cartera con EPS", Valor: dinero(carteraTotal) },
     { Indicador: "Saldos de pacientes", Valor: dinero(saldoPacientes) }, { Indicador: "Pacientes recurrentes en el período", Valor: String(recurrentes) },
     { Indicador: "Recetas", Valor: String(recetasR) }, { Indicador: "Laboratorios", Valor: String(labsR) },
-    { Indicador: "Presión controlada (< 140/90)", Valor: conTA.length ? `${Math.round((controlados / conTA.length) * 100)}%` : "—" },
+    { Indicador: "Presión controlada (< 130/80, objetivo de las guías vigentes)", Valor: conTA.length ? `${Math.round((controlados / conTA.length) * 100)}%` : "—" },
   ];
   const nombreArchivo = (q: string) => `HEGO ${q} ${hoyIso}`;
   const reportes: { t: string; d: string; icon: LucideIcon; hojas: () => { nombre: string; filas: Record<string, unknown>[] }[] }[] = [
@@ -10058,7 +10058,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
             <BarrasV datos={estadios} color="#1E3A8A" alto="h-40" />
           </div>
           <div className="flex items-center justify-center rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
-            <DonaPct pct={conTA.length ? (controlados / conTA.length) * 100 : 0} etiqueta="Presión controlada" sub={`${controlados} de ${conTA.length} · < 140/90`} />
+            <DonaPct pct={conTA.length ? (controlados / conTA.length) * 100 : 0} etiqueta="Presión controlada" sub={`${controlados} de ${conTA.length} · < 130/80`} />
           </div>
           <div className="space-y-2 lg:col-span-2">
             {[
@@ -14175,6 +14175,10 @@ function NuevoMdpa({ user, pacs, onCerrar, onCrear }: { user: SessionUser; pacs:
           <Campo label="Duración (7 a 10 días)"><select value={p.dias} onChange={(e) => setP({ ...p, dias: Number(e.target.value) })} className={inp}>{[7, 8, 9, 10].map((d) => <option key={d} value={d}>{d} días</option>)}</select></Campo>
           <Campo label="Objetivo (mmHg)"><div className="flex items-center gap-1"><input value={p.objetivo.s} onChange={(e) => setP({ ...p, objetivo: { ...p.objetivo, s: Number(e.target.value) || 0 } })} className={inp} /><span>/</span><input value={p.objetivo.d} onChange={(e) => setP({ ...p, objetivo: { ...p.objetivo, d: Number(e.target.value) || 0 } })} className={inp} /></div></Campo>
         </div>
+        <Campo label="Guía para clasificar el promedio domiciliario">
+          <select value={p.guia ?? GUIA_POR_DEFECTO} onChange={(e) => { const g = e.target.value as GuiaMdpa; setP({ ...p, guia: g, objetivo: { ...GUIAS_MDPA[g].objetivo } }); }} className={inp}>{(Object.keys(GUIAS_MDPA) as GuiaMdpa[]).map((g) => <option key={g} value={g}>{GUIAS_MDPA[g].nombre}</option>)}</select>
+          <TablaGuia guia={p.guia ?? GUIA_POR_DEFECTO} />
+        </Campo>
         <Campo label="Momentos del día"><div className="flex flex-wrap gap-2">{MOMENTOS_MDPA.map((mo) => { const on = p.momentos.includes(mo); return <button key={mo} type="button" disabled={p.tipo === "Estándar"} onClick={() => setP({ ...p, momentos: on ? p.momentos.filter((x) => x !== mo) : MOMENTOS_MDPA.filter((x) => x === mo || p.momentos.includes(x)) })} className={`${chip(on)} disabled:opacity-80`}>{mo}{mo === "Mediodía" ? " (opcional)" : ""}</button>; })}</div></Campo>
         <div className="grid gap-3 sm:grid-cols-3">
           <Campo label="Tomas por sesión"><select disabled={p.tipo === "Estándar"} value={p.tomasPorSesion} onChange={(e) => setP({ ...p, tomasPorSesion: Number(e.target.value) as 1 | 2 })} className={inp}><option value={2}>2 tomas</option><option value={1}>1 toma</option></select></Campo>
@@ -14183,7 +14187,7 @@ function NuevoMdpa({ user, pacs, onCerrar, onCrear }: { user: SessionUser; pacs:
         </div>
         <Campo label="Motivo"><input value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inp} placeholder="Ej.: control de hipertensión, sospecha de bata blanca…" /></Campo>
         <Campo label="Indicaciones para el paciente (opcional)"><textarea value={p.instrucciones ?? ""} onChange={(e) => setP({ ...p, instrucciones: e.target.value })} className={`${inp} h-20 py-2`} /></Campo>
-        <p className="rounded-xl bg-[#EEF2FB] px-3 py-2 text-xs text-[#1E3A8A]">Estándar: mañana (antes del desayuno y de la medicación) y noche, 2 tomas con 1 minuto de diferencia, 7 días. No se exigen 3 mediciones diarias.</p>
+        <p className="rounded-xl bg-[#EEF2FB] px-3 py-2 text-xs text-[#1E3A8A]">Estándar: mañana (antes del desayuno y de la medicación) y noche, 2 tomas con 1 minuto de diferencia, 7 días. No se exigen 3 mediciones diarias. Objetivo sugerido &lt; 130/80 (todas las guías vigentes); ajústelo según edad, fragilidad y tolerancia.</p>
         <div className="flex justify-end gap-2"><Button variant="outline" onClick={onCerrar}>Cancelar</Button><Button onClick={crear}><Check className="size-4" /> Indicar monitoreo</Button></div>
       </div>
     </Modal>
@@ -14261,8 +14265,9 @@ function DetalleMdpa({ m, user, soloLectura, onCerrar, actualizar }: { m: Monito
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-border p-4 text-sm">
-            <p className="mb-2 font-semibold">Interpretación asistida</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><p className="font-semibold">Interpretación asistida</p>{a.suficiente && <span className={`rounded-lg px-2 py-0.5 text-xs font-bold ${a.categoria.tono === "verde" ? "bg-[#D1FAE5] text-[#065F46]" : a.categoria.tono === "ambar" ? "bg-amber-100 text-amber-900" : a.categoria.tono === "naranja" ? "bg-orange-100 text-orange-900" : "bg-red-100 text-red-800"}`}>{a.categoria.nombre} · {a.guia}</span>}</div>
             <p>{a.interpretacion}</p>
+            <TablaGuia guia={a.guia} />
             <p className="mt-2 text-xs text-muted-foreground">{PATRON_NOCTURNO}</p>
             <p className="mt-2 rounded-lg bg-[#EEF2FB] px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A]">{AVISO_IA}</p>
             <p className="mt-2 text-[11px] text-muted-foreground">Criterios v{CRITERIOS_MDPA.version}: {CRITERIOS_MDPA.fuentes}. No se ajusta medicación automáticamente.</p>
@@ -14308,5 +14313,19 @@ function DetalleMdpa({ m, user, soloLectura, onCerrar, actualizar }: { m: Monito
         <details className="text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold">Auditoría ({m.auditoria.length})</summary><ul className="mt-2 space-y-1">{[...m.auditoria].reverse().map((x, i) => <li key={i}>{fechaHora(x.fecha)} · {x.por} · {x.accion}</li>)}</ul></details>
       </div>
     </Modal>
+  );
+}
+
+
+/** Umbrales domiciliarios de la guía elegida (referencia visible para el médico). */
+function TablaGuia({ guia }: { guia: GuiaMdpa }) {
+  const g = GUIAS_MDPA[guia];
+  const color = { verde: "bg-[#10B981]", ambar: "bg-amber-400", naranja: "bg-orange-500", rojo: "bg-red-600" } as const;
+  return (
+    <div className="mt-2 rounded-xl border border-border bg-card p-2.5 text-xs">
+      <p className="mb-1.5 font-semibold text-muted-foreground">Promedio domiciliario · {g.nombre}</p>
+      <div className="flex flex-wrap gap-1.5">{g.categorias.map((c) => <span key={c.nombre} className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2 py-1"><span className={`size-2 rounded-full ${color[c.tono]}`} />{c.nombre} <b className="tabular-nums">{c.rango}</b></span>)}</div>
+      <p className="mt-1.5 text-muted-foreground">{g.notaObjetivo} Alerta urgente ≥ 180 y/o ≥ 110 mmHg.</p>
+    </div>
   );
 }

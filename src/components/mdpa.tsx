@@ -1,7 +1,7 @@
 /** Piezas visuales del monitoreo domiciliario de presión arterial (portal y panel). */
 import { useState } from "react";
 import { Armchair, BicepsFlexed, Coffee, Footprints, Gauge, MicOff, Timer, type LucideIcon } from "lucide-react";
-import { analizar, CRITERIOS_MDPA, diaDe, MOMENTOS_MDPA, PATRON_NOCTURNO, AVISO_IA, type MedicionMdpa, type MonitoreoMdpa } from "@/lib/mdpa";
+import { analizar, CRITERIOS_MDPA, GUIAS_MDPA, diaDe, MOMENTOS_MDPA, PATRON_NOCTURNO, AVISO_IA, type MedicionMdpa, type MonitoreoMdpa } from "@/lib/mdpa";
 
 /* ───────────── Guía de medición correcta ───────────── */
 export const PASOS_MEDICION: { n: number; t: string; icon: LucideIcon; items: string[] }[] = [
@@ -195,7 +195,7 @@ export function htmlInformeMdpa(m: MonitoreoMdpa, opciones: { medico?: string; f
 <h2>Evolución diaria</h2><table><tr><th>Día</th><th>Mediciones</th><th>Promedio</th><th>DE sistólica</th><th>FC</th></tr>${a.porDia.map((x) => `<tr><td>${fd(x.dia)}</td><td>${x.n || (p.descartarPrimerDia && x.dia === m.inicio ? "Excluido (1.er día)" : 0)}</td><td>${x.n ? `${x.s}/${x.d}` : "—"}</td><td>${x.deS}</td><td>${x.fc || "—"}</td></tr>`).join("")}</table>
 ${destacadas.length ? `<h2>Mediciones destacadas</h2><table><tr><th>Fecha</th><th>Momento</th><th>PA</th><th>FC</th><th>Síntomas</th></tr>${destacadas.map((x) => `<tr><td>${fh(x.fecha)}</td><td>${x.momento}</td><td>${x.s}/${x.d}</td><td>${x.fc ?? "—"}</td><td>${esc(x.sintomas.join(", ") || "—")}</td></tr>`).join("")}</table>` : ""}
 ${a.alertas.length ? `<h2>Alertas</h2><ul>${a.alertas.map((x) => `<li class="${x.nivel === "Urgente" ? "alerta" : ""}"><b>${x.nivel}:</b> ${esc(x.texto)}${x.fecha ? ` · ${fh(x.fecha)}` : ""}</li>`).join("")}</ul>` : ""}
-<h2>Interpretación</h2><p>${esc(a.interpretacion)}</p><p class="m">${PATRON_NOCTURNO}</p><div class="aviso"><b>${AVISO_IA}</b></div>
+<h2>Interpretación</h2><p>${a.suficiente ? `<b>Clasificación (${a.guia}): ${a.categoria.nombre} · ${a.categoria.rango} mmHg</b><br>` : ""}${esc(a.interpretacion)}</p><table><tr><th colspan="2">Umbrales domiciliarios · ${GUIAS_MDPA[a.guia].nombre}</th></tr>${GUIAS_MDPA[a.guia].categorias.map((c) => `<tr><td>${c.nombre}</td><td><b>${c.rango} mmHg</b></td></tr>`).join("")}<tr><td colspan="2" class="m">${GUIAS_MDPA[a.guia].notaObjetivo}</td></tr></table><p class="m">${PATRON_NOCTURNO}</p><div class="aviso"><b>${AVISO_IA}</b></div>
 <h2>Limitaciones del método</h2><p class="m">Mediciones realizadas por el paciente con su propio tensiómetro, en vigilia. No reemplaza al MAPA de 24 horas ni permite evaluar la presión durante el sueño. La calidad depende de la técnica de medición y del cumplimiento del protocolo. Criterios: ${CRITERIOS_MDPA.fuentes}.</p>
 <h2>Conclusión del médico</h2><p>${m.revision ? `${esc(m.revision.conclusion)}${m.revision.comentarios ? `<br><span class="m">${esc(m.revision.comentarios)}</span>` : ""}` : "<span class='m'>Pendiente de revisión.</span>"}</p>
 <div class="firme"><span class="m">${m.revision ? `Revisado el ${new Date(m.revision.fecha).toLocaleDateString("es-CO")}` : ""}</span><div>${opciones.firma ? `<img src="${opciones.firma}"><br>` : ""}${esc(m.revision?.por ?? opciones.medico ?? m.solicitadoPor)}</div></div>

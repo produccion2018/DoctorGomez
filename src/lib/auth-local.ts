@@ -1208,10 +1208,15 @@ export const TIPOS_ESTUDIO = [
 
 export type NivelPresion = { nivel: string; tono: "verde" | "ambar" | "naranja" | "rojo" | "critico"; consejo: string };
 /** Clasificación según guías AHA/ACC 2017 (valores en mmHg). */
+/**
+ * Clasificación de una toma aislada según AHA/ACC 2025 (mantiene las categorías de 2017):
+ * normal < 120/80 · elevada 120–129 / < 80 · etapa 1 130–139 / 80–89 · etapa 2 ≥ 140/90 · severa > 180 y/o > 120.
+ * (ESC 2024 y ESH 2023 definen hipertensión en consultorio ≥ 140/90 y en domicilio ≥ 135/85.)
+ */
 export function clasificarPresion(s: number, d: number): NivelPresion {
-  if (s > 180 || d > 120) return { nivel: "Crisis hipertensiva", tono: "critico", consejo: "Si tiene dolor de pecho, falta de aire, visión borrosa o confusión, llame a la línea 123 o vaya a urgencias." };
-  if (s >= 140 || d >= 90) return { nivel: "Hipertensión grado 2", tono: "rojo", consejo: "Vuelva a medirla en 5 minutos. Si sigue alta, avísele a su médico." };
-  if (s >= 130 || d >= 80) return { nivel: "Hipertensión grado 1", tono: "naranja", consejo: "Regístrela y coméntelo en su próximo control." };
+  if (s > 180 || d > 120) return { nivel: "Hipertensión severa", tono: "critico", consejo: "Repita la medición en 5 minutos. Si sigue igual o tiene dolor de pecho, falta de aire, debilidad, visión borrosa o confusión, llame a la línea 123 o vaya a urgencias." };
+  if (s >= 140 || d >= 90) return { nivel: "Hipertensión etapa 2", tono: "rojo", consejo: "Vuelva a medirla en 5 minutos. Si sigue alta, avísele a su médico." };
+  if (s >= 130 || d >= 80) return { nivel: "Hipertensión etapa 1", tono: "naranja", consejo: "Regístrela y coméntelo en su próximo control." };
   if (s >= 120) return { nivel: "Elevada", tono: "ambar", consejo: "Mantenga los hábitos saludables y siga registrando." };
   return { nivel: "Normal", tono: "verde", consejo: "¡Muy bien! Siga así." };
 }
