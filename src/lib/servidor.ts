@@ -506,14 +506,30 @@ export const subirAudioServidor = createServerFn({ method: "POST" })
     } catch (e) {
       return { ok: false, error: (e as Error).message };
     }
-    if (!process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "El almacenamiento de archivos no está configurado." };
-    if (!data.tipo.startsWith("audio/")) return { ok: false, error: "El archivo tiene que ser de audio." };
+    const esAudio = data.tipo.startsWith("audio/") || /\.(mp3|m4a|aac|ogg|oga|opus|wav|weba|webm|flac)$/i.test(data.nombre);
+    if (!esAudio) return { ok: false, error: "El archivo tiene que ser de audio (mp3, m4a, ogg o wav)." };
     const buf = Buffer.from(data.base64, "base64");
+    if (!buf.length) return { ok: false, error: "El archivo está vacío." };
     if (buf.length > 15 * 1024 * 1024) return { ok: false, error: "El archivo supera 15 MB." };
-    const { put } = await import("@vercel/blob");
-    const limpio = data.nombre.toLowerCase().replace(/[^a-z0-9.]+/g, "-").slice(0, 60) || "tema";
-    const r = await put(`musica/${limpio}`, buf, { access: "public", contentType: data.tipo, addRandomSuffix: true });
-    return { ok: true, url: r.url };
+    const tipo = data.tipo || "audio/mpeg";
+    const nube = (await import("./cloudinary.server"));
+    if (nube.configCloudinary()) {
+      try {
+        return { ok: true, url: await nube.subirAudioPublicoCloudinary(buf, tipo, data.nombre) };
+      } catch (e) {
+        console.error("Música → Cloudinary:", e);
+      }
+    }
+    if (!process.env["BLOB_READ_WRITE_TOKEN"]) return { ok: false, error: "No se pudo subir el audio. Intente de nuevo en un momento." };
+    try {
+      const { put } = await import("@vercel/blob");
+      const limpio = data.nombre.toLowerCase().replace(/[^a-z0-9.]+/g, "-").slice(0, 60) || "tema";
+      const r = await put(`musica/${limpio}`, buf, { access: "public", contentType: tipo, addRandomSuffix: true });
+      return { ok: true, url: r.url };
+    } catch (e) {
+      console.error("Música → Blob:", e);
+      return { ok: false, error: "No se pudo subir el audio. Intente de nuevo en un momento." };
+    }
   });
 
 /* ===================================================================== */

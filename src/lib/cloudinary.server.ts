@@ -50,6 +50,23 @@ export async function subirCloudinary(buf: Buffer, tipo: string, carpeta: string
   return { rt, pid: j.public_id, ...(j.format ? { fmt: j.format } : {}) };
 }
 
+/** Sube audio PÚBLICO (música de espera de la web): Cloudinary guarda el audio como recurso "video". */
+export async function subirAudioPublicoCloudinary(buf: Buffer, tipo: string, nombre: string): Promise<string> {
+  const c = configCloudinary();
+  if (!c) throw new Error("Cloudinary no está configurado.");
+  const base = nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "tema";
+  const params: Record<string, string> = { folder: "hego/musica", public_id: base, timestamp: String(Math.floor(Date.now() / 1000)), unique_filename: "true", use_filename: "true" };
+  const form = new FormData();
+  Object.entries(params).forEach(([k, v]) => form.append(k, v));
+  form.append("api_key", c.clave);
+  form.append("signature", firmar(params, c.secreto));
+  form.append("file", new Blob([new Uint8Array(buf)], { type: tipo || "audio/mpeg" }), nombre);
+  const r = await fetch(`https://api.cloudinary.com/v1_1/${c.nube}/video/upload`, { method: "POST", body: form });
+  const j = (await r.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } };
+  if (!r.ok || !j.secure_url) throw new Error(j.error?.message || `Cloudinary respondió ${r.status}`);
+  return j.secure_url;
+}
+
 /** Descarga un archivo privado (con enlace firmado de un solo uso, del lado del servidor). */
 export async function bajarCloudinary(a: ArchivoNube): Promise<Buffer> {
   const c = configCloudinary();

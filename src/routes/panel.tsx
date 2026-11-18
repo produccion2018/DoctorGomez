@@ -11763,7 +11763,7 @@ function SitioTab({ log }: { log: LogFn }) {
 
   const subirAudio = (f: File | undefined) => {
     if (!f) return;
-    if (!f.type.startsWith("audio/")) { toast.error("Elija un archivo de audio (mp3, ogg, wav)."); return; }
+    if (!f.type.startsWith("audio/") && !/\.(mp3|m4a|aac|ogg|oga|opus|wav|weba|webm|flac)$/i.test(f.name)) { toast.error("Elija un archivo de audio (mp3, m4a, ogg o wav)."); return; }
     const enServidor = modoServidor();
     const max = enServidor ? 15 : MAX_AUDIO_MB;
     if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Use un enlace o un archivo más liviano.`); return; }
@@ -11778,8 +11778,8 @@ function SitioTab({ log }: { log: LogFn }) {
         setCargando(false);
         if (!r.ok) { toast.error(r.error); return; }
         setNueva((n) => ({ ...n, url: r.url, nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
-        toast.success("Archivo subido.");
-      });
+        toast.success("Archivo subido. Ahora toque «Agregar a la lista».");
+      }).catch(() => { setCargando(false); toast.error("No se pudo leer o subir el archivo. Intente de nuevo."); });
       return;
     }
     const fr = new FileReader();
@@ -12028,11 +12028,11 @@ function SitioTab({ log }: { log: LogFn }) {
               <Campo label="Descripción"><input value={nueva.sub} onChange={(e) => setNueva({ ...nueva, sub: e.target.value })} placeholder="Ej.: Piano suave" className={inp} /></Campo>
               <label className="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/40 px-4 py-5 text-center text-sm transition hover:bg-secondary">
                 <Upload className="size-5 text-[rgb(var(--acc))]" />
-                <span className="font-medium">{cargando ? "Subiendo archivo…" : nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "Archivo listo ✓" : "Subir archivo de audio"}</span>
+                <span className="font-medium">{cargando ? "Subiendo archivo…" : nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") || nueva.url.includes("res.cloudinary.com") ? "Archivo listo ✓" : "Subir archivo de audio"}</span>
                 <span className="text-xs text-muted-foreground">mp3, ogg o wav · hasta {modoServidor() ? 15 : MAX_AUDIO_MB} MB</span>
-                <input type="file" accept="audio/*" className="hidden" onChange={(e) => subirAudio(e.target.files?.[0])} />
+                <input type="file" accept="audio/*,.mp3,.m4a,.ogg,.wav" className="hidden" onChange={(e) => { subirAudio(e.target.files?.[0]); e.target.value = ""; }} />
               </label>
-              <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
+              <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") || nueva.url.includes("res.cloudinary.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
               {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
               <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
               <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Use solo música con permiso de uso.</p>
