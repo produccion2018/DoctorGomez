@@ -1718,28 +1718,17 @@ const esProcedimiento = (motivo: string) => /eco|electro|holter|mapa|ergom|doppl
 /** Tarjeta del resumen: se toca entera (o el ícono) y abre la agenda de hoy. */
 function TarjetaDia({ icon: Icon, label, valor, detalle, onClick, delay = 0 }: { icon: LucideIcon; label: string; valor: number; detalle: string; onClick: () => void; delay?: number }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ animationDelay: `${delay}s` }}
-      className="pn-kpi pn-up group relative w-full overflow-hidden rounded-[1.4rem] bg-gradient-to-br from-violet-600 via-fuchsia-600 to-pink-500 p-5 text-left text-white shadow-[0_24px_50px_-24px_rgba(162,28,175,.75)] ring-1 ring-white/20 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_30px_60px_-24px_rgba(162,28,175,.9)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-    >
-      <span className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
-      <span className="pointer-events-none absolute -right-10 -top-10 size-36 rounded-full bg-white/25 blur-2xl transition-transform duration-500 group-hover:scale-125" />
-      <svg viewBox="0 0 300 36" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-2 h-8 w-full opacity-30" aria-hidden="true"><polyline points="0,20 60,20 75,20 85,8 95,30 105,20 170,20 180,20 190,3 200,34 210,20 300,20" fill="none" stroke="#fff" strokeWidth="2" strokeLinejoin="round" /></svg>
-      <div className="relative flex items-start justify-between gap-3">
-        <p className="pt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">{label}</p>
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white ring-1 ring-white/35 backdrop-blur transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110">
-          <Icon className="size-5" />
+    <button type="button" onClick={onClick} style={{ animationDelay: `${delay}s` }}
+      className="pn-up group flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-3 text-left shadow-[0_1px_2px_rgba(15,23,42,.04)] transition-colors hover:border-[#1E3A8A]/35">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF2FB] text-[#1E3A8A] transition-colors group-hover:bg-[#1E3A8A] group-hover:text-white dark:bg-white/10 dark:text-sky-200"><Icon className="size-[18px]" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+        <span className="flex items-baseline gap-2">
+          <span className="text-2xl font-bold leading-tight tabular-nums tracking-tight">{valor}</span>
+          <span className="truncate text-xs text-muted-foreground">{detalle}</span>
         </span>
-      </div>
-      <p className="relative mt-1 font-display text-5xl font-bold tabular-nums drop-shadow-sm">{valor}</p>
-      <div className="relative mt-2 flex items-center justify-between gap-2">
-        <p className="text-sm text-white/85">{detalle}</p>
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-xs font-semibold ring-1 ring-white/30 transition-transform duration-300 group-hover:translate-x-0.5">
-          Ver agenda <ArrowRight className="size-3.5" />
-        </span>
-      </div>
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[#1E3A8A] dark:text-sky-300">Ver agenda <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" /></span>
     </button>
   );
 }
@@ -6221,10 +6210,10 @@ function FichaHC({
         <Seccion
           icon={ClipboardList}
           titulo="Historial del paciente"
-          sub={`${ordenadas.length} ${ordenadas.length === 1 ? "consulta" : "consultas"} · ${conteo.enfermeria} de enfermería · ${estudios.length} ${estudios.length === 1 ? "estudio" : "estudios"}`}
+          sub={`${ordenadas.length} ${ordenadas.length === 1 ? "consulta" : "consultas"} · ${estudios.length} ${estudios.length === 1 ? "estudio" : "estudios"}`}
           acciones={
             <div className="flex flex-wrap gap-1 rounded-2xl bg-secondary/80 p-1 ring-1 ring-border/60">
-              {([["todo", "Todo", "#3B5BC0"], ["evoluciones", "Médico", "#6366f1"], ["especialidades", "Por especialidad", "#1E3A8A"], ["enfermeria", "Enfermería", "#10B981"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
+              {([["todo", "Todo", "#3B5BC0"], ["evoluciones", "Médico", "#6366f1"], ["especialidades", "Por especialidad", "#1E3A8A"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
                 <button key={id} onClick={() => setVer(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${ver === id ? "bg-card text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                   <span className="size-1.5 rounded-full" style={{ background: c }} />
                   {l}
