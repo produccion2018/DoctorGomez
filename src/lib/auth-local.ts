@@ -1211,6 +1211,7 @@ export type NivelPresion = { nivel: string; tono: "verde" | "ambar" | "naranja" 
 /**
  * Clasificación de una toma aislada según AHA/ACC 2025 (mantiene las categorías de 2017):
  * normal < 120/80 · elevada 120–129 / < 80 · etapa 1 130–139 / 80–89 · etapa 2 ≥ 140/90 · severa > 180 y/o > 120.
+ * Coincide con la GPC de HTA de MinSalud/IETS Colombia 2025 (HTA desde 130/80, confirmada con AMPA o MAPA).
  * (ESC 2024 y ESH 2023 definen hipertensión en consultorio ≥ 140/90 y en domicilio ≥ 135/85.)
  */
 export function clasificarPresion(s: number, d: number): NivelPresion {

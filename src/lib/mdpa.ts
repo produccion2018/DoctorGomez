@@ -78,13 +78,27 @@ export type MonitoreoMdpa = {
  * - AHA/ACC 2025 (reemplaza a 2017; valores domiciliarios equivalentes): normal < 120/80; elevada 120–129 / < 80;
  *   etapa 1: 130–134 / 80–84; etapa 2: ≥ 135/85. Objetivo < 130/80 (idealmente sistólica < 120). Severa > 180/120.
  * - ESH 2023 (y documento de posición ESH 2021 sobre AMPA): normal < 130/80; hipertensión ≥ 135/85. Grado 3 en consultorio ≥ 180/110.
+ * - COLOMBIA (norma nacional, por defecto):
+ *   · GPC No. 18 MinSalud/IETS, actualización parcial 2025: HTA con sistólica ≥ 130 y/o diastólica ≥ 80, confirmada con AMPA o MAPA;
+ *     AMPA en la mañana y en la noche, 2 tomas con unos 2 minutos de diferencia; metas intensivas < 130/80.
+ *   · Consenso intersocietario PresiónCo (Rev Colomb Cardiol 2023): AMPA ≥ 135/85; MAPA diurna ≥ 135/85, nocturna ≥ 120/70, 24 h ≥ 130/80.
  * - ISH 2020: hipertensión domiciliaria ≥ 135/85. Objetivo < 130/80 (< 140/90 en ≥ 65 años según tolerancia).
  */
-export type GuiaMdpa = "ESC 2024" | "AHA/ACC 2025" | "ESH 2023" | "ISH 2020";
+export type GuiaMdpa = "Colombia 2025" | "ESC 2024" | "AHA/ACC 2025" | "ESH 2023" | "ISH 2020";
 export type CategoriaMdpa = { nombre: string; rango: string; tono: "verde" | "ambar" | "naranja" | "rojo" };
 type DefGuia = { nombre: string; categorias: (CategoriaMdpa & { desde: { s: number; d: number } })[]; objetivo: { s: number; d: number }; notaObjetivo: string };
 
 export const GUIAS_MDPA: Record<GuiaMdpa, DefGuia> = {
+  "Colombia 2025": {
+    nombre: "Colombia · Consenso PresiónCo y GPC MinSalud/IETS 2025",
+    categorias: [
+      { nombre: "Normal", rango: "< 135/85", tono: "verde", desde: { s: 0, d: 0 } },
+      { nombre: "Hipertensión", rango: "135–179 / 85–109", tono: "rojo", desde: { s: 135, d: 85 } },
+      { nombre: "Hipertensión severa", rango: "≥ 180/110", tono: "rojo", desde: { s: 180, d: 110 } },
+    ],
+    objetivo: { s: 130, d: 80 },
+    notaObjetivo: "Promedio en casa (AMPA): normal < 135/85; hipertensión ≥ 135/85 (PresiónCo). Meta en tratamiento < 130/80 (GPC MinSalud 2025). MAPA: 24 h ≥ 130/80, diurna ≥ 135/85, nocturna ≥ 120/70.",
+  },
   "ESC 2024": {
     nombre: "ESC 2024 · Sociedad Europea de Cardiología",
     categorias: [
@@ -126,7 +140,7 @@ export const GUIAS_MDPA: Record<GuiaMdpa, DefGuia> = {
     notaObjetivo: "Objetivo < 130/80 mmHg (< 140/90 en ≥ 65 años según tolerancia).",
   },
 };
-export const GUIA_POR_DEFECTO: GuiaMdpa = "ESC 2024";
+export const GUIA_POR_DEFECTO: GuiaMdpa = "Colombia 2025";
 
 /** Clasifica un promedio domiciliario según la guía elegida (la categoría más alta que cumpla sistólica O diastólica). */
 export function clasificarDomiciliaria(s: number, d: number, guia: GuiaMdpa = GUIA_POR_DEFECTO): CategoriaMdpa {
@@ -137,8 +151,8 @@ export function clasificarDomiciliaria(s: number, d: number, guia: GuiaMdpa = GU
 }
 
 export const CRITERIOS_MDPA = {
-  version: "2026.2",
-  fuentes: "ESC 2024 · AHA/ACC 2025 · ESH 2023 · ISH 2020",
+  version: "2026.3",
+  fuentes: "GPC MinSalud/IETS Colombia 2025 · Consenso PresiónCo 2023 · ESC 2024 · AHA/ACC 2025 · ESH 2023 · ISH 2020",
   /** Umbral domiciliario de hipertensión, común a todas las guías vigentes. */
   hta: { s: 135, d: 85 },
   elevada: { s: 120, d: 70 },

@@ -50,7 +50,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { waLink, Electro, InstalarApp, CalendarioMes, SelectorHorarios } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
-import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, SINTOMAS_MDPA, analizar, validarMedicion, alertaSesion, finDe, type MonitoreoMdpa, type MedicionMdpa, type MomentoMdpa, type AlertaMdpa } from "@/lib/mdpa";
+import { KEY_MDPA, GUIAS_MDPA, GUIA_POR_DEFECTO, clasificarDomiciliaria, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, SINTOMAS_MDPA, analizar, validarMedicion, alertaSesion, finDe, type MonitoreoMdpa, type MedicionMdpa, type MomentoMdpa, type AlertaMdpa } from "@/lib/mdpa";
 import { GuiaMedicion, Svg, svgSerie } from "@/components/mdpa";
 import {
   ADMINS,
@@ -2004,7 +2004,8 @@ function ResumenMdpa({ m }: { m: MonitoreoMdpa }) {
             return <span key={mo} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold ring-1 ${ok ? "bg-[#D1FAE5] text-[#065F46] ring-[#A7F3D0]" : "bg-white text-[#1E3A8A] ring-[#DBE4FB] dark:bg-white/5 dark:text-sky-200"}`}>{ok ? <CheckCircle2 className="size-4" /> : <Clock className="size-4" />} {mo} · {Math.min(n, p.tomasPorSesion)}/{p.tomasPorSesion}</span>;
           })}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{p.momentos.includes("Mañana") ? "En la mañana: antes del desayuno" : ""}{p.antesMedicacion ? " y antes de tomar la medicación para la presión" : ""}. {p.tomasPorSesion === 2 ? `Haga 2 tomas seguidas, con ${p.intervaloMin} minuto de diferencia.` : ""}{p.brazo && p.brazo !== "Indistinto" ? ` Use el brazo ${p.brazo.toLowerCase()}.` : ""}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{p.momentos.includes("Mañana") ? "En la mañana: antes del desayuno" : ""}{p.antesMedicacion ? " y antes de tomar la medicación para la presión" : ""}. {p.tomasPorSesion === 2 ? "Haga 2 tomas seguidas, con 1 a 2 minutos de diferencia." : ""}{p.brazo && p.brazo !== "Indistinto" ? ` Use el brazo ${p.brazo.toLowerCase()}.` : ""}</p>
+        <LimitesCasa m={m} />
         {p.instrucciones && <p className="mt-2 rounded-xl bg-[#EEF2FB] px-3 py-2 text-sm text-[#1E3A8A] dark:bg-white/5 dark:text-sky-200"><b>Indicación de su médico:</b> {p.instrucciones}</p>}
       </div>
     </Tarjeta>
@@ -2063,7 +2064,7 @@ function RegistroMdpa({ ctx, m, habilitado, onHecho }: { ctx: Ctx; m: MonitoreoM
         </div>
         {[1, 2].slice(0, p.tomasPorSesion).map((n) => (
           <div key={n}>
-            <p className="mb-2 text-sm font-semibold">{n === 1 ? "1.ª toma" : `2.ª toma (espere ${p.intervaloMin} minuto)`}</p>
+            <p className="mb-2 text-sm font-semibold">{n === 1 ? "1.ª toma" : "2.ª toma (espere 1 a 2 minutos)"}</p>
             <div className="grid grid-cols-3 gap-3">
               <label className="space-y-1 text-center"><span className="text-xs font-semibold text-muted-foreground">Alta (sistólica)</span><input inputMode="numeric" value={n === 1 ? f.s1 : f.s2} onChange={(e) => set(n === 1 ? "s1" : "s2", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="120" className={inpM} /></label>
               <label className="space-y-1 text-center"><span className="text-xs font-semibold text-muted-foreground">Baja (diastólica)</span><input inputMode="numeric" value={n === 1 ? f.d1 : f.d2} onChange={(e) => set(n === 1 ? "d1" : "d2", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="80" className={inpM} /></label>
@@ -2109,7 +2110,7 @@ function MisMediciones({ ctx, m }: { ctx: Ctx; m: MonitoreoMdpa }) {
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="text-lg font-bold">Mi evolución</p>
-          <p className="text-sm text-muted-foreground">Promedio hasta hoy: <b className="text-foreground">{a.pS}/{a.pD} mmHg</b>{a.fc ? ` · pulso ${a.fc}` : ""}. Su médico interpretará el resultado completo.</p>
+          <p className="text-sm text-muted-foreground">Promedio hasta hoy: <b className="text-foreground">{a.pS}/{a.pD} mmHg</b>{a.validas.length ? <> · <b className="text-foreground">{clasificarDomiciliaria(a.pS, a.pD, m.protocolo.guia ?? GUIA_POR_DEFECTO).nombre}</b></> : null}{a.fc ? ` · pulso ${a.fc}` : ""}. Su médico interpretará el resultado completo.</p>
         </div>
         <span className="text-xs text-muted-foreground">Rojo: por encima del objetivo ({m.protocolo.objetivo.s}/{m.protocolo.objetivo.d})</span>
       </div>
@@ -2140,5 +2141,21 @@ function MisMediciones({ ctx, m }: { ctx: Ctx; m: MonitoreoMdpa }) {
         ))}
       </ul>
     </Tarjeta>
+  );
+}
+
+
+/** Límites de referencia para mediciones en casa, visibles para el paciente. */
+function LimitesCasa({ m }: { m: MonitoreoMdpa }) {
+  const g = GUIAS_MDPA[m.protocolo.guia ?? GUIA_POR_DEFECTO];
+  const color = { verde: "bg-[#D1FAE5] text-[#065F46]", ambar: "bg-amber-100 text-amber-900", naranja: "bg-orange-100 text-orange-900", rojo: "bg-red-100 text-red-800" } as const;
+  return (
+    <div className="mt-4 rounded-2xl border border-border p-4">
+      <p className="text-sm font-semibold">Valores de referencia de la presión en casa</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        {g.categorias.map((c) => <div key={c.nombre} className={`rounded-xl px-3 py-2 ${color[c.tono]}`}><p className="text-xs font-semibold">{c.nombre}</p><p className="text-lg font-bold tabular-nums">{c.rango}</p></div>)}
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">Su meta: <b className="text-foreground">menos de {m.protocolo.objetivo.s}/{m.protocolo.objetivo.d} mmHg</b>. Una sola cifra alta no es un diagnóstico: su médico revisa el promedio de todos los días.</p>
+    </div>
   );
 }
