@@ -2235,11 +2235,10 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                 const sinCargar = bloquesDe(ag).length === 0;
                 const esSuyo = yo?.id === a.id;
                 return (
-                  <div className={`rounded-2xl border border-dashed p-6 text-center text-sm ${sinCargar ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200" : "border-border bg-secondary/30 text-muted-foreground"}`}>
+                  <div className={`rounded-2xl border p-4 text-center text-sm ${sinCargar ? "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200" : "border-border bg-slate-50 text-muted-foreground dark:bg-white/5"}`}>
                     {bloqueo ? <>No atiende: <b>{bloqueo.motivo}</b></> : !ag.activo ? "Agenda pausada." : sinCargar ? (
                       <>
-                        <Clock className="mx-auto mb-2 size-6" />
-                        <p className="font-semibold">{esSuyo ? "Todavía no cargó sus horarios" : `${nombreCorto(a.nombre)} todavía no cargó sus horarios`}</p>
+                        <p className="flex items-center justify-center gap-2 font-semibold"><Clock className="size-4" />{esSuyo ? "Todavía no cargó sus horarios" : `${nombreCorto(a.nombre)} todavía no cargó sus horarios`}</p>
                         <p className="mt-1 text-xs opacity-80">Sin horarios de atención no aparecen horas para reservar, ni aquí ni en la web.</p>
                       </>
                     ) : (
@@ -2257,57 +2256,85 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
                 );
               })()}
 
-              {atiende && (
-                <div className="space-y-1.5">
-                  {slots.map((h) => {
-                    const t = suyos.find((x) => x.hora === h);
-                    const clave = `${a.nombre}|${h}`;
-                    const pasado = esHoy && h < hhmm && h !== actual;
-                    const sv = servicioEn(ag, dia, h);
-                    const nuevoBloque = sv && sv !== servicioEn(ag, dia, slots[slots.indexOf(h) - 1] ?? "");
-                    return (
-                      <Fragment key={h}>
-                      {nuevoBloque && <p className={`flex items-center gap-2 pb-0.5 text-[11px] font-bold uppercase tracking-wider ${esProcedimiento(sv) ? "text-violet-600" : "text-sky-700 dark:text-sky-300"} ${slots.indexOf(h) > 0 ? "pt-3" : ""}`}><span className="h-px flex-1 bg-current opacity-20" />{sv}<span className="h-px flex-1 bg-current opacity-20" /></p>}
-                      <div className={`flex gap-3 ${pasado && !t ? "opacity-45" : ""}`}>
-                        <div className="w-[4.5rem] shrink-0 pt-3 text-right">
-                          <span className={`text-xs font-semibold tabular-nums ${h === actual ? "" : "text-muted-foreground"}`} style={h === actual ? { color: `rgb(var(--acc))` } : undefined}>{hora12(h)}</span>
-                          {h === actual && <span className="block text-[11px] font-bold uppercase" style={{ color: `rgb(var(--acc))` }}>Ahora</span>}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          {t ? (
-                            <FilaPaciente t={t} ahoraEs={h === actual} />
-                          ) : asignando === clave ? (
-                            <div className="space-y-2 rounded-2xl border border-[rgba(var(--acc),.4)] bg-[rgba(var(--acc),.05)] p-3 animate-in fade-in duration-200">
-                              <div className="grid gap-2 sm:grid-cols-3">
-                                <input autoFocus inputMode="numeric" placeholder="Cédula *" value={rapido.dni} onChange={(e) => {
-                                  const dni = limpiarDoc(e.target.value);
-                                  const c = dni.length >= 5 ? conocidos.find((x) => x.dni === dni) : undefined;
-                                  setRapido({ ...rapido, dni, ...(c && !rapido.paciente ? { paciente: c.nombre, telefono: rapido.telefono || c.telefono || "" } : {}) });
-                                }} className={inp + " h-9"} />
-                                <input placeholder="Nombre y apellido *" value={rapido.paciente} onChange={(e) => setRapido({ ...rapido, paciente: nombrePropio(e.target.value) })} className={inp + " h-9"} />
-                                <input placeholder="WhatsApp (opcional)" value={rapido.telefono} onChange={(e) => setRapido({ ...rapido, telefono: e.target.value })} className={inp + " h-9"} />
-                              </div>
-                              <div className="flex gap-2">
-                                <input placeholder="Motivo" value={rapido.motivo} onChange={(e) => setRapido({ ...rapido, motivo: e.target.value })} className={inp + " h-9 flex-1"} />
-                                <Button size="sm" className="h-9 rounded-xl" onClick={() => asignar(a.nombre, h)}><Check className="size-4" /> Asignar</Button>
-                                <Button size="sm" variant="ghost" className="h-9 rounded-xl" onClick={() => setAsignando(null)}>Cancelar</Button>
-                              </div>
+              {atiende && (() => {
+                // Bloques consecutivos por servicio: citas tomadas como filas y horas libres como chips
+                const grupos: { sv: string; horas: string[] }[] = [];
+                for (const h of slots) {
+                  const sv = servicioEn(ag, dia, h);
+                  const g = grupos[grupos.length - 1];
+                  if (g && g.sv === sv) g.horas.push(h); else grupos.push({ sv, horas: [h] });
+                }
+                return (
+                  <div className="space-y-4">
+                    {grupos.map((g, gi) => {
+                      const tomadas = g.horas.map((h) => suyos.find((x) => x.hora === h)).filter((x): x is Turno => !!x);
+                      const libresTodas = g.horas.filter((h) => !suyos.some((x) => x.hora === h));
+                      const libresG = libresTodas.filter((h) => !(esHoy && h < hhmm && h !== actual));
+                      const yaPasaron = libresTodas.length - libresG.length;
+                      const abierta = libresG.map((h) => `${a.nombre}|${h}`).find((k) => k === asignando);
+                      const hAbierta = abierta?.split("|")[1];
+                      return (
+                        <div key={`${g.sv}-${gi}`} className="rounded-2xl border border-border bg-card p-3.5">
+                          <div className="mb-2.5 flex items-center justify-between gap-2">
+                            <p className={`text-[11px] font-bold uppercase tracking-[0.08em] ${esProcedimiento(g.sv) ? "text-violet-700 dark:text-violet-300" : "text-[#1E3A8A] dark:text-sky-300"}`}>{g.sv || "Consulta"}</p>
+                            <span className="text-[11px] font-medium text-muted-foreground">{hora12(g.horas[0]!)} – {hora12(g.horas[g.horas.length - 1]!)} · {tomadas.length}/{g.horas.length}</span>
+                          </div>
+                          {tomadas.length > 0 && (
+                            <div className="mb-3 space-y-1.5">
+                              {tomadas.map((t) => (
+                                <div key={t.id} className="flex gap-2.5">
+                                  <span className="w-[4.2rem] shrink-0 pt-3 text-right text-xs font-semibold tabular-nums" style={t.hora === actual ? { color: "rgb(var(--acc))" } : undefined}>{hora12(t.hora)}</span>
+                                  <div className="min-w-0 flex-1"><FilaPaciente t={t} ahoraEs={t.hora === actual} /></div>
+                                </div>
+                              ))}
                             </div>
-                          ) : (
-                            <button onClick={() => { setAsignando(clave); setRapido({ paciente: "", dni: "", telefono: "", motivo: servicioEn(ag, dia, h) || "Consulta" }); }} disabled={pasado}
-                              className={`group flex w-full items-center justify-between rounded-2xl border border-dashed px-4 py-3 text-left text-sm transition-all ${h === actual ? "border-[rgba(var(--acc),.5)]" : "border-border"} ${pasado ? "cursor-default" : "hover:border-[rgba(var(--acc),.5)] hover:bg-[rgba(var(--acc),.04)]"}`}>
-                              <span className="text-muted-foreground">Libre</span>
-                              {!pasado && <span className="inline-flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100" style={{ color: `rgb(var(--acc))` }}><Plus className="size-3.5" /> Asignar paciente</span>}
-                            </button>
                           )}
+                          {libresG.length > 0 ? (
+                            <>
+                              <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">Horas libres · toque una para asignar</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {libresG.map((h) => {
+                                  const clave = `${a.nombre}|${h}`;
+                                  const pasado = esHoy && h < hhmm && h !== actual;
+                                  const on = asignando === clave;
+                                  return (
+                                    <button key={h} type="button" disabled={pasado} title={pasado ? "Ya pasó" : "Asignar paciente"}
+                                      onClick={() => { if (on) { setAsignando(null); return; } setAsignando(clave); setRapido({ paciente: "", dni: "", telefono: "", motivo: g.sv || "Consulta" }); }}
+                                      className={`h-8 rounded-lg px-2.5 text-xs font-semibold tabular-nums transition ${on ? "bg-[#1E3A8A] text-white" : pasado ? "cursor-default text-muted-foreground/50 line-through" : h === actual ? "bg-[#EEF2FB] text-[#1E3A8A] ring-1 ring-[#1E3A8A]/40 dark:bg-white/10 dark:text-sky-200" : "bg-slate-100 text-slate-700 hover:bg-[#EEF2FB] hover:text-[#1E3A8A] dark:bg-white/5 dark:text-slate-200"}`}>
+                                      {hora12(h).replace(" a. m.", "").replace(" p. m.", "")}<span className="ml-0.5 text-[11px] font-medium opacity-60">{hora12(h).includes("p. m.") ? "pm" : hora12(h).includes("a. m.") ? "am" : ""}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {hAbierta && (
+                                <div className="mt-3 space-y-2 rounded-xl border border-[#1E3A8A]/30 bg-[#EEF2FB]/50 p-3 dark:bg-white/5">
+                                  <p className="text-xs font-semibold text-[#1E3A8A] dark:text-sky-300">Asignar {hora12(hAbierta)}</p>
+                                  <div className="grid gap-2 sm:grid-cols-3">
+                                    <input autoFocus inputMode="numeric" placeholder="Cédula *" value={rapido.dni} onChange={(e) => {
+                                      const dni = limpiarDoc(e.target.value);
+                                      const c = dni.length >= 5 ? conocidos.find((x) => x.dni === dni) : undefined;
+                                      setRapido({ ...rapido, dni, ...(c && !rapido.paciente ? { paciente: c.nombre, telefono: rapido.telefono || c.telefono || "" } : {}) });
+                                    }} className={inp + " h-9"} />
+                                    <input placeholder="Nombre y apellido *" value={rapido.paciente} onChange={(e) => setRapido({ ...rapido, paciente: nombrePropio(e.target.value) })} className={inp + " h-9"} />
+                                    <input placeholder="WhatsApp (opcional)" value={rapido.telefono} onChange={(e) => setRapido({ ...rapido, telefono: e.target.value })} className={inp + " h-9"} />
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <input placeholder="Motivo" value={rapido.motivo} onChange={(e) => setRapido({ ...rapido, motivo: e.target.value })} className={inp + " h-9 flex-1"} />
+                                    <Button size="sm" className="h-9 rounded-xl" onClick={() => asignar(a.nombre, hAbierta)}><Check className="size-4" /> Asignar</Button>
+                                    <Button size="sm" variant="ghost" className="h-9 rounded-xl" onClick={() => setAsignando(null)}>Cancelar</Button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : <p className="text-xs font-medium text-muted-foreground">{yaPasaron > 0 ? "Las horas libres de este bloque ya pasaron." : "Bloque completo."}</p>}
+                          {libresG.length > 0 && yaPasaron > 0 && <p className="mt-2 text-[11px] text-muted-foreground">{yaPasaron} {yaPasaron === 1 ? "hora ya pasó" : "horas ya pasaron"} sin asignar.</p>}
                         </div>
-                      </div>
-                      </Fragment>
-                    );
-                  })}
-                  {libres === 0 && slots.length > 0 && <p className="pt-2 text-center text-xs font-semibold text-emerald-700">Agenda completa</p>}
-                </div>
-              )}
+                      );
+                    })}
+                    {libres === 0 && slots.length > 0 && <p className="text-center text-xs font-semibold text-emerald-700">Agenda completa</p>}
+                  </div>
+                );
+              })()}
 
               {fuera.length > 0 && (
                 <div className="mt-4 border-t border-border/60 pt-4">
