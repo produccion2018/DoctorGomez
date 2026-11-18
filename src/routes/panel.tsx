@@ -129,6 +129,8 @@ import {
 } from "lucide-react";
 import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
 import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia, ESTUDIOS_DIAGNOSTICOS, type TipoOrden } from "@/data/sugerencias";
+import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, CRITERIOS_MDPA, PATRON_NOCTURNO, AVISO_IA, analizar, finDe, type MonitoreoMdpa, type MomentoMdpa, type ProtocoloMdpa } from "@/lib/mdpa";
+import { Svg, svgSerie, svgMomentos, svgDiario, htmlInformeMdpa, GuiaMedicion } from "@/components/mdpa";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -2347,7 +2349,7 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
 }
 
 /** Ventana simple centrada (sobre todo el panel). */
-function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () => void; children: ReactNode }) {
+function Modal({ titulo, onCerrar, children, ancho = "max-w-2xl" }: { titulo: string; onCerrar: () => void; children: ReactNode; ancho?: string }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") onCerrar(); };
     window.addEventListener("keydown", k);
@@ -2356,7 +2358,7 @@ function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () =>
   return createPortal(
     <div className="saas pn-root fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={titulo}>
       <div className="absolute inset-0 bg-[#172E6E]/45 backdrop-blur-[3px]" onClick={onCerrar} />
-      <div className="pn-up relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl">
+      <div className={`pn-up relative max-h-[92vh] w-full ${ancho} overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl`}>
         <div className="h-1 w-full bg-gradient-to-r from-[#1E3A8A] via-[#1E3A8A] to-[#1E3A8A]" />
         <div className="flex items-center justify-between border-b border-border/60 px-6 py-4">
           <h3 className="font-display text-xl font-semibold">{titulo}</h3>
@@ -6124,7 +6126,7 @@ function FichaHC({
           <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#172E6E]"><Plus className="size-4" /> Registrar signos vitales</button>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {[
           { icon: Activity, l: "Presión arterial", v: ta ? `${ta.s}/${ta.d}` : "—", u: "mmHg", f: ta?.f, b: ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : null, sig: true },
           { icon: HeartPulse, l: "Frec. cardíaca", v: fc ? String(fc.signos.pulso) : "—", u: "lpm", f: fc?.fecha, b: fc ? (fueraDeRango("fc", fc.signos.pulso) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
@@ -7305,18 +7307,18 @@ const turnoDePaciente = (t: Turno, p: PacienteHC) => (!!t.pacienteId && (t.pacie
 
 /* ═══════════════════════ PACIENTES: agenda del día + padrón general ═══════════════════════ */
 function PacientesDiaPadron(props: { user: SessionUser; log: LogFn; turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
-  const [vista, setVista] = useState<"agenda" | "padron">(props.inicial ? "padron" : "agenda");
+  const [vista, setVista] = useState<"agenda" | "padron" | "mdpa">(props.inicial ? "padron" : "agenda");
   return (
     <div className="space-y-5">
       <div role="tablist" className="inline-flex rounded-2xl bg-slate-200/60 p-1 dark:bg-white/5">
-        {([["agenda", "Agenda del día", CalendarDays], ["padron", "Padrón de pacientes", Users]] as const).map(([id, l, I]) => (
+        {([["agenda", "Agenda del día", CalendarDays], ["padron", "Padrón de pacientes", Users], ["mdpa", "Monitoreo de presión", HeartPulse]] as const).map(([id, l, I]) => (
           <button key={id} type="button" role="tab" onClick={() => setVista(id)} aria-selected={vista === id}
             className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[#1E3A8A]/40 ${vista === id ? "bg-card text-[#1E3A8A] shadow-[0_1px_3px_rgba(15,23,42,.12)] dark:text-white" : "text-slate-600 hover:text-foreground dark:text-slate-300"}`}>
             <I className="size-4" /> {l}
           </button>
         ))}
       </div>
-      {vista === "agenda" ? <AgendaPacientesDia {...props} /> : <PadronTab user={props.user} log={props.log} turnos={props.turnos} abrir={props.abrir} inicial={props.inicial} soloLectura={props.soloLectura ?? false} />}
+      {vista === "mdpa" ? <MonitoreoMdpaPanel user={props.user} log={props.log} turnos={props.turnos} soloLectura={props.soloLectura ?? false} /> : vista === "agenda" ? <AgendaPacientesDia {...props} /> : <PadronTab user={props.user} log={props.log} turnos={props.turnos} abrir={props.abrir} inicial={props.inicial} soloLectura={props.soloLectura ?? false} />}
     </div>
   );
 }
@@ -10506,7 +10508,7 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
 }
 
 /* ═══════════ CARPETA DEL PACIENTE (estilo Cloud Esther: paciente + historial) ═══════════ */
-type SecCarpeta = "resumen" | "atenciones" | "historia" | "documentos" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
+type SecCarpeta = "resumen" | "atenciones" | "historia" | "mdpa" | "documentos" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
 const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; icon: LucideIcon }[] }[] = [
   { titulo: "General", items: [{ id: "resumen", label: "Resumen", icon: LayoutDashboard }, { id: "atenciones", label: "Historial de atenciones", icon: Clock }] },
   {
@@ -10518,6 +10520,7 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
       { id: "laboratorio", label: "Laboratorio", icon: FlaskConical },
       { id: "recetas", label: "Receta digital", icon: PenLine },
       { id: "medicacion", label: "Medicación", icon: Pill },
+      { id: "mdpa", label: "Monitoreo de presión", icon: HeartPulse },
     ],
   },
   {
@@ -11052,6 +11055,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
             </>
           )}
 
+          {sec === "mdpa" && <MonitoreoMdpaPanel user={user} log={log} turnos={turnos} soloLectura={soloLectura} paciente={p} />}
           {sec === "medicacion" && (
             <>
               <Cab t="Medicación" s="Plan de medicación del portal y lo recetado" />
@@ -14064,5 +14068,245 @@ function ImportarPacientes({ user, log, existentes, onCerrar, onImportar }: { us
       </div>
     </div>,
     document.body,
+  );
+}
+
+
+/* ===================================================================== */
+/* Monitoreo domiciliario de presión arterial (MDPA) — vista del médico  */
+/* ===================================================================== */
+const TONO_ESTADO_MDPA: Record<string, string> = {
+  "Monitoreo en curso": "bg-[#DBE4FB] text-[#1E3A8A]",
+  "Monitoreo completado": "bg-[#D1FAE5] text-[#065F46]",
+  "Pendiente de revisión médica": "bg-amber-100 text-amber-900",
+  "Revisado por el médico": "bg-[#D1FAE5] text-[#065F46]",
+  "Requiere evaluación médica": "bg-red-100 text-red-800",
+  "Monitoreo incompleto": "bg-[#E8ECF2] text-[#475569]",
+  "Monitoreo no iniciado": "bg-[#E8ECF2] text-[#475569]",
+};
+const hoyBog = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+
+function MonitoreoMdpaPanel({ user, log, turnos, soloLectura = false, paciente }: { user: SessionUser; log: LogFn; turnos: Turno[]; soloLectura?: boolean; paciente?: PacienteHC }) {
+  const [todos, setTodos] = useDato<MonitoreoMdpa[]>(KEY_MDPA, []);
+  const pacs = usePacientesClinica(turnos);
+  const [q, setQ] = useState("");
+  const [estado, setEstado] = useState("Todos");
+  const [desde, setDesde] = useState("");
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [nuevo, setNuevo] = useState(false);
+  const esDe = (m: MonitoreoMdpa) => !paciente || m.pacienteId === paciente.id || m.pacienteId === paciente.portalId;
+  const lista = todos.filter(esDe).map((m) => ({ m, a: analizar(m) })).filter(({ m, a }) => (estado === "Todos" || (estado === "Activos" ? !m.revision && !m.cerrado && hoyBog() <= a.fin : estado === "Finalizados" ? !!(m.revision || m.cerrado || hoyBog() > a.fin) : a.estado === estado)) && (!desde || a.fin >= desde) && (!q.trim() || norm(`${m.paciente} ${m.dni ?? ""}`).includes(norm(q)))).sort((x, y) => y.m.creado.localeCompare(x.m.creado));
+  const act = abierto ? todos.find((m) => m.id === abierto) : undefined;
+  const actualizar = (id: string, fn: (m: MonitoreoMdpa) => MonitoreoMdpa, accion: string) => {
+    const ahora = new Date().toISOString();
+    setTodos((l) => l.map((m) => (m.id === id ? { ...fn(m), auditoria: [...m.auditoria, { fecha: ahora, por: user.nombre, accion }] } : m)));
+    log(`MDPA: ${accion}`, todos.find((m) => m.id === id)?.paciente);
+  };
+  const urgentes = lista.filter(({ a }) => a.alertas.some((x) => x.nivel === "Urgente")).length;
+  return (
+    <div className="space-y-5">
+      {!paciente && (
+        <div className="grid gap-3 sm:grid-cols-4">
+          {[["Activos", lista.filter(({ a }) => a.estado === "Monitoreo en curso").length], ["Pendientes de revisión", lista.filter(({ a }) => a.estado === "Pendiente de revisión médica").length], ["Con alerta urgente", urgentes], ["Revisados", lista.filter(({ m }) => !!m.revision).length]].map(([l, v]) => (
+            <div key={l} className="pn-card p-4"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{l}</p><p className={`text-2xl font-bold tabular-nums ${l === "Con alerta urgente" && Number(v) > 0 ? "text-red-600" : ""}`}>{v}</p></div>
+          ))}
+        </div>
+      )}
+      <Seccion icon={HeartPulse} titulo="Monitoreo domiciliario de presión arterial" sub={paciente ? "Vista longitudinal de los monitoreos de este paciente" : "Mediciones que los pacientes registran desde su portal, en tiempo real"} acciones={!soloLectura ? <Button size="sm" onClick={() => setNuevo(true)}><Plus className="size-4" /> Indicar monitoreo</Button> : undefined}>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {!paciente && <div className="relative min-w-[220px] flex-1"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={`${inp} pl-9`} /></div>}
+          <select value={estado} onChange={(e) => setEstado(e.target.value)} className={`${inp} !w-auto`}>{["Todos", "Activos", "Finalizados", "Pendiente de revisión médica", "Requiere evaluación médica", "Revisado por el médico", "Monitoreo incompleto"].map((x) => <option key={x}>{x}</option>)}</select>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">Desde <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={`${inp} !w-auto`} /></label>
+        </div>
+        {!lista.length ? <Vacio icon={HeartPulse} texto={paciente ? "Este paciente no tiene monitoreos de presión." : "No hay monitoreos con esos filtros."} /> : (
+          <ul className="space-y-2">
+            {lista.map(({ m, a }) => (
+              <li key={m.id}>
+                <button type="button" onClick={() => setAbierto(m.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-border bg-card px-4 py-3 text-left transition hover:border-[#1E3A8A]/40 hover:shadow-sm">
+                  <span className="min-w-[180px] flex-1"><span className="block font-semibold">{nombrePropio(m.paciente)}</span><span className="text-xs text-muted-foreground">{m.dni ? `C.C. ${m.dni} · ` : ""}{fechaCorta(m.inicio)} – {fechaCorta(a.fin)} · {m.protocolo.tipo}</span></span>
+                  <span className="text-sm tabular-nums"><b>{a.ultima ? `${a.ultima.s}/${a.ultima.d}` : "—"}</b> <span className="text-xs text-muted-foreground">última</span></span>
+                  <span className="text-sm tabular-nums"><b>{a.validas.length ? `${a.pS}/${a.pD}` : "—"}</b> <span className="text-xs text-muted-foreground">promedio</span></span>
+                  <span className="text-sm tabular-nums"><b>{a.cumplimiento}%</b> <span className="text-xs text-muted-foreground">cumplimiento</span></span>
+                  {a.alertas.some((x) => x.nivel === "Urgente") && <span className="rounded-lg bg-red-600 px-2 py-0.5 text-xs font-bold text-white">Alerta urgente</span>}
+                  <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${TONO_ESTADO_MDPA[a.estado] ?? ""}`}>{a.estado}</span>
+                  <ChevronRight className="size-4 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Seccion>
+      {nuevo && <NuevoMdpa user={user} pacs={paciente ? [paciente] : pacs} onCerrar={() => setNuevo(false)} onCrear={(m) => { setTodos((l) => [m, ...l]); log("MDPA: monitoreo indicado", m.paciente); setNuevo(false); setAbierto(m.id); }} />}
+      {act && <DetalleMdpa m={act} user={user} soloLectura={soloLectura} onCerrar={() => setAbierto(null)} actualizar={actualizar} />}
+    </div>
+  );
+}
+
+function NuevoMdpa({ user, pacs, onCerrar, onCrear }: { user: SessionUser; pacs: PacienteHC[]; onCerrar: () => void; onCrear: (m: MonitoreoMdpa) => void }) {
+  const [pid, setPid] = useState(pacs.length === 1 ? pacs[0]!.id : "");
+  const [q, setQ] = useState("");
+  const [p, setP] = useState<ProtocoloMdpa>({ ...PROTOCOLO_ESTANDAR });
+  const [inicio, setInicio] = useState(hoyBog());
+  const [motivo, setMotivo] = useState("");
+  const pac = pacs.find((x) => x.id === pid);
+  const cand = q.trim().length >= 2 ? pacs.filter((x) => norm(`${x.nombre} ${x.dni ?? ""}`).includes(norm(q))).slice(0, 6) : [];
+  const crear = () => {
+    if (!pac) { toast.error("Elija el paciente."); return; }
+    if (!pac.portalId && !pac.portal) toast.message("El paciente aún no tiene portal: podrá registrar cuando lo active.");
+    if (!p.momentos.length) { toast.error("Elija al menos un momento del día."); return; }
+    const ahora = new Date().toISOString();
+    onCrear({ id: nuevoId(), pacienteId: pac.portalId ?? pac.id, paciente: pac.nombre, ...(pac.dni ? { dni: pac.dni } : {}), inicio, protocolo: p, ...(motivo.trim() ? { motivo: motivo.trim() } : {}), solicitadoPor: user.nombre, iniciadoPor: user.nombre, creado: ahora, mediciones: [], auditoria: [{ fecha: ahora, por: user.nombre, accion: `Indicó monitoreo ${p.tipo.toLowerCase()} de ${p.dias} días` }] });
+    toast.success("Monitoreo indicado. El paciente lo verá en su portal.");
+  };
+  const chip = (on: boolean) => `h-10 rounded-xl px-3 text-sm font-semibold ring-1 ${on ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border"}`;
+  return (
+    <Modal titulo="Indicar monitoreo de presión arterial" onCerrar={onCerrar}>
+      <div className="space-y-4">
+        {pacs.length > 1 && (
+          <Campo label="Paciente">
+            {pac ? <div className="flex items-center justify-between rounded-xl border border-border px-3 py-2"><span className="font-semibold">{nombrePropio(pac.nombre)} {pac.dni ? <span className="text-xs text-muted-foreground">· C.C. {pac.dni}</span> : null}</span><button type="button" onClick={() => setPid("")} className="text-xs font-semibold text-[#1E3A8A]">Cambiar</button></div> : (
+              <div><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre o cédula" className={inp} />{cand.map((x) => <button key={x.id} type="button" onClick={() => setPid(x.id)} className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-muted">{nombrePropio(x.nombre)} <span className="text-xs text-muted-foreground">{x.dni ? `C.C. ${x.dni}` : ""}{x.portal ? " · con portal" : ""}</span></button>)}</div>
+            )}
+          </Campo>
+        )}
+        <div className="flex gap-2">{(["Estándar", "Individual"] as const).map((t) => <button key={t} type="button" onClick={() => setP(t === "Estándar" ? { ...PROTOCOLO_ESTANDAR } : { ...p, tipo: "Individual" })} className={chip(p.tipo === t)}>Protocolo {t.toLowerCase()}</button>)}</div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Campo label="Inicio"><input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className={inp} /></Campo>
+          <Campo label="Duración (7 a 10 días)"><select value={p.dias} onChange={(e) => setP({ ...p, dias: Number(e.target.value) })} className={inp}>{[7, 8, 9, 10].map((d) => <option key={d} value={d}>{d} días</option>)}</select></Campo>
+          <Campo label="Objetivo (mmHg)"><div className="flex items-center gap-1"><input value={p.objetivo.s} onChange={(e) => setP({ ...p, objetivo: { ...p.objetivo, s: Number(e.target.value) || 0 } })} className={inp} /><span>/</span><input value={p.objetivo.d} onChange={(e) => setP({ ...p, objetivo: { ...p.objetivo, d: Number(e.target.value) || 0 } })} className={inp} /></div></Campo>
+        </div>
+        <Campo label="Momentos del día"><div className="flex flex-wrap gap-2">{MOMENTOS_MDPA.map((mo) => { const on = p.momentos.includes(mo); return <button key={mo} type="button" disabled={p.tipo === "Estándar"} onClick={() => setP({ ...p, momentos: on ? p.momentos.filter((x) => x !== mo) : MOMENTOS_MDPA.filter((x) => x === mo || p.momentos.includes(x)) })} className={`${chip(on)} disabled:opacity-80`}>{mo}{mo === "Mediodía" ? " (opcional)" : ""}</button>; })}</div></Campo>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Campo label="Tomas por sesión"><select disabled={p.tipo === "Estándar"} value={p.tomasPorSesion} onChange={(e) => setP({ ...p, tomasPorSesion: Number(e.target.value) as 1 | 2 })} className={inp}><option value={2}>2 tomas</option><option value={1}>1 toma</option></select></Campo>
+          <Campo label="Brazo"><select value={p.brazo ?? "Indistinto"} onChange={(e) => setP({ ...p, brazo: e.target.value as NonNullable<ProtocoloMdpa["brazo"]> })} className={inp}>{["Indistinto", "Derecho", "Izquierdo"].map((x) => <option key={x}>{x}</option>)}</select></Campo>
+          <label className="flex items-end gap-2 pb-3 text-sm"><input type="checkbox" checked={p.descartarPrimerDia} onChange={(e) => setP({ ...p, descartarPrimerDia: e.target.checked })} className="size-4" /> Excluir el primer día del análisis</label>
+        </div>
+        <Campo label="Motivo"><input value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inp} placeholder="Ej.: control de hipertensión, sospecha de bata blanca…" /></Campo>
+        <Campo label="Indicaciones para el paciente (opcional)"><textarea value={p.instrucciones ?? ""} onChange={(e) => setP({ ...p, instrucciones: e.target.value })} className={`${inp} h-20 py-2`} /></Campo>
+        <p className="rounded-xl bg-[#EEF2FB] px-3 py-2 text-xs text-[#1E3A8A]">Estándar: mañana (antes del desayuno y de la medicación) y noche, 2 tomas con 1 minuto de diferencia, 7 días. No se exigen 3 mediciones diarias.</p>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={onCerrar}>Cancelar</Button><Button onClick={crear}><Check className="size-4" /> Indicar monitoreo</Button></div>
+      </div>
+    </Modal>
+  );
+}
+
+function DetalleMdpa({ m, user, soloLectura, onCerrar, actualizar }: { m: MonitoreoMdpa; user: SessionUser; soloLectura: boolean; onCerrar: () => void; actualizar: (id: string, fn: (m: MonitoreoMdpa) => MonitoreoMdpa, accion: string) => void }) {
+  const [periodo, setPeriodo] = useState<"todo" | "3" | "1">("todo");
+  const [graf, setGraf] = useState<"serie" | "momento" | "diario" | "variabilidad">("serie");
+  const [conclusion, setConclusion] = useState(m.revision?.conclusion ?? "");
+  const [comentarios, setComentarios] = useState(m.revision?.comentarios ?? "");
+  const [valida, setValida] = useState(m.revision?.validaAnalisis ?? true);
+  const [guia, setGuia] = useState(false);
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const a = analizar(m);
+  const p = m.protocolo;
+  const corte = periodo === "todo" ? "" : (() => { const d = new Date(`${hoyBog()}T12:00:00`); d.setDate(d.getDate() - Number(periodo) + 1); return d.toISOString().slice(0, 10); })();
+  const vis = a.validas.filter((x) => !corte || new Date(x.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) >= corte);
+  const descartar = async (id: string, volver = false) => {
+    if (volver) { actualizar(m.id, (x) => ({ ...x, mediciones: x.mediciones.map((y) => { if (y.id !== id) return y; const { descartada: _d, ...r } = y; return r; }) }), "Reincorporó una medición"); return; }
+    const motivo = window.prompt("Motivo para excluir esta medición del análisis (queda registrada):", "Técnica incorrecta");
+    if (!motivo?.trim()) return;
+    actualizar(m.id, (x) => ({ ...x, mediciones: x.mediciones.map((y) => (y.id === id ? { ...y, descartada: { por: user.nombre, fecha: new Date().toISOString(), motivo: motivo.trim() } } : y)) }), `Excluyó una medición: ${motivo.trim()}`);
+  };
+  const guardarRevision = () => {
+    if (!conclusion.trim()) { toast.error("Escriba la conclusión médica."); return; }
+    actualizar(m.id, (x) => ({ ...x, revision: { por: user.nombre, fecha: new Date().toISOString(), conclusion: conclusion.trim(), validaAnalisis: valida, ...(comentarios.trim() ? { comentarios: comentarios.trim() } : {}) } }), valida ? "Validó el análisis y registró la conclusión" : "Corrigió el análisis y registró la conclusión");
+    toast.success("Revisión guardada.");
+  };
+  const cerrar = async () => {
+    if (!(await preguntar({ titulo: "¿Cerrar el monitoreo?", texto: "El paciente ya no podrá registrar mediciones en este monitoreo." }))) return;
+    actualizar(m.id, (x) => ({ ...x, cerrado: { por: user.nombre, fecha: new Date().toISOString() } }), "Cerró el monitoreo");
+  };
+  const informe = () => { const d = datosMedico(user, firmas); const firma = firmas[user.id]; imprimirHtml(htmlInformeMdpa(m, { medico: `${d.nombre}${d.matricula ? ` · ${d.matricula}` : ""}`, ...(firma ? { firma } : {}) })); };
+  const aHistoria = async () => {
+    if (!m.revision) { toast.error("Primero registre la conclusión médica."); return; }
+    if (m.evolucionId) { toast.message("Este informe ya está en la historia clínica."); return; }
+    const id = nuevoId();
+    const nota = [`Monitoreo domiciliario de presión arterial del ${m.inicio} al ${a.fin} (${p.tipo.toLowerCase()}, ${p.dias} días).`, `Promedio global ${a.pS}/${a.pD} mmHg${a.porMomento.map((x) => ` · ${x.momento.toLowerCase()} ${x.s}/${x.d}`).join("")}${a.fc ? ` · FC ${a.fc} lpm` : ""}.`, `Mediciones válidas ${a.validas.length} (${a.excluidas} excluidas) · cumplimiento ${a.cumplimiento}% · DE sistólica ${a.deS} mmHg · ${a.pctSobre}% por encima del objetivo ${p.objetivo.s}/${p.objetivo.d}.`, `Interpretación del sistema: ${a.interpretacion}`, PATRON_NOCTURNO, AVISO_IA].join("\n");
+    setEvols((l) => [{ id, pacienteId: m.pacienteId, paciente: m.paciente, fecha: new Date().toISOString(), doctor: user.nombre, servicio: "Cardiología", motivo: "Monitoreo domiciliario de presión arterial (MDPA)", nota, plan: `${m.revision!.conclusion}${m.revision!.comentarios ? `\n${m.revision!.comentarios}` : ""}`, diagnosticos: [], signos: { sistolica: a.pS, diastolica: a.pD, ...(a.fc ? { pulso: a.fc } : {}) } }, ...l]);
+    actualizar(m.id, (x) => ({ ...x, evolucionId: id }), "Incorporó el informe a la historia clínica");
+    toast.success("Informe agregado a la historia clínica como evolución de Cardiología.");
+  };
+  const k = (l: string, v: string, h?: string, rojo = false) => <div className="rounded-2xl border border-border bg-card px-3.5 py-3"><p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{l}</p><p className={`text-lg font-bold tabular-nums ${rojo ? "text-red-600" : ""}`}>{v}</p>{h && <p className="text-[11px] text-muted-foreground">{h}</p>}</div>;
+  const htmlGraf = graf === "serie" ? svgSerie(vis, p.objetivo) : graf === "momento" ? svgMomentos(a.porMomento) : svgDiario(a.porDia.filter((x) => !corte || x.dia >= corte), graf === "diario" ? "promedio" : "variabilidad");
+  return (
+    <Modal ancho="max-w-6xl" titulo={`Monitoreo de presión · ${nombrePropio(m.paciente)}`} onCerrar={onCerrar}>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${TONO_ESTADO_MDPA[a.estado] ?? ""}`}>{a.estado}</span>
+          <span className="text-muted-foreground">{fechaCorta(m.inicio)} – {fechaCorta(a.fin)} · día {a.diaN} de {p.dias} · {p.tipo} · {p.momentos.join(", ")} · {p.tomasPorSesion} tomas · objetivo &lt;{p.objetivo.s}/{p.objetivo.d}</span>
+          <button type="button" onClick={() => setGuia(!guia)} className="ml-auto text-xs font-semibold text-[#1E3A8A]">{guia ? "Ocultar guía del paciente" : "Ver guía del paciente"}</button>
+        </div>
+        {guia && <GuiaMedicion />}
+        {a.alertas.length > 0 && <div className="space-y-1.5">{a.alertas.map((x, i) => <div key={i} className={`rounded-xl px-3 py-2 text-sm ${x.nivel === "Urgente" ? "bg-red-50 text-red-800 ring-1 ring-red-200" : x.nivel === "Atención" ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200" : "bg-[#EEF2FB] text-[#1E3A8A]"}`}><b>{x.nivel}:</b> {x.texto}{x.fecha ? ` · ${fechaHora(x.fecha)}` : ""}</div>)}</div>}
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+          {k("Última PA", a.ultima ? `${a.ultima.s}/${a.ultima.d}` : "—", a.ultima ? `${a.ultima.fc ? `${a.ultima.fc} lpm · ` : ""}${fechaHora(a.ultima.fecha)}` : undefined)}
+          {k("Promedio global", a.validas.length ? `${a.pS}/${a.pD}` : "—", a.fc ? `FC ${a.fc} lpm` : undefined, a.pS >= p.objetivo.s || a.pD >= p.objetivo.d)}
+          {a.porMomento.slice(0, 2).map((x) => <Fragment key={x.momento}>{k(`Promedio ${x.momento.toLowerCase()}`, `${x.s}/${x.d}`, `${x.n} mediciones`)}</Fragment>)}
+          {k("Mediciones", `${a.validas.length} válidas`, `${a.excluidas} excluidas · ${a.diasValidos} días`)}
+          {k("Cumplimiento", `${a.cumplimiento}%`, `${a.todas.filter((x) => !x.voluntaria).length} de ${a.esperadas} esperadas`)}
+          {k("Fuera de objetivo", `${a.pctSobre}%`, `${a.sobre} mediciones`, a.pctSobre >= 50)}
+          {k("Variabilidad", `DE ${a.deS}/${a.deD}`, a.deS >= CRITERIOS_MDPA.variabilidadAltaDE ? "Alta" : "Habitual", a.deS >= CRITERIOS_MDPA.variabilidadAltaDE)}
+          {k("Tendencia", a.tendencia === null ? "—" : `${a.tendencia > 0 ? "+" : ""}${a.tendencia} mmHg`, "sistólica 2.ª vs 1.ª mitad")}
+          {k("Calidad", `${a.calidad}%`, "cargadas en el momento")}
+        </div>
+        <div className="rounded-2xl border border-border p-4">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {([["serie", "Evolución"], ["momento", "Por horario"], ["diario", "Promedio diario"], ["variabilidad", "Variabilidad"]] as const).map(([id, l]) => <button key={id} type="button" onClick={() => setGraf(id)} className={`h-9 rounded-lg px-3 text-xs font-semibold ${graf === id ? "bg-[#1E3A8A] text-white" : "bg-muted"}`}>{l}</button>)}
+            <select value={periodo} onChange={(e) => setPeriodo(e.target.value as typeof periodo)} className="ml-auto h-9 rounded-lg border border-border bg-card px-2 text-xs"><option value="todo">Todo el período</option><option value="3">Últimos 3 días</option><option value="1">Hoy</option></select>
+          </div>
+          <Svg html={htmlGraf} />
+          <p className="mt-2 text-[11px] text-muted-foreground">Pase el cursor sobre un punto para ver el valor. En rojo, mediciones por encima del objetivo.</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border p-4 text-sm">
+            <p className="mb-2 font-semibold">Interpretación asistida</p>
+            <p>{a.interpretacion}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{PATRON_NOCTURNO}</p>
+            <p className="mt-2 rounded-lg bg-[#EEF2FB] px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A]">{AVISO_IA}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">Criterios v{CRITERIOS_MDPA.version}: {CRITERIOS_MDPA.fuentes}. No se ajusta medicación automáticamente.</p>
+          </div>
+          <div className="rounded-2xl border border-border p-4 text-sm">
+            <p className="mb-2 font-semibold">Promedio por día</p>
+            <table className="w-full text-xs"><thead><tr className="text-left text-muted-foreground"><th className="py-1">Día</th><th>n</th><th>PA</th><th>DE</th><th>FC</th></tr></thead><tbody>{a.porDia.map((x) => <tr key={x.dia} className="border-t border-border"><td className="py-1">{fechaCorta(x.dia)}</td><td>{x.n}</td><td className="font-semibold tabular-nums">{x.n ? `${x.s}/${x.d}` : "—"}</td><td>{x.deS}</td><td>{x.fc || "—"}</td></tr>)}</tbody></table>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border p-4">
+          <p className="mb-2 text-sm font-semibold">Mediciones registradas ({a.todas.length})</p>
+          <div className="max-h-72 overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-card"><tr className="text-left text-muted-foreground"><th className="py-1">Fecha</th><th>Momento</th><th>PA</th><th>FC</th><th>Brazo</th><th>Síntomas</th><th></th></tr></thead>
+              <tbody>{[...a.todas].reverse().map((x) => (
+                <tr key={x.id} className={`border-t border-border ${x.descartada ? "text-muted-foreground line-through" : ""}`}>
+                  <td className="py-1.5">{fechaHora(x.fecha)}{x.retrospectiva && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 no-underline">retrospectiva</span>}</td>
+                  <td>{x.momento} {x.toma}.ª{x.voluntaria ? " · adicional" : ""}</td>
+                  <td className={`font-semibold tabular-nums ${x.s >= p.objetivo.s || x.d >= p.objetivo.d ? "text-red-600" : ""}`}>{x.s}/{x.d}{x.correcciones?.length ? <span title={x.correcciones.map((c) => `Antes ${c.antes.s}/${c.antes.d} · ${c.por}`).join("\n")} className="ml-1 text-[10px] font-normal text-muted-foreground">(corregida)</span> : null}</td>
+                  <td>{x.fc ?? "—"}</td><td>{x.brazo}</td><td>{x.sintomas.join(", ") || "—"}{x.obs ? ` · ${x.obs}` : ""}</td>
+                  <td className="text-right">{!soloLectura && (x.descartada ? <button type="button" title={`Excluida por ${x.descartada.por}: ${x.descartada.motivo}`} onClick={() => void descartar(x.id, true)} className="font-semibold text-[#1E3A8A] no-underline">Reincorporar</button> : <button type="button" onClick={() => void descartar(x.id)} className="font-semibold text-red-600">Excluir</button>)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+        {!soloLectura && (
+          <div className="rounded-2xl border border-[#DBE4FB] bg-[#F7F9FE] p-4 dark:bg-white/5">
+            <p className="mb-2 text-sm font-semibold">Revisión médica</p>
+            <div className="mb-2 flex gap-2">{([true, false] as const).map((v) => <button key={String(v)} type="button" onClick={() => setValida(v)} className={`h-9 rounded-lg px-3 text-xs font-semibold ring-1 ${valida === v ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border"}`}>{v ? "Valido el análisis" : "Corrijo el análisis"}</button>)}</div>
+            <textarea value={conclusion} onChange={(e) => setConclusion(e.target.value)} placeholder="Conclusión médica (obligatoria)" className={`${inp} h-20 py-2`} />
+            <textarea value={comentarios} onChange={(e) => setComentarios(e.target.value)} placeholder="Comentarios o indicaciones (opcional)" className={`${inp} mt-2 h-16 py-2`} />
+            {m.revision && <p className="mt-1 text-[11px] text-muted-foreground">Última revisión: {m.revision.por} · {fechaHora(m.revision.fecha)}</p>}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" onClick={guardarRevision}><Check className="size-4" /> Guardar revisión</Button>
+              <Button size="sm" variant="outline" onClick={informe}><Printer className="size-4" /> Informe PDF</Button>
+              <Button size="sm" variant="outline" onClick={() => void aHistoria()} disabled={!!m.evolucionId}><FileText className="size-4" /> {m.evolucionId ? "Ya está en la historia clínica" : "Agregar a la historia clínica"}</Button>
+              {!m.cerrado && <Button size="sm" variant="outline" onClick={() => void cerrar()}><Lock className="size-4" /> Cerrar monitoreo</Button>}
+            </div>
+          </div>
+        )}
+        {soloLectura && <Button size="sm" variant="outline" onClick={informe}><Printer className="size-4" /> Informe PDF</Button>}
+        <details className="text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold">Auditoría ({m.auditoria.length})</summary><ul className="mt-2 space-y-1">{[...m.auditoria].reverse().map((x, i) => <li key={i}>{fechaHora(x.fecha)} · {x.por} · {x.accion}</li>)}</ul></details>
+      </div>
+    </Modal>
   );
 }

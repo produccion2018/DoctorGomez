@@ -685,7 +685,7 @@ async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: stri
 }
 
 /** Colecciones que tienen datos de un paciente (se filtran por especialidad para los médicos invitados). */
-const COLECCIONES_CON_PACIENTE = ["gb_documentos", "gb_papelera", "gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros"];
+const COLECCIONES_CON_PACIENTE = ["gb_documentos", "gb_papelera", "gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros", "gb_mdpa"];
 
 /**
  * Qué pacientes le corresponden a un médico invitado: los de su especialidad.
@@ -850,9 +850,23 @@ export const aplicarCambios = createServerFn({ method: "POST" })
       for (const f of filas) {
         const previo = await c.uno(data.coleccion, f.id);
         if (previo && previo["pacienteId"] !== q.id) return { ok: false, error: "No autorizado." };
+        if (data.coleccion === "gb_mdpa" && previo) {
+          // El paciente solo agrega o corrige sus mediciones: el protocolo y la revisión médica no se tocan
+          type Med = { id: string; descartada?: unknown } & Record<string, unknown>;
+          const antes = (previo["mediciones"] as Med[] | undefined) ?? [];
+          const nuevas = (f["mediciones"] as Med[] | undefined) ?? [];
+          const porId = new Map(antes.map((x) => [x.id, x]));
+          const unidas = [...antes.map((x) => { const n = nuevas.find((y) => y.id === x.id); return n ? { ...n, ...(x.descartada ? { descartada: x.descartada } : {}) } : x; }), ...nuevas.filter((y) => !porId.has(y.id)).map((y) => { const { descartada: _d, ...r } = y; return r; })];
+          const fijos = ["protocolo", "revision", "cerrado", "evolucionId", "solicitadoPor", "iniciadoPor", "inicio", "creado", "motivo"];
+          const out: Record<string, unknown> & { id: string } = { ...previo, ...f, mediciones: unidas, pacienteId: q.id, id: f.id };
+          for (const k of fijos) { if (k in previo) out[k] = previo[k]; else delete out[k]; }
+          await c.guardar(data.coleccion, out);
+          continue;
+        }
         await c.guardar(data.coleccion, { ...f, pacienteId: q.id });
       }
       for (const id of data.borrar) {
+        if (data.coleccion === "gb_mdpa") continue; // los monitoreos no se borran (historia clínica)
         const previo = await c.uno(data.coleccion, id);
         if (previo && previo["pacienteId"] === q.id) await c.borrar(data.coleccion, [id]);
       }

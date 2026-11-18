@@ -9,12 +9,12 @@ export const COLECCIONES = [
   "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs", "gb_mensajes",
-  "gb_audit", "gb_documentos",
+  "gb_audit", "gb_documentos", "gb_mdpa",
 ] as const;
 /** Colecciones donde el paciente ve solo sus registros. */
-export const DEL_PACIENTE: readonly string[] = ["gb_turnos", "gb_estudios", "gb_controles", "gb_medicacion", "gb_autorizaciones", "gb_cobros", "gb_recetas", "gb_laboratorio", "gb_documentos"];
+export const DEL_PACIENTE: readonly string[] = ["gb_turnos", "gb_estudios", "gb_controles", "gb_medicacion", "gb_autorizaciones", "gb_cobros", "gb_recetas", "gb_laboratorio", "gb_documentos", "gb_mdpa"];
 /** Colecciones que el paciente puede editar (solo lo suyo). */
-export const EDITA_PACIENTE: readonly string[] = ["gb_controles", "gb_medicacion", "gb_autorizaciones"];
+export const EDITA_PACIENTE: readonly string[] = ["gb_controles", "gb_medicacion", "gb_autorizaciones", "gb_mdpa"];
 export type Coleccion = (typeof COLECCIONES)[number];
 export const esColeccion = (c: string): c is Coleccion => (COLECCIONES as readonly string[]).includes(c);
 

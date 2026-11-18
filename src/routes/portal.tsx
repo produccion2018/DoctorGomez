@@ -50,6 +50,8 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { waLink, Electro, InstalarApp, CalendarioMes, SelectorHorarios } from "@/components/site/PublicLayout";
 import { CLINICA, DOCTORS, ESPECIALIDADES, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
+import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, SINTOMAS_MDPA, analizar, validarMedicion, alertaSesion, finDe, type MonitoreoMdpa, type MedicionMdpa, type MomentoMdpa, type AlertaMdpa } from "@/lib/mdpa";
+import { GuiaMedicion, Svg, svgSerie } from "@/components/mdpa";
 import {
   ADMINS,
   ANTECEDENTES,
@@ -119,12 +121,13 @@ export const Route = createFileRoute("/portal")({
 /* Utilidades                                                              */
 /* ===================================================================== */
 
-type Seccion = "inicio" | "turnos" | "controles" | "medicacion" | "estudios" | "pagos" | "autorizaciones" | "ficha";
+type Seccion = "inicio" | "turnos" | "mdpa" | "controles" | "medicacion" | "estudios" | "pagos" | "autorizaciones" | "ficha";
 type Tono = "verde" | "ambar" | "naranja" | "rojo" | "critico" | "azul" | "violeta" | "gris";
 
 const SECCIONES: { id: Seccion; label: string; icon: LucideIcon; grupo: string }[] = [
   { id: "inicio", label: "Inicio", icon: Home, grupo: "Mi salud" },
   { id: "turnos", label: "Mis citas", icon: CalendarDays, grupo: "Mi salud" },
+  { id: "mdpa", label: "Monitoreo de presión", icon: HeartPulse, grupo: "Mi salud" },
   { id: "controles", label: "Presión y peso", icon: Gauge, grupo: "Mi salud" },
   { id: "medicacion", label: "Medicación", icon: Pill, grupo: "Mi salud" },
   { id: "estudios", label: "Estudios y resultados", icon: FileText, grupo: "Mi salud" },
@@ -366,6 +369,8 @@ type Ctx = {
   setMeds: (fn: (p: Medicamento[]) => Medicamento[]) => void;
   estudios: Estudio[];
   cobros: Cobro[];
+  mdpa: MonitoreoMdpa[];
+  setMdpa: (fn: (p: MonitoreoMdpa[]) => MonitoreoMdpa[]) => void;
   ir: (s: Seccion) => void;
 };
 
@@ -379,6 +384,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
   const [todosM, setMeds] = useDato<Medicamento[]>(KEY_MEDICACION, []);
   const [todosE] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
   const [todosCob] = useDato<Cobro[]>(KEY_COBROS, []);
+  const [todosMdpa, setMdpa] = useDato<MonitoreoMdpa[]>(KEY_MDPA, []);
 
   const id = paciente.id;
   const ctx: Ctx = {
@@ -393,6 +399,8 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
     setMeds,
     estudios: todosE.filter((e) => e.pacienteId === id).sort((a, b) => b.fecha.localeCompare(a.fecha)),
     cobros: todosCob.filter((c) => !c.anulado && (c.pacienteId === id || (!!c.dni && c.dni === paciente.dni))),
+    mdpa: todosMdpa.filter((m) => m.pacienteId === id).sort((a, b) => b.creado.localeCompare(a.creado)),
+    setMdpa,
     ir: (s) => {
       setSec(s);
       setCampana(false);
@@ -538,6 +546,7 @@ function Interior({ paciente, onSalir, vista = false }: { paciente: PacientePort
           <main key={sec} inert={vista} className="mx-auto max-w-6xl px-4 pb-28 pt-8 animate-in fade-in slide-in-from-bottom-3 duration-500 lg:px-8 lg:pb-8">
             {sec === "inicio" && <Inicio ctx={ctx} />}
             {sec === "turnos" && <Turnos ctx={ctx} />}
+            {sec === "mdpa" && <MonitoreoPresion ctx={ctx} />}
             {sec === "controles" && <Controles ctx={ctx} />}
             {sec === "medicacion" && <Medicacion ctx={ctx} />}
             {sec === "estudios" && <Estudios ctx={ctx} />}
@@ -754,6 +763,8 @@ function Inicio({ ctx }: { ctx: Ctx }) {
           </div>
         </div>
       </div>
+
+      <TarjetaMdpa ctx={ctx} />
 
       {/* Indicadores de salud */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1872,5 +1883,262 @@ function Ficha({ ctx }: { ctx: Ctx }) {
         </form>
       </Tarjeta>
     </div>
+  );
+}
+
+
+/* ===================================================================== */
+/* Monitoreo domiciliario de presión arterial (MDPA)                     */
+/* ===================================================================== */
+const hoyCol = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+const ahoraCol = () => new Date().toLocaleString("sv-SE", { timeZone: "America/Bogota" }).slice(11, 16);
+const momentoDeHora = (h: string): MomentoMdpa => (h < "11:00" ? "Mañana" : h < "14:00" ? "Mediodía" : h < "18:00" ? "Tarde" : "Noche");
+const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+
+function monitoreoActual(ms: MonitoreoMdpa[]) {
+  return ms.find((m) => !m.cerrado && !m.revision && hoyCol() <= finDe(m)) ?? ms[0];
+}
+
+function TarjetaMdpa({ ctx }: { ctx: Ctx }) {
+  const m = monitoreoActual(ctx.mdpa);
+  const a = m ? analizar(m) : null;
+  return (
+    <button type="button" onClick={() => ctx.ir("mdpa")} className="block w-full text-left">
+      <Tarjeta className="!p-5 transition hover:-translate-y-0.5">
+        <div className="flex flex-wrap items-center gap-4">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#1E3A8A] text-white"><HeartPulse className="size-6" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Monitoreo domiciliario de presión arterial</p>
+            <p className="text-lg font-bold tracking-tight">{a ? a.estado : "Monitoreo no iniciado"}</p>
+            <p className="text-sm text-muted-foreground">{m && a ? `Del ${fechaCorta(m.inicio)} al ${fechaCorta(a.fin)} · ${m.protocolo.dias} días · día ${a.diaN} · ${a.todas.length} mediciones` : "Mida su presión en casa durante 7 días con la guía paso a paso."}</p>
+          </div>
+          {m && a && (
+            <div className="flex items-center gap-4">
+              <div className="text-center"><p className="text-xl font-bold tabular-nums">{a.cumplimiento}%</p><p className="text-[11px] text-muted-foreground">cumplimiento</p></div>
+              {a.ultima && <div className="text-center"><p className="text-xl font-bold tabular-nums">{a.ultima.s}/{a.ultima.d}</p><p className="text-[11px] text-muted-foreground">última</p></div>}
+            </div>
+          )}
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-sm font-semibold text-white"><Plus className="size-4" /> {m ? "Registrar medición" : "Empezar"}</span>
+        </div>
+        {m && a && <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-[#10B981]" style={{ width: `${a.cumplimiento}%` }} /></div>}
+      </Tarjeta>
+    </button>
+  );
+}
+
+function MonitoreoPresion({ ctx }: { ctx: Ctx }) {
+  const m = monitoreoActual(ctx.mdpa);
+  const activo = m && !m.cerrado && !m.revision && hoyCol() <= finDe(m) ? m : undefined;
+  const [listo, setListo] = useState(false);
+  const iniciar = async () => {
+    if (!(await confirmar({ titulo: "¿Empezar el monitoreo de 7 días?", texto: "Medirá su presión en la mañana (antes del desayuno y de la medicación) y en la noche, con 2 tomas seguidas cada vez. Su médico verá los resultados." }))) return;
+    const ahora = new Date().toISOString();
+    const nuevo: MonitoreoMdpa = { id: nuevoId(), pacienteId: ctx.paciente.id, paciente: ctx.paciente.nombre, dni: ctx.paciente.dni, inicio: hoyCol(), protocolo: { ...PROTOCOLO_ESTANDAR }, motivo: "Iniciado por el paciente (protocolo estándar)", solicitadoPor: "Protocolo estándar de la clínica", iniciadoPor: ctx.paciente.nombre, creado: ahora, mediciones: [], auditoria: [{ fecha: ahora, por: ctx.paciente.nombre, accion: "Inició el monitoreo (protocolo estándar)" }] };
+    ctx.setMdpa((l) => [nuevo, ...l]);
+    auditar(ctx.paciente.nombre, "Monitoreo de presión iniciado", "Protocolo estándar de 7 días");
+    toast.success("Monitoreo iniciado. Lea la guía antes de cada medición.");
+  };
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Monitoreo domiciliario de presión arterial</h2>
+        <p className="text-sm text-muted-foreground">Mida su presión en casa con su tensiómetro durante 7 a 10 días, siguiendo la guía. Su médico revisa los resultados.</p>
+      </div>
+      {activo ? <ResumenMdpa m={activo} /> : (
+        <Tarjeta className="!p-5">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-[#EEF2FB] text-[#1E3A8A]"><HeartPulse className="size-6" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold">{m ? "Su último monitoreo terminó" : "Todavía no tiene un monitoreo activo"}</p>
+              <p className="text-sm text-muted-foreground">Si su médico se lo indicó, puede empezar el protocolo estándar: 7 días, mañana y noche, 2 tomas cada vez.</p>
+            </div>
+            <Button onClick={() => void iniciar()} className="h-11 rounded-xl px-5"><Plus className="size-4" /> Empezar monitoreo</Button>
+          </div>
+        </Tarjeta>
+      )}
+      <GuiaMedicion confirmable={!!activo} confirmado={listo} onConfirmar={setListo} />
+      {activo && <RegistroMdpa ctx={ctx} m={activo} habilitado={listo} onHecho={() => setListo(false)} />}
+      {activo && <MisMediciones ctx={ctx} m={activo} />}
+      {ctx.mdpa.filter((x) => x !== activo).length > 0 && (
+        <Tarjeta className="!p-5">
+          <p className="mb-3 text-base font-bold">Monitoreos anteriores</p>
+          <ul className="space-y-2">
+            {ctx.mdpa.filter((x) => x !== activo).map((x) => { const a = analizar(x); return (
+              <li key={x.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border px-4 py-3 text-sm">
+                <span className="font-semibold">{fechaCorta(x.inicio)} – {fechaCorta(a.fin)}</span>
+                <span className="text-muted-foreground">{a.todas.length} mediciones · promedio {a.pS || "—"}/{a.pD || "—"}</span>
+                <span className="ml-auto rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">{a.estado}</span>
+                {x.revision && <span className="w-full text-xs text-muted-foreground">Comentario del médico: {x.revision.conclusion}</span>}
+              </li>
+            ); })}
+          </ul>
+        </Tarjeta>
+      )}
+    </div>
+  );
+}
+
+function ResumenMdpa({ m }: { m: MonitoreoMdpa }) {
+  const a = analizar(m);
+  const hoy = hoyCol();
+  const deHoy = a.todas.filter((x) => x.fecha.slice(0, 10) <= hoy && new Date(x.fecha).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) === hoy);
+  const p = m.protocolo;
+  return (
+    <Tarjeta className="!p-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          ["Estado", a.estado],
+          ["Período", `${fechaCorta(m.inicio)} al ${fechaCorta(a.fin)} (${p.dias} días)`],
+          ["Hoy es el día", `${a.diaN} de ${p.dias}`],
+          ["Mediciones", `${a.todas.length} de ${a.esperadas} · ${a.cumplimiento}%`],
+        ].map(([k, v]) => (
+          <div key={k} className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-white/5"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{k}</p><p className="text-sm font-bold">{v}</p></div>
+        ))}
+      </div>
+      <div className="mt-4">
+        <p className="mb-2 text-sm font-semibold">Hoy le toca medir</p>
+        <div className="flex flex-wrap gap-2">
+          {p.momentos.map((mo) => {
+            const n = deHoy.filter((x) => x.momento === mo && !x.voluntaria).length;
+            const ok = n >= p.tomasPorSesion;
+            return <span key={mo} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold ring-1 ${ok ? "bg-[#D1FAE5] text-[#065F46] ring-[#A7F3D0]" : "bg-white text-[#1E3A8A] ring-[#DBE4FB] dark:bg-white/5 dark:text-sky-200"}`}>{ok ? <CheckCircle2 className="size-4" /> : <Clock className="size-4" />} {mo} · {Math.min(n, p.tomasPorSesion)}/{p.tomasPorSesion}</span>;
+          })}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">{p.momentos.includes("Mañana") ? "En la mañana: antes del desayuno" : ""}{p.antesMedicacion ? " y antes de tomar la medicación para la presión" : ""}. {p.tomasPorSesion === 2 ? `Haga 2 tomas seguidas, con ${p.intervaloMin} minuto de diferencia.` : ""}{p.brazo && p.brazo !== "Indistinto" ? ` Use el brazo ${p.brazo.toLowerCase()}.` : ""}</p>
+        {p.instrucciones && <p className="mt-2 rounded-xl bg-[#EEF2FB] px-3 py-2 text-sm text-[#1E3A8A] dark:bg-white/5 dark:text-sky-200"><b>Indicación de su médico:</b> {p.instrucciones}</p>}
+      </div>
+    </Tarjeta>
+  );
+}
+
+function CajaAlerta({ a }: { a: AlertaMdpa }) {
+  const c = a.nivel === "Urgente" ? "border-red-300 bg-red-50 text-red-900" : a.nivel === "Atención" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-[#DBE4FB] bg-[#EEF2FB] text-[#1E3A8A]";
+  return <div role="alert" className={`flex gap-3 rounded-2xl border p-4 text-[15px] leading-relaxed ${c}`}><AlertTriangle className="mt-0.5 size-5 shrink-0" /><p><b>{a.nivel}:</b> {a.texto}</p></div>;
+}
+
+function RegistroMdpa({ ctx, m, habilitado, onHecho }: { ctx: Ctx; m: MonitoreoMdpa; habilitado: boolean; onHecho: () => void }) {
+  const p = m.protocolo;
+  const base = () => ({ fecha: hoyCol(), hora: ahoraCol(), momento: momentoDeHora(ahoraCol()), s1: "", d1: "", fc1: "", s2: "", d2: "", fc2: "", brazo: (p.brazo === "Izquierdo" ? "Izquierdo" : "Derecho") as "Derecho" | "Izquierdo", posicion: "Sentado" as "Sentado" | "Acostado", sintomas: [] as string[], obs: "", voluntaria: false });
+  const [f, setF] = useState(base);
+  const [alerta, setAlerta] = useState<AlertaMdpa | null>(null);
+  const set = <K extends keyof ReturnType<typeof base>>(k: K, v: ReturnType<typeof base>[K]) => setF((x) => ({ ...x, [k]: v }));
+  const num = (v: string) => (v.trim() ? Number(v.replace(",", ".")) : undefined);
+  const guardar = (e: FormEvent) => {
+    e.preventDefault();
+    const tomas: { s: number; d: number; fc?: number }[] = [];
+    for (const [s, d, fc] of [[f.s1, f.d1, f.fc1], [f.s2, f.d2, f.fc2]] as [string, string, string][]) {
+      if (!s.trim() && !d.trim()) continue;
+      const S = Math.round(num(s) ?? NaN), D = Math.round(num(d) ?? NaN), FC = num(fc);
+      const v = validarMedicion(S, D, FC);
+      if (v.error) { toast.error(v.error); return; }
+      tomas.push({ s: S, d: D, ...(FC ? { fc: Math.round(FC) } : {}) });
+    }
+    if (!tomas.length) { toast.error("Escriba al menos la primera toma."); return; }
+    const cuando = new Date(`${f.fecha}T${f.hora}:00-05:00`);
+    if (cuando.getTime() > Date.now() + 5 * 60000) { toast.error("La fecha y hora no pueden ser futuras."); return; }
+    const retro = Date.now() - cuando.getTime() > 2 * 3600000;
+    const sesion = nuevoId();
+    const ahora = new Date().toISOString();
+    const nuevas: MedicionMdpa[] = tomas.map((t, i) => ({ id: nuevoId(), fecha: new Date(cuando.getTime() + i * p.intervaloMin * 60000).toISOString(), momento: f.momento, toma: (i + 1) as 1 | 2, sesion, ...t, brazo: f.brazo, posicion: f.posicion, sintomas: f.sintomas, ...(f.obs.trim() ? { obs: f.obs.trim() } : {}), ...(retro ? { retrospectiva: true } : {}), ...(f.voluntaria || !p.momentos.includes(f.momento) ? { voluntaria: true } : {}), registradoPor: ctx.paciente.nombre, registradoEl: ahora }));
+    ctx.setMdpa((l) => l.map((x) => (x.id === m.id ? { ...x, mediciones: [...x.mediciones, ...nuevas], auditoria: [...x.auditoria, { fecha: ahora, por: ctx.paciente.nombre, accion: `Registró ${nuevas.length} medición(es) · ${f.momento}${retro ? " (retrospectiva)" : ""}` }] } : x)));
+    const al = alertaSesion(nuevas);
+    setAlerta(al);
+    if (!al) toast.success("Medición guardada. ¡Muy bien!");
+    setF(base());
+    onHecho();
+  };
+  const inpM = "h-14 w-full rounded-2xl border border-border bg-white px-4 text-center text-2xl font-bold tabular-nums outline-none focus:border-[#1E3A8A] dark:bg-white/5";
+  return (
+    <Tarjeta className="!p-5">
+      <p className="text-lg font-bold">Registrar medición</p>
+      {!habilitado && <p className="mt-1 text-sm text-amber-700">Primero marque arriba «Leí las instrucciones y estoy preparado».</p>}
+      {alerta && <div className="mt-3"><CajaAlerta a={alerta} /></div>}
+      <form onSubmit={guardar} className={`mt-4 space-y-5 ${habilitado ? "" : "pointer-events-none opacity-50"}`} aria-disabled={!habilitado}>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="space-y-1"><span className="text-xs font-semibold text-muted-foreground">Fecha</span><input type="date" max={hoyCol()} value={f.fecha} onChange={(e) => set("fecha", e.target.value)} className={inp} /></label>
+          <label className="space-y-1"><span className="text-xs font-semibold text-muted-foreground">Hora</span><input type="time" value={f.hora} onChange={(e) => { set("hora", e.target.value); set("momento", momentoDeHora(e.target.value)); }} className={inp} /></label>
+          <label className="space-y-1"><span className="text-xs font-semibold text-muted-foreground">Momento</span>
+            <select value={f.momento} onChange={(e) => set("momento", e.target.value as MomentoMdpa)} className={inp}>{MOMENTOS_MDPA.map((x) => <option key={x} value={x}>{x}{p.momentos.includes(x) ? "" : " (adicional)"}</option>)}</select>
+          </label>
+        </div>
+        {[1, 2].slice(0, p.tomasPorSesion).map((n) => (
+          <div key={n}>
+            <p className="mb-2 text-sm font-semibold">{n === 1 ? "1.ª toma" : `2.ª toma (espere ${p.intervaloMin} minuto)`}</p>
+            <div className="grid grid-cols-3 gap-3">
+              <label className="space-y-1 text-center"><span className="text-xs font-semibold text-muted-foreground">Alta (sistólica)</span><input inputMode="numeric" value={n === 1 ? f.s1 : f.s2} onChange={(e) => set(n === 1 ? "s1" : "s2", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="120" className={inpM} /></label>
+              <label className="space-y-1 text-center"><span className="text-xs font-semibold text-muted-foreground">Baja (diastólica)</span><input inputMode="numeric" value={n === 1 ? f.d1 : f.d2} onChange={(e) => set(n === 1 ? "d1" : "d2", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="80" className={inpM} /></label>
+              <label className="space-y-1 text-center"><span className="text-xs font-semibold text-muted-foreground">Pulso (opcional)</span><input inputMode="numeric" value={n === 1 ? f.fc1 : f.fc2} onChange={(e) => set(n === 1 ? "fc1" : "fc2", e.target.value.replace(/\D/g, "").slice(0, 3))} placeholder="72" className={inpM} /></label>
+            </div>
+          </div>
+        ))}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><p className="mb-1.5 text-xs font-semibold text-muted-foreground">Brazo</p><div className="flex gap-2">{(["Derecho", "Izquierdo"] as const).map((b) => <button key={b} type="button" onClick={() => set("brazo", b)} className={`h-11 flex-1 rounded-xl text-sm font-semibold ring-1 ${f.brazo === b ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-white ring-border dark:bg-white/5"}`}>{b}</button>)}</div></div>
+          <div><p className="mb-1.5 text-xs font-semibold text-muted-foreground">Posición</p><div className="flex gap-2">{(["Sentado", "Acostado"] as const).map((b) => <button key={b} type="button" onClick={() => set("posicion", b)} className={`h-11 flex-1 rounded-xl text-sm font-semibold ring-1 ${f.posicion === b ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-white ring-border dark:bg-white/5"}`}>{b}</button>)}</div></div>
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">¿Tiene algún síntoma?</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => set("sintomas", [])} className={`h-10 rounded-xl px-3 text-sm font-semibold ring-1 ${f.sintomas.length === 0 ? "bg-[#D1FAE5] text-[#065F46] ring-[#A7F3D0]" : "bg-white ring-border dark:bg-white/5"}`}>Sin síntomas</button>
+            {SINTOMAS_MDPA.map((x) => { const on = f.sintomas.includes(x); return <button key={x} type="button" onClick={() => set("sintomas", on ? f.sintomas.filter((y) => y !== x) : [...f.sintomas, x])} className={`h-10 rounded-xl px-3 text-sm font-semibold ring-1 ${on ? "bg-red-50 text-red-700 ring-red-300" : "bg-white ring-border dark:bg-white/5"}`}>{x}</button>; })}
+          </div>
+        </div>
+        <label className="block space-y-1"><span className="text-xs font-semibold text-muted-foreground">Observaciones (opcional)</span><input value={f.obs} onChange={(e) => set("obs", e.target.value)} className={inp} placeholder="Ej.: dormí mal, olvidé la pastilla…" /></label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.voluntaria} onChange={(e) => set("voluntaria", e.target.checked)} className="size-4 accent-[#1E3A8A]" /> Es una medición adicional, fuera de los horarios indicados</label>
+        <Button type="submit" disabled={!habilitado} className="h-12 w-full rounded-xl text-base"><Check className="size-5" /> Guardar medición</Button>
+      </form>
+    </Tarjeta>
+  );
+}
+
+function MisMediciones({ ctx, m }: { ctx: Ctx; m: MonitoreoMdpa }) {
+  const a = analizar(m);
+  const [edit, setEdit] = useState<{ id: string; s: string; d: string; fc: string } | null>(null);
+  const corregir = () => {
+    if (!edit) return;
+    const S = Number(edit.s), D = Number(edit.d), FC = edit.fc ? Number(edit.fc) : undefined;
+    const v = validarMedicion(S, D, FC);
+    if (v.error) { toast.error(v.error); return; }
+    const ahora = new Date().toISOString();
+    ctx.setMdpa((l) => l.map((x) => (x.id !== m.id ? x : { ...x, mediciones: x.mediciones.map((y) => (y.id !== edit.id ? y : { ...y, s: S, d: D, ...(FC ? { fc: FC } : {}), correcciones: [...(y.correcciones ?? []), { por: ctx.paciente.nombre, fecha: ahora, antes: { s: y.s, d: y.d, ...(y.fc ? { fc: y.fc } : {}) } }] })), auditoria: [...x.auditoria, { fecha: ahora, por: ctx.paciente.nombre, accion: "Corrigió una medición" }] })));
+    setEdit(null);
+    toast.success("Medición corregida. El valor anterior queda guardado.");
+  };
+  if (!a.todas.length) return null;
+  return (
+    <Tarjeta className="!p-5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-lg font-bold">Mi evolución</p>
+          <p className="text-sm text-muted-foreground">Promedio hasta hoy: <b className="text-foreground">{a.pS}/{a.pD} mmHg</b>{a.fc ? ` · pulso ${a.fc}` : ""}. Su médico interpretará el resultado completo.</p>
+        </div>
+        <span className="text-xs text-muted-foreground">Rojo: por encima del objetivo ({m.protocolo.objetivo.s}/{m.protocolo.objetivo.d})</span>
+      </div>
+      <Svg className="mt-3" html={svgSerie(a.todas, m.protocolo.objetivo)} />
+      <ul className="mt-4 divide-y divide-border">
+        {[...a.todas].reverse().map((x) => (
+          <li key={x.id} className="flex flex-wrap items-center gap-3 py-2.5 text-sm">
+            <span className="w-32 text-muted-foreground">{new Date(x.fecha).toLocaleString("es-CO", { timeZone: "America/Bogota", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="w-24">{x.momento} · {x.toma}.ª</span>
+            {edit?.id === x.id ? (
+              <span className="flex flex-wrap items-center gap-2">
+                <input value={edit.s} onChange={(e) => setEdit({ ...edit, s: e.target.value })} className="h-9 w-16 rounded-lg border border-border px-2 text-center" />/<input value={edit.d} onChange={(e) => setEdit({ ...edit, d: e.target.value })} className="h-9 w-16 rounded-lg border border-border px-2 text-center" />
+                <input value={edit.fc} onChange={(e) => setEdit({ ...edit, fc: e.target.value })} placeholder="pulso" className="h-9 w-16 rounded-lg border border-border px-2 text-center" />
+                <Button size="sm" className="h-9 rounded-lg" onClick={corregir}>Guardar</Button><Button size="sm" variant="ghost" className="h-9 rounded-lg" onClick={() => setEdit(null)}>Cancelar</Button>
+              </span>
+            ) : (
+              <>
+                <span className={`font-bold tabular-nums ${x.s >= m.protocolo.objetivo.s || x.d >= m.protocolo.objetivo.d ? "text-red-600" : ""}`}>{x.s}/{x.d}</span>
+                {x.fc && <span className="text-muted-foreground">{x.fc} lpm</span>}
+                {x.retrospectiva && <span className="rounded bg-amber-100 px-1.5 text-[11px] font-semibold text-amber-800">cargada después</span>}
+                {x.voluntaria && <span className="rounded bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">adicional</span>}
+                {x.correcciones?.length ? <span className="text-[11px] text-muted-foreground">corregida</span> : null}
+                {x.descartada && <span className="rounded bg-slate-200 px-1.5 text-[11px] font-semibold text-slate-600">descartada por el médico</span>}
+                {!x.descartada && <button type="button" onClick={() => setEdit({ id: x.id, s: String(x.s), d: String(x.d), fc: x.fc ? String(x.fc) : "" })} className="ml-auto text-xs font-semibold text-[#1E3A8A] hover:underline dark:text-sky-300">Corregir</button>}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Tarjeta>
   );
 }

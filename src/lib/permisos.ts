@@ -65,6 +65,7 @@ export const MODULO_COLECCION: Record<string, { ver: string[]; editar: string[] 
   gb_notas_enf: { ver: ["Enfermería – Triage", "Historias clínicas"], editar: ["Enfermería – Triage"] },
   gb_evoluciones: { ver: ["Historias clínicas"], editar: ["Historias clínicas"] },
   gb_controles: { ver: ["Historias clínicas", "Portal del paciente"], editar: ["Historias clínicas"] },
+  gb_mdpa: { ver: ["Historias clínicas", "Pacientes", "Portal del paciente"], editar: ["Historias clínicas"] },
   gb_medicacion: { ver: ["Historias clínicas", "Recetas", "Portal del paciente"], editar: ["Historias clínicas", "Recetas"] },
   gb_recetas: { ver: ["Recetas", "Historias clínicas"], editar: ["Recetas"] },
   gb_laboratorio: { ver: ["Laboratorio", "Estudios", "Historias clínicas"], editar: ["Laboratorio"] },
