@@ -128,7 +128,7 @@ import {
   Archive,
 } from "lucide-react";
 import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
-import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia } from "@/data/sugerencias";
+import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia, ESTUDIOS_DIAGNOSTICOS, type TipoOrden } from "@/data/sugerencias";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -6026,6 +6026,7 @@ function FichaHC({
   const alternarSel = (id: string) => setSelNotas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
   const [ventSignos, setVentSignos] = useState(false);
+  const [docsEv, setDocsEv] = useState<Evolucion | null>(null);
   // Los controles los registra enfermería; el profesional los consulta
   const puedeSignos = notasEnf && !soloLectura;
   const glus = notasEnfP.filter((n) => n.tipo === "Glucometría").map((n) => ({ n, v: n.valor ?? Number(/(\d+(?:[.,]\d+)?)\s*mg\/dL/i.exec(n.texto)?.[1]?.replace(",", ".") ?? NaN), m: n.momento ?? (/\(([^)]+)\)/.exec(n.texto)?.[1] ?? "") })).filter((x) => x.v > 0).sort((a, b) => b.n.fecha.localeCompare(a.n.fecha));
@@ -6198,7 +6199,13 @@ function FichaHC({
         </div>
       )}
 
-      {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={onGuardar} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
+      {nueva && !soloLectura && <FormEvolucion p={p} user={user} onGuardar={(ev) => { onGuardar(ev); if (ev.ordenes?.length || ev.recetaId) setDocsEv(ev); }} onCancelar={() => setNueva(false)} tallaPrevia={talla} triage={pendiente} />}
+      {docsEv && (
+        <Modal titulo="Órdenes y receta generadas" onCerrar={() => setDocsEv(null)}>
+          <p className="mb-4 text-sm text-muted-foreground">Quedaron guardadas en la evolución de hoy. Imprima o guarde en PDF cada documento.</p>
+          <BotonesDocsEv p={p} ev={docsEv} />
+        </Modal>
+      )}
 
       <DocumentosPaciente p={p} user={user} log={log} soloLectura={soloLectura} compacto />
       {labsHC.some((l) => Object.keys(l.resultados ?? {}).length) && <SeguimientoLab labs={labsHC} />}
@@ -6364,6 +6371,12 @@ function FichaHC({
                                 </li>
                               ))}
                             </ul>
+                          </div>
+                        )}
+                        {(e.ordenes?.length || e.recetaId) && (
+                          <div>
+                            <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Órdenes y receta</p>
+                            <BotonesDocsEv p={p} ev={e} compacto />
                           </div>
                         )}
                         {e.plan && (
@@ -6697,6 +6710,159 @@ function CampoVital({ l, u, ph, value, onChange, alerta }: { l: string; u: strin
   );
 }
 
+/* ---------- Estudios a solicitar (laboratorio, imágenes, cardiológicos y otros) ---------- */
+type EstudioSel = { nombre: string; tipo: TipoOrden; grupo?: string };
+const ORDEN_TIPOS: TipoOrden[] = ["Laboratorio clínico", "Imágenes diagnósticas", "Estudios cardiológicos", "Otros estudios diagnósticos"];
+function buscarEstudios(q: string): EstudioSel[] {
+  const t = norm(q.trim());
+  if (t.length < 2) return [];
+  const lab = buscarExamenes(q, { max: 8 }).map((e) => ({ nombre: e.nombre, tipo: "Laboratorio clínico" as TipoOrden, grupo: e.grupo }));
+  const puntaje = (x: { nombre: string; sin: string[] }) => {
+    const textos = [x.nombre, ...x.sin].map(norm);
+    if (textos.some((y) => y.startsWith(t))) return 3;
+    if (textos.some((y) => y.split(/[\s(/]+/).some((w) => w.startsWith(t)))) return 2;
+    return t.split(" ").every((w) => textos.some((y) => y.includes(w))) ? 1 : 0;
+  };
+  const otros = ESTUDIOS_DIAGNOSTICOS.map((x) => ({ x, p: puntaje(x) })).filter((y) => y.p > 0).sort((a, b) => b.p - a.p).slice(0, 10).map(({ x }) => ({ nombre: x.nombre, tipo: x.tipo, grupo: x.grupo }));
+  return [...otros, ...lab].slice(0, 14);
+}
+function EstudiosASolicitar({ sel, onChange }: { sel: EstudioSel[]; onChange: (v: EstudioSel[]) => void }) {
+  const [q, setQ] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const [i, setI] = useState(0);
+  const res = abierto ? buscarEstudios(q).filter((r) => !sel.some((s) => norm(s.nombre) === norm(r.nombre))) : [];
+  const libre = q.trim();
+  const agregar = (e: EstudioSel) => { onChange([...sel, e]); setQ(""); setI(0); };
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={q} autoComplete="off" onChange={(e) => { setQ(e.target.value); setAbierto(true); setI(0); }} onFocus={() => setAbierto(true)} onBlur={() => window.setTimeout(() => setAbierto(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setI((x) => Math.min(x + 1, res.length - 1)); }
+            if (e.key === "ArrowUp") { e.preventDefault(); setI((x) => Math.max(x - 1, 0)); }
+            if (e.key === "Enter") { e.preventDefault(); if (res[i]) agregar(res[i]!); else if (libre.length >= 3) agregar({ nombre: libre.charAt(0).toUpperCase() + libre.slice(1), tipo: "Otros estudios diagnósticos" }); }
+          }}
+          placeholder="Escriba: hemo, creat, rx torax, eco renal, resonancia, holter…" className={inp + " pl-10"} />
+        {abierto && libre.length >= 2 && (
+          <ul className="absolute inset-x-0 top-full z-40 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl">
+            {res.map((r, k) => (
+              <li key={`${r.tipo}-${r.nombre}`}>
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setI(k)} onClick={() => agregar(r)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm ${k === i ? "bg-[#EEF2FB] dark:bg-white/10" : ""}`}>
+                  <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${r.tipo === "Laboratorio clínico" ? "bg-[#D1FAE5] text-[#065F46]" : r.tipo === "Imágenes diagnósticas" ? "bg-[#DBE4FB] text-[#1E3A8A]" : r.tipo === "Estudios cardiológicos" ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-600"}`}>{r.grupo ?? r.tipo}</span>
+                  <span className="min-w-0 flex-1">{r.nombre}</span>
+                </button>
+              </li>
+            ))}
+            {libre.length >= 3 && (
+              <li className="mt-1 border-t border-border pt-1">
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => agregar({ nombre: libre.charAt(0).toUpperCase() + libre.slice(1), tipo: "Otros estudios diagnósticos" })} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-[#EEF2FB]"><Plus className="size-3.5" /> Agregar «{libre}» como estudio escrito</button>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
+      {sel.length > 0 ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {ORDEN_TIPOS.filter((t) => sel.some((s) => s.tipo === t)).map((t) => (
+            <div key={t} className="rounded-xl border border-border p-3">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t} · se genera su orden</p>
+              <ul className="space-y-1">
+                {sel.filter((s) => s.tipo === t).map((s) => (
+                  <li key={s.nombre} className="flex items-center gap-2 text-sm">
+                    <span className="min-w-0 flex-1">{s.nombre}</span>
+                    <button type="button" aria-label={`Quitar ${s.nombre}`} onClick={() => onChange(sel.filter((x) => x !== s))} className="rounded-md p-1 text-muted-foreground hover:bg-secondary"><X className="size-3.5" /></button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : <p className="text-xs text-muted-foreground">Al guardar se genera una orden por cada tipo: laboratorio, imágenes, cardiológicos u otros.</p>}
+    </div>
+  );
+}
+
+/* ---------- Medicamentos a formular (genera la receta al guardar) ---------- */
+function MedicamentosAFormular({ items, onChange }: { items: (ItemReceta & { base?: string })[]; onChange: (v: (ItemReceta & { base?: string })[]) => void }) {
+  const [q, setQ] = useState("");
+  const set = (k: number, patch: Partial<ItemReceta>) => onChange(items.map((x, j) => (j === k ? { ...x, ...patch } : x)));
+  return (
+    <div className="space-y-3">
+      <BuscadorMedicamento value={q} onChange={setQ} placeholder="Escriba el principio activo o la marca: losar, metfor, dolex…" onElegir={(m) => { onChange([...items, { base: m.nombre, droga: `${m.nombre}${m.dosis[0] ? ` ${m.dosis[0]}` : ""}`, presentacion: "Tabletas", cantidad: "1 caja", posologia: "" }]); setQ(""); }} />
+      {items.length === 0 ? <p className="text-xs text-muted-foreground">Al guardar se genera la receta con estos medicamentos.</p> : (
+        <ul className="space-y-2.5">
+          {items.map((it, k) => {
+            const cat = it.base ? medicamentoPorNombre(it.base) : undefined;
+            return (
+              <li key={k} className="rounded-xl border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <input value={it.droga} onChange={(e) => set(k, { droga: e.target.value })} className={inp + " h-10 flex-1 font-semibold"} placeholder="Principio activo y concentración" />
+                  <button type="button" aria-label="Quitar" onClick={() => onChange(items.filter((_, j) => j !== k))} className="grid size-10 place-items-center rounded-xl border border-border text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+                </div>
+                {cat && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {cat.dosis.map((d) => <button key={d} type="button" onClick={() => set(k, { droga: `${cat.nombre} ${d}${/\(([^)]+)\)$/.exec(it.droga)?.[0] ? ` ${/\(([^)]+)\)$/.exec(it.droga)![0]}` : ""}` })} className="rounded-lg bg-[#EEF2FB] px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A]">{d}</button>)}
+                    {(cat.marcas ?? []).length > 0 && <span className="ml-1 text-[11px] text-muted-foreground">Marcas en Colombia:</span>}
+                    {(cat.marcas ?? []).map((mc) => <button key={mc} type="button" onClick={() => set(k, { droga: `${it.droga.replace(/\s*\([^)]*\)$/, "")} (${mc})` })} className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-200">{mc}</button>)}
+                  </div>
+                )}
+                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_2fr_1fr]">
+                  <TextoPredictivo value={it.presentacion} onChange={(v) => set(k, { presentacion: v })} sugerencias={(qq) => sugerirFrase([["Tabletas", "Cápsulas", "Tabletas recubiertas", "Jarabe", "Suspensión oral", "Solución inyectable", "Ampollas", "Inhalador", "Crema", "Gotas", "Parches", "Sobres"]], qq)} vacias={["Tabletas", "Cápsulas", "Jarabe", "Ampollas", "Inhalador"]} placeholder="Presentación" />
+                  <TextoPredictivo value={it.posologia} onChange={(v) => set(k, { posologia: v })} sugerencias={(qq) => sugerirFrase([FRECUENCIAS.map((f) => `1 tableta vía oral ${f.toLowerCase()}`), FRECUENCIAS, DURACIONES.map((d) => `por ${d}`)], qq, 8)} vacias={["1 tableta vía oral cada 12 horas", "1 tableta vía oral cada 24 horas", "1 tableta vía oral cada 8 horas"]} placeholder="Dosis, vía, frecuencia y duración" />
+                  <input value={it.cantidad} onChange={(e) => set(k, { cantidad: e.target.value })} className={inp + " h-11"} placeholder="Cantidad" />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function BotonesDocsEv({ p, ev, compacto = false }: { p: PacienteHC; ev: Evolucion; compacto?: boolean }) {
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [recetas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const docId = ADMINS.find((a) => a.nombre === ev.doctor)?.id ?? "";
+  const med = datosMedico({ id: docId, nombre: ev.doctor } as SessionUser, firmas);
+  const receta = ev.recetaId ? recetas.find((r) => r.id === ev.recetaId) : undefined;
+  const btn = compacto ? "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300" : "flex w-full items-center gap-3 rounded-2xl border border-border p-3.5 text-left hover:border-[#1E3A8A]/35 hover:bg-[#F8FAFF]";
+  return (
+    <div className={compacto ? "flex flex-wrap gap-1.5" : "space-y-2"}>
+      {(ev.ordenes ?? []).map((o) => (
+        <button key={o.tipo} type="button" className={btn} onClick={() => imprimirHtml(htmlOrdenEstudios(p, ev, o, med, firmas[docId]))}>
+          {compacto ? <><Printer className="size-3.5" /> Orden de {o.tipo.toLowerCase()}</> : (
+            <><span className="flex size-10 items-center justify-center rounded-xl bg-[#EEF2FB] text-[#1E3A8A]"><ScanLine className="size-[18px]" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Orden · {o.tipo}</span><span className="block truncate text-xs text-muted-foreground">{o.estudios.map((x) => x.nombre).join(", ")}</span></span><Printer className="size-4 text-muted-foreground" /></>
+          )}
+        </button>
+      ))}
+      {receta && (
+        <button type="button" className={btn} onClick={() => imprimirHtml(htmlReceta(receta, firmas[receta.doctorId]))}>
+          {compacto ? <><Printer className="size-3.5" /> Receta N.º {receta.numero}</> : (
+            <><span className="flex size-10 items-center justify-center rounded-xl bg-[#D1FAE5] text-[#065F46]"><Pill className="size-[18px]" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Receta N.º {receta.numero}{receta.firmada ? "" : " · sin firma registrada"}</span><span className="block truncate text-xs text-muted-foreground">{receta.items.map((x) => x.droga).join(", ")}</span></span><Printer className="size-4 text-muted-foreground" /></>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function htmlOrdenEstudios(p: PacienteHC, ev: Evolucion, orden: NonNullable<Evolucion["ordenes"]>[number], med: ReturnType<typeof datosMedico>, firma?: string) {
+  const dx = dxDe(ev);
+  const grupos = [...new Set(orden.estudios.map((e) => e.grupo ?? ""))];
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Orden · ${orden.tipo}</title>
+<style>body{font-family:system-ui,sans-serif;color:#0f172a;padding:36px;max-width:720px;margin:auto}h1{margin:0;font-size:19px}.m{color:#475569;font-size:13px;margin:4px 0}
+.box{border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;margin-top:12px}.box h3{margin:0 0 6px;font-size:13px;color:#1E3A8A;text-transform:uppercase;letter-spacing:.06em}.box li{font-size:14px;margin:3px 0}
+.firme{text-align:right;margin-top:48px}.firme img{height:64px}.firme div{display:inline-block;border-top:1px solid #334155;padding-top:6px;font-size:12px;min-width:220px;text-align:center}</style></head><body>
+<h1>HEGO · Centro de especialidades médicas</h1><p class="m"><b>Orden médica · ${orden.tipo}</b></p>
+<p class="m">${fechaDe(ev.fecha)} · ${med.nombre}${ev.servicio ? ` · ${ev.servicio}` : ""} · ${med.matricula}</p>
+<p><b>Paciente:</b> ${nombrePropio(p.nombre)}${p.dni ? ` · C.C. ${p.dni}` : ""}${p.ficha?.obraSocial ? ` · ${p.ficha.obraSocial}` : ""}</p>
+${dx.length ? `<p class="m"><b>Diagnóstico:</b> ${dx.map((d) => `${d.codigo ? `${d.codigo} ` : ""}${d.descripcion}`).join(" · ")}</p>` : ""}
+${grupos.map((g) => `<div class="box">${g ? `<h3>${g}</h3>` : ""}<ul>${orden.estudios.filter((e) => (e.grupo ?? "") === g).map((e) => `<li>${e.nombre}</li>`).join("")}</ul></div>`).join("")}
+<div class="firme">${firma ? `<img src="${firma}"><br>` : ""}<div>${med.nombre}<br>${med.matricula}</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
+}
+
 function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: { p: PacienteHC; user: SessionUser; onGuardar: (e: Evolucion) => void; onCancelar: () => void; tallaPrevia?: number | undefined; triage?: Triage | undefined }) {
   const [, setTriages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const ts = triage?.signos;
@@ -6730,6 +6896,10 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
     plan: frasesDe(evolsPrev.map((x) => x.plan)),
   }), [evolsPrev]);
   const setTxt = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
+  const [estudiosSel, setEstudiosSel] = useState<EstudioSel[]>([]);
+  const [rxItems, setRxItems] = useState<(ItemReceta & { base?: string })[]>([]);
+  const [recetasTodas, setRecetasTodas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [firmasEv] = useDato<Record<string, string>>(KEY_FIRMAS, {});
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const s = num(f.s), d = num(f.d);
   const pr = s && d ? clasificarPresion(s, d) : null;
@@ -6744,6 +6914,21 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
     if (dx.length === 0) { toast.error("Agregue al menos un diagnóstico"); return; }
     const id = nuevoId();
     const ahora = new Date().toISOString();
+    const ordenes = ORDEN_TIPOS.filter((t) => estudiosSel.some((x) => x.tipo === t)).map((t) => ({ tipo: t, estudios: estudiosSel.filter((x) => x.tipo === t).map((x) => (x.grupo ? { nombre: x.nombre, grupo: x.grupo } : { nombre: x.nombre })) }));
+    const validosRx = rxItems.filter((x) => x.droga.trim()).map(({ base: _b, ...x }) => x);
+    let recetaId: string | undefined;
+    if (validosRx.length) {
+      const med = datosMedico(user, firmasEv);
+      const numero = (recetasTodas.reduce((m, r) => Math.max(m, r.numero), 0) || 0) + 1;
+      const r = JSON.parse(JSON.stringify({
+        id: nuevoId(), numero, fecha: ahora, pacienteId: p.id, paciente: p.nombre, dni: p.dni, obraSocial: p.ficha?.obraSocial, afiliado: p.ficha?.afiliado,
+        doctorId: user.id, doctor: med.nombre, matricula: med.matricula, especialidad: servicio.trim() || med.especialidad,
+        diagnostico: dx.map((x) => `${x.codigo ? `${x.codigo} ` : ""}${x.descripcion}`).join(" · "), items: validosRx, indicaciones: f.conducta.trim() || undefined,
+        codigo: Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.random().toString(36).slice(2, 6).toUpperCase(), firmada: !!firmasEv[user.id],
+      })) as Receta;
+      setRecetasTodas((prev) => [r, ...prev]);
+      recetaId = r.id;
+    }
     const ev = JSON.parse(
       JSON.stringify({
         id,
@@ -6759,6 +6944,8 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
         plan: f.conducta.trim() || undefined,
         diagnosticos: dx.map((x) => `${x.codigo} ${x.descripcion}`),
         cie10: dx,
+        ordenes: ordenes.length ? ordenes : undefined,
+        recetaId,
         triageId: triage?.id,
         signosPor: triage ? { nombre: triage.enfermera, fecha: triage.fecha, rol: "enfermeria" } : undefined,
         signos: triage ? { ...triage.signos } : {},
@@ -6848,6 +7035,14 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
             className={inp + " h-auto min-h-[200px] resize-y py-3 leading-relaxed"}
           />
           <SugerenciasTexto value={f.conducta} onChange={setTxt("conducta")} listas={[CONDUCTA, MEDICAMENTOS_CAT.map((m) => m.nombre), aprendido.plan]} />
+        </PasoHC>
+
+        <PasoHC n={8} t="Estudios a solicitar" sub="Laboratorio, imágenes, cardiológicos y otros. Genera las órdenes al guardar">
+          <EstudiosASolicitar sel={estudiosSel} onChange={setEstudiosSel} />
+        </PasoHC>
+
+        <PasoHC n={9} t="Medicamentos a formular" sub="Principio activo y marcas en Colombia. Genera la receta al guardar">
+          <MedicamentosAFormular items={rxItems} onChange={setRxItems} />
         </PasoHC>
       </div>
 

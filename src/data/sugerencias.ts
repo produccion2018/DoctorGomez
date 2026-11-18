@@ -100,3 +100,51 @@ export function horariosDeFrecuencia(f: string): string[] {
   };
   return m[f] ?? [];
 }
+
+/* ───────────── Estudios diagnósticos (fuera del laboratorio clínico) ───────────── */
+export type TipoOrden = "Laboratorio clínico" | "Imágenes diagnósticas" | "Estudios cardiológicos" | "Otros estudios diagnósticos";
+export type EstudioCat = { nombre: string; sin: string[]; tipo: TipoOrden; grupo: string };
+const ESTUDIOS_DATOS: { tipo: TipoOrden; grupo: string; filas: string[] }[] = [
+  { tipo: "Imágenes diagnósticas", grupo: "Radiología", filas: [
+    "Radiografía de tórax PA y lateral|rx torax, placa de torax", "Radiografía de tórax portátil|rx torax", "Radiografía de abdomen simple|rx abdomen",
+    "Radiografía de columna cervical|rx cervical", "Radiografía de columna dorsal|rx dorsal", "Radiografía de columna lumbosacra|rx lumbar",
+    "Radiografía de pelvis|rx cadera", "Radiografía de rodilla|rx rodilla", "Radiografía de hombro|rx hombro", "Radiografía de mano|rx mano",
+    "Radiografía de pie|rx pie", "Radiografía de tobillo|rx tobillo", "Radiografía de senos paranasales|rx senos", "Radiografía de cráneo|rx craneo",
+    "Radiografía de huesos largos|rx femur, rx tibia, rx humero", "Urografía excretora|uro", "Esofagograma|trago de bario",
+  ] },
+  { tipo: "Imágenes diagnósticas", grupo: "Ecografía", filas: [
+    "Ecografía de abdomen total|eco abdominal", "Ecografía de hígado y vías biliares|eco hepatobiliar, vesicula", "Ecografía renal y de vías urinarias|eco renal, riñones",
+    "Ecografía de vejiga y próstata|eco prostata", "Ecografía pélvica transabdominal|eco pelvica", "Ecografía transvaginal|eco tv", "Ecografía obstétrica|eco embarazo",
+    "Ecografía de tiroides|eco tiroides", "Ecografía de cuello|eco cuello", "Ecografía de mama|eco mamaria", "Ecografía testicular|eco testiculos",
+    "Ecografía de tejidos blandos|eco partes blandas", "Ecografía de hombro|eco hombro", "Ecografía de rodilla|eco rodilla",
+    "Doppler venoso de miembros inferiores|doppler venoso, trombosis", "Doppler arterial de miembros inferiores|doppler arterial",
+    "Doppler de vasos del cuello (carotídeo)|doppler carotideo, carotidas", "Doppler de arterias renales|doppler renal", "Doppler venoso de miembros superiores|doppler brazos",
+  ] },
+  { tipo: "Imágenes diagnósticas", grupo: "Tomografía (TAC)", filas: [
+    "Tomografía de cráneo simple|tac craneo, scanner", "Tomografía de cráneo con contraste|tac craneo contrastado", "Tomografía de tórax simple|tac torax",
+    "Tomografía de tórax de alta resolución|tacar", "Angiotomografía de tórax (TEP)|angiotac pulmonar, embolia", "Tomografía de abdomen y pelvis con contraste|tac abdomen",
+    "Urotomografía|urotac, calculos", "Tomografía de senos paranasales|tac senos", "Tomografía de columna lumbar|tac lumbar",
+    "Angiotomografía coronaria|angiotac coronario, coronarias", "Score de calcio coronario|calcio coronario", "Angiotomografía de aorta|angiotac aorta",
+  ] },
+  { tipo: "Imágenes diagnósticas", grupo: "Resonancia magnética", filas: [
+    "Resonancia magnética de cerebro simple|rm cerebral, rmn", "Resonancia magnética de cerebro con contraste|rm cerebral contrastada", "Resonancia magnética de columna cervical|rm cervical",
+    "Resonancia magnética de columna lumbar|rm lumbar", "Resonancia magnética de rodilla|rm rodilla", "Resonancia magnética de hombro|rm hombro",
+    "Resonancia magnética de abdomen|rm abdomen", "Colangiorresonancia|colangio rm", "Resonancia magnética de pelvis|rm pelvis",
+    "Resonancia magnética cardíaca|rm cardiaca, cardiorresonancia", "Angiorresonancia de arterias renales|angio rm renal", "Angiorresonancia cerebral|angio rm cerebral",
+  ] },
+  { tipo: "Imágenes diagnósticas", grupo: "Otros estudios de imagen", filas: [
+    "Mamografía bilateral|mamografia", "Densitometría ósea|densitometria, osteoporosis", "Gammagrafía de perfusión miocárdica|perfusion miocardica, spect",
+    "Gammagrafía renal|gammagrafia renal, dmsa", "Gammagrafía ósea|gammagrafia osea", "Gammagrafía de tiroides|gammagrafia tiroides",
+  ] },
+  { tipo: "Estudios cardiológicos", grupo: "Cardiología", filas: [
+    "Electrocardiograma de 12 derivaciones|ecg, ekg, electro", "Ecocardiograma transtorácico|eco cardio, ecocardiografia", "Ecocardiograma transesofágico|eco te",
+    "Ecocardiograma de estrés con dobutamina|eco estres", "Holter de ritmo cardíaco de 24 horas|holter", "Monitoreo ambulatorio de presión arterial (MAPA)|mapa, presurometro",
+    "Prueba de esfuerzo convencional|ergometria", "Prueba de mesa basculante (tilt test)|tilt", "Cateterismo cardíaco|coronariografia",
+  ] },
+  { tipo: "Otros estudios diagnósticos", grupo: "Otros", filas: [
+    "Espirometría pre y posbroncodilatador|espirometria", "Endoscopia de vías digestivas altas|eda, endoscopia", "Colonoscopia total|colonoscopia",
+    "Electroencefalograma|eeg", "Electromiografía y velocidad de conducción|emg, neuroconduccion", "Polisomnografía|apnea del sueño",
+    "Audiometría|audiometria", "Fondo de ojo|oftalmoscopia", "Biopsia|biopsia", "Citología cervicovaginal|citologia",
+  ] },
+];
+export const ESTUDIOS_DIAGNOSTICOS: EstudioCat[] = ESTUDIOS_DATOS.flatMap(({ tipo, grupo, filas }) => filas.map((f) => { const [nombre, sin] = f.split("|"); return { nombre: nombre!, sin: (sin ?? "").split(",").map((x) => x.trim()).filter(Boolean), tipo, grupo }; }));

@@ -1163,6 +1163,9 @@ export type Evolucion = {
   especialidad?: EspecialidadHC;
   /** Especialidad desde la que se registró (cualquiera de la clínica). */
   servicio?: string;
+  /** Órdenes de estudios generadas en la consulta (una por tipo) y receta emitida. */
+  ordenes?: { tipo: string; estudios: { nombre: string; grupo?: string }[] }[];
+  recetaId?: string;
   motivo: string;
   /** Evolución del cuadro clínico (enfermedad actual). */
   nota: string;
