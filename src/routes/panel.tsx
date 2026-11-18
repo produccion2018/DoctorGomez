@@ -11780,8 +11780,7 @@ function SitioTab({ log }: { log: LogFn }) {
           const j = r ? ((await r.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } }) : {};
           setCargando(false);
           if (!j.secure_url) { toast.error(j.error?.message ? `No se pudo subir: ${j.error.message}` : "No se pudo subir el archivo. Revise la conexión e intente de nuevo."); return; }
-          setNueva((n) => ({ ...n, url: j.secure_url!, nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
-          toast.success("Archivo subido. Ahora toque «Agregar a la lista».");
+          agregarPista(j.secure_url, nueva.nombre.trim() || f.name.replace(/\.[^.]+$/, ""), nueva.sub.trim());
           return;
         }
         if (f.size > 3.5 * 1024 * 1024) { setCargando(false); toast.error(firma && !firma.ok ? firma.error : "No se pudo preparar la subida."); return; }
@@ -11797,8 +11796,7 @@ function SitioTab({ log }: { log: LogFn }) {
         const r = await subirAudioServidor({ data: { nombre: f!.name, tipo: f!.type, base64: btoa(bin) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
         setCargando(false);
         if (!r.ok) { toast.error(r.error); return; }
-        setNueva((n) => ({ ...n, url: r.url, nombre: n.nombre || f!.name.replace(/\.[^.]+$/, "") }));
-        toast.success("Archivo subido. Ahora toque «Agregar a la lista».");
+        agregarPista(r.url, nueva.nombre.trim() || f!.name.replace(/\.[^.]+$/, ""), nueva.sub.trim());
       }).catch(() => { setCargando(false); toast.error("No se pudo leer o subir el archivo. Intente de nuevo."); });
     }
     const fr = new FileReader();
@@ -11810,22 +11808,30 @@ function SitioTab({ log }: { log: LogFn }) {
     fr.readAsDataURL(f);
   };
 
-  const agregar = () => {
-    if (!nueva.nombre.trim()) { toast.error("Ponga un nombre para el tema"); return; }
-    if (!nueva.url) { toast.error("Suba un archivo o pegue un enlace de audio"); return; }
-    const p: PistaMusica = { id: nuevoId(), nombre: nueva.nombre.trim(), sub: nueva.sub.trim() || "Instrumental", url: nueva.url.trim(), color: COLORES_PISTA[d.pistas.length % COLORES_PISTA.length]! };
-    set({ pistas: [...d.pistas, p] });
+  /** La música se publica en la web al instante (no espera a «Publicar cambios»). */
+  const publicarMusica = (fn: (s: DatosSitio) => Partial<DatosSitio>) => {
+    setD((x) => ({ ...x, ...fn(x) }));
+    setGuardado((g) => { const s = sitioDe(g); return { ...g, ...fn(s) }; });
+  };
+  const agregarPista = (url: string, nombre: string, sub: string) => {
+    publicarMusica((s) => ({ pistas: [...s.pistas, { id: nuevoId(), nombre, sub: sub || "Música de espera", url, color: COLORES_PISTA[s.pistas.length % COLORES_PISTA.length]! }] }));
     setNueva({ nombre: "", sub: "", url: "" });
+    log("Música de la web", `Tema agregado: ${nombre}`);
+    toast.success(`«${nombre}» ya suena en la web.`);
+  };
+  const agregar = () => {
+    if (!nueva.url) { toast.error("Suba un archivo o pegue un enlace de audio"); return; }
+    agregarPista(nueva.url.trim(), nueva.nombre.trim() || "Tema sin nombre", nueva.sub.trim());
   };
   const mover = (i: number, k: number) => {
     const l = [...d.pistas];
     const j = i + k;
     if (j < 0 || j >= l.length) return;
     [l[i], l[j]] = [l[j]!, l[i]!];
-    set({ pistas: l });
+    publicarMusica(() => ({ pistas: l }));
   };
 
-  const total = d.pistas.length + (d.musicaEjemplo ? 4 : 0);
+  const total = d.pistas.length || (d.musicaEjemplo ? 4 : 0);
   const [cierre, setCierre] = useState({ fecha: "", motivo: "" });
   const redes = d.redes ?? {};
   const aviso = d.aviso ?? { activo: false, texto: "", tono: "info" as const };
@@ -12006,8 +12012,8 @@ function SitioTab({ log }: { log: LogFn }) {
 
       <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor de la web. Suba uno, dos o los temas que quiera: se escuchan en la web en el orden de la lista.">
         <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-secondary/40 p-4">
-          <Interruptor on={d.musicaActiva} onChange={(v) => set({ musicaActiva: v })} label="Mostrar el reproductor en la web" />
-          <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Usar pistas de ejemplo solo si no hay temas propios" />
+          <Interruptor on={d.musicaActiva} onChange={(v) => publicarMusica(() => ({ musicaActiva: v }))} label="Mostrar el reproductor en la web" />
+          <Interruptor on={d.musicaEjemplo} onChange={(v) => publicarMusica(() => ({ musicaEjemplo: v }))} label="Usar pistas de ejemplo solo si no hay temas propios" />
           <span className="ml-auto self-center text-xs text-muted-foreground">{d.musicaActiva ? `${total} ${total === 1 ? "tema" : "temas"} en la web` : "Reproductor oculto"}</span>
         </div>
 
@@ -12022,17 +12028,17 @@ function SitioTab({ log }: { log: LogFn }) {
                   <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-3">
                     <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} text-white`}><Music2 className="size-4" /></span>
                     <div className="min-w-0 flex-1">
-                      <input value={p.nombre} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, nombre: e.target.value } : y)) })} className="w-full bg-transparent text-sm font-semibold outline-none" />
-                      <input value={p.sub} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, sub: e.target.value } : y)) })} className="w-full bg-transparent text-xs text-muted-foreground outline-none" />
+                      <input value={p.nombre} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, nombre: e.target.value } : y)) })} onBlur={() => publicarMusica(() => ({ pistas: d.pistas }))} className="w-full bg-transparent text-sm font-semibold outline-none" />
+                      <input value={p.sub} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, sub: e.target.value } : y)) })} onBlur={() => publicarMusica(() => ({ pistas: d.pistas }))} className="w-full bg-transparent text-xs text-muted-foreground outline-none" />
                     </div>
                     <audio src={p.url} controls preload="none" className="h-9 w-56 max-w-full" />
                     <div className="flex items-center gap-1">
-                      <select value={p.color} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, color: e.target.value } : y)) })} className="h-9 rounded-lg border border-input bg-background px-2 text-xs" aria-label="Color">
+                      <select value={p.color} onChange={(e) => publicarMusica((s) => ({ pistas: s.pistas.map((y) => (y.id === p.id ? { ...y, color: e.target.value } : y)) }))} className="h-9 rounded-lg border border-input bg-background px-2 text-xs" aria-label="Color">
                         {COLORES_PISTA.map((c, k) => <option key={c} value={c}>Color {k + 1}</option>)}
                       </select>
                       <Button size="icon" variant="ghost" className="size-9 rounded-lg" disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><ChevronUp className="size-4" /></Button>
                       <Button size="icon" variant="ghost" className="size-9 rounded-lg" disabled={i === d.pistas.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar"><ChevronDown className="size-4" /></Button>
-                      <Button size="icon" variant="ghost" className="size-9 rounded-lg text-rose-600 hover:bg-rose-50" onClick={() => set({ pistas: d.pistas.filter((y) => y.id !== p.id) })} aria-label="Quitar"><Trash2 className="size-4" /></Button>
+                      <Button size="icon" variant="ghost" className="size-9 rounded-lg text-rose-600 hover:bg-rose-50" onClick={() => { publicarMusica((s) => ({ pistas: s.pistas.filter((y) => y.id !== p.id) })); toast.success("Tema quitado de la web."); }} aria-label="Quitar"><Trash2 className="size-4" /></Button>
                     </div>
                   </li>
                 ))}
@@ -12053,7 +12059,7 @@ function SitioTab({ log }: { log: LogFn }) {
               </label>
               <Campo label="…o enlace de audio"><input value={nueva.url.startsWith("data:") || nueva.url.includes("blob.vercel-storage.com") || nueva.url.includes("res.cloudinary.com") ? "" : nueva.url} onChange={(e) => setNueva({ ...nueva, url: e.target.value })} placeholder="https://…/tema.mp3" className={inp} /></Campo>
               {nueva.url && <audio src={nueva.url} controls className="h-9 w-full" />}
-              <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar a la lista</Button>
+              <Button className="w-full rounded-xl" onClick={agregar}><Plus className="size-4" /> Agregar enlace a la lista</Button>
               <p className="text-[11px] leading-relaxed text-muted-foreground">{modoServidor() ? "La música se sube al servidor y la escuchan todos los visitantes." : "Por ahora la música se guarda en este navegador. Cuando conectemos el servidor, se sube una sola vez y la escuchan todos los visitantes."} Use solo música con permiso de uso.</p>
             </div>
           </div>
