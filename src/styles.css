@@ -777,7 +777,7 @@
 :root:not(.dark) .saas :is(h1, h2, h3) { letter-spacing: -0.01em; }
 
 /* Fondo y decoraciones: sin degradados, brillos ni animaciones llamativas */
-:root:not(.dark) .saas.pn-bg, :root:not(.dark) .saas.pn-root { background: var(--saas-bg) !important; }
+:root:not(.dark) .saas.pn-bg { background: var(--saas-bg) !important; }
 :root:not(.dark) .saas :is(.pn-fondo, .pn-cross, .pn-cross-dark, .pn-orb, .blob),
 :root:not(.dark) .saas .pointer-events-none[class*="blur-"],
 :root:not(.dark) .saas [aria-hidden][class*="blur-"],

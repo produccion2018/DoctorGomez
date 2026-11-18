@@ -98,6 +98,7 @@ import {
   Mail,
   Smartphone,
   UserRound,
+  CheckCircle2,
   ChevronRight,
   ChevronLeft,
   Pin,
@@ -277,7 +278,7 @@ import {
   type DiaClinica,
   type PistaMusica,
 } from "@/lib/auth-local";
-import { DOCTORS, ESPECIALIDADES, SERVICIOS } from "@/data/clinic";
+import { DOCTORS, ESPECIALIDADES, SERVICIOS, fotoDoctor, iconoEspecialidad } from "@/data/clinic";
 import fotoAlberto from "@/assets/doctor-alberto.jpg";
 import fotoAlonso from "@/assets/doctor-alonso.jpg";
 
@@ -557,6 +558,7 @@ function Panel() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [obliga2fa, setObliga2fa] = useState(() => falta2fa());
   const [seguridad, setSeguridad] = useState(false);
+  const [nuevaCita, setNuevaCita] = useState(false);
   const [tab, setTab] = useState<Tab>("resumen");
   const [menu, setMenu] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({});
@@ -1007,6 +1009,7 @@ function Panel() {
 
       {/* ───────── CONTENIDO ───────── */}
       <FondoModulo tab={tabVisible} />
+      {nuevaCita && <NuevaCitaModal turnos={turnos} setTurnos={setTurnos} log={log} user={user} onCerrar={() => setNuevaCita(false)} onCreada={() => { setNuevaCita(false); irTab("turnos"); }} />}
       <main className="relative min-w-0 p-4 pb-28 sm:p-8 sm:pb-28 lg:pb-8">
         <div className="pn-hero pn-up pn-sheen relative mb-8 overflow-hidden rounded-3xl gradient-deep p-6 text-deep-foreground shadow-elevated sm:p-8">
           <div className="pn-cross pointer-events-none absolute inset-0" />
@@ -1040,7 +1043,7 @@ function Panel() {
               {!esEnf && <Button onClick={() => abrirIA()} variant="outline" className="rounded-xl !border-white/25 !bg-white/10 text-deep-foreground hover:!bg-white/20 hover:text-deep-foreground">
                 <Bot className="size-4" /> Preguntar a la IA
               </Button>}
-              {!esEnf && <Button onClick={() => setTab("turnos")} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
+              {!esEnf && <Button onClick={() => setNuevaCita(true)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
                 <Plus className="size-4" /> Nueva cita
               </Button>}
             </div>
@@ -2331,7 +2334,7 @@ function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () =>
     return () => window.removeEventListener("keydown", k);
   }, [onCerrar]);
   return createPortal(
-    <div className="pn-root fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={titulo}>
+    <div className="saas pn-root fixed inset-0 z-[90] flex items-end justify-center p-0 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={titulo}>
       <div className="absolute inset-0 bg-[#172E6E]/45 backdrop-blur-[3px]" onClick={onCerrar} />
       <div className="pn-up relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-card shadow-2xl sm:rounded-3xl">
         <div className="h-1 w-full bg-gradient-to-r from-[#1E3A8A] via-[#1E3A8A] to-[#1E3A8A]" />
@@ -2343,6 +2346,218 @@ function Modal({ titulo, onCerrar, children }: { titulo: string; onCerrar: () =>
       </div>
     </div>,
     document.body,
+  );
+}
+
+/* ---------- Cruces de citas ---------- */
+const aMinutos = (h: string) => { const [a, b] = h.split(":").map(Number); return (a ?? 0) * 60 + (b ?? 0); };
+/** Minutos que dura la cita de ese profesional a esa hora (según el bloque de su agenda). */
+function duracionCita(agendas: Agendas, doctor: string, fecha: string, hora: string): number {
+  const prof = profesionalesAgenda(agendas).find((p) => p.nombre === doctor);
+  if (!prof) return 20;
+  const ag = agendaDe(agendas, prof.id);
+  const dia = new Date(fecha + "T12:00:00").getDay();
+  const b = bloquesDe(ag).find((x) => x.dia === dia && horasDeBloque(x).includes(hora)) ?? bloquesDe(ag).find((x) => x.dia === dia && aMinutos(hora) >= aMinutos(x.desde) && aMinutos(hora) < aMinutos(x.hasta));
+  return b?.duracion && b.duracion >= 5 ? b.duracion : ag.duracion && ag.duracion >= 5 ? ag.duracion : 20;
+}
+/**
+ * Revisa que una cita no se cruce con otra: el mismo profesional no puede tener dos citas que se
+ * solapen (aunque sean de especialidades distintas) y el mismo paciente tampoco, ni dos citas de la
+ * misma especialidad el mismo día. Devuelve el motivo del cruce o null si está libre.
+ */
+function cruceCita(turnos: Turno[], agendas: Agendas, c: { id?: string; doctor: string; fecha: string; hora: string; dni?: string; paciente?: string; motivo?: string }): string | null {
+  const ini = aMinutos(c.hora);
+  const fin = ini + duracionCita(agendas, c.doctor, c.fecha, c.hora);
+  const vivas = turnos.filter((t) => t.id !== c.id && t.fecha === c.fecha && t.estado !== "Cancelado");
+  const solapa = (t: Turno) => { const a = aMinutos(t.hora); const b = a + duracionCita(agendas, t.doctor, t.fecha, t.hora); return ini < b && a < fin; };
+  const delDoc = vivas.find((t) => t.doctor === c.doctor && solapa(t));
+  if (delDoc) return `${nombreCorto(c.doctor)} ya tiene una cita de ${hora12(delDoc.hora)} (${(delDoc.motivo || "Consulta").split(" · ")[0]}) que se cruza con ese horario.`;
+  const mismoPac = (t: Turno) => (c.dni && t.dni && limpiarDoc(t.dni) === limpiarDoc(c.dni)) || (!!c.paciente && norm(t.paciente) === norm(c.paciente));
+  const delPac = vivas.find((t) => mismoPac(t) && solapa(t));
+  if (delPac) return `El paciente ya tiene una cita a las ${hora12(delPac.hora)} con ${nombreCorto(delPac.doctor)}. Las citas no se pueden cruzar.`;
+  const esp = norm((c.motivo || "").split(" · ")[0] ?? "");
+  const mismaEsp = esp ? vivas.find((t) => mismoPac(t) && norm((t.motivo || "").split(" · ")[0] ?? "") === esp) : undefined;
+  if (mismaEsp) return `El paciente ya tiene cita de ${(mismaEsp.motivo || "").split(" · ")[0]} ese día (${hora12(mismaEsp.hora)}).`;
+  return null;
+}
+
+/* ---------- Nueva cita (desde el botón del encabezado) ---------- */
+function NuevaCitaModal({ turnos, setTurnos, log, user, onCerrar, onCreada }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; user: SessionUser; onCerrar: () => void; onCreada: () => void }) {
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const conocidos = usePacientesClinica(turnos);
+  const [esp, setEsp] = useState("");
+  const [doc, setDoc] = useState("");
+  const [fecha, setFecha] = useState("");
+  const [hora, setHora] = useState("");
+  const [pac, setPac] = useState({ nombre: "", dni: "", telefono: "" });
+  const [buscar, setBuscar] = useState("");
+  const [nota, setNota] = useState("");
+  const especialidad = ESPECIALIDADES.find((e) => e.slug === esp);
+  const doctores = especialidad ? DOCTORS.filter((d) => especialidad.doctorIds.includes(d.id)) : [];
+  const doctor = DOCTORS.find((d) => d.id === doc);
+  const nomDoc = doctor ? nombrePanelDe(doctor.id) : "";
+  const agenda = doctor ? agendaDe(agendas, doctor.foto) : null;
+  const servicio = especialidad?.nombre ?? null;
+  const dias = agenda ? proximosDias(agenda, 14, servicio) : [];
+  const motivo = especialidad ? especialidad.nombre + (nota.trim() ? ` · ${nota.trim()}` : "") : "";
+  const slots = agenda && fecha
+    ? horariosDelDia(agenda, fecha, servicio).map((h) => {
+        const pasado = yaPaso(fecha, h);
+        const cruce = pasado ? null : cruceCita(turnos, agendas, { doctor: nomDoc, fecha, hora: h });
+        return { h, pasado, cruce };
+      })
+    : [];
+  const sugeridos = norm(buscar).trim().length >= 2 ? conocidos.filter((p) => norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(buscar).trim())).slice(0, 6) : [];
+  const elegirEsp = (slug: string) => {
+    const e = ESPECIALIDADES.find((x) => x.slug === slug);
+    const docs = e ? DOCTORS.filter((d) => e.doctorIds.includes(d.id)) : [];
+    const propio = docs.find((d) => d.foto === user.id);
+    setEsp(slug); setDoc(docs.length === 1 ? docs[0]!.id : propio?.id ?? ""); setFecha(""); setHora("");
+  };
+  const paso = (n: number, t: string, listo: boolean) => (
+    <p className="mb-2.5 mt-6 flex items-center gap-2.5 text-sm font-semibold first:mt-0">
+      <span className={`flex size-6 items-center justify-center rounded-lg text-[11px] font-bold ${listo ? "bg-[#10B981] text-white" : "bg-[#1E3A8A] text-white"}`}>{listo ? <Check className="size-3.5" /> : n}</span>{t}
+    </p>
+  );
+  const guardar = () => {
+    if (!especialidad || !doctor) { toast.error("Elija la especialidad y el profesional."); return; }
+    if (!fecha || !hora) { toast.error("Elija el día y la hora."); return; }
+    if (!pac.nombre.trim()) { toast.error("Escriba el nombre del paciente."); return; }
+    if (limpiarDoc(pac.dni).length < 5) { toast.error("La cédula del paciente es obligatoria."); return; }
+    if (yaPaso(fecha, hora)) { toast.error(`Ese horario ya pasó (en Colombia son las ${hora12(ahoraClinica().hora)}).`); setHora(""); return; }
+    const cruce = cruceCita(turnos, agendas, { doctor: nomDoc, fecha, hora, dni: pac.dni, paciente: pac.nombre, motivo });
+    if (cruce) { toast.error(cruce); return; }
+    const nuevo: Turno = { id: uid(), fecha, hora, paciente: nombrePropio(pac.nombre).trim(), dni: limpiarDoc(pac.dni), doctor: nomDoc, motivo, estado: "Pendiente", origen: "panel", ...(pac.telefono.trim() ? { telefono: pac.telefono.trim() } : {}) };
+    setTurnos((p) => [...p, nuevo]);
+    log("Cita creada", `${nuevo.paciente} · ${especialidad.nombre} · ${fechaCorta(fecha)} ${hora12(hora)} · ${nomDoc}`);
+    toast.success(`Cita creada: ${nuevo.paciente}, ${fechaCorta(fecha)} a las ${hora12(hora)}.`);
+    onCreada();
+  };
+  return (
+    <Modal titulo="Nueva cita" onCerrar={onCerrar}>
+      {paso(1, "Especialidad", !!especialidad)}
+      <div className="grid gap-2 sm:grid-cols-3">
+        {ESPECIALIDADES.map((e) => {
+          const I = iconoEspecialidad(e.icono);
+          const on = esp === e.slug;
+          return (
+            <button key={e.slug} type="button" onClick={() => elegirEsp(e.slug)}
+              className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm transition ${on ? "border-[#1E3A8A] bg-[#EEF2FB] font-semibold text-[#1E3A8A] dark:bg-white/10 dark:text-white" : "border-border hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+              <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${on ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}><I className="size-4" /></span>
+              <span className="min-w-0 leading-tight">{e.nombre}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {especialidad && (
+        <>
+          {paso(2, "Profesional", !!doctor)}
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {doctores.map((d) => {
+              const ag = agendaDe(agendas, d.foto);
+              const on = doc === d.id;
+              return (
+                <button key={d.id} type="button" onClick={() => { setDoc(d.id); setFecha(""); setHora(""); }}
+                  className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${on ? "border-[#1E3A8A] bg-[#EEF2FB] dark:bg-white/10" : "border-border hover:border-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+                  <img src={fotoDoctor(d.foto)} alt="" className="size-12 rounded-xl object-cover object-top" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold leading-tight">{nombrePanelDe(d.id)}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{resumenAgenda(ag, servicio)}</span>
+                  </span>
+                  {on && <CheckCircle2 className="size-5 shrink-0 text-[#1E3A8A] dark:text-sky-300" />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {doctor && agenda && (
+        <>
+          {paso(3, "Día y hora", !!hora)}
+          {dias.length === 0 ? (
+            <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800 ring-1 ring-amber-200">{nomDoc} no tiene horarios cargados para {servicio} en las próximas semanas. Cárguelos en <b>Mis horarios</b>.</p>
+          ) : (
+            <>
+              <div className="pn-noscroll -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                {dias.map((d) => {
+                  const dt = new Date(d + "T12:00:00");
+                  const on = fecha === d;
+                  return (
+                    <button key={d} type="button" onClick={() => { setFecha(d); setHora(""); }}
+                      className={`flex w-16 shrink-0 flex-col items-center rounded-xl border py-2 transition ${on ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : "border-border hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+                      <span className={`text-[11px] font-semibold uppercase ${on ? "text-white/80" : "text-muted-foreground"}`}>{dt.toLocaleDateString("es-CO", { weekday: "short" }).replace(".", "")}</span>
+                      <span className="text-lg font-bold leading-tight tabular-nums">{dt.getDate()}</span>
+                      <span className={`text-[11px] ${on ? "text-white/80" : "text-muted-foreground"}`}>{dt.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {fecha && (
+                slots.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">Ese día no hay horarios para {servicio}.</p> : (
+                  <>
+                    <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                      {slots.map(({ h, pasado, cruce }) => {
+                        const off = pasado || !!cruce;
+                        const on = hora === h;
+                        return (
+                          <button key={h} type="button" disabled={off} title={pasado ? "Ya pasó" : cruce ?? ""} onClick={() => setHora(h)}
+                            className={`h-11 rounded-xl border text-sm font-semibold tabular-nums transition ${on ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : off ? "cursor-not-allowed border-dashed border-border text-muted-foreground/60 line-through" : "border-border hover:border-[#1E3A8A]/40 hover:bg-[#EEF2FB] dark:hover:bg-white/5"}`}>
+                            {hora12(h)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">Las horas tachadas ya pasaron o se cruzan con otra cita del profesional (de cualquier especialidad).</p>
+                  </>
+                )
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {hora && (
+        <>
+          {paso(4, "Paciente", !!pac.nombre.trim() && limpiarDoc(pac.dni).length >= 5)}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Buscar paciente registrado por nombre o cédula" className={inp + " pl-9"} />
+            {sugeridos.length > 0 && (
+              <ul className="absolute inset-x-0 top-full z-20 mt-1.5 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-xl">
+                {sugeridos.map((p) => (
+                  <li key={p.id}>
+                    <button type="button" onClick={() => { setPac({ nombre: p.nombre, dni: p.dni ?? "", telefono: p.telefono ?? "" }); setBuscar(""); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-white/5">
+                      <Avatar nombre={p.nombre} size="size-8 !rounded-lg" />
+                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold">{p.nombre}</span><span className="block text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}{p.telefono ? ` · ${p.telefono}` : ""}</span></span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <Campo label="Nombre completo"><input value={pac.nombre} onChange={(e) => setPac({ ...pac, nombre: e.target.value })} className={inp} placeholder="Nombre y apellidos" /></Campo>
+            <Campo label="Cédula"><input value={pac.dni} onChange={(e) => setPac({ ...pac, dni: e.target.value })} inputMode="numeric" className={inp} placeholder="Número de cédula" /></Campo>
+            <Campo label="Celular (opcional)"><input value={pac.telefono} onChange={(e) => setPac({ ...pac, telefono: e.target.value })} inputMode="tel" className={inp} placeholder="300 123 4567" /></Campo>
+          </div>
+          <div className="mt-3"><Campo label="Motivo o comentario (opcional)"><input value={nota} onChange={(e) => setNota(e.target.value)} className={inp} placeholder="Ej.: control de presión, lectura de exámenes…" /></Campo></div>
+
+          <div className="mt-5 rounded-2xl border border-border bg-slate-50 p-4 dark:bg-white/5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Resumen</p>
+            <p className="mt-1 text-sm"><b>{especialidad?.nombre}</b> con <b>{nomDoc}</b></p>
+            <p className="text-sm first-letter:uppercase">{new Date(fecha + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })} · <b>{hora12(hora)}</b></p>
+            {pac.nombre.trim() && <p className="text-sm">{nombrePropio(pac.nombre).trim()}{pac.dni ? ` · C.C. ${limpiarDoc(pac.dni)}` : ""}</p>}
+          </div>
+        </>
+      )}
+
+      <div className="mt-6 flex justify-end gap-2 border-t border-border pt-4">
+        <Button type="button" variant="outline" className="rounded-xl" onClick={onCerrar}>Cancelar</Button>
+        <Button type="button" className="rounded-xl" disabled={!hora} onClick={guardar}><Check className="size-4" /> Crear cita</Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -2370,7 +2585,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
   const atiende = atiendeEl(agendaSel, f.fecha);
   const slots = horariosDelDia(agendaSel, f.fecha).map((h) => ({
     h,
-    ocupado: turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === h && t.estado !== "Cancelado"),
+    ocupado: !!cruceCita(turnos, agendas, { doctor: f.doctor, fecha: f.fecha, hora: h }),
     pasado: yaPaso(f.fecha, h),
   }));
   const [vista, setVista] = useState<"proximas" | "historial" | "eliminadas">("proximas");
@@ -2402,12 +2617,13 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
       toast.error(`Ese horario ya pasó (en Colombia son las ${hora12(ahoraClinica().hora)}). Elija uno más tarde.`);
       return;
     }
-    if (turnos.some((t) => t.doctor === f.doctor && t.fecha === f.fecha && t.hora === f.hora && t.estado !== "Cancelado")) {
-      toast.error("Ese horario ya está ocupado para ese profesional.");
-      return;
-    }
     if (limpiarDoc(f.dni).length < 5) {
       toast.error("La cédula del paciente es obligatoria.");
+      return;
+    }
+    const cruceN = cruceCita(turnos, agendas, { doctor: f.doctor, fecha: f.fecha, hora: f.hora, dni: f.dni, paciente: f.paciente, motivo: f.motivo });
+    if (cruceN) {
+      toast.error(cruceN);
       return;
     }
     const nuevo: Turno = {
@@ -2458,7 +2674,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
     if (!t.paciente.trim() || limpiarDoc(t.dni ?? "").length < 5) { toast.error("Nombre y cédula son obligatorios."); return; }
     const cambioHora = orig.fecha !== t.fecha || orig.hora !== t.hora || orig.doctor !== t.doctor;
     if (cambioHora && yaPaso(t.fecha, t.hora)) { toast.error("Ese horario ya pasó. Elija uno más tarde."); return; }
-    if (cambioHora && turnos.some((x) => x.id !== t.id && x.doctor === t.doctor && x.fecha === t.fecha && x.hora === t.hora && x.estado !== "Cancelado")) { toast.error("Ese horario ya está ocupado para ese profesional."); return; }
+    if (cambioHora) { const cr = cruceCita(turnos, agendas, { id: t.id, doctor: t.doctor, fecha: t.fecha, hora: t.hora, dni: t.dni ?? "", paciente: t.paciente, motivo: t.motivo }); if (cr) { toast.error(cr); return; } }
     const nuevo: Turno = { ...t, paciente: nombrePropio(t.paciente).trim(), dni: limpiarDoc(t.dni ?? ""), ...(cambioHora && orig.estado === "Vencida" ? { estado: "Pendiente" as Estado } : {}), ...(cambioHora ? { recordado1: undefined, recordado2: undefined } : {}) } as Turno;
     setTurnos((p) => p.map((x) => (x.id === t.id ? nuevo : x)));
     const cambios = [orig.paciente !== nuevo.paciente && "paciente", cambioHora && `${fechaCorta(orig.fecha)} ${hora12(orig.hora)} → ${fechaCorta(nuevo.fecha)} ${hora12(nuevo.hora)}`, orig.doctor !== nuevo.doctor && `profesional: ${nuevo.doctor}`, orig.motivo !== nuevo.motivo && "motivo"].filter(Boolean).join(" · ");
