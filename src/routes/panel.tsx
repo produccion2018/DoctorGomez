@@ -306,7 +306,7 @@ export const Route = createFileRoute("/panel")({
 
 /* ---------- Tipos y datos de ejemplo ---------- */
 type Estado = "Pendiente" | "Confirmado" | "Atendido" | "Cancelado" | "Vencida";
-type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; dni?: string; tipoDoc?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string };
+type Turno = { id: string; fecha: string; hora: string; paciente: string; doctor: string; motivo: string; estado: Estado; telefono?: string; email?: string; origen?: "web" | "panel" | "portal"; pacienteId?: string; dni?: string; tipoDoc?: string; recordado1?: string; recordado2?: string; recordado1Canal?: string; recordado2Canal?: string; llegada?: string; enAtencion?: string; finAtencion?: string; ausente?: boolean; reprogramadaDe?: string };
 type Mov = { id: string; fecha: string; concepto: string; tipo: "Ingreso" | "Egreso"; monto: number };
 type Tab = "resumen" | "turnos" | "triage" | "padron" | "historia" | "recetas" | "laboratorio" | "horarios" | "pacientes" | "finanzas" | "facturacion" | "analitica" | "automatizaciones" | "permisos" | "asistente" | "auditoria" | "sitio" | "comunicacion" | "ministerio";
 type LogFn = (accion: string, detalle?: string) => void;
@@ -616,10 +616,10 @@ function Panel() {
   useEffect(() => {
     if (!user) return;
     const revisar = () => {
-      const vencen = turnosRef.current.filter((t) => (t.estado === "Pendiente" || t.estado === "Confirmado") && yaPaso(t.fecha, t.hora, GRACIA_CITA_MIN));
+      const vencen = turnosRef.current.filter((t) => (t.estado === "Pendiente" || t.estado === "Confirmado") && !t.llegada && yaPaso(t.fecha, t.hora, GRACIA_CITA_MIN));
       if (!vencen.length) return;
       const ids = new Set(vencen.map((t) => t.id));
-      setTurnos((p) => p.map((t) => (ids.has(t.id) && (t.estado === "Pendiente" || t.estado === "Confirmado") ? { ...t, estado: "Vencida" as Estado } : t)));
+      setTurnos((p) => p.map((t) => (ids.has(t.id) && (t.estado === "Pendiente" || t.estado === "Confirmado") && !t.llegada ? { ...t, estado: "Vencida" as Estado } : t)));
       vencen.slice(0, 20).forEach((t) => setAudit(auditar("Sistema", "Cita vencida (no se atendió)", `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${t.doctor}`)));
       toast.message(vencen.length === 1 ? `La cita de ${vencen[0]!.paciente} (${hora12(vencen[0]!.hora)}) pasó su hora y se movió al historial.` : `${vencen.length} citas pasaron su hora y se movieron al historial.`, { description: "Agenda y citas → Historial. Si se atendió, cámbiela a Atendido.", duration: 8000 });
     };
@@ -1077,7 +1077,7 @@ function Panel() {
         {tabVisible === "turnos" && soloLectura("turnos") && <TurnosLectura turnos={turnos} />}
         {tabVisible === "turnos" && !soloLectura("turnos") && <TurnosTab key={focoTurnos ?? "t"} turnos={turnos} setTurnos={setTurnos} log={log} user={user} foco={focoTurnos} irHorarios={permitido("horarios") ? irHorarios : undefined} />}
         {tabVisible === "triage" && <TriageTab user={user} log={log} turnos={turnos} esMedico={!esEnf || esAreaMedica(user.area)} soloLectura={soloLectura("triage")} abrirHistoria={(id) => abrirPaciente("historia", id)} />}
-        {tabVisible === "padron" && <PadronTab key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
+        {tabVisible === "padron" && <PacientesDiaPadron key={pacSel ?? "pad"} user={user} log={log} turnos={turnos} setTurnos={setTurnos} abrir={abrirPaciente} inicial={pacSel} soloLectura={soloLectura("padron")} />}
         {tabVisible === "historia" && <HistoriaTab key={pacSel ?? "hc"} user={user} log={log} turnos={turnos} inicial={pacSel} soloLectura={soloLectura("historia") || (esEnf && !esAreaMedica(user.area))} notasEnf={esEnf && !esAreaMedica(user.area) && TABS_ENF.includes("triage") && !soloLectura("triage")} />}
         {tabVisible === "recetas" && <RecetasTab key={pacSel ?? "rx"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
         {tabVisible === "laboratorio" && <LaboratorioTab key={pacSel ?? "lab"} user={user} log={log} turnos={turnos} inicial={pacSel} />}
@@ -2676,7 +2676,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
     const cambioHora = orig.fecha !== t.fecha || orig.hora !== t.hora || orig.doctor !== t.doctor;
     if (cambioHora && yaPaso(t.fecha, t.hora)) { toast.error("Ese horario ya pasó. Elija uno más tarde."); return; }
     if (cambioHora) { const cr = cruceCita(turnos, agendas, { id: t.id, doctor: t.doctor, fecha: t.fecha, hora: t.hora, dni: t.dni ?? "", paciente: t.paciente, motivo: t.motivo }); if (cr) { toast.error(cr); return; } }
-    const nuevo: Turno = { ...t, paciente: nombrePropio(t.paciente).trim(), dni: limpiarDoc(t.dni ?? ""), ...(cambioHora && orig.estado === "Vencida" ? { estado: "Pendiente" as Estado } : {}), ...(cambioHora ? { recordado1: undefined, recordado2: undefined } : {}) } as Turno;
+    const nuevo: Turno = { ...t, paciente: nombrePropio(t.paciente).trim(), dni: limpiarDoc(t.dni ?? ""), ...(cambioHora && orig.estado === "Vencida" ? { estado: "Pendiente" as Estado } : {}), ...(cambioHora ? { recordado1: undefined, recordado2: undefined, reprogramadaDe: `${orig.fecha} ${orig.hora}` } : {}) } as Turno;
     setTurnos((p) => p.map((x) => (x.id === t.id ? nuevo : x)));
     const cambios = [orig.paciente !== nuevo.paciente && "paciente", cambioHora && `${fechaCorta(orig.fecha)} ${hora12(orig.hora)} → ${fechaCorta(nuevo.fecha)} ${hora12(nuevo.hora)}`, orig.doctor !== nuevo.doctor && `profesional: ${nuevo.doctor}`, orig.motivo !== nuevo.motivo && "motivo"].filter(Boolean).join(" · ");
     log("Cita editada", `${nuevo.paciente}${cambios ? ` · ${cambios}` : ""}`);
@@ -6019,7 +6019,11 @@ function FichaHC({
   const alternarSel = (id: string) => setSelNotas((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set());
   const [ventSignos, setVentSignos] = useState(false);
-  const puedeSignos = notasEnf || user.rol === "medico" || user.area === "Dirección general";
+  // Los controles los registra enfermería; el profesional los consulta
+  const puedeSignos = notasEnf && !soloLectura;
+  const glus = notasEnfP.filter((n) => n.tipo === "Glucometría").map((n) => ({ n, v: n.valor ?? Number(/(\d+(?:[.,]\d+)?)\s*mg\/dL/i.exec(n.texto)?.[1]?.replace(",", ".") ?? NaN), m: n.momento ?? (/\(([^)]+)\)/.exec(n.texto)?.[1] ?? "") })).filter((x) => x.v > 0).sort((a, b) => b.n.fecha.localeCompare(a.n.fecha));
+  const glu = glus[0];
+  const nivelGlu = (v: number, m: string) => { const ay = /ayun/i.test(m); return v < 70 ? { t: "Baja", tono: "rojo" } : v >= (ay ? 126 : 200) ? { t: "Alta", tono: "rojo" } : v >= (ay ? 100 : 140) ? { t: "Elevada", tono: "ambar" } : { t: "En rango", tono: "verde" }; };
   const edad = edadDe(p.ficha?.nacimiento);
   const ordenadas = [...evols].sort((a, b) => b.fecha.localeCompare(a.fecha));
   const [triagesTodos] = useDato<Triage[]>(KEY_TRIAGE, []);
@@ -6100,33 +6104,36 @@ function FichaHC({
         </div>
       </section>
 
-      {/* Últimos signos vitales */}
-      <div className="pn-up flex flex-wrap items-center gap-3">
+      {/* Últimos signos vitales (los registra enfermería) */}
+      <div className="pn-up flex flex-wrap items-end gap-3">
         <div className="flex-1">
-          <p className="font-semibold">Signos vitales</p>
-          <p className="text-xs text-muted-foreground">Los registra enfermería o el médico. Quedan en el historial y los ve todo el equipo.</p>
+          <p className="text-base font-semibold">Signos vitales y controles</p>
+          <p className="text-xs text-muted-foreground">{puedeSignos ? "Regístrelos aquí: quedan en la historia clínica y los ve el profesional." : "Registrados por enfermería. Se actualizan solos en la historia clínica."}</p>
         </div>
         {puedeSignos && (
-          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#172E6E] transition hover:-translate-y-0.5"><Plus className="size-3.5" /> Registrar signos vitales</button>
+          <button onClick={() => setVentSignos(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#172E6E]"><Plus className="size-4" /> Registrar signos vitales</button>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
         {[
-          { icon: Activity, l: "Presión arterial", v: ta ? `${ta.s}/${ta.d}` : "—", u: "mmHg", f: ta?.f, b: ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : null },
-          { icon: HeartPulse, l: "Frecuencia cardíaca", v: fc ? String(fc.signos.pulso) : "—", u: "lpm", f: fc?.fecha, b: fc ? (fueraDeRango("fc", fc.signos.pulso) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null },
-          { icon: Thermometer, l: "Temperatura", v: temp ? String(temp.signos.temp) : "—", u: "°C", f: temp?.fecha, b: temp ? (fueraDeRango("temp", temp.signos.temp) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null },
-          { icon: Scale, l: "Índice de masa corporal", v: imc ? String(imc.valor) : "—", u: "kg/m²", f: conPeso?.fecha, b: imc ? { t: imc.texto, tono: imc.tono } : null },
+          { icon: Activity, l: "Presión arterial", v: ta ? `${ta.s}/${ta.d}` : "—", u: "mmHg", f: ta?.f, b: ta ? { t: clasificarPresion(ta.s, ta.d).nivel, tono: clasificarPresion(ta.s, ta.d).tono } : null, sig: true },
+          { icon: HeartPulse, l: "Frecuencia cardíaca", v: fc ? String(fc.signos.pulso) : "—", u: "lpm", f: fc?.fecha, b: fc ? (fueraDeRango("fc", fc.signos.pulso) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
+          { icon: Thermometer, l: "Temperatura", v: temp ? String(temp.signos.temp) : "—", u: "°C", f: temp?.fecha, b: temp ? (fueraDeRango("temp", temp.signos.temp) ? { t: "Fuera de rango", tono: "ambar" } : { t: "Normal", tono: "verde" }) : null, sig: true },
+          { icon: Scale, l: "IMC", v: imc ? String(imc.valor) : "—", u: "kg/m²", f: conPeso?.fecha, b: imc ? { t: imc.texto, tono: imc.tono } : null, sig: true },
+          { icon: Droplets, l: "AGT", v: glu ? String(glu.v) : "—", u: "mg/dL", f: glu?.n.fecha, b: glu ? nivelGlu(glu.v, glu.m) : null, sig: false, extra: `Glucometría${glu?.m ? ` · ${glu.m.toLowerCase()}` : ""}` },
         ].map((x) => (
-          <button type="button" key={x.l} disabled={!puedeSignos} onClick={() => setVentSignos(true)} className="pn-card pn-up p-4 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:shadow-lg">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{x.l}</p>
-              <x.icon className="size-4 text-[rgb(var(--acc))]" />
+          <button type="button" key={x.l} disabled={!puedeSignos || !x.sig} onClick={() => setVentSignos(true)} title={x.sig ? "" : "Se registra en Controles → Glucometría"}
+            className="pn-card pn-up group relative overflow-hidden px-3.5 pb-3 pt-3 text-left transition enabled:hover:border-[#1E3A8A]/35">
+            <div className="flex items-center gap-2">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><x.icon className="size-3.5" /></span>
+              <p className="line-clamp-2 min-w-0 text-[11px] font-semibold uppercase leading-tight tracking-[0.06em] text-muted-foreground">{x.l}</p>
             </div>
-            <p className="mt-2 font-display text-2xl font-semibold tabular-nums">{x.v} <span className="text-xs font-normal text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {x.b ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : puedeSignos ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1E3A8A] dark:text-sky-300"><Plus className="size-3" /> Registrar</span> : <span className="text-[11px] text-muted-foreground">Sin registros</span>}
+            <p className="mt-2 text-xl font-bold tabular-nums tracking-tight">{x.v} <span className="text-xs font-medium text-muted-foreground">{x.v !== "—" ? x.u : ""}</span></p>
+            <div className="mt-1 flex min-h-5 flex-wrap items-center gap-1.5">
+              {x.b ? <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ring-1 ${TONO_HC[x.b.tono] ?? TONO_HC["gris"]}`}>{x.b.t}</span> : <span className="text-[11px] text-muted-foreground">{puedeSignos && x.sig ? "Toque para registrar" : "Sin registros"}</span>}
               {x.f && <span className="text-[11px] text-muted-foreground">{fechaDe(x.f)}</span>}
             </div>
+            {"extra" in x && x.extra && <p className="mt-0.5 truncate text-[11px] text-muted-foreground first-letter:uppercase">{x.extra}</p>}
           </button>
         ))}
       </div>
@@ -6152,7 +6159,7 @@ function FichaHC({
       <DocumentosPaciente p={p} user={user} log={log} soloLectura={soloLectura} compacto />
       {labsHC.some((l) => Object.keys(l.resultados ?? {}).length) && <SeguimientoLab labs={labsHC} />}
 
-      <RegistrarEnHC p={p} user={user} log={log} turnos={turnosHC} pacientes={pacientesHC.length ? pacientesHC : [p]} puede={notasEnf || user.rol === "medico" || user.area === "Dirección general"} />
+      <RegistrarEnHC p={p} user={user} log={log} turnos={turnosHC} pacientes={pacientesHC.length ? pacientesHC : [p]} puede={notasEnf && !soloLectura} />
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
         {/* Registro de consultas */}
@@ -6906,7 +6913,173 @@ function SelectorPaciente({ pacientes, valor, onChange, arriba = false }: { paci
 }
 
 type PeriodoReg = "hoy" | "mes" | "total";
-type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal" | "inactivos";
+type FiltroPac = "todos" | "cardio" | "nefro" | "alergias" | "sinportal" | "inactivos" | "atendidos" | "sinatender" | "pendientes";
+
+/** "mauro pinto" → "Pinto, Mauro"; con 3 o más palabras toma las dos últimas como apellidos. */
+function apellidoNombreDe(n: string) {
+  const w = nombrePropio(n).trim().split(/\s+/);
+  if (w.length < 2) return w.join(" ");
+  const k = w.length >= 3 ? 2 : 1;
+  return `${w.slice(-k).join(" ")}, ${w.slice(0, -k).join(" ")}`;
+}
+const turnoDePaciente = (t: Turno, p: PacienteHC) => (!!t.pacienteId && (t.pacienteId === p.id || t.pacienteId === p.portalId)) || (!!p.dni && !!t.dni && limpiarDoc(t.dni) === limpiarDoc(p.dni)) || norm(t.paciente) === norm(p.nombre);
+
+/* ═══════════════════════ PACIENTES: agenda del día + padrón general ═══════════════════════ */
+function PacientesDiaPadron(props: { user: SessionUser; log: LogFn; turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
+  const [vista, setVista] = useState<"agenda" | "padron">(props.inicial ? "padron" : "agenda");
+  return (
+    <div className="space-y-5">
+      <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-sm">
+        {([["agenda", "Agenda del día", CalendarDays], ["padron", "Padrón de pacientes", Users]] as const).map(([id, l, I]) => (
+          <button key={id} type="button" onClick={() => setVista(id)} aria-pressed={vista === id}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${vista === id ? "bg-[#1E3A8A] text-white" : "text-muted-foreground hover:text-foreground"}`}>
+            <I className="size-4" /> {l}
+          </button>
+        ))}
+      </div>
+      {vista === "agenda" ? <AgendaPacientesDia {...props} /> : <PadronTab user={props.user} log={props.log} turnos={props.turnos} abrir={props.abrir} inicial={props.inicial} soloLectura={props.soloLectura ?? false} />}
+    </div>
+  );
+}
+
+/** Estado en vivo de un turno del día (contador y alertas según la hora real de Colombia). */
+function estadoVivo(t: Turno, ahora: { fecha: string; hora: string }) {
+  if (t.estado === "Cancelado") return { t: "Cancelado", c: "bg-red-50 text-red-700 ring-red-200", rojo: false };
+  if (t.estado === "Atendido") return { t: t.finAtencion ? `Finalizado · ${hora12(t.finAtencion)}` : "Finalizado", c: "bg-[#D1FAE5] text-[#065F46] ring-[#A7F3D0]", rojo: false };
+  if (t.estado === "Vencida") return { t: t.ausente ? "Paciente ausente" : "No se ha presentado", c: "bg-red-600 text-white ring-red-600", rojo: true };
+  if (t.enAtencion) return { t: `En atención · desde ${hora12(t.enAtencion)}`, c: "bg-[#1E3A8A] text-white ring-[#1E3A8A]", rojo: false };
+  if (t.llegada) return { t: `Paciente presente · llegó ${hora12(t.llegada)}`, c: "bg-[#D1FAE5] text-[#065F46] ring-[#A7F3D0]", rojo: false };
+  if (t.fecha !== ahora.fecha) return { t: t.fecha > ahora.fecha ? (t.reprogramadaDe ? "Reprogramado" : "Programado") : "Sin registrar", c: "bg-[#E8ECF2] text-[#475569] ring-[#CBD5E1]", rojo: false };
+  const diff = aMinutos(t.hora) - aMinutos(ahora.hora);
+  if (diff > 60) return { t: `Próximo turno · en ${Math.floor(diff / 60)} h ${diff % 60 ? `${diff % 60} min` : ""}`.trim(), c: "bg-[#E8ECF2] text-[#475569] ring-[#CBD5E1]", rojo: false };
+  if (diff > 5) return { t: `Faltan ${diff} minutos`, c: "bg-[#DBE4FB] text-[#1E3A8A] ring-[#BFCDF5]", rojo: false };
+  if (diff > 0) return { t: `Faltan ${diff} ${diff === 1 ? "minuto" : "minutos"}`, c: "bg-amber-100 text-amber-900 ring-amber-300", rojo: false, alerta: true };
+  if (diff >= -GRACIA_CITA_MIN) return { t: "Turno en horario · esperando al paciente", c: "bg-[#1E3A8A] text-white ring-[#1E3A8A]", rojo: false, alerta: true };
+  return { t: "No se ha presentado", c: "bg-red-600 text-white ring-red-600", rojo: true };
+}
+
+function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const pacientes = usePacientesClinica(turnos);
+  const profs = profesionalesAgenda(agendas);
+  const esProf = profs.some((x) => x.id === user.id);
+  const [prof, setProf] = useState(esProf ? user.nombre : "Todos");
+  const [ahora, setAhora] = useState(ahoraClinica);
+  useEffect(() => { const id = window.setInterval(() => setAhora(ahoraClinica()), 15000); return () => window.clearInterval(id); }, []);
+  const hoy = ahora.fecha;
+  const manana = isoDe(new Date(new Date(`${hoy}T12:00:00`).getTime() + 86400000));
+  const [fecha, setFecha] = useState(hoy);
+  const delDia = turnos.filter((t) => t.fecha === fecha && (prof === "Todos" || t.doctor === prof)).sort((a, b) => a.hora.localeCompare(b.hora));
+  const avisados = useRef<Set<string>>(new Set());
+  // Aviso cuando faltan 5 minutos para una cita de hoy
+  useEffect(() => {
+    if (fecha !== hoy) return;
+    for (const t of delDia) {
+      if (t.estado !== "Pendiente" && t.estado !== "Confirmado") continue;
+      const diff = aMinutos(t.hora) - aMinutos(ahora.hora);
+      const k = `${t.id}:${diff <= 0 ? "ya" : "5"}`;
+      if (diff <= 5 && diff > 0 && !avisados.current.has(k)) { avisados.current.add(k); toast.message(`Faltan ${diff} min para la cita de ${nombrePropio(t.paciente)}`, { description: `${hora12(t.hora)} · ${nombreCorto(t.doctor)}` }); }
+      if (diff <= 0 && diff >= -1 && !avisados.current.has(k)) { avisados.current.add(k); toast.message(`Comenzó el horario de la cita de ${nombrePropio(t.paciente)}`, { description: hora12(t.hora) }); }
+    }
+  }, [ahora, delDia, fecha, hoy]);
+  const pacDe = (t: Turno) => pacientes.find((p) => turnoDePaciente(t, p));
+  const marcar = (t: Turno, patch: Partial<Turno>, accion: string) => {
+    setTurnos((l) => l.map((x) => (x.id === t.id ? (JSON.parse(JSON.stringify({ ...x, ...patch })) as Turno) : x)));
+    log(accion, `${t.paciente} · ${fechaCorta(t.fecha)} ${hora12(t.hora)} · ${t.doctor}`);
+  };
+  const horaAhora = () => ahoraClinica().hora;
+  const llego = (t: Turno) => { marcar(t, { llegada: horaAhora(), estado: "Confirmado", ausente: false }, "Paciente presente"); toast.success(`${nombrePropio(t.paciente)} quedó registrado como presente.`); };
+  const atender = (t: Turno) => { marcar(t, { enAtencion: horaAhora(), llegada: t.llegada ?? horaAhora(), estado: "Confirmado" }, "Atención iniciada"); const p = pacDe(t); if (p) abrir("historia", p.id); };
+  const finalizar = (t: Turno) => { marcar(t, { finAtencion: horaAhora(), estado: "Atendido" }, "Atención finalizada"); toast.success("Atención finalizada."); };
+  const ausente = async (t: Turno) => {
+    if (!(await preguntar({ titulo: `¿${nombrePropio(t.paciente)} no asistió?`, texto: "La cita queda registrada como inasistencia en el historial de citas." }))) return;
+    marcar(t, { estado: "Vencida", ausente: true }, "Inasistencia registrada");
+  };
+  const n = (f: (t: Turno) => boolean) => delDia.filter(f).length;
+  const resumen = [
+    { l: "Citas", v: delDia.filter((t) => t.estado !== "Cancelado").length },
+    { l: "Presentes", v: n((t) => !!t.llegada && t.estado !== "Atendido") },
+    { l: "Atendidos", v: n((t) => t.estado === "Atendido") },
+    { l: "Ausentes", v: n((t) => t.estado === "Vencida") },
+  ];
+  const fechaTxt = new Date(`${fecha}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  return (
+    <section className="pn-card pn-up overflow-hidden p-0">
+      <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-[#1E3A8A] text-white"><CalendarDays className="size-[18px]" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-semibold">{fecha === hoy ? "Pacientes de hoy" : fecha === manana ? "Pacientes de mañana" : "Pacientes del día"}</p>
+          <p className="text-xs text-muted-foreground first-letter:uppercase">{fechaTxt}{fecha === hoy ? ` · ${hora12(ahora.hora)} (hora de Colombia)` : ""}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-white/5">
+            {([[hoy, "Hoy"], [manana, "Mañana"]] as const).map(([f, l]) => (
+              <button key={l} type="button" onClick={() => setFecha(f)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${fecha === f ? "bg-card text-[#1E3A8A] shadow-sm dark:text-white" : "text-muted-foreground"}`}>{l}</button>
+            ))}
+          </div>
+          <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Elegir fecha" />
+          <select value={prof} onChange={(e) => setProf(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Profesional">
+            <option value="Todos">Todos los profesionales</option>
+            {profs.map((x) => <option key={x.id} value={x.nombre}>{x.nombre}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+        {resumen.map((r) => (
+          <div key={r.l} className="bg-card px-5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{r.l}</p>
+            <p className="text-2xl font-bold tabular-nums">{r.v}</p>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-border p-3 sm:p-4">
+        {delDia.length === 0 ? (
+          <div className="flex flex-col items-center px-6 py-12 text-center">
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><CalendarDays className="size-5" /></span>
+            <p className="mt-3 text-sm font-semibold">No hay pacientes agendados {fecha === hoy ? "para hoy" : "ese día"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{prof === "Todos" ? "Ningún profesional tiene citas en esta fecha." : `${prof} no tiene citas en esta fecha.`}</p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {delDia.map((t) => {
+              const p = pacDe(t);
+              const ev = estadoVivo(t, ahora);
+              const ed = edadDe(p?.ficha?.nacimiento);
+              const doc = p?.dni ?? t.dni;
+              const activa = t.estado === "Pendiente" || t.estado === "Confirmado";
+              const esHoy = t.fecha === hoy;
+              return (
+                <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 transition ${ev.rojo ? "border-red-300 bg-red-50/60 dark:border-red-500/40 dark:bg-red-500/10" : ev.alerta ? "border-amber-300 bg-amber-50/50 dark:bg-amber-500/10" : "border-border bg-card"}`}>
+                  <span className={`flex w-16 shrink-0 flex-col items-center rounded-xl py-2 leading-none ${ev.rojo ? "bg-red-600 text-white" : "bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}>
+                    <span className="text-base font-bold tabular-nums">{hora12(t.hora).split(" ")[0]}</span>
+                    <span className="mt-1 text-[11px] font-semibold uppercase opacity-80">{hora12(t.hora).split(" ").slice(1).join(" ")}</span>
+                  </span>
+                  <button type="button" disabled={!p} onClick={() => p && abrir("historia", p.id)} className="min-w-[12rem] flex-1 text-left">
+                    <span className="block text-sm font-semibold hover:underline">{apellidoNombreDe(t.paciente)}</span>
+                    <span className="block text-xs text-muted-foreground">{doc ? `C.C. ${doc}` : "Sin cédula"} · {ed !== null ? `${ed} años` : "Sin edad"}</span>
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{(t.motivo || "Consulta").split(" · ")[0]} · {nombreCorto(t.doctor)}{t.reprogramadaDe ? ` · reprogramada (antes ${fechaCorta(t.reprogramadaDe.slice(0, 10))} ${hora12(t.reprogramadaDe.slice(11))})` : ""}</span>
+                  </button>
+                  <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ${ev.c}`}>
+                    {ev.rojo ? <AlertTriangle className="size-3.5" /> : <Clock className="size-3.5" />} {ev.t}
+                  </span>
+                  {!soloLectura && esHoy && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && <button type="button" onClick={() => llego(t)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">Llegó</button>}
+                      {activa && !t.enAtencion && <button type="button" onClick={() => atender(t)} className="rounded-lg bg-[#1E3A8A] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#172E6E]">Atender</button>}
+                      {activa && t.enAtencion && <button type="button" onClick={() => finalizar(t)} className="rounded-lg bg-[#047857] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#065F46]">Finalizar</button>}
+                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && yaPaso(t.fecha, t.hora) && <button type="button" onClick={() => void ausente(t)} className="rounded-lg border border-red-200 bg-card px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">No asistió</button>}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <p className="mt-3 px-1 text-[11px] text-muted-foreground">El contador se actualiza solo con la hora de Colombia. Si a los {GRACIA_CITA_MIN} minutos el paciente no llegó, la cita se marca en rojo como no presentada; puede registrar que llegó tarde o confirmar la inasistencia.</p>
+      </div>
+    </section>
+  );
+}
 
 function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; inicial: string | null; soloLectura?: boolean }) {
   const [abiertoId, setAbiertoId] = useState<string | null>(inicial);
@@ -6919,6 +7092,9 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
   const [importando, setImportando] = useState(false);
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<FiltroPac>("todos");
+  const [fProf, setFProf] = useState("");
+  const [fEsp, setFEsp] = useState("");
+  const [fFecha, setFFecha] = useState("");
   const [editando, setEditando] = useState<PacienteClinica | null>(null);
 
   const vacio = (): PacienteClinica => ({ id: nuevoId(), nombre: "", dni: "", antecedentes: [], creado: new Date().toISOString(), medicoCabecera: user.nombre });
@@ -6945,8 +7121,18 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
     log("Paciente restaurado", x.nombre);
     toast.success(`${x.nombre} volvió a la lista de pacientes.`);
   };
+  const profsPad = [...new Set(turnos.map((t) => t.doctor).filter(Boolean))].sort();
+  const espsPad = [...new Set(turnos.map((t) => (t.motivo || "").split(" · ")[0]!.trim()).filter((x) => x && NOMBRES_ESPECIALIDADES.some((e) => norm(e) === norm(x))))].sort();
+  const hoyPad = isoDe(new Date());
   const visibles = pacientes.filter((p) => {
-    if (q && !norm(`${p.nombre} ${p.dni ?? ""} ${p.telefono ?? ""}`).includes(norm(q))) return false;
+    if (q && !norm(`${p.nombre} ${apellidoNombreDe(p.nombre)} ${p.dni ?? ""} ${p.telefono ?? ""}`).includes(norm(q))) return false;
+    const tp = turnos.filter((t) => turnoDePaciente(t, p));
+    if (fProf && !tp.some((t) => t.doctor === fProf)) return false;
+    if (fEsp && !tp.some((t) => norm((t.motivo || "").split(" · ")[0] ?? "") === norm(fEsp))) return false;
+    if (fFecha && !tp.some((t) => t.fecha === fFecha && t.estado !== "Cancelado")) return false;
+    if (filtro === "atendidos") return tp.some((t) => t.estado === "Atendido");
+    if (filtro === "sinatender") return !tp.some((t) => t.estado === "Atendido");
+    if (filtro === "pendientes") return tp.some((t) => (t.estado === "Pendiente" || t.estado === "Confirmado") && t.fecha >= hoyPad);
     const ant = p.ficha?.antecedentes ?? [];
     if (filtro === "cardio") return esCardio(ant);
     if (filtro === "nefro") return esNefro(ant);
@@ -6955,6 +7141,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
     if (filtro === "inactivos") return diasSinVenir(p) >= 730;
     return true;
   });
+  visibles.sort((a, b) => apellidoNombreDe(a.nombre).localeCompare(apellidoNombreDe(b.nombre), "es"));
   if (inicial) visibles.sort((a, b) => (b.id === inicial ? 1 : 0) - (a.id === inicial ? 1 : 0));
   const vmPad = useVerMas(visibles, 10);
   const [docsPad] = useDato<DocumentoPaciente[]>(KEY_DOCUMENTOS, []);
@@ -7076,7 +7263,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${p.origen === "padron" ? "bg-sky-100 text-sky-800 ring-sky-200" : p.origen === "portal" ? "bg-violet-100 text-violet-700 ring-violet-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>
                           {p.origen === "padron" ? "Cargado en clínica" : p.origen === "portal" ? "Portal" : "Desde cita"}
                         </span>
-                        <button onClick={() => { setAbiertoId(p.id); setDetalle(null); window.setTimeout(() => document.getElementById(`pac-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">Abrir carpeta</button>
+                        <button onClick={() => { setAbiertoId(p.id); setDetalle(null); window.setTimeout(() => document.getElementById(`pac-${p.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">Ver ficha</button>
                       </li>
                     ))}
                   </ul>
@@ -7279,9 +7466,23 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, cédula o teléfono" className={inp + " pl-10"} />
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {([["todos", "Todos"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"], ["inactivos", "Sin venir hace 2+ años"]] as [FiltroPac, string][]).map(([id, l]) => (
+            {([["todos", "Todos"], ["atendidos", "Atendidos"], ["sinatender", "Sin atender"], ["pendientes", "Con citas pendientes"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"], ["inactivos", "Sin venir hace 2+ años"]] as [FiltroPac, string][]).map(([id, l]) => (
               <button key={id} onClick={() => setFiltro(id)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filtro === id ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{l}</button>
             ))}
+          </div>
+          <div className="flex w-full flex-wrap gap-2">
+            <select value={fProf} onChange={(e) => setFProf(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Profesional">
+              <option value="">Todos los profesionales</option>
+              {profsPad.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <select value={fEsp} onChange={(e) => setFEsp(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Especialidad">
+              <option value="">Todas las especialidades</option>
+              {espsPad.map((x) => <option key={x} value={x}>{x}</option>)}
+            </select>
+            <label className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm text-muted-foreground">Fecha de atención
+              <input type="date" value={fFecha} onChange={(e) => setFFecha(e.target.value)} className="bg-transparent text-foreground outline-none" />
+            </label>
+            {(fProf || fEsp || fFecha) && <button type="button" onClick={() => { setFProf(""); setFEsp(""); setFFecha(""); }} className="h-10 rounded-xl px-3 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">Quitar filtros</button>}
           </div>
         </div>
 
@@ -7302,10 +7503,10 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                 <li key={p.id} id={`pac-${p.id}`} className={`-mx-2 scroll-mt-24 rounded-2xl px-2 transition-colors ${abierto ? "bg-[rgba(var(--acc),.04)]" : "hover:bg-secondary/40"}`}>
                   <div className="grid grid-cols-1 items-center gap-3 py-3.5 lg:grid-cols-[minmax(220px,1.6fr)_1.1fr_0.9fr_1fr_auto] lg:gap-4">
                     {/* Paciente */}
-                    <div className="flex min-w-0 items-center gap-3">
+                    <button type="button" onClick={() => setAbiertoId(abierto ? null : p.id)} aria-expanded={abierto} title={abierto ? "Cerrar ficha" : "Abrir ficha del paciente"} className="group flex min-w-0 items-center gap-3 text-left">
                       <Avatar nombre={p.nombre} size="size-11" />
                       <div className="min-w-0">
-                        <p className="truncate text-[15px] font-semibold leading-tight">{p.nombre}</p>
+                        <p className="flex items-center gap-1.5 truncate text-[15px] font-semibold leading-tight group-hover:text-[#1E3A8A] dark:group-hover:text-sky-300">{nombrePropio(p.nombre)} <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${abierto ? "rotate-180" : ""}`} /></p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           <span className="text-xs text-muted-foreground">{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}{edad !== null ? ` · ${edad} años` : ""}</span>
                           {p.portal && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Portal</span>}
@@ -7315,7 +7516,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                           {p.ficha?.alergias && <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3" /> Alergia</span>}
                         </div>
                       </div>
-                    </div>
+                    </button>
                     {/* Contacto */}
                     <div className="min-w-0 text-xs">
                       <p className="truncate font-medium text-foreground/85">{p.telefono || "—"}</p>
@@ -7343,9 +7544,6 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
                           <Paperclip className="size-3.5" /> {nDocs} nuevo{nDocs === 1 ? "" : "s"}
                         </button>
                       )}
-                      <button onClick={() => setAbiertoId(abierto ? null : p.id)} aria-expanded={abierto} className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-semibold transition-all ${abierto ? "bg-secondary text-foreground" : "pn-acc-tile text-white hover:-translate-y-0.5"}`}>
-                        <FileText className="size-4" /> {abierto ? "Cerrar carpeta" : "Abrir carpeta"} <ChevronDown className={`size-4 transition-transform ${abierto ? "rotate-180" : ""}`} />
-                      </button>
                       {!soloLectura && <button onClick={() => editar(p)} aria-label={`Editar a ${p.nombre}`} className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:text-foreground"><Pencil className="size-4" /></button>}
                       {!soloLectura && <button onClick={() => void archivar(p)} aria-label={`Eliminar a ${p.nombre}`} title="Eliminar paciente" className="grid size-9 place-items-center rounded-xl border border-border text-muted-foreground transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>}
                     </div>
@@ -9891,9 +10089,9 @@ function AutomatizacionesTab({ log, turnos, irA }: { log: LogFn; turnos: Turno[]
 }
 
 /* ═══════════ CARPETA DEL PACIENTE (estilo Cloud Esther: paciente + historial) ═══════════ */
-type SecCarpeta = "resumen" | "historia" | "documentos" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
+type SecCarpeta = "resumen" | "atenciones" | "historia" | "documentos" | "estudios" | "laboratorio" | "recetas" | "medicacion" | "turnos" | "cuenta";
 const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; icon: LucideIcon }[] }[] = [
-  { titulo: "General", items: [{ id: "resumen", label: "Resumen", icon: LayoutDashboard }] },
+  { titulo: "General", items: [{ id: "resumen", label: "Resumen", icon: LayoutDashboard }, { id: "atenciones", label: "Historial de atenciones", icon: Clock }] },
   {
     titulo: "Clínico",
     items: [
@@ -9913,6 +10111,113 @@ const GRUPOS_CARPETA: { titulo: string; items: { id: SecCarpeta; label: string; 
     ],
   },
 ];
+
+/* ---------- Historial de atenciones: todo lo que pasó con el paciente, en orden cronológico ---------- */
+type ItemAt = { id: string; f: string; tipo: string; titulo: string; quien: string; esp?: string; estado?: { t: string; c: string }; detalle: ReactNode };
+function HistorialAtenciones({ p, turnos }: { p: PacienteHC; turnos: Turno[] }) {
+  const esDe = (id?: string) => !!id && (id === p.id || id === p.portalId);
+  const [evols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const [triages] = useDato<Triage[]>(KEY_TRIAGE, []);
+  const [notas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
+  const [estudios] = useDato<Estudio[]>(KEY_ESTUDIOS, []);
+  const [recetas] = useDato<Receta[]>(KEY_RECETAS, []);
+  const [labs] = useDato<PedidoLab[]>(KEY_LAB, []);
+  const [meds] = useDato<Medicamento[]>(KEY_MEDICACION, []);
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [tipo, setTipo] = useState("Todo");
+  const lineaDato = (k: string, v?: ReactNode) => (v ? <p className="text-sm"><b className="font-semibold">{k}:</b> {v}</p> : null);
+  const ESTADO_AT: Record<string, { t: string; c: string }> = {
+    Atendido: { t: "Atendido", c: "est-atendido" }, Pendiente: { t: "Programado", c: "est-programado" }, Confirmado: { t: "Confirmado", c: "est-espera" },
+    Cancelado: { t: "Cancelado", c: "bg-red-100 text-red-700" }, Vencida: { t: "No asistió", c: "bg-red-100 text-red-700" },
+  };
+  const items: ItemAt[] = [
+    ...turnos.map((t) => ({
+      id: `t-${t.id}`, f: `${t.fecha}T${t.hora}`, tipo: "Citas", titulo: `Cita · ${(t.motivo || "Consulta").split(" · ")[0]}`, quien: t.doctor, esp: (t.motivo || "").split(" · ")[0],
+      estado: ESTADO_AT[t.estado] ?? { t: t.estado, c: "est-programado" },
+      detalle: <>{lineaDato("Fecha y hora programada", `${fechaCorta(t.fecha)} · ${hora12(t.hora)}`)}{lineaDato("Hora de ingreso", t.llegada && hora12(t.llegada))}{lineaDato("Inicio de la atención", t.enAtencion && hora12(t.enAtencion))}{lineaDato("Fin de la atención", t.finAtencion && hora12(t.finAtencion))}{lineaDato("Motivo", t.motivo)}{lineaDato("Reprogramada desde", t.reprogramadaDe && `${fechaCorta(t.reprogramadaDe.slice(0, 10))} ${hora12(t.reprogramadaDe.slice(11))}`)}</>,
+    })),
+    ...evols.filter((e) => esDe(e.pacienteId)).map((e) => {
+      const dx = dxDe(e);
+      return {
+        id: `e-${e.id}`, f: e.fecha, tipo: "Consultas", titulo: `Consulta · ${especialidadDe(e)}`, quien: e.doctor, esp: especialidadDe(e),
+        detalle: <>{lineaDato("Motivo de consulta", e.motivo)}{lineaDato("Evolución clínica", e.nota)}{lineaDato("Signos y síntomas", e.sintomas)}{lineaDato("Examen físico", e.semiologia)}{lineaDato("Diagnóstico", dx.map((d) => `${d.codigo ? `${d.codigo} ` : ""}${d.descripcion}`).join(" · "))}{lineaDato("Tratamiento e indicaciones", e.plan)}{Object.keys(e.signos ?? {}).length > 0 && <div className="pt-1"><ChipsSignos s={e.signos} /></div>}</>,
+      };
+    }),
+    ...triages.filter((t) => esDe(t.pacienteId)).map((t) => ({
+      id: `tr-${t.id}`, f: t.fecha, tipo: "Enfermería", titulo: "Signos vitales · Enfermería", quien: t.enfermera,
+      detalle: <><ChipsSignos s={t.signos} />{lineaDato("Motivo", t.motivo)}{lineaDato("Observaciones", t.observaciones)}</>,
+    })),
+    ...notas.filter((n) => !n.anulada && esDe(n.pacienteId)).map((n) => ({
+      id: `n-${n.id}`, f: n.fecha, tipo: "Enfermería", titulo: `${n.tipo === "Glucometría" ? "AGT · Glucometría" : n.tipo} · Enfermería`, quien: n.enfermera,
+      detalle: <p className="whitespace-pre-line text-sm">{limpiarTextoNota(n.texto)}</p>,
+    })),
+    ...estudios.filter((e) => esDe(e.pacienteId)).map((e) => ({
+      id: `es-${e.id}`, f: e.fecha, tipo: "Estudios", titulo: `Estudio · ${e.titulo || e.tipo}`, quien: e.cargadoPor,
+      detalle: <>{lineaDato("Resultado / informe", e.informe || "Sin informe cargado")}</>,
+    })),
+    ...labs.filter((l) => esDe(l.pacienteId)).map((l) => ({
+      id: `l-${l.id}`, f: l.fecha, tipo: "Estudios", titulo: `Laboratorio · ${l.paneles.slice(0, 3).join(", ")}${l.paneles.length > 3 ? "…" : ""}`, quien: l.doctor, estado: { t: l.estado, c: l.estado === "Resultado" ? "est-atendido" : "est-programado" },
+      detalle: <>{lineaDato("Exámenes solicitados", l.paneles.join(", "))}{Object.keys(l.resultados ?? {}).length > 0 && lineaDato("Resultados", Object.entries(l.resultados).map(([k, v]) => `${k}: ${v}`).join(" · "))}{lineaDato("Nota", l.nota)}</>,
+    })),
+    ...recetas.filter((r) => !r.anulada && esDe(r.pacienteId)).map((r) => ({
+      id: `r-${r.id}`, f: r.fecha, tipo: "Medicación", titulo: `Receta N.º ${r.numero}${r.especialidad ? ` · ${r.especialidad}` : ""}`, quien: r.doctor, esp: r.especialidad,
+      detalle: <>{lineaDato("Diagnóstico", r.diagnostico)}<ul className="mt-1 space-y-0.5 text-sm">{r.items.map((i, k) => <li key={k}><b className="font-semibold">{i.droga}</b> {i.presentacion} · {i.posologia}</li>)}</ul>{lineaDato("Indicaciones", r.indicaciones)}</>,
+    })),
+    ...meds.filter((m) => esDe(m.pacienteId) && m.indicadoPor && m.registradoEl).map((m) => ({
+      id: `m-${m.id}`, f: m.registradoEl!, tipo: "Medicación", titulo: `Medicación indicada · ${m.nombre}`, quien: m.indicadoPor!, esp: m.especialidad, estado: m.activo ? { t: "Activo", c: "est-atendido" } : { t: "Suspendido", c: "est-programado" },
+      detalle: <>{lineaDato("Dosis", m.dosis)}{lineaDato("Frecuencia", m.frecuencia)}{lineaDato("Vía", m.via)}{lineaDato("Duración", m.duracion)}{lineaDato("Observaciones", m.observaciones)}</>,
+    })),
+  ].sort((a, b) => b.f.localeCompare(a.f));
+  const tipos = ["Todo", "Citas", "Consultas", "Enfermería", "Estudios", "Medicación"];
+  const vis = items.filter((x) => tipo === "Todo" || x.tipo === tipo);
+  const proxima = turnos.filter((t) => (t.estado === "Pendiente" || t.estado === "Confirmado") && t.fecha >= isoDe(new Date())).sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora))[0];
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-semibold">Historial de atenciones</p>
+          <p className="text-xs text-muted-foreground">Todo lo registrado del paciente en la clínica, de todas las especialidades y profesionales, del más reciente al más antiguo.</p>
+        </div>
+        {proxima && <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#EEF2FB] px-3 py-1.5 text-xs font-semibold text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><CalendarDays className="size-3.5" /> Próxima cita: {fechaCorta(proxima.fecha)} · {hora12(proxima.hora)}</span>}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {tipos.map((t) => {
+          const c = t === "Todo" ? items.length : items.filter((x) => x.tipo === t).length;
+          return <button key={t} type="button" onClick={() => setTipo(t)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${tipo === t ? "bg-[#1E3A8A] text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{t} <span className="opacity-70">{c}</span></button>;
+        })}
+      </div>
+      {vis.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">Todavía no hay atenciones registradas{tipo !== "Todo" ? ` de tipo ${tipo.toLowerCase()}` : ""}.</p>
+      ) : (
+        <ol className="space-y-2">
+          {vis.map((x, i) => {
+            const dia = x.f.slice(0, 10);
+            const nuevoDia = i === 0 || vis[i - 1]!.f.slice(0, 10) !== dia;
+            const on = abierto === x.id;
+            const hora = x.f.length > 10 ? (x.f.includes("Z") || x.f.length > 16 ? horaDeIso(x.f) : hora12(x.f.slice(11, 16))) : "";
+            return (
+              <Fragment key={x.id}>
+                {nuevoDia && <li className="pt-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground first-letter:uppercase">{new Date(`${dia}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</li>}
+                <li className={`overflow-hidden rounded-2xl border transition ${on ? "border-[#1E3A8A]/40" : "border-border"}`}>
+                  <button type="button" onClick={() => setAbierto(on ? null : x.id)} aria-expanded={on} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5">
+                    <span className="w-16 shrink-0 text-xs font-semibold tabular-nums text-[#1E3A8A] dark:text-sky-300">{hora}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{x.titulo}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{x.quien}</span>
+                    </span>
+                    {x.estado && <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-semibold ${x.estado.c}`}>{x.estado.t}</span>}
+                    <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition ${on ? "rotate-180" : ""}`} />
+                  </button>
+                  {on && <div className="space-y-1 border-t border-border bg-slate-50/60 px-4 py-3 dark:bg-white/5">{x.detalle}</div>}
+                </li>
+              </Fragment>
+            );
+          })}
+        </ol>
+      )}
+    </div>
+  );
+}
 
 function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = false }: { p: PacienteHC; user: SessionUser; log: LogFn; turnos: Turno[]; abrir: (tab: Tab, pacienteId: string) => void; onEditar: () => void; soloLectura?: boolean }) {
   const [sec, setSec] = useState<SecCarpeta>(() => { const x = secCarpetaInicial; secCarpetaInicial = null; return x ?? "resumen"; });
@@ -10036,6 +10341,8 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
         {/* Contenido */}
         <div key={sec} className="min-w-0 p-3 animate-in fade-in duration-300 sm:p-5">
+          {sec === "atenciones" && <HistorialAtenciones p={p} turnos={misTurnos} />}
+
           {sec === "resumen" && (
             <div className="space-y-4">
               <section className="relative overflow-hidden rounded-[1.6rem] gradient-deep p-6 text-white shadow-[0_30px_60px_-35px_rgba(10,25,70,.9)]">
@@ -12332,7 +12639,7 @@ function VentanaRegistroEnf({ accion, user, log, turnos, pacientes, onCerrar, in
     if (!pac) return toast.error("Elija el paciente.");
     const t = texto();
     if (!t) return toast.error("Complete los datos marcados con *.");
-    const n: NotaEnfermeria = { id: uid(), pacienteId: pac.id, paciente: pac.nombre, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: accion.id, texto: t };
+    const n: NotaEnfermeria = { id: uid(), pacienteId: pac.id, paciente: pac.nombre, fecha: new Date().toISOString(), enfermeraId: user.id, enfermera: user.nombre, tipo: accion.id, texto: t, ...(accion.id === "Glucometría" && Number(f.valor) > 0 ? { valor: Number(f.valor), ...(f.momento ? { momento: f.momento } : {}) } : {}) };
     setNotas((x) => [...x, n]);
     log(accion.t, pac.nombre);
     toast.success(`${accion.t} de ${pac.nombre} guardado en su historia clínica.`);

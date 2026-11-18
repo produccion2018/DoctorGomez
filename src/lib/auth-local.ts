@@ -617,6 +617,8 @@ export type TurnoClinica = {
   email?: string;
   origen?: "web" | "panel" | "portal";
   pacienteId?: string;
+  /** Seguimiento de la atención del día (hora de llegada, inicio y fin) y novedades. */
+  llegada?: string; enAtencion?: string; finAtencion?: string; ausente?: boolean; reprogramadaDe?: string;
 };
 export const KEY_TURNOS = "gb_turnos";
 
@@ -1142,6 +1144,8 @@ export type NotaEnfermeria = {
   estado?: "Pendiente" | "Confirmado"; confirmadoPor?: string; confirmadoEl?: string;
   /** Si se corrigió: se guarda el texto original (la historia clínica no se pierde). */
   textoOriginal?: string; editadoPor?: string; editadoEl?: string;
+  /** Valor numérico del control (p. ej. glucometría en mg/dL) y momento de la toma. */
+  valor?: number; momento?: string;
   /** Eliminada: queda guardada para auditoría, pero no se muestra. */
   anulada?: boolean; anuladaPor?: string; anuladaEl?: string;
 };
