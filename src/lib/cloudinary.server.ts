@@ -67,6 +67,15 @@ export async function subirAudioPublicoCloudinary(buf: Buffer, tipo: string, nom
   return j.secure_url;
 }
 
+/** Firma para que el navegador suba el audio DIRECTO a Cloudinary (evita el límite de tamaño del servidor). */
+export function firmaAudioPublico(nombre: string): { url: string; campos: Record<string, string> } {
+  const c = configCloudinary();
+  if (!c) throw new Error("Cloudinary no está configurado.");
+  const base = nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "tema";
+  const params: Record<string, string> = { folder: "hego/musica", public_id: `${base}-${Date.now().toString(36)}`, timestamp: String(Math.floor(Date.now() / 1000)) };
+  return { url: `https://api.cloudinary.com/v1_1/${c.nube}/video/upload`, campos: { ...params, api_key: c.clave, signature: firmar(params, c.secreto) } };
+}
+
 /** Descarga un archivo privado (con enlace firmado de un solo uso, del lado del servidor). */
 export async function bajarCloudinary(a: ArchivoNube): Promise<Buffer> {
   const c = configCloudinary();

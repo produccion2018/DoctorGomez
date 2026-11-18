@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { subirAudioServidor, asistenteIA, ejecutarIA, buscarMedicamentosInvima, type PrincipioInvima, type ProductoInvima } from "@/lib/servidor";
+import { subirAudioServidor, firmaSubidaMusica, asistenteIA, ejecutarIA, buscarMedicamentosInvima, type PrincipioInvima, type ProductoInvima } from "@/lib/servidor";
 import type { AccionIA } from "@/lib/ia.server";
 import { Electro, InstalarApp } from "@/components/site/PublicLayout";
 import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
@@ -11769,18 +11769,37 @@ function SitioTab({ log }: { log: LogFn }) {
     if (f.size > max * 1024 * 1024) { toast.error(`El archivo supera ${max} MB. Use un enlace o un archivo más liviano.`); return; }
     setCargando(true);
     if (enServidor) {
-      // Con backend: el archivo se sube a Vercel Blob y queda disponible para todos los visitantes
-      void f.arrayBuffer().then(async (buf) => {
+      // Con backend: el navegador sube el audio directo a Cloudinary (sin pasar por el servidor, sin límite de 4 MB)
+      void (async () => {
+        const firma = await firmaSubidaMusica({ data: { nombre: f.name } }).catch(() => null);
+        if (firma?.ok) {
+          const form = new FormData();
+          Object.entries(firma.campos).forEach(([k, v]) => form.append(k, v));
+          form.append("file", f);
+          const r = await fetch(firma.url, { method: "POST", body: form }).catch(() => null);
+          const j = r ? ((await r.json().catch(() => ({}))) as { secure_url?: string; error?: { message?: string } }) : {};
+          setCargando(false);
+          if (!j.secure_url) { toast.error(j.error?.message ? `No se pudo subir: ${j.error.message}` : "No se pudo subir el archivo. Revise la conexión e intente de nuevo."); return; }
+          setNueva((n) => ({ ...n, url: j.secure_url!, nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
+          toast.success("Archivo subido. Ahora toque «Agregar a la lista».");
+          return;
+        }
+        if (f.size > 3.5 * 1024 * 1024) { setCargando(false); toast.error(firma && !firma.ok ? firma.error : "No se pudo preparar la subida."); return; }
+        await subirPorServidor();
+      })();
+      return;
+    }
+    function subirPorServidor() {
+      return f!.arrayBuffer().then(async (buf) => {
         let bin = "";
         const bytes = new Uint8Array(buf);
         for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-        const r = await subirAudioServidor({ data: { nombre: f.name, tipo: f.type, base64: btoa(bin) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+        const r = await subirAudioServidor({ data: { nombre: f!.name, tipo: f!.type, base64: btoa(bin) } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
         setCargando(false);
         if (!r.ok) { toast.error(r.error); return; }
-        setNueva((n) => ({ ...n, url: r.url, nombre: n.nombre || f.name.replace(/\.[^.]+$/, "") }));
+        setNueva((n) => ({ ...n, url: r.url, nombre: n.nombre || f!.name.replace(/\.[^.]+$/, "") }));
         toast.success("Archivo subido. Ahora toque «Agregar a la lista».");
       }).catch(() => { setCargando(false); toast.error("No se pudo leer o subir el archivo. Intente de nuevo."); });
-      return;
     }
     const fr = new FileReader();
     fr.onload = () => {

@@ -498,6 +498,20 @@ export const aceptarInvitacionServidor = createServerFn({ method: "POST" })
 /* Archivos (música de espera) → Vercel Blob                               */
 /* ===================================================================== */
 
+/** Autoriza una subida directa del navegador a Cloudinary (archivos grandes no pasan por el servidor). */
+export const firmaSubidaMusica = createServerFn({ method: "POST" })
+  .validator((d: { nombre: string }) => d)
+  .handler(async ({ data }): Promise<Resultado<{ url: string; campos: Record<string, string> }>> => {
+    try {
+      await (await acceso()).exigirDireccion();
+    } catch (e) {
+      return { ok: false, error: (e as Error).message };
+    }
+    const nube = await import("./cloudinary.server");
+    if (!nube.configCloudinary()) return { ok: false, error: "El almacenamiento de archivos no está configurado." };
+    return { ok: true, ...nube.firmaAudioPublico(String(data.nombre ?? "tema")) };
+  });
+
 export const subirAudioServidor = createServerFn({ method: "POST" })
   .validator((d: { nombre: string; tipo: string; base64: string }) => d)
   .handler(async ({ data }): Promise<Resultado<{ url: string }>> => {
