@@ -471,7 +471,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     items: [
       { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
       { id: "turnos", label: "Agenda y citas", icon: CalendarDays, tono: "text-sky-300" },
-      { id: "triage", label: "Controles", icon: Syringe, tono: "text-emerald-300" },
+      { id: "triage", label: "Enfermería – Triage", icon: Syringe, tono: "text-emerald-300" },
       { id: "padron", label: "Pacientes", icon: Users, tono: "text-sky-300" },
       { id: "historia", label: "Historia Clínica", icon: FileText, tono: "text-rose-300" },
       { id: "recetas", label: "Receta digital", icon: PenLine, tono: "text-violet-300" },
