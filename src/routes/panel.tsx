@@ -11415,10 +11415,12 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
     const k = w.length >= 3 ? 2 : 1;
     return `${w.slice(-k).join(" ")}, ${w.slice(0, -k).join(" ")}`;
   };
+  const buscando = norm(q).trim().length >= 2;
   const visibles = pacientes
-    .filter((p) => norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q)))
+    .filter((p) => (buscando ? norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q).trim()) : conCitaHoy.has(norm(p.nombre)) || p.id === pacSel))
     .map((p) => ({ p, an: apellidoNombre(p.nombre) }))
-    .sort((a, b) => a.an.localeCompare(b.an, "es"));
+    .sort((a, b) => a.an.localeCompare(b.an, "es"))
+    .slice(0, 30);
   const letras = [...new Set(visibles.map((x) => norm(x.an).charAt(0).toUpperCase()))];
   const pac = pacientes.find((p) => p.id === pacSel);
   const esDeP = (id: string) => !!pac && (id === pac.id || id === pac.portalId);
@@ -11450,15 +11452,23 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
             </div>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre o cédula" className={inp + " bg-white pl-9"} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " bg-white pl-9 pr-9"} />
+              {q && <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-4" /></button>}
             </div>
           </div>
           <div className="max-h-[34rem] flex-1 overflow-y-auto border-t border-border lg:max-h-[38rem]">
             {pacientes.length === 0 ? (
               <p className="p-4 text-sm text-muted-foreground">Todavía no hay pacientes registrados. Se cargan en <b>Pacientes</b> o al agendar una cita.</p>
             ) : visibles.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">No se encontró ese paciente.</p>
+              <div className="flex flex-col items-center px-6 py-10 text-center">
+                <span className="flex size-12 items-center justify-center rounded-2xl bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Search className="size-5" /></span>
+                <p className="mt-3 text-sm font-semibold">{buscando ? "No se encontró ese paciente" : "Busque al paciente"}</p>
+                <p className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground">{buscando ? "Revise el nombre o la cédula. Si es nuevo, regístrelo en Pacientes." : "Escriba el nombre o la cédula. Aquí también aparecen los pacientes con cita hoy."}</p>
+              </div>
             ) : (
+              <>
+              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{buscando ? `${visibles.length} ${visibles.length === 1 ? "resultado" : "resultados"}` : "Con cita hoy"}</p>
+              {
               letras.map((l) => (
                 <div key={l}>
                   <p className="sticky top-0 z-10 border-b border-border bg-slate-100/95 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600 backdrop-blur dark:bg-slate-900/95 dark:text-slate-300">{l}</p>
@@ -11495,7 +11505,8 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
                     })}
                   </ul>
                 </div>
-              ))
+              ))}
+              </>
             )}
           </div>
         </aside>
@@ -11514,7 +11525,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
                 <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(pac.id)}><FileText className="size-3.5" /> Ver historia clínica</Button>
               </>
             ) : (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground"><UserRound className="size-4" /> Elija un paciente de la lista para registrarle un control.</p>
+              <p className="flex items-center gap-2 text-sm text-muted-foreground"><UserRound className="size-4" /> Busque al paciente por nombre o cédula para registrarle un control.</p>
             )}
           </div>
 
