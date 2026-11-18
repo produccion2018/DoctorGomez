@@ -11406,7 +11406,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
   const [q, setQ] = useState("");
   const [triages] = useDato<Triage[]>(KEY_TRIAGE, []);
   const [notas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
-  const hoyIso = isoDe(new Date());
+  const hoyIso = ahoraClinica().fecha;
   const conCitaHoy = new Set(turnos.filter((t) => t.fecha === hoyIso && t.estado !== "Cancelado").map((t) => norm(t.paciente)));
   /** "Mauro Pinto" → "Pinto, Mauro"; con 3 o más palabras toma los dos últimos como apellidos. */
   const apellidoNombre = (n: string) => {
@@ -11417,95 +11417,114 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
   };
   const buscando = norm(q).trim().length >= 2;
   const visibles = pacientes
-    .filter((p) => (buscando ? norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q).trim()) : conCitaHoy.has(norm(p.nombre)) || p.id === pacSel))
+    .filter((p) => (buscando ? norm(`${p.nombre} ${p.dni ?? ""}`).includes(norm(q).trim()) : false))
     .map((p) => ({ p, an: apellidoNombre(p.nombre) }))
     .sort((a, b) => a.an.localeCompare(b.an, "es"))
     .slice(0, 30);
   const letras = [...new Set(visibles.map((x) => norm(x.an).charAt(0).toUpperCase()))];
-  const pac = pacientes.find((p) => p.id === pacSel);
+  const citasDeHoy = turnos.filter((t) => t.fecha === hoyIso && t.estado !== "Cancelado").sort((a, b) => a.hora.localeCompare(b.hora));
+  const pacDeTurno = (t: Turno) => pacientes.find((x) => (t.pacienteId && (x.id === t.pacienteId || x.portalId === t.pacienteId)) || (t.dni && x.dni === t.dni) || norm(x.nombre) === norm(t.paciente));
+  const fechaHoyTxt = new Date(hoyIso + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  const pac = pacientes.find((p) => p.id === pacSel) ?? (() => { const t = turnos.find((x) => (x.pacienteId ?? `nombre:${norm(x.paciente)}`) === pacSel); return t ? ({ id: pacSel, nombre: nombrePropio(t.paciente).trim(), dni: t.dni, telefono: t.telefono, origen: "turno", portal: false } as PacienteHC) : undefined; })();
   const esDeP = (id: string) => !!pac && (id === pac.id || id === pac.portalId);
   const ultSignos = pac ? triages.filter((t) => esDeP(t.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha))[0] : undefined;
   const ultNotas = pac ? notas.filter((n) => !n.anulada && esDeP(n.pacienteId)).sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 3) : [];
+
+  const FilaPaciente = ({ p, an, hora, servicio, estado }: { p: PacienteHC; an: string; hora?: string; servicio?: string; estado?: Estado }) => {
+    const on = p.id === pacSel;
+    const ed = edadDe(p.ficha?.nacimiento);
+    return (
+      <li>
+        <button type="button" onClick={() => setPacSel(on ? "" : p.id)} aria-pressed={on}
+          className={`group relative flex w-full items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all ${on ? "border-[#1E3A8A] bg-[#1E3A8A] text-white shadow-[0_8px_20px_-12px_rgba(30,58,138,.7)]" : "border-transparent hover:border-border hover:bg-card dark:hover:bg-white/5"}`}>
+          {hora ? (
+            <span className={`flex w-14 shrink-0 flex-col items-center rounded-xl py-1.5 ${on ? "bg-white/15" : "bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}>
+              <span className="text-sm font-bold leading-none tabular-nums">{hora12(hora).split(" ")[0]}</span>
+              <span className={`mt-0.5 text-[11px] font-semibold uppercase ${on ? "text-white/75" : "opacity-75"}`}>{hora12(hora).split(" ").slice(1).join(" ")}</span>
+            </span>
+          ) : (
+            <Avatar nombre={p.nombre} size="size-10 !rounded-xl" />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5">
+              <span className="truncate text-sm font-semibold">{an}</span>
+              {p.ficha?.alergias && <AlertTriangle className={`size-3.5 shrink-0 ${on ? "text-white" : "text-red-600"}`} aria-label="Tiene alergias" />}
+            </span>
+            <span className={`mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs ${on ? "text-white/85" : "text-muted-foreground"}`}>
+              <span className={p.dni ? "tabular-nums" : on ? "" : "text-amber-700"}>{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}</span>
+              <span aria-hidden className={on ? "text-white/50" : "text-slate-300"}>•</span>
+              <span className={ed !== null ? "" : on ? "" : "text-amber-700"}>{ed !== null ? `${ed} años` : "Sin edad"}</span>
+            </span>
+            {servicio && (
+              <span className="mt-1.5 flex min-w-0 items-center gap-2">
+                {estado && <span className={`shrink-0 rounded-md px-1.5 py-px text-[11px] font-semibold ${on ? "bg-white/20 text-white" : ESTADO_CLASE[estado]}`}>{estado === "Pendiente" ? "Programada" : estado === "Confirmado" ? "En espera" : estado}</span>}
+                <span className={`truncate text-[11px] font-medium ${on ? "text-white/75" : "text-slate-500 dark:text-slate-400"}`}>{servicio}</span>
+              </span>
+            )}
+          </span>
+          <ChevronRight className={`size-4 shrink-0 transition ${on ? "text-white/80" : "text-slate-300 group-hover:text-slate-500"}`} />
+        </button>
+      </li>
+    );
+  };
   const edad = pac ? edadDe(pac.ficha?.nacimiento) : null;
   return (
     <section className="pn-card pn-up overflow-hidden p-0">
-      <div className="grid lg:grid-cols-[300px_1fr]">
-        {/* Lista de pacientes por orden alfabético */}
-        <aside className="flex min-h-0 flex-col border-b border-border bg-slate-50/60 lg:border-b-0 lg:border-r dark:bg-white/[.02]">
-          <div className="space-y-3 p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-[#1E3A8A] text-white"><Users className="size-4" /></span>
-              <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold leading-tight">Pacientes</p>
-                <p className="text-xs text-muted-foreground">{pacientes.length} registrados · orden alfabético</p>
+      <div className="grid lg:grid-cols-[360px_1fr]">
+        {/* Pacientes: citas de hoy y buscador */}
+        <aside className="flex min-h-0 flex-col border-b border-border bg-[#F8FAFC] lg:border-b-0 lg:border-r dark:bg-white/[.02]">
+          <div className="border-b border-border bg-card p-4 dark:bg-transparent">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground first-letter:uppercase">{fechaHoyTxt}</p>
+                <p className="mt-0.5 text-lg font-bold tracking-tight">Pacientes</p>
               </div>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#EEF2FB] px-2.5 py-1 text-xs font-semibold text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200">
+                <CalendarDays className="size-3.5" /> {citasDeHoy.length} {citasDeHoy.length === 1 ? "cita hoy" : "citas hoy"}
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl border border-border bg-card px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Citas hoy</p>
-                <p className="text-lg font-bold tabular-nums">{citasHoy}</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Sin signos</p>
-                <p className={`text-lg font-bold tabular-nums ${sinSignos > 0 ? "text-amber-700" : ""}`}>{sinSignos}</p>
-              </div>
-            </div>
-            <div className="relative">
+            <div className="relative mt-3">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre o cédula" className={inp + " bg-white pl-9 pr-9"} />
               {q && <button type="button" onClick={() => setQ("")} aria-label="Limpiar búsqueda" className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-4" /></button>}
             </div>
           </div>
-          <div className="max-h-[34rem] flex-1 overflow-y-auto border-t border-border lg:max-h-[38rem]">
-            {pacientes.length === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">Todavía no hay pacientes registrados. Se cargan en <b>Pacientes</b> o al agendar una cita.</p>
-            ) : visibles.length === 0 ? (
+          <div className="max-h-[34rem] flex-1 overflow-y-auto p-2.5 lg:max-h-[38rem]">
+            {buscando ? (
+              visibles.length === 0 ? (
+                <div className="flex flex-col items-center px-6 py-10 text-center">
+                  <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-[#1E3A8A] ring-1 ring-border dark:bg-white/10 dark:text-sky-200"><Search className="size-5" /></span>
+                  <p className="mt-3 text-sm font-semibold">No se encontró ese paciente</p>
+                  <p className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground">Revise el nombre o la cédula. Si es nuevo, regístrelo en Pacientes.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{visibles.length} {visibles.length === 1 ? "resultado" : "resultados"}</p>
+                  {letras.map((l) => (
+                    <div key={l} className="mb-1">
+                      <p className="px-2 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">{l}</p>
+                      <ul className="space-y-1">
+                        {visibles.filter((x) => norm(x.an).charAt(0).toUpperCase() === l).map(({ p, an }) => <FilaPaciente key={p.id} p={p} an={an} />)}
+                      </ul>
+                    </div>
+                  ))}
+                </>
+              )
+            ) : citasDeHoy.length === 0 ? (
               <div className="flex flex-col items-center px-6 py-10 text-center">
-                <span className="flex size-12 items-center justify-center rounded-2xl bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Search className="size-5" /></span>
-                <p className="mt-3 text-sm font-semibold">{buscando ? "No se encontró ese paciente" : "Busque al paciente"}</p>
-                <p className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground">{buscando ? "Revise el nombre o la cédula. Si es nuevo, regístrelo en Pacientes." : "Escriba el nombre o la cédula. Aquí también aparecen los pacientes con cita hoy."}</p>
+                <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-[#1E3A8A] ring-1 ring-border dark:bg-white/10 dark:text-sky-200"><CalendarDays className="size-5" /></span>
+                <p className="mt-3 text-sm font-semibold">Hoy no hay pacientes con cita</p>
+                <p className="mt-1 max-w-[15rem] text-xs leading-relaxed text-muted-foreground">Busque al paciente por nombre o cédula para registrarle un control.</p>
               </div>
             ) : (
               <>
-              <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{buscando ? `${visibles.length} ${visibles.length === 1 ? "resultado" : "resultados"}` : "Con cita hoy"}</p>
-              {
-              letras.map((l) => (
-                <div key={l}>
-                  <p className="sticky top-0 z-10 border-b border-border bg-slate-100/95 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-600 backdrop-blur dark:bg-slate-900/95 dark:text-slate-300">{l}</p>
-                  <ul>
-                    {visibles.filter((x) => norm(x.an).charAt(0).toUpperCase() === l).map(({ p, an }) => {
-                      const on = p.id === pacSel;
-                      const ed = edadDe(p.ficha?.nacimiento);
-                      const hoyCita = conCitaHoy.has(norm(p.nombre));
-                      return (
-                        <li key={p.id} className="border-b border-border/70 last:border-0">
-                          <button type="button" onClick={() => setPacSel(on ? "" : p.id)} aria-pressed={on}
-                            className={`relative flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${on ? "bg-[#1E3A8A] text-white" : "bg-card hover:bg-[#EEF2FB] dark:bg-transparent dark:hover:bg-white/5"}`}>
-                            {on && <span className="absolute inset-y-0 left-0 w-1 bg-[#10B981]" />}
-                            <Avatar nombre={p.nombre} size="size-10 !rounded-xl" />
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-1.5">
-                                <span className="truncate text-sm font-semibold">{an}</span>
-                                {p.ficha?.alergias && <AlertTriangle className={`size-3.5 shrink-0 ${on ? "text-white" : "text-red-600"}`} aria-label="Tiene alergias" />}
-                              </span>
-                              <span className={`mt-0.5 flex flex-wrap items-center gap-x-2 text-xs ${on ? "text-white/85" : "text-muted-foreground"}`}>
-                                <span className={p.dni ? "tabular-nums" : on ? "italic" : "italic text-amber-700"}>{p.dni ? `C.C. ${p.dni}` : "Sin cédula"}</span>
-                                <span aria-hidden className={on ? "text-white/50" : "text-slate-300"}>•</span>
-                                <span className={ed !== null ? "" : on ? "italic" : "italic text-amber-700"}>{ed !== null ? `${ed} años` : "Sin edad"}</span>
-                              </span>
-                            </span>
-                            {hoyCita ? (
-                              <span className={`shrink-0 rounded-lg px-2 py-0.5 text-[11px] font-semibold ${on ? "bg-white/20 text-white" : "bg-[#D1FAE5] text-[#065F46]"}`}>Cita hoy</span>
-                            ) : (
-                              <ChevronRight className={`size-4 shrink-0 ${on ? "text-white/80" : "text-slate-300"}`} />
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
+                <p className="px-2 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Pacientes de hoy</p>
+                <ul className="space-y-1">
+                  {citasDeHoy.map((t) => {
+                    const p = pacDeTurno(t) ?? ({ id: t.pacienteId ?? `nombre:${norm(t.paciente)}`, nombre: nombrePropio(t.paciente).trim(), dni: t.dni, telefono: t.telefono, origen: "turno", portal: false } as PacienteHC);
+                    return <FilaPaciente key={t.id} p={p} an={apellidoNombre(p.nombre)} hora={t.hora} servicio={`${(t.motivo || "Consulta").split(" · ")[0]} · ${nombreCorto(t.doctor)}`} estado={t.estado} />;
+                  })}
+                </ul>
               </>
             )}
           </div>
@@ -11519,7 +11538,7 @@ function AccionesEnfermeria({ user, log, turnos, pacientes, citasHoy, sinSignos,
                 <Avatar nombre={pac.nombre} size="size-10 !rounded-lg" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-base font-semibold text-[#1E3A8A] dark:text-white">{apellidoNombre(pac.nombre)}</p>
-                  <p className="text-xs text-muted-foreground">{pac.dni ? `C.C. ${pac.dni}` : "C.C. sin registrar"} · {edad !== null ? `${edad} años` : "Edad sin registrar"}{pac.telefono ? ` · ${pac.telefono}` : ""}</p>
+                  <p className="text-xs text-muted-foreground">{pac.dni ? `C.C. ${pac.dni}` : "C.C. sin registrar"} · {edad !== null ? `${edad} años` : "Sin edad"}{pac.telefono ? ` · ${pac.telefono}` : ""}</p>
                 </div>
                 {pac.ficha?.alergias && <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-200"><AlertTriangle className="size-3.5" /> Alergias: {pac.ficha.alergias}</span>}
                 <Button size="sm" variant="outline" className="rounded-xl" onClick={() => abrirHistoria(pac.id)}><FileText className="size-3.5" /> Ver historia clínica</Button>
