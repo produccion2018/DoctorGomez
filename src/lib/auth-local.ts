@@ -936,7 +936,13 @@ export function estadoCobro(c: Cobro): EstadoCobro {
 
 /* ---------- Salud del paciente (portal): controles, medicación y estudios ---------- */
 export type Control = { id: string; pacienteId: string; fecha: string; sistolica: number; diastolica: number; pulso?: number; peso?: number; nota?: string };
-export type Medicamento = { id: string; pacienteId: string; nombre: string; dosis: string; horarios: string[]; indicacion: string; activo: boolean; tomas: Record<string, boolean> };
+export type Medicamento = {
+  id: string; pacienteId: string; nombre: string; dosis: string; horarios: string[]; indicacion: string; activo: boolean; tomas: Record<string, boolean>;
+  /** Datos de la indicación médica (cuando la registra un profesional desde la historia clínica). */
+  principio?: string; presentacion?: string; concentracion?: string; frecuencia?: string; via?: string; duracion?: string;
+  inicio?: string; fin?: string; observaciones?: string; indicadoPor?: string; especialidad?: string; registradoEl?: string;
+  suspendidoPor?: string; suspendidoEl?: string; editadoPor?: string; editadoEl?: string;
+};
 export type ValoresEstudio = { creatinina?: number; egfr?: number; potasio?: number; urea?: number; proteinuria?: number; hemoglobina?: number; ldl?: number; fevi?: number };
 export type Estudio = { id: string; pacienteId: string; tipo: string; fecha: string; titulo: string; informe: string; valores: ValoresEstudio; cargadoPor: string; creado: string };
 /* ---------- Padrón de pacientes de la clínica ---------- */
@@ -1151,6 +1157,8 @@ export type Evolucion = {
   doctor: string;
   /** Solo en evoluciones viejas; la historia clínica ahora es general. */
   especialidad?: EspecialidadHC;
+  /** Especialidad desde la que se registró (cualquiera de la clínica). */
+  servicio?: string;
   motivo: string;
   /** Evolución del cuadro clínico (enfermedad actual). */
   nota: string;

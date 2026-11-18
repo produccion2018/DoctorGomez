@@ -125,6 +125,7 @@ import {
   Archive,
 } from "lucide-react";
 import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
+import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia } from "@/data/sugerencias";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -5710,6 +5711,15 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
     setQ("");
     setIdx(0);
   };
+  const libre = q.trim();
+  const agregarLibre = () => {
+    if (libre.length < 3) return;
+    const d = libre.charAt(0).toUpperCase() + libre.slice(1);
+    if (!seleccion.some((s) => norm(s.descripcion) === norm(d))) onChange([...seleccion, { codigo: "", descripcion: d }]);
+    setQ("");
+    setIdx(0);
+  };
+  const claveDx = (s: Cie) => s.codigo || `libre:${norm(s.descripcion)}`;
 
   return (
     <div className="space-y-3">
@@ -5723,7 +5733,7 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, resultados.length - 1)); }
             if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
-            if (e.key === "Enter" && resultados[idx]) { e.preventDefault(); agregar(resultados[idx]!); }
+            if (e.key === "Enter") { e.preventDefault(); if (resultados[idx]) agregar(resultados[idx]!); else agregarLibre(); }
           }}
           placeholder="Busque por código (I10, E11.9) o por descripción (hipertensión, diabetes…)"
           className={inp + " pl-10"}
@@ -5734,7 +5744,15 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
         {abierto && q.trim().length >= 2 && (
           <ul id="cie-resultados" role="listbox" className="absolute inset-x-0 top-full z-40 mt-1.5 max-h-80 overflow-y-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xl">
             {cargando && <li className="px-3 py-4 text-center text-sm text-muted-foreground">Cargando la CIE-10…</li>}
-            {!cargando && resultados.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">Sin resultados para “{q}”.</li>}
+            {!cargando && resultados.length === 0 && <li className="px-3 pt-3 text-center text-sm text-muted-foreground">Sin resultados en la CIE-10 para “{q}”.</li>}
+            {!cargando && libre.length >= 3 && (
+              <li className="mt-1 border-t border-border pt-1">
+                <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={agregarLibre} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-[rgba(var(--acc),.08)]">
+                  <span className="flex w-14 shrink-0 justify-center rounded-md bg-secondary py-0.5"><Plus className="size-3.5" /></span>
+                  <span className="min-w-0 flex-1">Agregar «{libre}» como diagnóstico escrito (sin código)</span>
+                </button>
+              </li>
+            )}
             {resultados.map((r, i) => {
               const ya = seleccion.some((s) => s.codigo === r[0]);
               return (
@@ -5759,16 +5777,16 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
       {seleccion.length > 0 ? (
         <ol className="space-y-2">
           {seleccion.map((s, i) => (
-            <li key={s.codigo} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5">
-              <span className="w-16 shrink-0 rounded-md bg-[rgba(var(--acc),.12)] px-1.5 py-0.5 text-center font-mono text-xs font-bold text-[rgb(var(--acc))]">{s.codigo}</span>
+            <li key={claveDx(s)} className="flex items-center gap-3 rounded-xl border border-border/70 bg-background px-3 py-2.5">
+              <span className="w-16 shrink-0 rounded-md bg-[rgba(var(--acc),.12)] px-1.5 py-0.5 text-center font-mono text-xs font-bold text-[rgb(var(--acc))]">{s.codigo || "Libre"}</span>
               <span className="min-w-0 flex-1 text-sm">{s.descripcion}</span>
               <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${i === 0 ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>{i === 0 ? "Principal" : "Secundario"}</span>
               {i > 0 && (
-                <button type="button" title="Marcar como principal" onClick={() => onChange([s, ...seleccion.filter((x) => x.codigo !== s.codigo)])} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                <button type="button" title="Marcar como principal" onClick={() => onChange([s, ...seleccion.filter((x) => claveDx(x) !== claveDx(s))])} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
                   <ArrowUpRight className="size-3.5 -rotate-45" />
                 </button>
               )}
-              <button type="button" aria-label={`Quitar ${s.codigo}`} onClick={() => onChange(seleccion.filter((x) => x.codigo !== s.codigo))} className="rounded-md p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600">
+              <button type="button" aria-label={`Quitar ${s.codigo || s.descripcion}`} onClick={() => onChange(seleccion.filter((x) => claveDx(x) !== claveDx(s)))} className="rounded-md p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600">
                 <X className="size-3.5" />
               </button>
             </li>
@@ -5783,6 +5801,25 @@ function BuscadorCie({ seleccion, onChange }: { seleccion: Cie[]; onChange: (v: 
 
 /** Diagnósticos de una evolución (CIE-10 o los de texto de evoluciones anteriores). */
 const dxDe = (e: Evolucion): Cie[] => e.cie10 ?? (e.diagnosticos ?? []).map((d) => ({ codigo: "", descripcion: d }));
+/** Especialidad de una evolución (las viejas pueden no tenerla). */
+const SIN_ESPECIALIDAD = "Sin especialidad registrada";
+const especialidadDe = (e: Evolucion): string => e.servicio || e.especialidad || SIN_ESPECIALIDAD;
+const NOMBRES_ESPECIALIDADES = ESPECIALIDADES.map((x) => x.nombre);
+
+/** Sugerencias debajo de un campo de texto: completan lo que se está escribiendo; se puede escribir libre. */
+function SugerenciasTexto({ value, onChange, listas }: { value: string; onChange: (v: string) => void; listas: string[][] }) {
+  const sug = sugerirFrase(listas, value);
+  if (!sug.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-[11px] font-medium text-muted-foreground">Sugerencias:</span>
+      {sug.map((x) => (
+        <button key={x} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onChange(completarFrase(value, x))}
+          className="rounded-lg bg-[#EEF2FB] px-2.5 py-1 text-xs font-medium text-[#1E3A8A] transition hover:bg-[#DBE4FB] dark:bg-white/10 dark:text-sky-200">{x}</button>
+      ))}
+    </div>
+  );
+}
 
 function HistoriaTab({ user, log, turnos, inicial, soloLectura = false, notasEnf = false }: { user: SessionUser; log: LogFn; turnos: Turno[]; inicial: string | null; soloLectura?: boolean; notasEnf?: boolean }) {
   const [evols, setEvols] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
@@ -5951,7 +5988,7 @@ function FichaHC({
   p: PacienteHC; evols: Evolucion[]; estudios: Estudio[]; controles: Control[]; meds: Medicamento[];
   nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean; turnosHC?: Turno[]; pacientesHC?: PacienteHC[];
 }) {
-  const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios">("todo");
+  const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios" | "especialidades">("todo");
   const [notasTodas, setNotasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const [labTodosHC] = useDato<PedidoLab[]>(KEY_LAB, []);
   const labsHC = labTodosHC.filter((l) => l.pacienteId === p.id || l.pacienteId === p.portalId);
@@ -6007,7 +6044,7 @@ function FichaHC({
   const dxActivos = Array.from(new Map(ordenadas.flatMap(dxDe).map((d) => [d.codigo || d.descripcion, d])).values()).slice(0, 8);
 
   type Item = { tipo: "evol"; f: string; e: Evolucion } | { tipo: "estudio"; f: string; e: Estudio } | { tipo: "triage"; f: string; e: Triage } | { tipo: "enf"; f: string; e: NotaEnfermeria };
-  const conteo = { todo: ordenadas.length + triages.filter((t) => !t.evolucionId).length + notasEnfP.length + estudios.length, evoluciones: ordenadas.length, enfermeria: triages.filter((t) => !t.evolucionId).length + notasEnfP.length, estudios: estudios.length };
+  const conteo = { todo: ordenadas.length + triages.filter((t) => !t.evolucionId).length + notasEnfP.length + estudios.length, evoluciones: ordenadas.length, enfermeria: triages.filter((t) => !t.evolucionId).length + notasEnfP.length, estudios: estudios.length , especialidades: new Set(ordenadas.map(especialidadDe)).size };
   const linea: Item[] = [
     ...(ver === "todo" || ver === "evoluciones" ? ordenadas.map((e) => ({ tipo: "evol" as const, f: e.fecha, e })) : []),
     ...(ver === "todo" || ver === "enfermeria" ? triages.filter((t) => !t.evolucionId).map((e) => ({ tipo: "triage" as const, f: e.fecha, e })) : []),
@@ -6125,7 +6162,7 @@ function FichaHC({
           sub={`${ordenadas.length} ${ordenadas.length === 1 ? "consulta" : "consultas"} · ${conteo.enfermeria} de enfermería · ${estudios.length} ${estudios.length === 1 ? "estudio" : "estudios"}`}
           acciones={
             <div className="flex flex-wrap gap-1 rounded-2xl bg-secondary/80 p-1 ring-1 ring-border/60">
-              {([["todo", "Todo", "#3B5BC0"], ["evoluciones", "Médico", "#6366f1"], ["enfermeria", "Enfermería", "#10B981"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
+              {([["todo", "Todo", "#3B5BC0"], ["evoluciones", "Médico", "#6366f1"], ["especialidades", "Por especialidad", "#1E3A8A"], ["enfermeria", "Enfermería", "#10B981"], ["estudios", "Estudios", "#f59e0b"]] as const).map(([id, l, c]) => (
                 <button key={id} onClick={() => setVer(id)} className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all ${ver === id ? "bg-card text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
                   <span className="size-1.5 rounded-full" style={{ background: c }} />
                   {l}
@@ -6135,7 +6172,9 @@ function FichaHC({
             </div>
           }
         >
-          {linea.length === 0 ? (
+          {ver === "especialidades" ? (
+            <HistorialPorEspecialidad evols={ordenadas} p={p} />
+          ) : linea.length === 0 ? (
             <Vacio icon={NotebookPen} titulo="Sin registros" texto={soloLectura ? "Todavía no hay consultas ni registros de enfermería para este paciente." : "Registre la primera consulta con Nueva evolución."} />
           ) : (
             <>
@@ -6217,6 +6256,7 @@ function FichaHC({
                     <article className="hc-card min-w-0 flex-1 overflow-hidden rounded-2xl border border-indigo-200/60 bg-card dark:border-indigo-500/20">
                       <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-indigo-100 bg-gradient-to-r from-indigo-50/90 via-violet-50/60 to-transparent px-4 py-2.5 dark:border-indigo-500/20 dark:from-indigo-500/10">
                         <p className="text-sm font-semibold">{new Date(e.fecha).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}</p>
+                        <span className="rounded-md bg-[#EEF2FB] px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200">{especialidadDe(e)}</span>
                         <span className="text-xs text-muted-foreground">{horaDeIso(e.fecha)} · {e.doctor}</span>
                         <div className="ml-auto flex items-center gap-1">
                           <button onClick={() => imprimirHtml(htmlEvolucion(p, e))} className="rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-card hover:text-foreground">Imprimir</button>
@@ -6295,37 +6335,288 @@ function FichaHC({
         </Seccion>
 
         <div className="space-y-5">
-          <Seccion icon={ClipboardList} titulo="Diagnósticos registrados" sub="De todas las consultas" delay={0.05}>
-            {dxActivos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin diagnósticos registrados.</p>
-            ) : (
-              <ul className="space-y-2">
-                {dxActivos.map((d) => (
-                  <li key={d.codigo || d.descripcion} className="flex items-start gap-2 text-sm">
-                    {d.codigo ? <span className="mt-0.5 shrink-0 rounded bg-secondary px-1.5 font-mono text-[11px] font-bold">{d.codigo}</span> : <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[rgb(var(--acc))]" />}
-                    <span className="leading-snug">{d.descripcion}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Seccion>
-          <Seccion icon={Pill} titulo="Medicación activa" sub="Cargada en el portal" delay={0.08}>
-            {meds.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin medicación registrada.</p>
-            ) : (
-              <ul className="space-y-2.5">
-                {meds.map((m) => (
-                  <li key={m.id} className="rounded-xl bg-secondary/50 px-3 py-2.5">
-                    <p className="text-sm font-semibold">{m.nombre} <span className="font-normal text-muted-foreground">{m.dosis}</span></p>
-                    <p className="text-xs text-muted-foreground">{m.horarios.join(" · ")}{m.indicacion ? ` — ${m.indicacion}` : ""}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Seccion>
+          <DiagnosticosPaciente p={p} evols={ordenadas} user={user} soloLectura={soloLectura} onGuardar={onGuardar} />
+          <MedicacionPaciente p={p} user={user} soloLectura={soloLectura} log={log} />
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------- Historial por especialidad (expediente único, desplegable por especialidad) ---------- */
+function HistorialPorEspecialidad({ evols, p }: { evols: Evolucion[]; p: PacienteHC }) {
+  const [medsTodos] = useDato<Medicamento[]>(KEY_MEDICACION, []);
+  const medsP = medsTodos.filter((m) => m.pacienteId === p.id || m.pacienteId === p.portalId);
+  const grupos = [...evols.reduce((m, e) => m.set(especialidadDe(e), [...(m.get(especialidadDe(e)) ?? []), e]), new Map<string, Evolucion[]>())]
+    .sort((a, b) => (a[0] === SIN_ESPECIALIDAD ? 1 : b[0] === SIN_ESPECIALIDAD ? -1 : b[1][0]!.fecha.localeCompare(a[1][0]!.fecha)));
+  const [abierta, setAbierta] = useState<string | null>(grupos[0]?.[0] ?? null);
+  if (!grupos.length) return <Vacio icon={NotebookPen} titulo="Sin evoluciones" texto="Ninguna especialidad registró todavía una evolución de este paciente." />;
+  return (
+    <div className="space-y-2.5">
+      <p className="text-xs text-muted-foreground">Expediente único del paciente: aquí están todas las especialidades que lo valoraron. Toque una para ver sus evoluciones, de la más reciente a la más antigua.</p>
+      {grupos.map(([esp, lista]) => {
+        const on = abierta === esp;
+        const docs = [...new Set(lista.map((e) => nombreCorto(e.doctor)))];
+        const medsEsp = medsP.filter((m) => m.especialidad && norm(m.especialidad) === norm(esp));
+        return (
+          <div key={esp} className={`overflow-hidden rounded-2xl border transition ${on ? "border-[#1E3A8A]/40" : "border-border"}`}>
+            <button type="button" onClick={() => setAbierta(on ? null : esp)} aria-expanded={on} className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${on ? "bg-[#EEF2FB] dark:bg-white/5" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${on ? "bg-[#1E3A8A] text-white" : "bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}><Stethoscope className="size-[18px]" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{esp}</span>
+                <span className="block truncate text-xs text-muted-foreground">{lista.length} {lista.length === 1 ? "evolución" : "evoluciones"} · {docs.join(", ")} · última {fechaDe(lista[0]!.fecha)}</span>
+              </span>
+              <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition ${on ? "rotate-180" : ""}`} />
+            </button>
+            {on && (
+              <div className="space-y-2.5 border-t border-border bg-card p-3">
+                {lista.map((e) => {
+                  const dx = dxDe(e);
+                  return (
+                    <article key={e.id} className="rounded-xl border border-border p-3.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 dark:bg-white/10 dark:text-slate-200">{fechaHora(e.fecha)}</span>
+                        <span className="text-xs text-muted-foreground">{e.doctor}</span>
+                      </div>
+                      <p className="mt-2 text-sm"><b className="font-semibold">Motivo:</b> {e.motivo || "—"}</p>
+                      {dx.length > 0 && <p className="mt-1 text-sm"><b className="font-semibold">Diagnóstico:</b> {dx.map((d) => `${d.codigo ? `${d.codigo} ` : ""}${d.descripcion}`).join(" · ")}</p>}
+                      {e.nota && <p className="mt-1 line-clamp-4 whitespace-pre-line text-sm text-slate-700 dark:text-slate-300"><b className="font-semibold text-foreground">Evolución:</b> {e.nota}</p>}
+                      {e.plan && <p className="mt-1 whitespace-pre-line text-sm"><b className="font-semibold">Tratamiento e indicaciones:</b> {e.plan}</p>}
+                    </article>
+                  );
+                })}
+                {medsEsp.length > 0 && (
+                  <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Medicación indicada por {esp}</p>
+                    <ul className="space-y-1 text-sm">
+                      {medsEsp.map((m) => <li key={m.id}><b className="font-semibold">{m.nombre}</b> {[m.dosis, m.frecuencia, m.via, m.duracion].filter(Boolean).join(" · ")} <span className={`ml-1 rounded px-1.5 text-[11px] font-semibold ${m.activo ? "bg-[#D1FAE5] text-[#065F46]" : "bg-slate-200 text-slate-600"}`}>{m.activo ? "Activo" : "Suspendido"}</span></li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Diagnósticos del paciente (todas las especialidades) ---------- */
+function DiagnosticosPaciente({ p, evols, user, soloLectura, onGuardar }: { p: PacienteHC; evols: Evolucion[]; user: SessionUser; soloLectura: boolean; onGuardar: (e: Evolucion) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const [servicio, setServicio] = useState(() => profesionalesAgenda(agendas).find((x) => x.id === user.id)?.especialidad ?? "");
+  const [dx, setDx] = useState<Cie[]>([]);
+  const [obs, setObs] = useState("");
+  const puede = !soloLectura && user.rol === "medico";
+  const todos = evols.flatMap((e) => dxDe(e).map((d, k) => ({ d, e, k })));
+  const unicos = Array.from(new Map(todos.map((x) => [x.d.codigo || norm(x.d.descripcion), x])).values());
+  const guardar = () => {
+    if (!servicio.trim()) { toast.error("Indique la especialidad."); return; }
+    if (!dx.length) { toast.error("Agregue al menos un diagnóstico."); return; }
+    const ev = JSON.parse(JSON.stringify({
+      id: nuevoId(), pacienteId: p.id, paciente: p.nombre, fecha: new Date().toISOString(), doctor: user.nombre, servicio: servicio.trim(),
+      motivo: "Registro de diagnóstico", nota: obs.trim() || "Diagnóstico registrado desde la historia clínica.",
+      diagnosticos: dx.map((x) => `${x.codigo ? `${x.codigo} ` : ""}${x.descripcion}`), cie10: dx, signos: {},
+    })) as Evolucion;
+    onGuardar(ev);
+    setDx([]); setObs("");
+  };
+  return (
+    <>
+      <button type="button" onClick={() => setAbierto(true)} className="pn-card pn-up group block w-full overflow-hidden p-0 text-left transition-colors hover:border-[#1E3A8A]/35">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><ClipboardList className="size-[18px]" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-base font-semibold">Diagnósticos registrados</span><span className="block text-xs text-muted-foreground">De todas las especialidades · {unicos.length}</span></span>
+          {puede ? <Plus className="size-4 text-[#1E3A8A] dark:text-sky-300" /> : <ChevronRight className="size-4 text-slate-400" />}
+        </div>
+        <div className="px-5 py-4">
+          {unicos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{puede ? "Sin diagnósticos. Toque aquí para registrar uno." : "Sin diagnósticos registrados."}</p>
+          ) : (
+            <ul className="space-y-2">
+              {unicos.slice(0, 6).map(({ d, e }) => (
+                <li key={d.codigo || d.descripcion} className="flex items-start gap-2 text-sm">
+                  {d.codigo ? <span className="mt-0.5 shrink-0 rounded bg-secondary px-1.5 font-mono text-[11px] font-bold">{d.codigo}</span> : <span className="mt-2 size-1.5 shrink-0 rounded-full bg-[#1E3A8A]" />}
+                  <span className="min-w-0 leading-snug">{d.descripcion}<span className="block text-[11px] text-muted-foreground">{especialidadDe(e)} · {fechaDe(e.fecha)}</span></span>
+                </li>
+              ))}
+              {unicos.length > 6 && <li className="text-xs font-semibold text-[#1E3A8A] dark:text-sky-300">Ver los {unicos.length} diagnósticos</li>}
+            </ul>
+          )}
+        </div>
+      </button>
+      {abierto && (
+        <Modal titulo="Diagnósticos del paciente" onCerrar={() => setAbierto(false)}>
+          {puede && (
+            <div className="mb-6 rounded-2xl border border-border p-4">
+              <p className="mb-3 text-sm font-semibold">Registrar diagnóstico</p>
+              <div className="space-y-3">
+                <Campo label="Especialidad"><TextoPredictivo value={servicio} onChange={setServicio} sugerencias={(q) => sugerirFrase([NOMBRES_ESPECIALIDADES], q, 8)} vacias={NOMBRES_ESPECIALIDADES.slice(0, 8)} placeholder="Ej.: Cardiología" /></Campo>
+                <Campo label="Diagnósticos (CIE-10 o escrito)"><BuscadorCie seleccion={dx} onChange={setDx} /></Campo>
+                <Campo label="Observación (opcional)"><input value={obs} onChange={(e) => setObs(e.target.value)} className={inp} placeholder="Ej.: confirmado con ecocardiograma" /></Campo>
+                <p className="text-xs text-muted-foreground">Queda en la historia única del paciente a nombre de {user.nombre}, con fecha, hora y especialidad, y lo ven todos los especialistas.</p>
+                <div className="flex justify-end"><Button type="button" className="rounded-xl" onClick={guardar}><Check className="size-4" /> Registrar diagnóstico</Button></div>
+              </div>
+            </div>
+          )}
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Historial de diagnósticos ({todos.length})</p>
+          {todos.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">Este paciente todavía no tiene diagnósticos registrados.</p>
+          ) : (
+            <ul className="space-y-2">
+              {todos.map(({ d, e, k }) => (
+                <li key={`${e.id}-${k}`} className="flex items-start gap-3 rounded-xl border border-border p-3">
+                  <span className="w-16 shrink-0 rounded-md bg-[#EEF2FB] px-1.5 py-0.5 text-center font-mono text-xs font-bold text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200">{d.codigo || "Libre"}</span>
+                  <span className="min-w-0 flex-1 text-sm">{d.descripcion}{k === 0 && <span className="ml-1.5 text-[11px] font-semibold uppercase text-muted-foreground">Principal</span>}
+                    <span className="block text-[11px] text-muted-foreground">{especialidadDe(e)} · {e.doctor} · {fechaHora(e.fecha)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/* ---------- Medicación del paciente (indicada por cualquier especialidad y la del portal) ---------- */
+type FormMed = { nombre: string; principio: string; presentacion: string; concentracion: string; dosis: string; frecuencia: string; via: string; duracion: string; inicio: string; fin: string; observaciones: string; especialidad: string };
+function MedicacionPaciente({ p, user, soloLectura, log }: { p: PacienteHC; user: SessionUser; soloLectura: boolean; log: LogFn }) {
+  const [todos, setTodos] = useDato<Medicamento[]>(KEY_MEDICACION, []);
+  const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
+  const [abierto, setAbierto] = useState(false);
+  const [editando, setEditando] = useState<string | null>(null);
+  const espUser = profesionalesAgenda(agendas).find((x) => x.id === user.id)?.especialidad ?? "";
+  const vacio: FormMed = { nombre: "", principio: "", presentacion: "", concentracion: "", dosis: "", frecuencia: "", via: "", duracion: "", inicio: isoDe(new Date()), fin: "", observaciones: "", especialidad: espUser };
+  const [f, setF] = useState<FormMed>(vacio);
+  const [cat, setCat] = useState<MedCatalogo | null>(null);
+  const puede = !soloLectura && user.rol === "medico";
+  const meds = todos.filter((m) => m.pacienteId === p.id || m.pacienteId === p.portalId).sort((a, b) => Number(b.activo) - Number(a.activo) || (b.registradoEl ?? "").localeCompare(a.registradoEl ?? ""));
+  const activos = meds.filter((m) => m.activo);
+  const set = (k: keyof FormMed) => (v: string) => setF((x) => ({ ...x, [k]: v }));
+  const editar = (m: Medicamento) => {
+    setEditando(m.id);
+    setCat(medicamentoPorNombre(m.nombre) ?? null);
+    setF({ nombre: m.nombre, principio: m.principio ?? "", presentacion: m.presentacion ?? "", concentracion: m.concentracion ?? "", dosis: m.concentracion ? m.dosis.replace(`${m.concentracion} · `, "") : m.dosis, frecuencia: m.frecuencia ?? "", via: m.via ?? "", duracion: m.duracion ?? "", inicio: m.inicio ?? "", fin: m.fin ?? "", observaciones: m.observaciones ?? m.indicacion ?? "", especialidad: m.especialidad ?? espUser });
+  };
+  const guardar = () => {
+    if (!f.nombre.trim()) { toast.error("Escriba el medicamento."); return; }
+    if (!f.dosis.trim() && !f.concentracion.trim()) { toast.error("Indique la dosis."); return; }
+    if (!f.frecuencia.trim()) { toast.error("Indique la frecuencia."); return; }
+    if (f.fin && f.inicio && f.fin < f.inicio) { toast.error("La fecha de finalización no puede ser anterior al inicio."); return; }
+    const ahora = new Date().toISOString();
+    const datos = {
+      nombre: f.nombre.trim(), dosis: [f.concentracion.trim(), f.dosis.trim()].filter(Boolean).join(" · "), indicacion: f.observaciones.trim(),
+      principio: f.principio.trim() || undefined, presentacion: f.presentacion.trim() || undefined, concentracion: f.concentracion.trim() || undefined,
+      frecuencia: f.frecuencia.trim(), via: f.via.trim() || undefined, duracion: f.duracion.trim() || undefined, inicio: f.inicio || undefined, fin: f.fin || undefined,
+      observaciones: f.observaciones.trim() || undefined, especialidad: f.especialidad.trim() || undefined,
+    };
+    if (editando) {
+      setTodos((l) => l.map((m) => (m.id === editando ? (JSON.parse(JSON.stringify({ ...m, ...datos, horarios: m.horarios.length ? m.horarios : horariosDeFrecuencia(datos.frecuencia), editadoPor: user.nombre, editadoEl: ahora })) as Medicamento) : m)));
+      log("Medicación editada", `${p.nombre} · ${datos.nombre}`);
+      toast.success("Medicación actualizada.");
+    } else {
+      const nuevo = JSON.parse(JSON.stringify({ id: nuevoId(), pacienteId: p.portalId ?? p.id, ...datos, horarios: horariosDeFrecuencia(datos.frecuencia), activo: true, tomas: {}, indicadoPor: user.nombre, registradoEl: ahora })) as Medicamento;
+      setTodos((l) => [nuevo, ...l]);
+      log("Medicación indicada", `${p.nombre} · ${datos.nombre} ${datos.dosis}`);
+      toast.success("Medicamento registrado en la historia del paciente.");
+    }
+    setEditando(null); setCat(null); setF(vacio);
+  };
+  const alternar = async (m: Medicamento) => {
+    if (m.activo && !(await preguntar({ titulo: `¿Suspender ${m.nombre}?`, texto: "Deja de figurar como medicación activa. Queda en el historial del paciente." }))) return;
+    setTodos((l) => l.map((x) => (x.id === m.id ? (JSON.parse(JSON.stringify(m.activo ? { ...x, activo: false, suspendidoPor: user.nombre, suspendidoEl: new Date().toISOString(), fin: x.fin ?? isoDe(new Date()) } : { ...x, activo: true, suspendidoPor: undefined, suspendidoEl: undefined })) as Medicamento) : x)));
+    log(m.activo ? "Medicación suspendida" : "Medicación reactivada", `${p.nombre} · ${m.nombre}`);
+  };
+  const detalle = (m: Medicamento) => [m.dosis, m.frecuencia, m.via, m.duracion].filter(Boolean).join(" · ");
+  return (
+    <>
+      <button type="button" onClick={() => setAbierto(true)} className="pn-card pn-up group block w-full overflow-hidden p-0 text-left transition-colors hover:border-[#1E3A8A]/35">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Pill className="size-[18px]" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-base font-semibold">Medicación activa</span><span className="block text-xs text-muted-foreground">Todas las especialidades y el portal · {activos.length}</span></span>
+          {puede ? <Plus className="size-4 text-[#1E3A8A] dark:text-sky-300" /> : <ChevronRight className="size-4 text-slate-400" />}
+        </div>
+        <div className="px-5 py-4">
+          {activos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{puede ? "Sin medicación activa. Toque aquí para registrar un medicamento." : "Sin medicación registrada."}</p>
+          ) : (
+            <ul className="space-y-2">
+              {activos.slice(0, 5).map((m) => (
+                <li key={m.id} className="rounded-xl bg-slate-50 px-3 py-2 dark:bg-white/5">
+                  <p className="text-sm font-semibold">{m.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{detalle(m) || m.horarios.join(" · ")}</p>
+                  <p className="text-[11px] text-muted-foreground">{m.indicadoPor ? `${m.especialidad ? `${m.especialidad} · ` : ""}${nombreCorto(m.indicadoPor)}` : "Cargado por el paciente en el portal"}</p>
+                </li>
+              ))}
+              {activos.length > 5 && <li className="text-xs font-semibold text-[#1E3A8A] dark:text-sky-300">Ver los {activos.length} medicamentos</li>}
+            </ul>
+          )}
+        </div>
+      </button>
+      {abierto && (
+        <Modal titulo="Medicación del paciente" onCerrar={() => { setAbierto(false); setEditando(null); setF(vacio); setCat(null); }}>
+          {puede && (
+            <div className="mb-6 rounded-2xl border border-border p-4">
+              <p className="mb-3 text-sm font-semibold">{editando ? "Editar medicamento" : "Registrar medicamento"}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2"><Campo label="Medicamento"><BuscadorMedicamento value={f.nombre} onChange={set("nombre")} onElegir={(m) => { setCat(m); setF((x) => ({ ...x, nombre: m.nombre, principio: x.principio || m.nombre, concentracion: m.dosis[0] ?? x.concentracion, via: m.vias[0] ?? x.via })); }} placeholder="Escriba: losar, metfor, furo… (todas las especialidades)" /></Campo></div>
+                <Campo label="Principio activo"><input value={f.principio} onChange={(e) => set("principio")(e.target.value)} className={inp} placeholder="Ej.: Losartán potásico" /></Campo>
+                <Campo label="Presentación"><TextoPredictivo value={f.presentacion} onChange={set("presentacion")} sugerencias={(q) => sugerirFrase([["Tabletas", "Cápsulas", "Tabletas recubiertas", "Jarabe", "Suspensión oral", "Solución inyectable", "Ampolla", "Inhalador", "Crema", "Gotas", "Parche", "Sobres"]], q)} vacias={["Tabletas", "Cápsulas", "Solución inyectable", "Jarabe", "Inhalador"]} placeholder="Ej.: Tabletas" /></Campo>
+                <Campo label="Concentración">
+                  <input value={f.concentracion} onChange={(e) => set("concentracion")(e.target.value)} className={inp} placeholder="Ej.: 50 mg" />
+                  {cat && cat.dosis.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">{cat.dosis.map((d) => <button key={d} type="button" onClick={() => set("concentracion")(d)} className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ${f.concentracion === d ? "bg-[#1E3A8A] text-white" : "bg-[#EEF2FB] text-[#1E3A8A]"}`}>{d}</button>)}</div>}
+                </Campo>
+                <Campo label="Dosis"><input value={f.dosis} onChange={(e) => set("dosis")(e.target.value)} className={inp} placeholder="Ej.: 1 tableta" /></Campo>
+                <Campo label="Frecuencia"><TextoPredictivo value={f.frecuencia} onChange={set("frecuencia")} sugerencias={(q) => sugerirFrase([FRECUENCIAS], q, 8)} vacias={FRECUENCIAS.slice(0, 6)} placeholder="Ej.: Cada 12 horas" /></Campo>
+                <Campo label="Vía de administración"><TextoPredictivo value={f.via} onChange={set("via")} sugerencias={(q) => sugerirFrase([cat?.vias ?? [], VIAS], q, 8)} vacias={cat?.vias.length ? cat.vias : VIAS.slice(0, 6)} placeholder="Ej.: Oral" /></Campo>
+                <Campo label="Duración del tratamiento"><TextoPredictivo value={f.duracion} onChange={set("duracion")} sugerencias={(q) => sugerirFrase([DURACIONES], q, 8)} vacias={DURACIONES.slice(0, 6)} placeholder="Ej.: 30 días" /></Campo>
+                <Campo label="Especialidad que indica"><TextoPredictivo value={f.especialidad} onChange={set("especialidad")} sugerencias={(q) => sugerirFrase([NOMBRES_ESPECIALIDADES], q, 8)} vacias={NOMBRES_ESPECIALIDADES.slice(0, 6)} placeholder="Ej.: Cardiología" /></Campo>
+                <Campo label="Fecha de inicio"><input type="date" value={f.inicio} onChange={(e) => set("inicio")(e.target.value)} className={inp} /></Campo>
+                <Campo label="Fecha de finalización (opcional)"><input type="date" value={f.fin} onChange={(e) => set("fin")(e.target.value)} className={inp} /></Campo>
+                <div className="sm:col-span-2"><Campo label="Observaciones"><input value={f.observaciones} onChange={(e) => set("observaciones")(e.target.value)} className={inp} placeholder="Ej.: tomar con alimentos, controlar presión" /></Campo></div>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">Indicado por {user.nombre}. Queda en la historia única del paciente, lo ven todos los especialistas y el paciente en su portal.</p>
+              <div className="mt-3 flex justify-end gap-2">
+                {editando && <Button type="button" variant="outline" className="rounded-xl" onClick={() => { setEditando(null); setF(vacio); setCat(null); }}>Cancelar edición</Button>}
+                <Button type="button" className="rounded-xl" onClick={guardar}><Check className="size-4" /> {editando ? "Guardar cambios" : "Registrar medicamento"}</Button>
+              </div>
+            </div>
+          )}
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Medicación del paciente ({meds.length})</p>
+          {meds.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-border py-6 text-center text-sm text-muted-foreground">Este paciente no tiene medicación registrada.</p>
+          ) : (
+            <ul className="space-y-2">
+              {meds.map((m) => (
+                <li key={m.id} className={`rounded-2xl border p-3.5 ${m.activo ? "border-border" : "border-dashed border-border opacity-80"}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold">{m.nombre}</p>
+                    <span className={`rounded-md px-1.5 text-[11px] font-semibold ${m.activo ? "bg-[#D1FAE5] text-[#065F46]" : "bg-slate-100 text-slate-600"}`}>{m.activo ? "Activo" : "Suspendido"}</span>
+                    {puede && (
+                      <span className="ml-auto flex gap-1">
+                        {m.indicadoPor && <button type="button" onClick={() => editar(m)} className="rounded-lg px-2 py-1 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">Editar</button>}
+                        <button type="button" onClick={() => void alternar(m)} className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300">{m.activo ? "Suspender" : "Reactivar"}</button>
+                      </span>
+                    )}
+                  </div>
+                  <dl className="mt-1.5 grid gap-x-4 gap-y-0.5 text-xs text-muted-foreground sm:grid-cols-2">
+                    {([["Principio activo", m.principio], ["Presentación", m.presentacion], ["Dosis", m.dosis], ["Frecuencia", m.frecuencia ?? (m.horarios.length ? m.horarios.join(" · ") : "")], ["Vía", m.via], ["Duración", m.duracion], ["Inicio", m.inicio ? fechaCorta(m.inicio) : ""], ["Finalización", m.fin ? fechaCorta(m.fin) : ""]] as [string, string | undefined][]).filter(([, v]) => v).map(([k, v]) => (
+                      <div key={k}><dt className="inline font-semibold text-foreground">{k}:</dt> <dd className="inline">{v}</dd></div>
+                    ))}
+                  </dl>
+                  {(m.observaciones || m.indicacion) && <p className="mt-1 text-xs text-muted-foreground"><b className="font-semibold text-foreground">Observaciones:</b> {m.observaciones || m.indicacion}</p>}
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">{m.indicadoPor ? `Indicado por ${m.indicadoPor}${m.especialidad ? ` · ${m.especialidad}` : ""}` : "Cargado por el paciente en el portal"}{m.suspendidoPor ? ` · Suspendido por ${nombreCorto(m.suspendidoPor)}` : ""}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -6376,6 +6667,18 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
   });
   const [editarSignos, setEditarSignos] = useState(!triage);
   const [dx, setDx] = useState<Cie[]>([]);
+  const [agendasEv] = useDato<Agendas>(KEY_AGENDA, {});
+  const [servicio, setServicio] = useState(() => profesionalesAgenda(agendasEv).find((x) => x.id === user.id)?.especialidad ?? "");
+  // Vocabulario del equipo: frases ya escritas en otras evoluciones (todas las especialidades)
+  const [evolsPrev] = useDato<Evolucion[]>(KEY_EVOLUCIONES, []);
+  const aprendido = useMemo(() => ({
+    motivo: frasesDe(evolsPrev.map((x) => x.motivo), 150),
+    sintomas: frasesDe(evolsPrev.map((x) => x.sintomas)),
+    semiologia: frasesDe(evolsPrev.map((x) => x.semiologia)),
+    nota: frasesDe(evolsPrev.map((x) => x.nota)),
+    plan: frasesDe(evolsPrev.map((x) => x.plan)),
+  }), [evolsPrev]);
+  const setTxt = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const s = num(f.s), d = num(f.d);
   const pr = s && d ? clasificarPresion(s, d) : null;
@@ -6384,6 +6687,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
+    if (!servicio.trim()) { toast.error("Indique la especialidad de la consulta"); return; }
     if (!f.motivo.trim()) { toast.error("Complete el motivo de consulta"); return; }
     if (!f.nota.trim()) { toast.error("Escriba la evolución del cuadro clínico"); return; }
     if (dx.length === 0) { toast.error("Agregue al menos un diagnóstico"); return; }
@@ -6396,6 +6700,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
         paciente: p.nombre,
         fecha: ahora,
         doctor: user.nombre,
+        servicio: servicio.trim(),
         motivo: f.motivo.trim(),
         nota: f.nota.trim(),
         sintomas: f.sintomas.trim() || undefined,
@@ -6451,16 +6756,21 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
           )}
         </PasoHC>
 
-        <PasoHC n={2} t="Motivo de consulta" sub="Por qué consulta hoy">
-          <input value={f.motivo} onChange={set("motivo")} placeholder="Ej.: Control, dolor torácico, cefalea, seguimiento de tratamiento…" className={inp} />
+        <PasoHC n={2} t="Especialidad y motivo" sub="Desde qué especialidad atiende y por qué consulta hoy">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
+            <TextoPredictivo value={servicio} onChange={setServicio} sugerencias={(q) => sugerirFrase([NOMBRES_ESPECIALIDADES], q, 8)} vacias={NOMBRES_ESPECIALIDADES.slice(0, 8)} placeholder="Especialidad (ej.: Cardiología)" />
+            <TextoPredictivo value={f.motivo} onChange={setTxt("motivo")} sugerencias={(q) => sugerirFrase([MOTIVOS_CONSULTA, aprendido.motivo], q, 8)} vacias={MOTIVOS_CONSULTA.slice(0, 6)} placeholder="Ej.: Control, dolor torácico, cefalea…" />
+          </div>
         </PasoHC>
 
         <PasoHC n={3} t="Evolución del cuadro clínico" sub="Enfermedad actual: inicio, curso y tratamientos previos">
           <textarea rows={8} value={f.nota} onChange={set("nota")} placeholder="Paciente de … años que consulta por … de … días de evolución…" className={inp + " h-auto min-h-[200px] resize-y py-3 leading-relaxed"} />
+          <SugerenciasTexto value={f.nota} onChange={setTxt("nota")} listas={[SINTOMAS, aprendido.nota]} />
         </PasoHC>
 
         <PasoHC n={4} t="Signos y síntomas" sub="Lo que refiere el paciente y lo que se observa">
           <textarea rows={5} value={f.sintomas} onChange={set("sintomas")} placeholder={"• Síntomas referidos:\n• Signos observados:"} className={inp + " h-auto min-h-[130px] resize-y py-3 leading-relaxed"} />
+          <SugerenciasTexto value={f.sintomas} onChange={setTxt("sintomas")} listas={[SINTOMAS, aprendido.sintomas]} />
         </PasoHC>
 
         <PasoHC n={5} t="Semiología médica" sub="Examen físico por aparatos y sistemas">
@@ -6471,6 +6781,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
             placeholder={"Estado general:\nCabeza y cuello:\nCardiopulmonar:\nAbdomen:\nExtremidades:\nNeurológico:"}
             className={inp + " h-auto min-h-[220px] resize-y py-3 leading-relaxed"}
           />
+          <SugerenciasTexto value={f.semiologia} onChange={setTxt("semiologia")} listas={[EXAMEN_FISICO, aprendido.semiologia]} />
         </PasoHC>
 
         <PasoHC n={6} t="Diagnóstico" sub="Codificado con la CIE-10">
@@ -6485,11 +6796,12 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
             placeholder={"• Tratamiento:\n• Estudios solicitados:\n• Recomendaciones:\n• Próximo control:"}
             className={inp + " h-auto min-h-[200px] resize-y py-3 leading-relaxed"}
           />
+          <SugerenciasTexto value={f.conducta} onChange={setTxt("conducta")} listas={[CONDUCTA, MEDICAMENTOS_CAT.map((m) => m.nombre), aprendido.plan]} />
         </PasoHC>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 bg-secondary/40 px-6 py-4">
-        <p className="text-xs text-muted-foreground">Queda registrada a nombre de {user.nombre} con fecha y hora.</p>
+        <p className="text-xs text-muted-foreground">Queda registrada a nombre de {user.nombre}{servicio.trim() ? ` · ${servicio.trim()}` : ""} con fecha y hora, en la historia única del paciente.</p>
         <div className="flex gap-2">
           <Button type="button" variant="outline" className="rounded-xl" onClick={onCancelar}>Cancelar</Button>
           <Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar evolución</Button>
@@ -9850,7 +10162,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
 
               {verResumen === "medicacion" && (
                 <Modal titulo={`Medicación de ${nombrePropio(p.nombre)}`} onCerrar={() => setVerResumen(null)}>
-                  <p className="mb-4 text-sm text-muted-foreground">Solo lo registrado en la historia clínica: recetas de todas las especialidades, medicación cargada en el portal y medicamentos aplicados en la clínica.</p>
+                  <p className="mb-4 text-sm text-muted-foreground">Solo lo registrado en la historia clínica: recetas y medicación indicada por todas las especialidades, la cargada en el portal y los medicamentos aplicados en la clínica.</p>
                   {rxItems.length === 0 && meds.length === 0 && aplicados.length === 0 ? (
                     <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-8 text-center"><Pill className="size-6 text-muted-foreground/60" /><p className="text-sm text-muted-foreground">Este paciente no tiene medicación registrada.</p></div>
                   ) : (
@@ -9875,7 +10187,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                       )}
                       {meds.length > 0 && (
                         <div>
-                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Cargada en el portal ({meds.length})</p>
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Medicación registrada ({meds.length})</p>
                           <ul className="space-y-2">
                             {[...meds].sort((x, y) => Number(y.activo) - Number(x.activo)).map((m) => (
                               <li key={m.id} className="flex gap-3 rounded-2xl border border-border p-3.5">
@@ -9885,6 +10197,8 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                                   {m.dosis && <p className="text-xs text-muted-foreground"><b className="font-semibold text-foreground">Dosis:</b> {m.dosis}</p>}
                                   {m.horarios.length > 0 && <p className="text-xs text-muted-foreground"><b className="font-semibold text-foreground">Horarios:</b> {m.horarios.join(" · ")}</p>}
                                   {m.indicacion && <p className="text-xs text-muted-foreground"><b className="font-semibold text-foreground">Indicación:</b> {m.indicacion}</p>}
+                                  {(m.frecuencia || m.via || m.duracion) && <p className="text-xs text-muted-foreground">{[m.frecuencia, m.via, m.duracion].filter(Boolean).join(" · ")}</p>}
+                                  <p className="mt-1 text-[11px] text-muted-foreground">{m.indicadoPor ? `Indicado por ${m.indicadoPor}${m.especialidad ? ` · ${m.especialidad}` : ""}` : "Cargado por el paciente en el portal"}</p>
                                 </div>
                               </li>
                             ))}
