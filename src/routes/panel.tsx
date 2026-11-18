@@ -471,7 +471,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
     items: [
       { id: "resumen", label: "Inicio", icon: LayoutDashboard, tono: "text-sky-300" },
       { id: "turnos", label: "Agenda y citas", icon: CalendarDays, tono: "text-sky-300" },
-      { id: "triage", label: "Enfermería – Triage", icon: Syringe, tono: "text-emerald-300" },
+      { id: "triage", label: "Controles", icon: Syringe, tono: "text-emerald-300" },
       { id: "padron", label: "Pacientes", icon: Users, tono: "text-sky-300" },
       { id: "historia", label: "Historia Clínica", icon: FileText, tono: "text-rose-300" },
       { id: "recetas", label: "Receta digital", icon: PenLine, tono: "text-violet-300" },
@@ -532,7 +532,7 @@ const GRUPOS_NAV: { grupo: string; items: ItemNav[] }[] = [
 const TITULOS: Record<Tab, [string, string]> = {
   resumen: ["Resumen general", "Vista rápida de la actividad de la clínica."],
   turnos: ["Citas", "La agenda de cada doctor: quién tomó cada horario y qué queda libre."],
-  triage: ["Enfermería – Triage", "Toma de signos vitales y clasificación de pacientes antes de la consulta médica."],
+  triage: ["Controles", "Toma de signos vitales y clasificación de pacientes antes de la consulta médica."],
   padron: ["Pacientes", "Padrón de pacientes: datos, cobertura, antecedentes y accesos rápidos."],
   recetas: ["Receta digital", "Recetas con su firma digitalizada, código de verificación y envío por WhatsApp."],
   laboratorio: ["Laboratorio", "Pedidos, órdenes firmadas y resultados con valores fuera de rango marcados."],
@@ -6229,7 +6229,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
               <Syringe className="mt-0.5 size-5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold">Enfermería todavía no registró los signos vitales</p>
-                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Enfermería – Triage». Cuando los registre, aparecen aquí automáticamente. Puede guardar la evolución igual.</p>
+                <p className="mt-0.5 text-xs opacity-80">Los signos vitales los carga enfermería desde la pestaña «Controles». Cuando los registre, aparecen aquí automáticamente. Puede guardar la evolución igual.</p>
               </div>
             </div>
           )}
@@ -9957,7 +9957,7 @@ function VentanaSignos({ user, log, turnos, soloLectura, onCerrar, inicial = "" 
   const guardar = (e: FormEvent) => {
     e.preventDefault();
     if (esMedicoV) { toast.error("Los signos vitales los registra enfermería"); return; }
-    if (soloLectura) { toast.error("Su permiso en Enfermería – Triage es solo de lectura"); return; }
+    if (soloLectura) { toast.error("Su permiso en Controles es solo de lectura"); return; }
     if (!pac) { toast.error("Seleccione un paciente"); return; }
     const signos = { sistolica: num(f.s), diastolica: num(f.d), pulso: num(f.fc), fr: num(f.fr), temp: num(f.temp), peso: num(f.peso), talla: num(f.talla), imc: imc?.valor };
     if (Object.values(signos).every((v) => v === undefined)) { toast.error("Registre al menos un signo vital"); return; }
