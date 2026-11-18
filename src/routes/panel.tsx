@@ -101,6 +101,8 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
+  UserCheck,
+  UserX,
   Pin,
   Palette,
   Megaphone,
@@ -6929,10 +6931,10 @@ function PacientesDiaPadron(props: { user: SessionUser; log: LogFn; turnos: Turn
   const [vista, setVista] = useState<"agenda" | "padron">(props.inicial ? "padron" : "agenda");
   return (
     <div className="space-y-5">
-      <div className="inline-flex rounded-2xl border border-border bg-card p-1 shadow-sm">
+      <div role="tablist" className="inline-flex rounded-2xl bg-slate-200/60 p-1 dark:bg-white/5">
         {([["agenda", "Agenda del día", CalendarDays], ["padron", "Padrón de pacientes", Users]] as const).map(([id, l, I]) => (
-          <button key={id} type="button" onClick={() => setVista(id)} aria-pressed={vista === id}
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${vista === id ? "bg-[#1E3A8A] text-white" : "text-muted-foreground hover:text-foreground"}`}>
+          <button key={id} type="button" role="tab" onClick={() => setVista(id)} aria-selected={vista === id}
+            className={`inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-[#1E3A8A]/40 ${vista === id ? "bg-card text-[#1E3A8A] shadow-[0_1px_3px_rgba(15,23,42,.12)] dark:text-white" : "text-slate-600 hover:text-foreground dark:text-slate-300"}`}>
             <I className="size-4" /> {l}
           </button>
         ))}
@@ -6997,10 +6999,10 @@ function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura =
   };
   const n = (f: (t: Turno) => boolean) => delDia.filter(f).length;
   const resumen = [
-    { l: "Citas", v: delDia.filter((t) => t.estado !== "Cancelado").length },
-    { l: "Presentes", v: n((t) => !!t.llegada && t.estado !== "Atendido") },
-    { l: "Atendidos", v: n((t) => t.estado === "Atendido") },
-    { l: "Ausentes", v: n((t) => t.estado === "Vencida") },
+    { l: "Citas", v: delDia.filter((t) => t.estado !== "Cancelado").length, c: "bg-[#1E3A8A]" },
+    { l: "Presentes", v: n((t) => !!t.llegada && t.estado !== "Atendido"), c: "bg-[#3B5BC0]" },
+    { l: "Atendidos", v: n((t) => t.estado === "Atendido"), c: "bg-[#10B981]" },
+    { l: "Ausentes", v: n((t) => t.estado === "Vencida"), c: "bg-red-500" },
   ];
   const fechaTxt = new Date(`${fecha}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
   return (
@@ -7012,23 +7014,35 @@ function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura =
           <p className="text-xs text-muted-foreground first-letter:uppercase">{fechaTxt}{fecha === hoy ? ` · ${hora12(ahora.hora)} (hora de Colombia)` : ""}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl bg-slate-100 p-1 dark:bg-white/5">
+          <div className="inline-flex h-10 items-center rounded-xl bg-slate-200/60 p-1 dark:bg-white/5">
+            <button type="button" aria-label="Día anterior" onClick={() => setFecha(isoDe(new Date(new Date(`${fecha}T12:00:00`).getTime() - 86400000)))} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-card hover:text-foreground"><ChevronLeft className="size-4" /></button>
             {([[hoy, "Hoy"], [manana, "Mañana"]] as const).map(([f, l]) => (
-              <button key={l} type="button" onClick={() => setFecha(f)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${fecha === f ? "bg-card text-[#1E3A8A] shadow-sm dark:text-white" : "text-muted-foreground"}`}>{l}</button>
+              <button key={l} type="button" onClick={() => setFecha(f)} className={`h-8 rounded-lg px-3 text-xs font-semibold transition ${fecha === f ? "bg-card text-[#1E3A8A] shadow-sm dark:text-white" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
             ))}
+            <button type="button" aria-label="Día siguiente" onClick={() => setFecha(isoDe(new Date(new Date(`${fecha}T12:00:00`).getTime() + 86400000)))} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-card hover:text-foreground"><ChevronRight className="size-4" /></button>
           </div>
-          <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Elegir fecha" />
-          <select value={prof} onChange={(e) => setProf(e.target.value)} className="h-10 rounded-xl border border-border bg-card px-3 text-sm" aria-label="Profesional">
-            <option value="Todos">Todos los profesionales</option>
-            {profs.map((x) => <option key={x.id} value={x.nombre}>{x.nombre}</option>)}
-          </select>
+          <label className="relative inline-flex h-10 items-center">
+            <CalendarDays className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+            <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="h-10 rounded-xl border border-border bg-card pl-9 pr-3 text-sm font-medium" aria-label="Elegir fecha" />
+          </label>
+          <label className="relative inline-flex h-10 items-center">
+            <Stethoscope className="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+            <select value={prof} onChange={(e) => setProf(e.target.value)} className="h-10 max-w-[17rem] appearance-none truncate rounded-xl border border-border bg-card pl-9 pr-8 text-sm font-medium" aria-label="Profesional">
+              <option value="Todos">Todos los profesionales</option>
+              {profs.map((x) => <option key={x.id} value={x.nombre}>{x.nombre}</option>)}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 size-4 text-muted-foreground" />
+          </label>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
         {resumen.map((r) => (
-          <div key={r.l} className="bg-card px-5 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{r.l}</p>
-            <p className="text-2xl font-bold tabular-nums">{r.v}</p>
+          <div key={r.l} className="flex items-center gap-3 bg-card px-5 py-3">
+            <span className={`h-8 w-1 rounded-full ${r.c}`} />
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{r.l}</p>
+              <p className="text-xl font-bold leading-tight tabular-nums">{r.v}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -7049,8 +7063,8 @@ function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura =
               const activa = t.estado === "Pendiente" || t.estado === "Confirmado";
               const esHoy = t.fecha === hoy;
               return (
-                <li key={t.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border p-3 transition ${ev.rojo ? "border-red-300 bg-red-50/60 dark:border-red-500/40 dark:bg-red-500/10" : ev.alerta ? "border-amber-300 bg-amber-50/50 dark:bg-amber-500/10" : "border-border bg-card"}`}>
-                  <span className={`flex w-16 shrink-0 flex-col items-center rounded-xl py-2 leading-none ${ev.rojo ? "bg-red-600 text-white" : "bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}>
+                <li key={t.id} className={`flex flex-wrap items-center gap-3.5 rounded-2xl border p-3 shadow-[0_1px_2px_rgba(15,23,42,.04)] transition hover:border-[#1E3A8A]/25 ${ev.rojo ? "border-red-300 bg-red-50/60 dark:border-red-500/40 dark:bg-red-500/10" : ev.alerta ? "border-amber-300 bg-amber-50/50 dark:bg-amber-500/10" : "border-border bg-card"}`}>
+                  <span className={`flex w-16 shrink-0 flex-col items-center rounded-xl py-2.5 leading-none ring-1 ${ev.rojo ? "bg-red-600 text-white ring-red-600" : "bg-[#EEF2FB] text-[#1E3A8A] ring-[#DBE4FB] dark:bg-white/10 dark:text-sky-200 dark:ring-white/10"}`}>
                     <span className="text-base font-bold tabular-nums">{hora12(t.hora).split(" ")[0]}</span>
                     <span className="mt-1 text-[11px] font-semibold uppercase opacity-80">{hora12(t.hora).split(" ").slice(1).join(" ")}</span>
                   </span>
@@ -7064,10 +7078,10 @@ function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura =
                   </span>
                   {!soloLectura && esHoy && (
                     <div className="flex flex-wrap gap-1.5">
-                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && <button type="button" onClick={() => llego(t)} className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">Llegó</button>}
-                      {activa && !t.enAtencion && <button type="button" onClick={() => atender(t)} className="rounded-lg bg-[#1E3A8A] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#172E6E]">Atender</button>}
-                      {activa && t.enAtencion && <button type="button" onClick={() => finalizar(t)} className="rounded-lg bg-[#047857] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[#065F46]">Finalizar</button>}
-                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && yaPaso(t.fecha, t.hora) && <button type="button" onClick={() => void ausente(t)} className="rounded-lg border border-red-200 bg-card px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">No asistió</button>}
+                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && <button type="button" onClick={() => llego(t)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#CBD5E1] bg-card px-3 text-xs font-semibold text-[#1E3A8A] transition hover:border-[#1E3A8A]/40 hover:bg-[#EEF2FB] dark:text-sky-300"><UserCheck className="size-3.5" /> Llegó</button>}
+                      {activa && !t.enAtencion && <button type="button" onClick={() => atender(t)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#172E6E]"><Stethoscope className="size-3.5" /> Atender</button>}
+                      {activa && t.enAtencion && <button type="button" onClick={() => finalizar(t)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#047857] px-3.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#065F46]"><CheckCircle2 className="size-3.5" /> Finalizar</button>}
+                      {(activa || t.estado === "Vencida") && !t.llegada && !t.ausente && yaPaso(t.fecha, t.hora) && <button type="button" onClick={() => void ausente(t)} className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-red-200 bg-card px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50"><UserX className="size-3.5" /> No asistió</button>}
                     </div>
                   )}
                 </li>
@@ -7075,7 +7089,7 @@ function AgendaPacientesDia({ user, log, turnos, setTurnos, abrir, soloLectura =
             })}
           </ul>
         )}
-        <p className="mt-3 px-1 text-[11px] text-muted-foreground">El contador se actualiza solo con la hora de Colombia. Si a los {GRACIA_CITA_MIN} minutos el paciente no llegó, la cita se marca en rojo como no presentada; puede registrar que llegó tarde o confirmar la inasistencia.</p>
+        <p className="mt-3 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground"><Clock className="size-3.5 shrink-0" /> Contador en vivo con la hora de Colombia. A los {GRACIA_CITA_MIN} min sin llegada, la cita se marca en rojo.</p>
       </div>
     </section>
   );
@@ -7210,27 +7224,35 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:max-w-4xl">
-        <Kpi
-          icon={Users}
-          label="Pacientes"
-          value={String(total)}
-          hint="Registrados en la clínica"
-          desglose={[{ l: "Hoy", v: regHoy.length }, { l: "Este mes", v: regMes.length }, { l: "Total", v: total }]}
-          onClick={() => setDetalle(detalle === "pacientes" ? null : "pacientes")}
-          activo={detalle === "pacientes"}
-        />
-        <Kpi
-          icon={LogIn}
-          label="Usuarios registrados"
-          value={String(usuarios.length)}
-          hint="Con acceso al portal del paciente"
-          tono="violeta"
-          delay={0.05}
-          desglose={[{ l: "Activos", v: usuarios.filter((u) => u.estado === "Activo").length }, { l: "Invitados", v: usuarios.filter((u) => u.estado === "Invitado").length }, { l: "Bloqueados", v: usuarios.filter((u) => u.estado === "Revocado").length }]}
-          onClick={() => setDetalle(detalle === "usuarios" ? null : "usuarios")}
-          activo={detalle === "usuarios"}
-        />
+      <div className="grid gap-3 md:grid-cols-2">
+        {([
+          { k: "pacientes" as const, icon: Users, l: "Pacientes", v: total, h: "Registrados en la clínica", d: [{ l: "Hoy", v: regHoy.length }, { l: "Este mes", v: regMes.length }, { l: "Total", v: total }] },
+          { k: "usuarios" as const, icon: LogIn, l: "Usuarios del portal", v: usuarios.length, h: "Con acceso al portal del paciente", d: [{ l: "Activos", v: usuarios.filter((u) => u.estado === "Activo").length }, { l: "Invitados", v: usuarios.filter((u) => u.estado === "Invitado").length }, { l: "Bloqueados", v: usuarios.filter((u) => u.estado === "Revocado").length }] },
+        ]).map((c) => {
+          const on = detalle === c.k;
+          return (
+            <button key={c.k} type="button" onClick={() => setDetalle(on ? null : c.k)} aria-expanded={on}
+              className={`pn-up group flex items-center gap-4 rounded-2xl border bg-card px-4 py-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,.04)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]/40 ${on ? "border-[#1E3A8A]" : "border-border hover:border-[#1E3A8A]/35"}`}>
+              <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl transition-colors ${on ? "bg-[#1E3A8A] text-white" : "bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}><c.icon className="size-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{c.l}</span>
+                <span className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold tabular-nums tracking-tight">{c.v}</span>
+                  <span className="truncate text-xs text-muted-foreground">{c.h}</span>
+                </span>
+              </span>
+              <span className="hidden shrink-0 divide-x divide-border rounded-xl bg-slate-50 py-1.5 sm:flex dark:bg-white/5">
+                {c.d.map((x) => (
+                  <span key={x.l} className="px-3 text-center">
+                    <span className="block text-sm font-bold tabular-nums">{x.v}</span>
+                    <span className="block text-[11px] font-medium text-muted-foreground">{x.l}</span>
+                  </span>
+                ))}
+              </span>
+              <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${on ? "rotate-180 text-[#1E3A8A]" : ""}`} />
+            </button>
+          );
+        })}
       </div>
 
       {detalle === "pacientes" && (
@@ -7467,7 +7489,7 @@ function PadronTab({ user, log, turnos, abrir, inicial, soloLectura = false }: {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {([["todos", "Todos"], ["atendidos", "Atendidos"], ["sinatender", "Sin atender"], ["pendientes", "Con citas pendientes"], ["cardio", "Cardiología"], ["nefro", "Nefrología"], ["alergias", "Con alergias"], ["sinportal", "Sin portal"], ["inactivos", "Sin venir hace 2+ años"]] as [FiltroPac, string][]).map(([id, l]) => (
-              <button key={id} onClick={() => setFiltro(id)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filtro === id ? "pn-acc-tile text-white" : "bg-secondary text-muted-foreground hover:text-foreground"}`}>{l}</button>
+              <button key={id} onClick={() => setFiltro(id)} aria-pressed={filtro === id} className={`h-9 rounded-lg border px-3 text-xs font-semibold transition ${filtro === id ? "border-[#1E3A8A] bg-[#1E3A8A] text-white" : "border-border bg-card text-slate-600 hover:border-slate-300 hover:text-foreground dark:text-slate-300"}`}>{l}</button>
             ))}
           </div>
           <div className="flex w-full flex-wrap gap-2">
