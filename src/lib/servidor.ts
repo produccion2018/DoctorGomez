@@ -1132,3 +1132,61 @@ export const confirmarCitaLink = createServerFn({ method: "POST" })
     const r = (await sinRomper(av.avisarCitaConfirmada(t))) ?? { correo: false, whatsapp: false };
     return { ok: true, ...r };
   });
+
+/* ───────────── Catálogo de medicamentos de Colombia (INVIMA · Código Único de Medicamentos vigentes) ───────────── */
+export type ProductoInvima = { marca: string; laboratorio: string; forma: string; via: string; presentaciones: string[]; registro: string; generico: boolean };
+export type ConcentracionInvima = { concentracion: string; productos: ProductoInvima[] };
+export type PrincipioInvima = { principio: string; concentraciones: ConcentracionInvima[] };
+const cacheInvima = new Map<string, { t: number; r: PrincipioInvima[] }>();
+const sinTildeInv = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+/** Consulta en vivo el dataset abierto del INVIMA (datos.gov.co, i7cb-raxc) por principio activo o marca. */
+export const buscarMedicamentosInvima = createServerFn({ method: "GET" })
+  .validator((d: { q: string }) => d)
+  .handler(async ({ data }) => {
+    const u = await (await acceso()).usuarioActual();
+    if (!u) return { ok: false as const, error: "Su sesión venció. Vuelva a ingresar." };
+    const termino = sinTildeInv(String(data.q ?? "")).replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+    if (termino.length < 3) return { ok: true as const, principios: [] as PrincipioInvima[] };
+    const c = cacheInvima.get(termino);
+    if (c && Date.now() - c.t < 6 * 3600_000) return { ok: true as const, principios: c.r };
+    // Raíz corta para no fallar por tildes en el registro (ej.: LOSARTÁN)
+    const raiz = termino.split(" ")[0]!.slice(0, 6);
+    const where = `estadocum='Activo' AND (upper(principioactivo) like '%${raiz}%' OR upper(producto) like '%${raiz}%')`;
+    const url = `https://www.datos.gov.co/resource/i7cb-raxc.json?$select=producto,titular,principioactivo,cantidad,unidadmedida,formafarmaceutica,descripcioncomercial,viaadministracion,registrosanitario&$where=${encodeURIComponent(where)}&$limit=1500`;
+    try {
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
+      if (!res.ok) return { ok: false as const, error: "El registro del INVIMA no respondió. Intente de nuevo o formule manualmente." };
+      type FilaCum = { producto?: string; titular?: string; principioactivo?: string; cantidad?: string; unidadmedida?: string; formafarmaceutica?: string; descripcioncomercial?: string; viaadministracion?: string; registrosanitario?: string };
+      const filas = (await res.json()) as FilaCum[];
+      const coincide = (x: FilaCum) => {
+        const t = sinTildeInv(`${x.principioactivo ?? ""} ${x.producto ?? ""}`);
+        return termino.split(" ").every((w) => t.includes(w));
+      };
+      const porPrincipio = new Map<string, Map<string, Map<string, ProductoInvima>>>();
+      for (const f of filas.filter(coincide)) {
+        const principio = (f.principioactivo ?? "").trim();
+        if (!principio || !f.cantidad || !f.unidadmedida) continue;
+        const cant = Number(String(f.cantidad).replace(",", "."));
+        const conc = `${Number.isFinite(cant) ? String(cant).replace(".", ",") : f.cantidad} ${String(f.unidadmedida).trim()}`;
+        const marca = (f.producto ?? "").trim();
+        const lab = (f.titular ?? "").trim();
+        const mp = porPrincipio.get(principio) ?? new Map();
+        const mc = mp.get(conc) ?? new Map<string, ProductoInvima>();
+        const clave = `${marca}|${lab}`;
+        const prod = mc.get(clave) ?? { marca, laboratorio: lab, forma: (f.formafarmaceutica ?? "").trim(), via: (f.viaadministracion ?? "").trim(), presentaciones: [], registro: (f.registrosanitario ?? "").trim(), generico: !marca.includes("®") && sinTildeInv(marca).startsWith(sinTildeInv(principio).slice(0, 5)) };
+        const pres = (f.descripcioncomercial ?? "").trim();
+        if (pres && !prod.presentaciones.includes(pres) && prod.presentaciones.length < 4) prod.presentaciones.push(pres);
+        mc.set(clave, prod); mp.set(conc, mc); porPrincipio.set(principio, mp);
+      }
+      const num = (s: string) => Number(s.split(" ")[0]!.replace(",", ".")) || 0;
+      const principios: PrincipioInvima[] = [...porPrincipio.entries()]
+        .map(([principio, mp]) => ({ principio, concentraciones: [...mp.entries()].map(([concentracion, mc]) => ({ concentracion, productos: [...mc.values()].sort((a, b) => Number(a.generico) - Number(b.generico) || a.marca.localeCompare(b.marca)) })).sort((a, b) => num(a.concentracion) - num(b.concentracion)) }))
+        .sort((a, b) => b.concentraciones.reduce((n, x) => n + x.productos.length, 0) - a.concentraciones.reduce((n, x) => n + x.productos.length, 0))
+        .slice(0, 8);
+      cacheInvima.set(termino, { t: Date.now(), r: principios });
+      return { ok: true as const, principios };
+    } catch {
+      return { ok: false as const, error: "No se pudo consultar el registro del INVIMA en este momento. Puede formular manualmente." };
+    }
+  });

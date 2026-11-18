@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type PointerEvent as RPointerEvent, type ReactNode, type SetStateAction, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { subirAudioServidor, asistenteIA, ejecutarIA } from "@/lib/servidor";
+import { subirAudioServidor, asistenteIA, ejecutarIA, buscarMedicamentosInvima, type PrincipioInvima, type ProductoInvima } from "@/lib/servidor";
 import type { AccionIA } from "@/lib/ia.server";
 import { Electro, InstalarApp } from "@/components/site/PublicLayout";
 import fondoRinonesPanel from "@/assets/fondo-rinones.jpg";
@@ -6784,37 +6784,141 @@ function EstudiosASolicitar({ sel, onChange }: { sel: EstudioSel[]; onChange: (v
 }
 
 /* ---------- Medicamentos a formular (genera la receta al guardar) ---------- */
-function MedicamentosAFormular({ items, onChange }: { items: (ItemReceta & { base?: string })[]; onChange: (v: (ItemReceta & { base?: string })[]) => void }) {
+type ItemRx = ItemReceta & { base?: string; principio?: string; concentracion?: string; marca?: string; laboratorio?: string; registro?: string; forma?: string; dosis?: string; via?: string; frecuencia?: string; duracion?: string; indicaciones?: string };
+const posologiaDe = (it: ItemRx) => {
+  const partes = [it.dosis?.trim(), it.via?.trim() ? `vía ${it.via.trim().toLowerCase()}` : "", it.frecuencia?.trim().toLowerCase(), it.duracion?.trim() ? `por ${it.duracion.trim().toLowerCase()}` : ""].filter(Boolean).join(" ");
+  return [partes, it.indicaciones?.trim()].filter(Boolean).join(". ");
+};
+const tituloCaso = (s: string) => s.toLowerCase().replace(/(^|\s|-|\()([a-záéíóúñ])/g, (_m, a: string, b: string) => a + b.toUpperCase());
+
+/** Ventana para elegir concentración y marca comercial con el registro vigente del INVIMA. */
+function SelectorMarcas({ q, local, onElegir, onCerrar }: { q: string; local?: MedCatalogo | undefined; onElegir: (it: ItemRx) => void; onCerrar: () => void }) {
+  const [estado, setEstado] = useState<{ cargando: boolean; error?: string; principios: PrincipioInvima[] }>({ cargando: true, principios: [] });
+  const [pi, setPi] = useState(0);
+  const [conc, setConc] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState("");
+  useEffect(() => {
+    let vivo = true;
+    void buscarMedicamentosInvima({ data: { q } }).then((r) => { if (!vivo) return; setEstado(r.ok ? { cargando: false, principios: r.principios } : { cargando: false, error: r.error, principios: [] }); }).catch(() => vivo && setEstado({ cargando: false, error: "No se pudo consultar el registro del INVIMA en este momento.", principios: [] }));
+    return () => { vivo = false; };
+  }, [q]);
+  const p = estado.principios[pi];
+  const c = p?.concentraciones.find((x) => x.concentracion === conc);
+  const productos = (c?.productos ?? []).filter((x) => !filtro || norm(`${x.marca} ${x.laboratorio}`).includes(norm(filtro)));
+  const nombreP = p ? tituloCaso(p.principio) : local?.nombre ?? tituloCaso(q);
+  const agregar = (prod: ProductoInvima | null, concTxt: string) => {
+    const forma = prod?.forma ? tituloCaso(prod.forma) : "";
+    onElegir({
+      base: local?.nombre ?? nombreP, principio: nombreP, concentracion: concTxt,
+      droga: `${nombreP} ${concTxt}${prod && !prod.generico ? ` (${prod.marca})` : ""}`.trim(),
+      ...(prod && !prod.generico ? { marca: prod.marca, laboratorio: prod.laboratorio, registro: prod.registro } : {}),
+      presentacion: forma, forma, via: prod?.via ? tituloCaso(prod.via) : local?.vias[0] ?? "", cantidad: "1 caja", posologia: "", dosis: "", frecuencia: "", duracion: "", indicaciones: "",
+    });
+  };
+  return (
+    <Modal titulo={`Formular ${nombreP}`} onCerrar={onCerrar}>
+      {estado.cargando ? (
+        <p className="flex items-center gap-2 py-8 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Consultando el registro vigente del INVIMA…</p>
+      ) : !p ? (
+        <div className="space-y-4">
+          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 ring-1 ring-amber-200">{estado.error ?? `No se encontraron registros vigentes del INVIMA para «${q}».`} Puede formularlo manualmente.</p>
+          {local && local.dosis.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Concentraciones de referencia (sin verificar en el INVIMA)</p>
+              <div className="flex flex-wrap gap-1.5">{local.dosis.map((d) => <button key={d} type="button" onClick={() => agregar(null, d)} className="h-9 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-[#EEF2FB]">{d}</button>)}</div>
+            </div>
+          )}
+          <div className="flex justify-end"><Button type="button" className="rounded-xl" onClick={() => agregar(null, "")}><Plus className="size-4" /> Formular manualmente</Button></div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {estado.principios.length > 1 && (
+            <div>
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">1 · Principio activo</p>
+              <div className="flex flex-wrap gap-1.5">{estado.principios.map((x, k) => <button key={x.principio} type="button" onClick={() => { setPi(k); setConc(null); }} className={`rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ${k === pi ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border hover:bg-[#EEF2FB]"}`}>{tituloCaso(x.principio)}</button>)}</div>
+            </div>
+          )}
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{estado.principios.length > 1 ? "2" : "1"} · Concentración registrada en Colombia</p>
+            <div className="flex flex-wrap gap-1.5">
+              {p.concentraciones.map((x) => (
+                <button key={x.concentracion} type="button" onClick={() => setConc(x.concentracion)} className={`h-9 rounded-xl px-3 text-sm font-semibold ring-1 transition ${conc === x.concentracion ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border hover:bg-[#EEF2FB]"}`}>
+                  {x.concentracion} <span className={`ml-1 text-[11px] font-medium ${conc === x.concentracion ? "text-white/75" : "text-muted-foreground"}`}>{x.productos.length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {c && (
+            <div>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{estado.principios.length > 1 ? "3" : "2"} · Marca comercial ({c.productos.length})</p>
+                {c.productos.length > 6 && <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Filtrar marca o laboratorio" className="h-9 w-56 rounded-xl border border-border bg-card px-3 text-sm" />}
+              </div>
+              <button type="button" onClick={() => agregar(null, c.concentracion)} className="mb-2 flex w-full items-center gap-3 rounded-xl border border-dashed border-[#1E3A8A]/40 bg-[#EEF2FB]/50 px-3.5 py-2.5 text-left text-sm hover:bg-[#EEF2FB]">
+                <Pill className="size-4 text-[#1E3A8A]" /><span className="flex-1"><b>Formular por nombre genérico</b> · {nombreP} {c.concentracion}</span><ChevronRight className="size-4 text-muted-foreground" />
+              </button>
+              <ul className="max-h-[22rem] space-y-1.5 overflow-y-auto pr-1">
+                {productos.map((x) => (
+                  <li key={`${x.marca}-${x.laboratorio}`}>
+                    <button type="button" onClick={() => agregar(x, c.concentracion)} className="flex w-full items-start gap-3 rounded-xl border border-border px-3.5 py-2.5 text-left transition hover:border-[#1E3A8A]/40 hover:bg-[#F8FAFF]">
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-1.5"><span className="text-sm font-semibold">{x.marca}</span>{x.generico && <span className="rounded bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">Genérico</span>}</span>
+                        <span className="block text-xs text-muted-foreground">{tituloCaso(x.laboratorio)} · {tituloCaso(x.forma)}{x.via ? ` · ${tituloCaso(x.via)}` : ""}</span>
+                        {x.presentaciones.length > 0 && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{x.presentaciones.join(" · ")}</span>}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">{x.registro}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="text-[11px] text-muted-foreground">Fuente: Código Único de Medicamentos vigentes del INVIMA (datos abiertos de Colombia), consultado en vivo.</p>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function MedicamentosAFormular({ items, onChange }: { items: ItemRx[]; onChange: (v: ItemRx[]) => void }) {
   const [q, setQ] = useState("");
-  const set = (k: number, patch: Partial<ItemReceta>) => onChange(items.map((x, j) => (j === k ? { ...x, ...patch } : x)));
+  const [selector, setSelector] = useState<{ q: string; local?: MedCatalogo | undefined } | null>(null);
+  const set = (k: number, patch: Partial<ItemRx>) => onChange(items.map((x, j) => (j === k ? { ...x, ...patch } : x)));
+  const campo = (l: string, el: ReactNode) => <label className="block space-y-1"><span className="text-[11px] font-semibold text-muted-foreground">{l}</span>{el}</label>;
   return (
     <div className="space-y-3">
-      <BuscadorMedicamento value={q} onChange={setQ} placeholder="Escriba el principio activo o la marca: losar, metfor, dolex…" onElegir={(m) => { onChange([...items, { base: m.nombre, droga: `${m.nombre}${m.dosis[0] ? ` ${m.dosis[0]}` : ""}`, presentacion: "Tabletas", cantidad: "1 caja", posologia: "" }]); setQ(""); }} />
-      {items.length === 0 ? <p className="text-xs text-muted-foreground">Al guardar se genera la receta con estos medicamentos.</p> : (
+      <BuscadorMedicamento value={q} onChange={setQ} placeholder="Escriba el principio activo o la marca: enal, losar, dolex…" onElegir={(m) => { setSelector({ q: m.nombre, local: m }); setQ(""); }} />
+      {q.trim().length >= 3 && (
+        <button type="button" onClick={() => { setSelector({ q: q.trim() }); setQ(""); }} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">
+          <Search className="size-3.5" /> Buscar «{q.trim()}» en el registro del INVIMA (principio activo o marca)
+        </button>
+      )}
+      {selector && <SelectorMarcas q={selector.q} local={selector.local} onCerrar={() => setSelector(null)} onElegir={(it) => { onChange([...items, it]); setSelector(null); }} />}
+      {items.length === 0 ? <p className="text-xs text-muted-foreground">Al elegir un medicamento se muestran sus concentraciones y marcas registradas en Colombia. Al guardar se genera la receta.</p> : (
         <ul className="space-y-2.5">
-          {items.map((it, k) => {
-            const cat = it.base ? medicamentoPorNombre(it.base) : undefined;
-            return (
-              <li key={k} className="rounded-xl border border-border p-3">
-                <div className="flex items-center gap-2">
-                  <input value={it.droga} onChange={(e) => set(k, { droga: e.target.value })} className={inp + " h-10 flex-1 font-semibold"} placeholder="Principio activo y concentración" />
-                  <button type="button" aria-label="Quitar" onClick={() => onChange(items.filter((_, j) => j !== k))} className="grid size-10 place-items-center rounded-xl border border-border text-muted-foreground hover:text-foreground"><X className="size-4" /></button>
+          {items.map((it, k) => (
+            <li key={k} className="rounded-2xl border border-border p-3.5">
+              <div className="flex items-start gap-2">
+                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#D1FAE5] text-[#065F46]"><Pill className="size-4" /></span>
+                <div className="min-w-0 flex-1">
+                  <input value={it.droga} onChange={(e) => set(k, { droga: e.target.value })} className="w-full bg-transparent text-sm font-semibold outline-none" placeholder="Medicamento" />
+                  <p className="text-xs text-muted-foreground">{[it.principio && `Principio activo: ${it.principio}`, it.concentracion, it.marca && `Marca: ${it.marca}`, it.laboratorio && tituloCaso(it.laboratorio), it.registro].filter(Boolean).join(" · ") || "Formulado manualmente"}</p>
                 </div>
-                {cat && (
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {cat.dosis.map((d) => <button key={d} type="button" onClick={() => set(k, { droga: `${cat.nombre} ${d}${/\(([^)]+)\)$/.exec(it.droga)?.[0] ? ` ${/\(([^)]+)\)$/.exec(it.droga)![0]}` : ""}` })} className="rounded-lg bg-[#EEF2FB] px-2 py-0.5 text-[11px] font-semibold text-[#1E3A8A]">{d}</button>)}
-                    {(cat.marcas ?? []).length > 0 && <span className="ml-1 text-[11px] text-muted-foreground">Marcas en Colombia:</span>}
-                    {(cat.marcas ?? []).map((mc) => <button key={mc} type="button" onClick={() => set(k, { droga: `${it.droga.replace(/\s*\([^)]*\)$/, "")} (${mc})` })} className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-200">{mc}</button>)}
-                  </div>
-                )}
-                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_2fr_1fr]">
-                  <TextoPredictivo value={it.presentacion} onChange={(v) => set(k, { presentacion: v })} sugerencias={(qq) => sugerirFrase([["Tabletas", "Cápsulas", "Tabletas recubiertas", "Jarabe", "Suspensión oral", "Solución inyectable", "Ampollas", "Inhalador", "Crema", "Gotas", "Parches", "Sobres"]], qq)} vacias={["Tabletas", "Cápsulas", "Jarabe", "Ampollas", "Inhalador"]} placeholder="Presentación" />
-                  <TextoPredictivo value={it.posologia} onChange={(v) => set(k, { posologia: v })} sugerencias={(qq) => sugerirFrase([FRECUENCIAS.map((f) => `1 tableta vía oral ${f.toLowerCase()}`), FRECUENCIAS, DURACIONES.map((d) => `por ${d}`)], qq, 8)} vacias={["1 tableta vía oral cada 12 horas", "1 tableta vía oral cada 24 horas", "1 tableta vía oral cada 8 horas"]} placeholder="Dosis, vía, frecuencia y duración" />
-                  <input value={it.cantidad} onChange={(e) => set(k, { cantidad: e.target.value })} className={inp + " h-11"} placeholder="Cantidad" />
-                </div>
-              </li>
-            );
-          })}
+                <button type="button" onClick={() => setSelector({ q: it.principio ?? it.base ?? it.droga, local: it.base ? medicamentoPorNombre(it.base) : undefined })} className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-[#1E3A8A] hover:bg-[#EEF2FB] dark:text-sky-300">Cambiar marca</button>
+                <button type="button" aria-label="Quitar" onClick={() => onChange(items.filter((_, j) => j !== k))} className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-secondary"><X className="size-4" /></button>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                {campo("Forma farmacéutica", <TextoPredictivo value={it.presentacion} onChange={(v) => set(k, { presentacion: v, forma: v })} sugerencias={(qq) => sugerirFrase([["Tableta", "Tableta recubierta", "Cápsula", "Jarabe", "Suspensión oral", "Solución inyectable", "Ampolla", "Inhalador", "Crema", "Gotas", "Parche", "Sobre"]], qq)} vacias={["Tableta", "Cápsula", "Jarabe", "Solución inyectable"]} placeholder="Tableta" />)}
+                {campo("Dosis", <TextoPredictivo value={it.dosis ?? ""} onChange={(v) => set(k, { dosis: v })} sugerencias={(qq) => sugerirFrase([["1 tableta", "1/2 tableta", "2 tabletas", "1 cápsula", "5 mL", "10 mL", "1 ampolla", "2 inhalaciones", "1 gota"]], qq)} vacias={["1 tableta", "1/2 tableta", "1 cápsula", "5 mL"]} placeholder="1 tableta" />)}
+                {campo("Vía", <TextoPredictivo value={it.via ?? ""} onChange={(v) => set(k, { via: v })} sugerencias={(qq) => sugerirFrase([VIAS], qq)} vacias={VIAS.slice(0, 5)} placeholder="Oral" />)}
+                {campo("Frecuencia", <TextoPredictivo value={it.frecuencia ?? ""} onChange={(v) => set(k, { frecuencia: v })} sugerencias={(qq) => sugerirFrase([FRECUENCIAS], qq, 8)} vacias={FRECUENCIAS.slice(0, 6)} placeholder="Cada 12 horas" />)}
+                {campo("Duración", <TextoPredictivo value={it.duracion ?? ""} onChange={(v) => set(k, { duracion: v })} sugerencias={(qq) => sugerirFrase([DURACIONES], qq, 8)} vacias={DURACIONES.slice(0, 6)} placeholder="30 días" />)}
+                {campo("Cantidad a dispensar", <input value={it.cantidad} onChange={(e) => set(k, { cantidad: e.target.value })} className={inp} placeholder="Ej.: 60 tabletas" />)}
+                <div className="sm:col-span-3">{campo("Indicaciones al paciente", <input value={it.indicaciones ?? ""} onChange={(e) => set(k, { indicaciones: e.target.value })} className={inp} placeholder="Ej.: tomar con alimentos" />)}</div>
+              </div>
+              {posologiaDe(it) && <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:bg-white/5 dark:text-slate-300"><b>En la receta:</b> {it.droga} · {posologiaDe(it)}</p>}
+            </li>
+          ))}
         </ul>
       )}
     </div>
@@ -6897,7 +7001,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
   }), [evolsPrev]);
   const setTxt = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
   const [estudiosSel, setEstudiosSel] = useState<EstudioSel[]>([]);
-  const [rxItems, setRxItems] = useState<(ItemReceta & { base?: string })[]>([]);
+  const [rxItems, setRxItems] = useState<ItemRx[]>([]);
   const [recetasTodas, setRecetasTodas] = useDato<Receta[]>(KEY_RECETAS, []);
   const [firmasEv] = useDato<Record<string, string>>(KEY_FIRMAS, {});
   const [, setPedidosLab] = useDato<PedidoLab[]>(KEY_LAB, []);
@@ -6916,7 +7020,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
     const id = nuevoId();
     const ahora = new Date().toISOString();
     const ordenes = ORDEN_TIPOS.filter((t) => estudiosSel.some((x) => x.tipo === t)).map((t) => ({ tipo: t, estudios: estudiosSel.filter((x) => x.tipo === t).map((x) => (x.grupo ? { nombre: x.nombre, grupo: x.grupo } : { nombre: x.nombre })) }));
-    const validosRx = rxItems.filter((x) => x.droga.trim()).map(({ base: _b, ...x }) => x);
+    const validosRx = rxItems.filter((x) => x.droga.trim()).map((x) => ({ droga: x.droga.trim(), presentacion: x.presentacion, cantidad: x.cantidad, posologia: posologiaDe(x) || x.posologia }));
     let recetaId: string | undefined;
     if (validosRx.length) {
       const med = datosMedico(user, firmasEv);
