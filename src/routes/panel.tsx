@@ -6803,6 +6803,7 @@ function SelectorMarcas({ q, local, onElegir, onCerrar }: { q: string; local?: M
     return () => { vivo = false; };
   }, [q]);
   const p = estado.principios[pi];
+  useEffect(() => { if (p && p.concentraciones.length === 1 && !conc) setConc(p.concentraciones[0]!.concentracion); }, [p, conc]);
   const c = p?.concentraciones.find((x) => x.concentracion === conc);
   const productos = (c?.productos ?? []).filter((x) => !filtro || norm(`${x.marca} ${x.laboratorio}`).includes(norm(filtro)));
   const nombreP = p ? tituloCaso(p.principio) : local?.nombre ?? tituloCaso(q);
@@ -6832,48 +6833,77 @@ function SelectorMarcas({ q, local, onElegir, onCerrar }: { q: string; local?: M
         </div>
       ) : (
         <div className="space-y-5">
+          {/* Encabezado del medicamento */}
+          <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-gradient-to-br from-[#EEF2FB] to-white p-4 dark:from-white/5 dark:to-transparent">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#1E3A8A] text-white shadow-[0_8px_18px_-10px_rgba(30,58,138,.8)]"><Pill className="size-5" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold tracking-tight">{nombreP}</p>
+              <p className="text-xs text-muted-foreground">{p.concentraciones.length} {p.concentraciones.length === 1 ? "concentración" : "concentraciones"} · {p.concentraciones.reduce((n, x) => n + x.productos.length, 0)} productos registrados</p>
+            </div>
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-[#D1FAE5] px-2.5 py-1 text-[11px] font-semibold text-[#065F46] sm:inline-flex"><ShieldCheck className="size-3.5" /> Registro INVIMA vigente</span>
+          </div>
+
           {estado.principios.length > 1 && (
             <div>
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">1 · Principio activo</p>
-              <div className="flex flex-wrap gap-1.5">{estado.principios.map((x, k) => <button key={x.principio} type="button" onClick={() => { setPi(k); setConc(null); }} className={`rounded-xl px-3 py-1.5 text-xs font-semibold ring-1 ${k === pi ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border hover:bg-[#EEF2FB]"}`}>{tituloCaso(x.principio)}</button>)}</div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Principio activo</p>
+              <div className="flex flex-wrap gap-1.5">{estado.principios.map((x, k) => <button key={x.principio} type="button" onClick={() => { setPi(k); setConc(null); }} className={`rounded-xl px-3 py-2 text-xs font-semibold ring-1 transition ${k === pi ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border hover:bg-[#EEF2FB]"}`}>{tituloCaso(x.principio)}</button>)}</div>
             </div>
           )}
+
           <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{estado.principios.length > 1 ? "2" : "1"} · Concentración registrada en Colombia</p>
-            <div className="flex flex-wrap gap-1.5">
-              {p.concentraciones.map((x) => (
-                <button key={x.concentracion} type="button" onClick={() => setConc(x.concentracion)} className={`h-9 rounded-xl px-3 text-sm font-semibold ring-1 transition ${conc === x.concentracion ? "bg-[#1E3A8A] text-white ring-[#1E3A8A]" : "bg-card ring-border hover:bg-[#EEF2FB]"}`}>
-                  {x.concentracion} <span className={`ml-1 text-[11px] font-medium ${conc === x.concentracion ? "text-white/75" : "text-muted-foreground"}`}>{x.productos.length}</span>
-                </button>
-              ))}
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><span className={`flex size-6 items-center justify-center rounded-lg text-[11px] font-bold text-white ${conc ? "bg-[#10B981]" : "bg-[#1E3A8A]"}`}>{conc ? <Check className="size-3.5" /> : 1}</span> Elija la concentración</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {p.concentraciones.map((x) => {
+                const on = conc === x.concentracion;
+                return (
+                  <button key={x.concentracion} type="button" onClick={() => { setConc(x.concentracion); setFiltro(""); }}
+                    className={`group rounded-2xl border p-3 text-left transition ${on ? "border-[#1E3A8A] bg-[#1E3A8A] text-white shadow-[0_10px_22px_-14px_rgba(30,58,138,.9)]" : "border-border bg-card hover:-translate-y-0.5 hover:border-[#1E3A8A]/40 hover:shadow-sm"}`}>
+                    <span className="block text-lg font-bold tabular-nums tracking-tight">{x.concentracion}</span>
+                    <span className={`block text-[11px] font-medium ${on ? "text-white/80" : "text-muted-foreground"}`}>{x.productos.length} {x.productos.length === 1 ? "producto" : "productos"}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-          {c && (
+
+          {c ? (
             <div>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{estado.principios.length > 1 ? "3" : "2"} · Marca comercial ({c.productos.length})</p>
-                {c.productos.length > 6 && <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Filtrar marca o laboratorio" className="h-9 w-56 rounded-xl border border-border bg-card px-3 text-sm" />}
+                <p className="flex items-center gap-2 text-sm font-semibold"><span className="flex size-6 items-center justify-center rounded-lg bg-[#1E3A8A] text-[11px] font-bold text-white">2</span> Elija la marca comercial <span className="text-xs font-medium text-muted-foreground">({c.productos.length})</span></p>
+                {c.productos.length > 5 && (
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Marca o laboratorio" className="h-9 w-52 rounded-xl border border-border bg-card pl-8 pr-3 text-sm" />
+                  </div>
+                )}
               </div>
-              <button type="button" onClick={() => agregar(null, c.concentracion)} className="mb-2 flex w-full items-center gap-3 rounded-xl border border-dashed border-[#1E3A8A]/40 bg-[#EEF2FB]/50 px-3.5 py-2.5 text-left text-sm hover:bg-[#EEF2FB]">
-                <Pill className="size-4 text-[#1E3A8A]" /><span className="flex-1"><b>Formular por nombre genérico</b> · {nombreP} {c.concentracion}</span><ChevronRight className="size-4 text-muted-foreground" />
+              <button type="button" onClick={() => agregar(null, c.concentracion)} className="group mb-2 flex w-full items-center gap-3 rounded-2xl border border-[#1E3A8A]/25 bg-[#EEF2FB]/60 px-3.5 py-3 text-left transition hover:border-[#1E3A8A]/50 hover:bg-[#EEF2FB] dark:bg-white/5">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#1E3A8A] ring-1 ring-[#DBE4FB] dark:bg-white/10"><Pill className="size-4" /></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Formular por nombre genérico</span><span className="block text-xs text-muted-foreground">{nombreP} {c.concentracion} · el paciente elige la marca en la farmacia</span></span>
+                <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#1E3A8A]" />
               </button>
-              <ul className="max-h-[22rem] space-y-1.5 overflow-y-auto pr-1">
+              <ul className="max-h-[22rem] space-y-2 overflow-y-auto pr-1">
                 {productos.map((x) => (
                   <li key={`${x.marca}-${x.laboratorio}`}>
-                    <button type="button" onClick={() => agregar(x, c.concentracion)} className="flex w-full items-start gap-3 rounded-xl border border-border px-3.5 py-2.5 text-left transition hover:border-[#1E3A8A]/40 hover:bg-[#F8FAFF]">
+                    <button type="button" onClick={() => agregar(x, c.concentracion)} className="group flex w-full items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-3 text-left transition hover:border-[#1E3A8A]/40 hover:shadow-[0_6px_16px_-12px_rgba(15,23,42,.35)]">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold text-slate-600 dark:bg-white/10 dark:text-slate-200">{iniciales(tituloCaso(x.laboratorio))}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-1.5"><span className="text-sm font-semibold">{x.marca}</span>{x.generico && <span className="rounded bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">Genérico</span>}</span>
-                        <span className="block text-xs text-muted-foreground">{tituloCaso(x.laboratorio)} · {tituloCaso(x.forma)}{x.via ? ` · ${tituloCaso(x.via)}` : ""}</span>
+                        <span className="flex flex-wrap items-center gap-1.5"><span className="text-sm font-semibold">{x.marca}</span>{x.generico && <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">Genérico</span>}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{tituloCaso(x.laboratorio)} · {tituloCaso(x.forma)}{x.via ? ` · ${tituloCaso(x.via)}` : ""}</span>
                         {x.presentaciones.length > 0 && <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{x.presentaciones.join(" · ")}</span>}
                       </span>
-                      <span className="shrink-0 text-[11px] text-muted-foreground">{x.registro}</span>
+                      <span className="hidden shrink-0 text-right sm:block"><span className="block text-[11px] font-medium text-muted-foreground">Registro</span><span className="block text-[11px] font-semibold tabular-nums text-foreground/80">{x.registro.replace("INVIMA ", "")}</span></span>
+                      <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#1E3A8A]" />
                     </button>
                   </li>
                 ))}
+                {productos.length === 0 && <li className="py-6 text-center text-sm text-muted-foreground">Ninguna marca coincide con «{filtro}».</li>}
               </ul>
             </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-border py-5 text-center text-xs text-muted-foreground">Elija una concentración para ver las marcas comerciales disponibles en Colombia.</p>
           )}
-          <p className="text-[11px] text-muted-foreground">Fuente: Código Único de Medicamentos vigentes del INVIMA (datos abiertos de Colombia), consultado en vivo.</p>
+          <p className="flex items-center gap-1.5 border-t border-border pt-3 text-[11px] text-muted-foreground"><ShieldCheck className="size-3.5 shrink-0" /> Fuente: Código Único de Medicamentos vigentes del INVIMA (datos abiertos de Colombia), consultado en vivo.</p>
         </div>
       )}
     </Modal>
