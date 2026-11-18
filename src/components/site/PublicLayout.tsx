@@ -836,7 +836,9 @@ const TEMAS_EJEMPLO: TemaGenerado[] = [
 function listaMusica(sitio: DatosSitio): Tema[] {
   if (!sitio.musicaActiva) return [];
   const propias: Tema[] = sitio.pistas.filter((p) => p.url).map((p) => ({ tipo: "audio", ...p }));
-  return [...propias, ...(sitio.musicaEjemplo ? TEMAS_EJEMPLO : [])];
+  // Con temas propios se escuchan solo esos; las pistas de ejemplo quedan solo como reemplazo si no hay ninguno.
+  if (propias.length) return propias;
+  return sitio.musicaEjemplo ? TEMAS_EJEMPLO : [];
 }
 
 const midiAHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);

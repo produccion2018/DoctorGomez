@@ -1293,7 +1293,7 @@ export const SITIO_BASE: DatosSitio = {
   email: "",
   semana: [1, 2, 3, 4, 5, 6, 0].map((dia) => ({ dia, abierto: false, desde: "08:00", hasta: "18:00" })),
   musicaActiva: true,
-  musicaEjemplo: true,
+  musicaEjemplo: false,
   pistas: [],
 };
 

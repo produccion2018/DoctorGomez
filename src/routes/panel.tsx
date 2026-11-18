@@ -12004,10 +12004,10 @@ function SitioTab({ log }: { log: LogFn }) {
         </Seccion>
       </div>
 
-      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor del pie de la web. Suba sus temas o use las pistas de ejemplo.">
+      <Seccion icon={Music2} titulo="Música de espera" sub="El reproductor de la web. Suba uno, dos o los temas que quiera: se escuchan en la web en el orden de la lista.">
         <div className="flex flex-wrap gap-x-8 gap-y-3 rounded-2xl bg-secondary/40 p-4">
           <Interruptor on={d.musicaActiva} onChange={(v) => set({ musicaActiva: v })} label="Mostrar el reproductor en la web" />
-          <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Incluir las 4 pistas de ejemplo" />
+          <Interruptor on={d.musicaEjemplo} onChange={(v) => set({ musicaEjemplo: v })} label="Usar pistas de ejemplo solo si no hay temas propios" />
           <span className="ml-auto self-center text-xs text-muted-foreground">{d.musicaActiva ? `${total} ${total === 1 ? "tema" : "temas"} en la web` : "Reproductor oculto"}</span>
         </div>
 
@@ -12015,7 +12015,7 @@ function SitioTab({ log }: { log: LogFn }) {
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sus temas</p>
             {d.pistas.length === 0 ? (
-              <Vacio icon={Music2} titulo="Todavía no subió música" texto="Agregue su primer tema con el formulario. Mientras tanto se usan las pistas de ejemplo." />
+              <Vacio icon={Music2} titulo="Todavía no subió música" texto="Agregue su primer tema con el formulario. Apenas lo agregue, se escucha en la web." />
             ) : (
               <ol className="space-y-2">
                 {d.pistas.map((p, i) => (
