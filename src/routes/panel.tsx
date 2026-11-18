@@ -6900,6 +6900,7 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
   const [rxItems, setRxItems] = useState<(ItemReceta & { base?: string })[]>([]);
   const [recetasTodas, setRecetasTodas] = useDato<Receta[]>(KEY_RECETAS, []);
   const [firmasEv] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const [, setPedidosLab] = useDato<PedidoLab[]>(KEY_LAB, []);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
   const s = num(f.s), d = num(f.d);
   const pr = s && d ? clasificarPresion(s, d) : null;
@@ -6928,6 +6929,11 @@ function FormEvolucion({ p, user, onGuardar, onCancelar, tallaPrevia, triage }: 
       })) as Receta;
       setRecetasTodas((prev) => [r, ...prev]);
       recetaId = r.id;
+    }
+    const labs = estudiosSel.filter((x) => x.tipo === "Laboratorio clínico").map((x) => x.nombre);
+    if (labs.length) {
+      const ped = JSON.parse(JSON.stringify({ id: nuevoId(), fecha: ahora, pacienteId: p.id, paciente: p.nombre, doctor: user.nombre, paneles: [], examenes: labs, urgente: false, ayuno: labs.some((x) => /gluc|glic|lip|colest|triglic|perfil/i.test(x)), estado: "Pedido", resultados: {}, nota: `Solicitado en la consulta${servicio.trim() ? ` de ${servicio.trim()}` : ""}`, evolucionId: id })) as PedidoLab;
+      setPedidosLab((prev) => [ped, ...prev]);
     }
     const ev = JSON.parse(
       JSON.stringify({
@@ -8417,6 +8423,8 @@ const PANELES_LAB: { id: string; nombre: string; esp: "Nefrología" | "Cardiolog
   },
 ];
 const DET_TODAS = PANELES_LAB.flatMap((p) => p.det);
+/** Nombres de todo lo pedido en una orden de laboratorio (paneles y exámenes sueltos). */
+const nombresPedidoLab = (p: PedidoLab) => [...p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).filter((x): x is string => !!x), ...(p.examenes ?? [])];
 function flagDe(d: Determinacion, v: number): "alto" | "bajo" | "ok" {
   if (d.max !== undefined && v > d.max) return "alto";
   if (d.min !== undefined && v < d.min) return "bajo";
@@ -8671,6 +8679,7 @@ function htmlOrdenLab(p: PedidoLab, med: ReturnType<typeof datosMedico>, firma?:
 <h1>HEGO · Centro de especialidades médicas · Orden de laboratorio</h1><p class="m">${fechaDe(p.fecha)} · ${med.nombre} · ${med.matricula}</p>
 <p><b>Paciente:</b> ${p.paciente}</p>${p.urgente ? `<span class="tag">URGENTE</span>` : ""}${p.ayuno ? `<span class="tag" style="background:#e0f2fe;color:#075985">Con ayuno de 8 a 12 h</span>` : ""}
 ${paneles.map((x) => `<div class="box"><h3>${x.nombre}</h3><p>${x.det.map((d) => d.nombre).join(" · ")}</p></div>`).join("")}
+${p.examenes?.length ? `<div class="box"><h3>Exámenes solicitados</h3><p>${p.examenes.join(" · ")}</p></div>` : ""}
 ${p.nota ? `<p class="m" style="margin-top:14px"><b>Nota:</b> ${p.nota}</p>` : ""}
 <div class="firme">${firma ? `<img src="${firma}"><br>` : ""}<div>${med.nombre}<br>${med.matricula}</div></div><script>setTimeout(()=>window.print(),300)</script></body></html>`;
 }
@@ -8709,20 +8718,22 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
     e.preventDefault();
     if (!cargando) return;
     const res: Record<string, number> = {};
+    const resTxt: Record<string, string> = {};
     Object.entries(valores).forEach(([k, v]) => {
+      if (k.startsWith("ex:")) { if (v.trim()) resTxt[k.slice(3)] = v.trim(); return; }
       const n = Number(v.replace(",", "."));
       if (v.trim() !== "" && !Number.isNaN(n)) res[k] = n;
     });
-    const act: PedidoLab = { ...cargando, resultados: res, estado: "Resultado", fechaResultado: new Date().toISOString() };
+    const act: PedidoLab = { ...cargando, resultados: res, ...(Object.keys(resTxt).length ? { resultadosTexto: resTxt } : {}), estado: "Resultado", fechaResultado: new Date().toISOString() };
     setPedidos((prev) => prev.map((x) => (x.id === act.id ? act : x)));
     // Se suma como estudio: aparece en la historia clínica y en el portal del paciente
     const vals = JSON.parse(JSON.stringify({ creatinina: res["creatinina"], egfr: res["egfr"], potasio: res["potasio"], urea: res["urea"], proteinuria: res["proteinuria"], hemoglobina: res["hemoglobina"], ldl: res["ldl"] })) as ValoresEstudio;
-    const nombres = act.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).filter(Boolean).join(", ");
-    const informe = Object.entries(res)
+    const nombres = nombresPedidoLab(act).join(", ");
+    const informe = [...Object.entries(res)
       .map(([k, v]) => {
         const d = DET_TODAS.find((x) => x.id === k);
         return d ? `${d.nombre}: ${v} ${d.unidad}${flagDe(d, v) !== "ok" ? ` (${flagDe(d, v)})` : ""}` : "";
-      })
+      }), ...Object.entries(resTxt).map(([k, v]) => `${k}: ${v}`)]
       .filter(Boolean)
       .join(" · ");
     const est: Estudio = {
@@ -8833,6 +8844,19 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
               </div>
             );
           })}
+          {(cargando.examenes ?? []).length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Exámenes solicitados en la consulta</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {cargando.examenes!.map((ex) => (
+                  <label key={ex} className="block">
+                    <span className="mb-1 block text-xs font-medium text-muted-foreground">{ex}</span>
+                    <input value={valores[`ex:${ex}`] ?? ""} onChange={(e) => setValores({ ...valores, [`ex:${ex}`]: e.target.value })} className={inp} placeholder="Resultado (ej.: 1,1 mg/dL · negativo)" />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex justify-end"><Button type="submit" className="rounded-xl px-6"><Check className="size-4" /> Guardar resultados</Button></div>
         </form>
       )}
@@ -8862,7 +8886,7 @@ function LaboratorioTab({ user, log, turnos, inicial }: { user: SessionUser; log
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_LAB[p.estado]}`}>{p.estado}</span>
                       {p.urgente && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold text-white">Urgente</span>}
                     </p>
-                    <p className="text-xs text-muted-foreground">{fechaHora(p.fecha)} · {nombreCorto(p.doctor)} · {p.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}</p>
+                    <p className="text-xs text-muted-foreground">{fechaHora(p.fecha)} · {nombreCorto(p.doctor)} · {nombresPedidoLab(p).join(", ")}</p>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {p.estado === "Pedido" && (
@@ -9747,7 +9771,7 @@ function AnaliticaTab({ log, turnos }: { log: LogFn; turnos: Turno[] }) {
   const filasEvol = () => evR.map((e) => ({ Fecha: fechaHora(e.fecha), Paciente: e.paciente, Especialidad: e.especialidad ?? "", Doctor: e.doctor, Motivo: e.motivo, "Presión arterial": e.signos.sistolica ? `${e.signos.sistolica}/${e.signos.diastolica}` : "", "Diagnósticos": dxDe(e).map((d) => (d.codigo ? `${d.codigo} ${d.descripcion}` : d.descripcion)).join(" | ") }));
   const filasPac = () => pacientes.map((p) => ({ Nombre: p.nombre, "Cédula": p.dni ?? "", "Teléfono": p.telefono ?? "", Correo: p.email ?? "", EPS: p.ficha?.obraSocial || "Particular", Edad: edadDe(p.ficha?.nacimiento) ?? "", Antecedentes: (p.ficha?.antecedentes ?? []).join(" | "), Portal: p.portal ? "Sí" : "No" }));
   const filasRec = () => recetas.filter((r) => enRango(r.fecha) && delDoc(r.doctor)).map((r) => ({ "N.º": r.numero, Fecha: fechaHora(r.fecha), Paciente: r.paciente, Doctor: r.doctor, Medicamentos: r.items.map((i) => i.droga).join(" | "), Estado: r.anulada ? "Anulada" : "Vigente" }));
-  const filasLab = () => labs.filter((l) => enRango(l.fecha) && delDoc(l.doctor)).map((l) => ({ Fecha: fechaHora(l.fecha), Paciente: l.paciente, Doctor: l.doctor, "Exámenes": l.paneles.join(" | "), Estado: l.estado, Resultados: Object.entries(l.resultados).map(([k, v]) => `${k}=${v}`).join(" | ") }));
+  const filasLab = () => labs.filter((l) => enRango(l.fecha) && delDoc(l.doctor)).map((l) => ({ Fecha: fechaHora(l.fecha), Paciente: l.paciente, Doctor: l.doctor, "Exámenes": nombresPedidoLab(l).join(" | "), Estado: l.estado, Resultados: Object.entries(l.resultados).map(([k, v]) => `${k}=${v}`).join(" | ") }));
   const resumenFilas = () => [
     { Indicador: "Período", Valor: periodoTxt }, { Indicador: "Profesional", Valor: doc },
     ...kpis.map((k) => ({ Indicador: k.l, Valor: k.v })),
@@ -10415,8 +10439,8 @@ function HistorialAtenciones({ p, turnos }: { p: PacienteHC; turnos: Turno[] }) 
       detalle: <>{lineaDato("Resultado / informe", e.informe || "Sin informe cargado")}</>,
     })),
     ...labs.filter((l) => esDe(l.pacienteId)).map((l) => ({
-      id: `l-${l.id}`, f: l.fecha, tipo: "Estudios", titulo: `Laboratorio · ${l.paneles.slice(0, 3).join(", ")}${l.paneles.length > 3 ? "…" : ""}`, quien: l.doctor, estado: { t: l.estado, c: l.estado === "Resultado" ? "est-atendido" : "est-programado" },
-      detalle: <>{lineaDato("Exámenes solicitados", l.paneles.join(", "))}{Object.keys(l.resultados ?? {}).length > 0 && lineaDato("Resultados", Object.entries(l.resultados).map(([k, v]) => `${k}: ${v}`).join(" · "))}{lineaDato("Nota", l.nota)}</>,
+      id: `l-${l.id}`, f: l.fecha, tipo: "Estudios", titulo: `Laboratorio · ${nombresPedidoLab(l).slice(0, 3).join(", ")}${nombresPedidoLab(l).length > 3 ? "…" : ""}`, quien: l.doctor, estado: { t: l.estado, c: l.estado === "Resultado" ? "est-atendido" : "est-programado" },
+      detalle: <>{lineaDato("Exámenes solicitados", nombresPedidoLab(l).join(", "))}{Object.keys(l.resultadosTexto ?? {}).length > 0 && lineaDato("Resultados de exámenes", Object.entries(l.resultadosTexto!).map(([k, v]) => `${k}: ${v}`).join(" · "))}{Object.keys(l.resultados ?? {}).length > 0 && lineaDato("Resultados", Object.entries(l.resultados).map(([k, v]) => `${k}: ${v}`).join(" · "))}{lineaDato("Nota", l.nota)}</>,
     })),
     ...recetas.filter((r) => !r.anulada && esDe(r.pacienteId)).map((r) => ({
       id: `r-${r.id}`, f: r.fecha, tipo: "Medicación", titulo: `Receta N.º ${r.numero}${r.especialidad ? ` · ${r.especialidad}` : ""}`, quien: r.doctor, esp: r.especialidad,
@@ -10852,7 +10876,7 @@ function CarpetaPaciente({ p, user, log, turnos, abrir, onEditar, soloLectura = 
                   {labs.map((l) => (
                     <li key={l.id} className="rounded-xl border border-border/60 p-3.5">
                       <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                        {l.paneles.map((id) => PANELES_LAB.find((x) => x.id === id)?.nombre).join(", ")}
+                        {nombresPedidoLab(l).join(", ")}
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${ESTADO_LAB[l.estado]}`}>{l.estado}</span>
                         <span className="ml-auto text-xs font-normal text-muted-foreground">{fechaDe(l.fecha)}</span>
                       </p>

@@ -1016,6 +1016,11 @@ export type PedidoLab = {
   resultados: Record<string, number>;
   fechaResultado?: string;
   nota?: string;
+  /** Exámenes pedidos por nombre (desde la evolución), además de los paneles. */
+  examenes?: string[];
+  /** Resultados de esos exámenes (texto libre: valor, unidad o "negativo"). */
+  resultadosTexto?: Record<string, string>;
+  evolucionId?: string;
 };
 export const KEY_LAB = "gb_laboratorio";
 
