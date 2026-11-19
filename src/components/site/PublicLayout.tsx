@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode, Fragment, isValidElement } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume2, X, Download, Share, SquarePlus, ChevronLeft, ChevronRight, Sun, Sunset, Moon, Check } from "lucide-react";
+import { Activity, ArrowRight, CalendarPlus, Clock, Headphones, Lock, Mail, MapPin, Menu, MessageCircle, Music2, Pause, Phone, Play, SkipBack, SkipForward, UserRound, Volume1, Volume2, VolumeX, X, Download, Share, SquarePlus, ChevronLeft, ChevronRight, Sun, Sunset, Moon, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-provider";
 import { ScrollTop } from "./ScrollTop";
@@ -853,7 +853,31 @@ const motor = (() => {
   let fade: number | null = null;
   let paso = 0;
   let proximo = 0;
-  const estado: EstadoMusica = { sonando: false, tema: 0, volumen: 0.6, lista: [] };
+  const VOL_KEY = "hego-musica-vol";
+  const POS_KEY = "hego-musica-pos";
+  const volGuardado = (() => {
+    try {
+      const v = Number(localStorage.getItem(VOL_KEY));
+      return localStorage.getItem(VOL_KEY) !== null && v >= 0 && v <= 1 ? v : 0.6;
+    } catch {
+      return 0.6;
+    }
+  })();
+  const posGuardada = (): { id: string; t: number } | null => {
+    try {
+      return JSON.parse(sessionStorage.getItem(POS_KEY) ?? "null") as { id: string; t: number } | null;
+    } catch {
+      return null;
+    }
+  };
+  const guardarPos = (id: string, t: number) => {
+    try {
+      sessionStorage.setItem(POS_KEY, JSON.stringify({ id, t }));
+    } catch {
+      /* sin almacenamiento */
+    }
+  };
+  const estado: EstadoMusica = { sonando: false, tema: 0, volumen: typeof window === "undefined" ? 0.6 : volGuardado, lista: [] };
   const subs = new Set<() => void>();
   const avisar = () => subs.forEach((f) => f());
   const actual = () => estado.lista[estado.tema];
@@ -978,9 +1002,37 @@ const motor = (() => {
       }
       if (!audio || audio.src !== tema.url) {
         audio?.pause();
-        audio = new Audio(tema.url);
-        audio.loop = true;
-        audio.volume = 0;
+        const a = new Audio(tema.url);
+        audio = a;
+        a.preload = "auto";
+        a.volume = 0;
+        const pos = posGuardada();
+        if (pos && pos.id === tema.id && pos.t > 0) {
+          const irA = () => {
+            try {
+              a.currentTime = pos.t;
+            } catch {
+              /* sin posición */
+            }
+          };
+          if (a.readyState >= 1) irA();
+          else a.addEventListener("loadedmetadata", irA, { once: true });
+        }
+        a.addEventListener("timeupdate", () => guardarPos(tema.id, a.currentTime));
+        // Cuando termina un tema pasa solo al siguiente de la lista (si hay uno solo, lo repite).
+        a.addEventListener("ended", () => {
+          if (audio !== a) return;
+          guardarPos(tema.id, 0);
+          if (estado.lista.length <= 1) {
+            a.currentTime = 0;
+            void a.play().catch(() => undefined);
+            return;
+          }
+          audio = null;
+          estado.tema = (estado.tema + 1) % estado.lista.length;
+          guardarPos(actual()?.id ?? "", 0);
+          void arrancar();
+        });
       }
       try {
         await audio.play();
@@ -995,7 +1047,12 @@ const motor = (() => {
       audio = null;
       crear();
       if (!ctx) return;
-      await ctx.resume();
+      await ctx.resume().catch(() => undefined);
+      if (ctx.state !== "running") {
+        estado.sonando = false;
+        avisar();
+        return;
+      }
       if (!timer) {
         paso = 0;
         proximo = ctx.currentTime + 0.1;
@@ -1015,10 +1072,14 @@ const motor = (() => {
         subs.delete(f);
       };
     },
-    fijarLista(lista: Tema[]) {
+    /** La lista la decide el panel. `apagada` = el panel desactivó la música. */
+    fijarLista(lista: Tema[], apagada = false) {
+      // Al cambiar de página los datos llegan un instante después: una lista vacía
+      // momentánea no corta la música. Solo se detiene si el panel la apagó.
+      if (!lista.length && !apagada) return;
       const firma = (l: Tema[]) => l.map((t) => t.id + (t.tipo === "audio" ? t.url.length : "")).join("|");
       if (firma(lista) === firma(estado.lista)) return;
-      const antes = actual()?.id;
+      const antes = actual()?.id ?? posGuardada()?.id;
       estado.lista = lista;
       const idx = lista.findIndex((t) => t.id === antes);
       if (idx >= 0) estado.tema = idx;
@@ -1061,8 +1122,17 @@ const motor = (() => {
       avisar();
       void arrancar();
     },
+    /** Arranca la música si todavía no suena (el navegador exige un toque o tecla del visitante). */
+    intentar() {
+      if (!estado.sonando && estado.lista.length) void arrancar();
+    },
     volumen(v: number) {
       estado.volumen = v;
+      try {
+        localStorage.setItem(VOL_KEY, String(v));
+      } catch {
+        /* sin almacenamiento */
+      }
       if (estado.sonando) {
         fundido(v * 0.9, 0.2);
         if (audio) audio.volume = v;
@@ -1072,37 +1142,93 @@ const motor = (() => {
   };
 })();
 
-function useMusica() {
-  const sitio = useSitio();
-  const [, setN] = useState(0);
-  useEffect(() => motor.suscribir(() => setN((n) => n + 1)), []);
-  const lista = listaMusica(sitio);
-  useEffect(() => motor.fijarLista(lista));
-  return { ...motor.estado, lista: motor.estado.lista.length ? motor.estado.lista : lista };
+/** Arranque automático: los navegadores no dejan sonar audio hasta que el visitante
+ *  toca, hace clic o presiona una tecla. Con el primer gesto en cualquier parte de la web, empieza. */
+let gestosInstalados = false;
+function instalarArranque() {
+  if (gestosInstalados || typeof window === "undefined") return;
+  gestosInstalados = true;
+  const ev = ["pointerdown", "keydown", "touchend"] as const;
+  const f = () => {
+    motor.intentar();
+    if (motor.estado.sonando) ev.forEach((n) => window.removeEventListener(n, f, true));
+  };
+  ev.forEach((n) => window.addEventListener(n, f, true));
 }
 
-/** Botón flotante chico: aparece cuando la música está sonando, en todas las páginas. */
-function MiniReproductor() {
-  const e = useMusica();
-  const t = e.lista[e.tema];
-  if (!e.sonando || !t) return null;
+function useMusica() {
+  const [crudo] = useDato<Partial<DatosSitio>>(KEY_SITIO, {});
+  const sitio = sitioDe(crudo);
+  const [, setN] = useState(0);
+  useEffect(() => motor.suscribir(() => setN((n) => n + 1)), []);
+  useEffect(() => instalarArranque(), []);
+  const lista = listaMusica(sitio);
+  const apagada = crudo.musicaActiva === false;
+  useEffect(() => {
+    motor.fijarLista(lista, apagada);
+    motor.intentar();
+  });
+  return { ...motor.estado, lista: apagada ? [] : motor.estado.lista.length ? motor.estado.lista : lista };
+}
+
+/** Control de volumen: tocar el parlante silencia / devuelve el volumen. */
+function ControlVolumen({ volumen, ancho = "w-24", claro = true }: { volumen: number; ancho?: string; claro?: boolean }) {
+  const [previo, setPrevio] = useState(0.6);
+  const Icono = volumen === 0 ? VolumeX : volumen < 0.5 ? Volume1 : Volume2;
   return (
-    <button
-      onClick={() => motor.pausa()}
-      className="fixed bottom-24 left-6 z-50 flex items-center gap-2.5 rounded-full border border-white/20 bg-deep/90 py-2 pl-2 pr-4 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500"
-      aria-label="Pausar música"
-    >
-      <span className={`flex size-8 items-center justify-center rounded-full bg-gradient-to-br ${t.color}`}><Pause className="size-3.5" /></span>
-      <span className="flex h-4 items-end gap-0.5">{[0, 1, 2, 3].map((i) => <span key={i} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${i * 0.15}s` }} />)}</span>
-      <span className="text-xs font-semibold">{t.nombre}</span>
-    </button>
+    <div className={`flex items-center gap-2.5 ${claro ? "text-white/75" : "text-muted-foreground"}`}>
+      <button
+        type="button"
+        onClick={() => {
+          if (volumen > 0) {
+            setPrevio(volumen);
+            motor.volumen(0);
+          } else motor.volumen(previo || 0.6);
+        }}
+        aria-label={volumen === 0 ? "Activar sonido" : "Silenciar"}
+        className="flex size-9 shrink-0 items-center justify-center rounded-full transition hover:bg-white/10 hover:text-white"
+      >
+        <Icono className="size-[18px]" />
+      </button>
+      <div className={`relative h-1.5 ${ancho} rounded-full bg-white/15`}>
+        <div className="pointer-events-none absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-sky-300 to-white" style={{ width: `${volumen * 100}%` }} />
+        <div className="pointer-events-none absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_4px_rgba(255,255,255,.15)]" style={{ left: `${volumen * 100}%` }} />
+        <input type="range" min={0} max={1} step={0.01} value={volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Volumen" />
+      </div>
+    </div>
   );
 }
 
-/** Reproductor compacto y premium al final de cada página (se oculta si en el panel no hay música). */
+/** Píldora flotante: acompaña al visitante en todas las páginas mientras suena la música.
+ *  Solo permite bajar o subir el volumen (pausar y cambiar de tema se maneja desde el panel). */
+function MiniReproductor() {
+  const e = useMusica();
+  const [abierto, setAbierto] = useState(false);
+  const t = e.lista[e.tema];
+  if (!e.sonando || !t) return null;
+  return (
+    <div className="fixed bottom-24 left-6 z-50 flex items-center gap-2 rounded-full border border-white/15 bg-[oklch(0.16_0.045_262)]/90 py-1.5 pl-1.5 pr-1.5 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <span className={`relative flex size-8 items-center justify-center rounded-full bg-gradient-to-br ${t.color} spin-slow`} style={{ animationDuration: "6s" }}>
+        <span className="size-2.5 rounded-full bg-[oklch(0.16_0.045_262)] ring-1 ring-white/40" />
+      </span>
+      <span className="flex h-4 items-end gap-0.5" aria-hidden="true">{[0, 1, 2, 3].map((i) => <span key={i} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${i * 0.15}s` }} />)}</span>
+      <span className="max-w-[9rem] truncate text-xs font-semibold">{t.nombre}</span>
+      {abierto ? (
+        <div className="animate-in fade-in slide-in-from-left-1 duration-200"><ControlVolumen volumen={e.volumen} ancho="w-20" /></div>
+      ) : (
+        <button type="button" onClick={() => setAbierto(true)} aria-label="Volumen" className="flex size-8 items-center justify-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-white">
+          {e.volumen === 0 ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+        </button>
+      )}
+      {abierto && <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar volumen" className="flex size-7 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white"><X className="size-3.5" /></button>}
+    </div>
+  );
+}
+
+/** Reproductor de la música de espera al final de cada página (se oculta si en el panel está apagada).
+ *  La música sigue sonando al navegar entre páginas. El visitante solo maneja el volumen. */
 export function Reproductor() {
   const e = useMusica();
-  const [lista, setLista] = useState(false);
   const t = e.lista[e.tema];
   if (!t) return null;
   return (
@@ -1113,9 +1239,9 @@ export function Reproductor() {
         <div className="relative overflow-hidden rounded-[calc(1.6rem-1.5px)] bg-[oklch(0.16_0.045_262)] text-white">
           <div className={`pointer-events-none absolute -left-10 top-1/2 size-48 -translate-y-1/2 rounded-full bg-gradient-to-br ${t.color} opacity-35 blur-3xl transition-all duration-1000`} />
 
-          <div className="relative flex items-center gap-4 p-3 pr-4 sm:gap-5 sm:p-3.5 sm:pr-5">
-            {/* Disco */}
-            <button onClick={() => (e.sonando ? motor.pausa() : void motor.play())} aria-label={e.sonando ? "Pausar" : "Reproducir"} className="relative size-16 shrink-0 sm:size-[4.5rem]">
+          <div className="relative flex flex-wrap items-center gap-4 p-3 pr-4 sm:flex-nowrap sm:gap-5 sm:p-3.5 sm:pr-6">
+            {/* Disco (decorativo) */}
+            <div className="relative size-16 shrink-0 sm:size-[4.5rem]" aria-hidden="true">
               <span className={`absolute inset-0 rounded-full bg-gradient-to-br ${t.color} shadow-lg ${e.sonando ? "spin-slow" : ""}`} style={{ animationDuration: "6s" }}>
                 <span className="absolute inset-[18%] rounded-full border border-white/25" />
                 <span className="absolute inset-[32%] rounded-full border border-white/20" />
@@ -1123,16 +1249,16 @@ export function Reproductor() {
               </span>
               <span className="absolute inset-[38%] rounded-full bg-[oklch(0.16_0.045_262)] ring-2 ring-white/40" />
               {e.sonando && <span className={`absolute -inset-1.5 animate-ping rounded-full bg-gradient-to-br ${t.color} opacity-20`} style={{ animationDuration: "2.4s" }} />}
-            </button>
+            </div>
 
             {/* Tema */}
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">
-                <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/40"}`} /> {e.sonando ? "Sonando" : "Música de espera"}
+                <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/40"}`} /> {e.sonando ? "Sonando ahora" : "Música de espera"}
               </p>
               <p key={t.id} className="truncate font-display text-lg font-semibold animate-in fade-in slide-in-from-bottom-1 duration-500 sm:text-xl">{t.nombre}</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="truncate text-xs text-white/55">{t.sub}</span>
+                <span className="truncate text-xs text-white/55">{e.sonando ? t.sub : "Comienza al tocar cualquier parte de la página"}</span>
                 <span className="flex h-3 items-end gap-[2px]" aria-hidden="true">
                   {[0, 1, 2, 3, 4].map((k) => (
                     <span key={k} className={`w-[3px] rounded-full bg-gradient-to-t ${t.color} ${e.sonando ? "eq-bar" : ""}`} style={{ height: e.sonando ? "100%" : "30%", animationDelay: `${k * 0.13}s` }} />
@@ -1141,39 +1267,11 @@ export function Reproductor() {
               </div>
             </div>
 
-            {/* Controles */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <button onClick={() => motor.elegir(e.tema - 1)} aria-label="Anterior" className="hidden size-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white sm:flex"><SkipBack className="size-4" /></button>
-              <button
-                onClick={() => (e.sonando ? motor.pausa() : void motor.play())}
-                aria-label={e.sonando ? "Pausar" : "Reproducir"}
-                className="flex size-12 items-center justify-center rounded-full bg-white text-[oklch(0.2_0.06_262)] shadow-[0_12px_30px_-10px_rgba(255,255,255,.6)] transition-transform hover:scale-105 active:scale-95"
-              >
-                {e.sonando ? <Pause className="size-5" /> : <Play className="ml-0.5 size-5" />}
-              </button>
-              <button onClick={() => motor.elegir(e.tema + 1)} aria-label="Siguiente" className="flex size-9 items-center justify-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"><SkipForward className="size-4" /></button>
-              <label className="ml-1 hidden items-center gap-2 text-white/60 md:flex">
-                <Volume2 className="size-4 shrink-0" />
-                <input type="range" min={0} max={1} step={0.01} value={e.volumen} onChange={(ev) => motor.volumen(Number(ev.target.value))} className="h-1 w-20 cursor-pointer accent-white" aria-label="Volumen" />
-              </label>
-              <button onClick={() => setLista((v) => !v)} aria-label="Lista de temas" aria-expanded={lista} className={`ml-1 flex size-9 items-center justify-center rounded-full transition ${lista ? "bg-white/15 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"}`}><Headphones className="size-4" /></button>
+            {/* Solo volumen */}
+            <div className="flex w-full items-center justify-end rounded-full bg-white/[.06] py-1 pl-1 pr-4 ring-1 ring-white/10 sm:w-auto">
+              <ControlVolumen volumen={e.volumen} ancho="w-full sm:w-28" />
             </div>
           </div>
-
-          {/* Lista desplegable */}
-          {lista && (
-            <div className="relative flex gap-2 overflow-x-auto border-t border-white/10 px-3 py-3 [scrollbar-width:none] animate-in fade-in slide-in-from-top-1 duration-300">
-              {e.lista.map((x, i) => {
-                const on = i === e.tema;
-                return (
-                  <button key={x.id} onClick={() => (on && e.sonando ? motor.pausa() : motor.elegir(i))} className={`flex shrink-0 items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-xs font-semibold transition ${on ? "bg-white/15 ring-1 ring-white/25" : "bg-white/[0.05] text-white/70 hover:bg-white/10"}`}>
-                    <span className={`flex size-6 items-center justify-center rounded-full bg-gradient-to-br ${x.color}`}>{on && e.sonando ? <Pause className="size-3" /> : <Play className="ml-px size-3" />}</span>
-                    {x.nombre}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
     </section>

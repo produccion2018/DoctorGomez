@@ -5448,51 +5448,105 @@ function PacientesTab({ user, log, turnos }: { user: SessionUser; log: LogFn; tu
 }
 
 /* ---------- Auditoría ---------- */
-const CATS_AUD: { id: string; l: string; icon: LucideIcon; re: RegExp }[] = [
-  { id: "accesos", l: "Accesos", icon: Fingerprint, re: /sesion|fallido|contrasena|2fa|verificacion|codigo de respaldo|ingreso al portal|primer ingreso|recuperacion|restablec/ },
-  { id: "seguridad", l: "Permisos y equipo", icon: KeyRound, re: /permiso|acceso al panel|equipo|invitacion|bloqueado|profesional (agregado|quitado)/ },
-  { id: "clinico", l: "Historia clínica", icon: FileText, re: /evolucion|registro medico|enfermeria|signos|procedimiento|receta|laboratorio|muestra|estudio|documento|firma|resultado/ },
-  { id: "agenda", l: "Agenda", icon: CalendarDays, re: /cita|turno|horario|agenda|autorizacion/ },
-  { id: "finanzas", l: "Pagos y caja", icon: Wallet, re: /cobro|pago|caja|movimiento|recibo|saldo/ },
-  { id: "facturacion", l: "Facturación", icon: Receipt, re: /comprobante|factura|glosa|radic|nota credito|tarifa|prestador|liquidacion|eps/ },
-  { id: "pacientes", l: "Pacientes", icon: Users, re: /paciente|portal|carga masiva/ },
-  { id: "sistema", l: "Sistema e IA", icon: Bot, re: /asistente|\bia\b|sitio|automatizacion|notificacion|reporte|export|informe|comunicacion/ },
+const CATS_AUD: { id: string; l: string; icon: LucideIcon; re: RegExp; dot: string; desc: string }[] = [
+  { id: "accesos", l: "Ingresos", icon: Fingerprint, dot: "#1E3A8A", desc: "Inicios de sesión, contraseñas y verificaciones", re: /sesion|fallido|contrasena|2fa|verificacion|codigo de respaldo|ingreso al portal|primer ingreso|recuperacion|restablec/ },
+  { id: "seguridad", l: "Permisos y equipo", icon: KeyRound, dot: "#4338CA", desc: "Quién puede ver o hacer qué", re: /permiso|acceso al panel|equipo|invitacion|bloqueado|profesional (agregado|quitado)/ },
+  { id: "clinico", l: "Historia clínica", icon: FileText, dot: "#0F766E", desc: "Evoluciones, recetas, laboratorio y documentos", re: /evolucion|registro medico|enfermeria|signos|procedimiento|receta|laboratorio|muestra|estudio|documento|firma|resultado/ },
+  { id: "agenda", l: "Agenda y citas", icon: CalendarDays, dot: "#0369A1", desc: "Citas, horarios y autorizaciones", re: /cita|turno|horario|agenda|autorizacion/ },
+  { id: "finanzas", l: "Pagos y caja", icon: Wallet, dot: "#047857", desc: "Cobros, pagos y movimientos de caja", re: /cobro|pago|caja|movimiento|recibo|saldo/ },
+  { id: "facturacion", l: "Facturación", icon: Receipt, dot: "#6D28D9", desc: "Comprobantes, EPS y glosas", re: /comprobante|factura|glosa|radic|nota credito|tarifa|prestador|liquidacion|eps/ },
+  { id: "pacientes", l: "Pacientes", icon: Users, dot: "#0E7490", desc: "Altas, cambios y portal del paciente", re: /paciente|portal|carga masiva/ },
+  { id: "sistema", l: "Sistema e IA", icon: Bot, dot: "#475569", desc: "Asistente, sitio web, reportes y avisos", re: /asistente|\bia\b|sitio|automatizacion|notificacion|reporte|export|informe|comunicacion/ },
 ];
-const catAud = (accion: string) => CATS_AUD.find((c) => c.re.test(norm(accion))) ?? { id: "otros", l: "Otros", icon: ClipboardList, re: /./ };
-const esSensible = (accion: string) => /anul|elimin|borr|quit|revoc|fallido|incorrecto|bloqueado|restablec|permiso|export|desactiv/.test(norm(accion));
+const CAT_OTROS = { id: "otros", l: "Otros", icon: ClipboardList, dot: "#64748B", desc: "Acciones sin categoría", re: /./ };
+const catAud = (accion: string) => CATS_AUD.find((c) => c.re.test(norm(accion))) ?? CAT_OTROS;
+const MOTIVOS_AUD: { re: RegExp; t: string }[] = [
+  { re: /fallido|incorrecto/, t: "Intento de ingreso fallido. Si se repite varias veces, alguien podría estar probando contraseñas." },
+  { re: /anul/, t: "Se anuló un registro. Conviene confirmar que haya un motivo válido." },
+  { re: /elimin|borr|quit/, t: "Se eliminó o quitó información del sistema." },
+  { re: /revoc|desactiv|bloqueado/, t: "Se quitó o bloqueó un acceso." },
+  { re: /restablec/, t: "Se restableció una contraseña." },
+  { re: /permiso/, t: "Cambió lo que una persona puede ver o hacer en el panel." },
+  { re: /export/, t: "Se descargó información fuera del sistema." },
+];
+const motivoAud = (accion: string) => MOTIVOS_AUD.find((m) => m.re.test(norm(accion)))?.t ?? null;
+const esSensible = (accion: string) => motivoAud(accion) !== null;
+const fueraHorario = (iso: string) => { const h = new Date(iso).getHours(); return h < 6 || h >= 21; };
+const haceAud = (iso: string) => {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "ahora";
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? "ayer" : `hace ${d} días`;
+};
+const capAud = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+function AvatarAud({ nombre, size = "size-9" }: { nombre: string; size?: string }) {
+  const sis = nombre === "Sistema";
+  return (
+    <span className={`grid ${size} shrink-0 place-items-center rounded-full text-[11px] font-bold ring-2 ring-card ${sis ? "bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-slate-300" : "bg-[#1E3A8A] text-white dark:bg-sky-500/20 dark:text-sky-100"}`}>
+      {sis ? <Bot className="size-4" /> : iniciales(nombre)}
+    </span>
+  );
+}
 
 function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
   const [q, setQ] = useState("");
   const [rango, setRango] = useState<1 | 7 | 30 | 9999>(30);
   const [usuario, setUsuario] = useState("Todos");
   const [cat, setCat] = useState("todas");
-  const [sensibles, setSensibles] = useState(false);
+  const [revisar, setRevisar] = useState(false);
+  const [noche, setNoche] = useState(false);
+  const [dia, setDia] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState<Evento | null>(null);
+  const [ayuda, setAyuda] = useState(false);
+  const [excel, setExcel] = useState(false);
+
   const desde = rango === 1 ? isoDe(new Date()) : isoDe(new Date(Date.now() - (rango - 1) * 86400000));
-  const enRango = (e: Evento) => rango === 9999 || diaLocal(e.fecha) >= desde;
-  const base = audit.filter(enRango);
-  const usuarios = [...new Set(audit.map((e) => e.usuario))].sort();
+  const base = useMemo(() => audit.filter((e) => rango === 9999 || diaLocal(e.fecha) >= desde), [audit, rango, desde]);
+  const usuarios = useMemo(() => [...new Set(audit.map((e) => e.usuario))].sort(), [audit]);
   const lista = base
     .filter((e) => usuario === "Todos" || e.usuario === usuario)
     .filter((e) => cat === "todas" || catAud(e.accion).id === cat)
-    .filter((e) => !sensibles || esSensible(e.accion))
+    .filter((e) => !revisar || esSensible(e.accion))
+    .filter((e) => !noche || fueraHorario(e.fecha))
+    .filter((e) => !dia || diaLocal(e.fecha) === dia)
     .filter((e) => !q || norm(`${e.usuario} ${e.accion} ${e.detalle}`).includes(norm(q)))
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
   const vmAud = useVerMas(lista, 25);
-  const [excel, setExcel] = useState(false);
 
-  const nSens = base.filter((e) => esSensible(e.accion)).length;
+  const sensibles = base.filter((e) => esSensible(e.accion)).sort((a, b) => b.fecha.localeCompare(a.fecha));
   const fallidos = base.filter((e) => /fallido|incorrecto/.test(norm(e.accion))).length;
-  const activos = new Set(base.map((e) => e.usuario)).size;
-  const porUsuario = Object.entries(base.reduce<Record<string, number>>((a, e) => ({ ...a, [e.usuario]: (a[e.usuario] ?? 0) + 1 }), {})).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
-  const porCat = [...CATS_AUD, { id: "otros", l: "Otros", icon: ClipboardList, re: /./ }].map((c) => ({ ...c, v: base.filter((e) => catAud(e.accion).id === c.id).length })).filter((c) => c.v > 0);
-  const rangoTxt = rango === 1 ? "hoy" : rango === 9999 ? "todo el historial" : `últimos ${rango} días`;
+  const nocturnos = base.filter((e) => fueraHorario(e.fecha)).length;
+  const equipo = Object.values(
+    base.reduce<Record<string, { nombre: string; v: number; ultimo: string; sens: number }>>((a, e) => {
+      const x = (a[e.usuario] ??= { nombre: e.usuario, v: 0, ultimo: e.fecha, sens: 0 });
+      x.v++;
+      if (e.fecha > x.ultimo) x.ultimo = e.fecha;
+      if (esSensible(e.accion)) x.sens++;
+      return a;
+    }, {}),
+  ).sort((a, b) => b.v - a.v);
+  const maxEq = Math.max(1, ...equipo.map((p) => p.v));
+  const porCat = [...CATS_AUD, CAT_OTROS].map((c) => ({ ...c, v: base.filter((e) => catAud(e.accion).id === c.id).length })).filter((c) => c.v > 0).sort((a, b) => b.v - a.v);
+  const porHora = Array.from({ length: 24 }, (_, h) => base.filter((e) => new Date(e.fecha).getHours() === h).length);
+  const maxHora = Math.max(1, ...porHora);
+  const rangoTxt = rango === 1 ? "hoy" : rango === 9999 ? "todo el historial" : `los últimos ${rango} días`;
+  const hayFiltros = q || usuario !== "Todos" || cat !== "todas" || revisar || noche || dia;
+  const limpiar = () => { setQ(""); setUsuario("Todos"); setCat("todas"); setRevisar(false); setNoche(false); setDia(null); };
+
+  const estado = sensibles.length === 0 && fallidos === 0
+    ? { t: "Todo en orden", s: "No hay acciones que requieran revisión.", i: CheckCircle2, c: "bg-emerald-400/15 text-emerald-100 ring-emerald-300/30" }
+    : { t: `${sensibles.length} acción${sensibles.length === 1 ? "" : "es"} para revisar`, s: fallidos ? `Incluye ${fallidos} ingreso${fallidos === 1 ? "" : "s"} fallido${fallidos === 1 ? "" : "s"}.` : "Anulaciones, borrados, permisos o descargas.", i: AlertTriangle, c: "bg-amber-300/15 text-amber-100 ring-amber-200/30" };
 
   const exportar = async () => {
     setExcel(true);
     try {
       await descargarExcel(`HEGO auditoría ${isoDe(new Date())}`, [
-        { nombre: "Eventos", filas: lista.map((e) => ({ Fecha: fechaHora(e.fecha), Usuario: e.usuario, "Categoría": catAud(e.accion).l, "Acción": e.accion, Detalle: e.detalle, Sensible: esSensible(e.accion) ? "Sí" : "" })) },
-        { nombre: "Por usuario", filas: porUsuario.map((x) => ({ Usuario: x.l, Eventos: x.v })) },
+        { nombre: "Eventos", filas: lista.map((e) => ({ Fecha: fechaHora(e.fecha), Persona: e.usuario, "Área": catAud(e.accion).l, "Qué hizo": capAud(e.accion), Detalle: e.detalle, "Para revisar": esSensible(e.accion) ? "Sí" : "", "Fuera de horario": fueraHorario(e.fecha) ? "Sí" : "" })) },
+        { nombre: "Por persona", filas: equipo.map((x) => ({ Persona: x.nombre, Acciones: x.v, "Para revisar": x.sens, "Última actividad": fechaHora(x.ultimo) })) },
       ]);
       log("Auditoría exportada", `${lista.length} eventos · ${rangoTxt}`);
       toast.success("Excel descargado.");
@@ -5500,7 +5554,6 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
     setExcel(false);
   };
 
-  // Agrupar por día
   const dias: { dia: string; items: Evento[] }[] = [];
   vmAud.items.forEach((e) => {
     const d = diaLocal(e.fecha);
@@ -5510,121 +5563,295 @@ function AuditoriaTab({ audit, log }: { audit: Evento[]; log: LogFn }) {
   });
   const hoyD = isoDe(new Date());
   const ayerD = isoDe(new Date(Date.now() - 86400000));
-  const diaTxt = (d: string) => (d === hoyD ? "Hoy" : d === ayerD ? "Ayer" : new Date(`${d}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+  const diaTxt = (d: string) => (d === hoyD ? "Hoy" : d === ayerD ? "Ayer" : capAud(new Date(`${d}T12:00:00`).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })));
+  const chip = (on: boolean) => `inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition ${on ? "bg-[#1E3A8A] text-white shadow-sm" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`;
 
   return (
     <div className="space-y-6">
-      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#172E6E] via-[#1E3A8A] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-7">
+      {/* Encabezado */}
+      <section className="pn-up relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[#172E6E] via-[#1E3A8A] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-8">
         <div className="pn-cross pointer-events-none absolute inset-0 opacity-70" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
+        <div className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-sky-300/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ring-1 ring-white/20"><ShieldCheck className="size-3.5" /> Auditoría</span>
-            <h2 className="mt-3 text-3xl font-semibold">Quién hizo qué y cuándo</h2>
-            <p className="mt-2 text-sm text-white/75">Cada acción del panel y del portal queda registrada con usuario, fecha y detalle. Los registros no se pueden borrar ni editar.</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-[34px]">Quién hizo qué, y cuándo</h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-white/80">
+              En {rangoTxt}, <b className="text-white">{equipo.length} persona{equipo.length === 1 ? "" : "s"}</b> realizaron <b className="text-white">{base.length} acción{base.length === 1 ? "" : "es"}</b> en el panel y el portal.
+            </p>
+            <div className={`mt-4 inline-flex items-center gap-3 rounded-2xl px-4 py-2.5 ring-1 ${estado.c}`}>
+              <estado.i className="size-5 shrink-0" />
+              <div className="leading-tight"><p className="text-sm font-semibold text-white">{estado.t}</p><p className="text-xs text-white/70">{estado.s}</p></div>
+              {sensibles.length > 0 && <button type="button" onClick={() => { limpiar(); setRevisar(true); }} className="ml-1 rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-[#1E3A8A] hover:bg-white/90">Revisar</button>}
+            </div>
           </div>
-          <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/15">
-            {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [9999, "Todo"]] as const).map(([v, l]) => (
-              <button key={v} onClick={() => setRango(v)} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${rango === v ? "bg-white text-[#1E3A8A]" : "text-white/80 hover:bg-white/10"}`}>{l}</button>
-            ))}
+          <div className="flex flex-col items-end gap-2">
+            <div className="inline-flex flex-wrap gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/15">
+              {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [9999, "Todo"]] as const).map(([v, l]) => (
+                <button key={v} onClick={() => { setRango(v); setDia(null); }} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition ${rango === v ? "bg-white text-[#1E3A8A] shadow" : "text-white/80 hover:bg-white/10"}`}>{l}</button>
+              ))}
+            </div>
+            <p className="inline-flex items-center gap-1.5 text-[11px] text-white/60"><Lock className="size-3" /> Los registros no se pueden editar ni borrar</p>
           </div>
         </div>
-        <div className="relative mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+
+        <div className="relative mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { l: "Eventos", v: base.length, s: rangoTxt, i: ClipboardList, on: () => { setSensibles(false); setCat("todas"); } },
-            { l: "Usuarios activos", v: activos, s: "personas con actividad", i: Users },
-            { l: "Acciones sensibles", v: nSens, s: "anulaciones, borrados, permisos", i: ShieldAlert, on: () => setSensibles(true) },
-            { l: "Accesos fallidos", v: fallidos, s: fallidos ? "revise los intentos" : "sin incidentes", i: Lock, on: () => { setCat("accesos"); setQ("fallido"); } },
+            { l: "Acciones", v: base.length, s: "todo lo que se hizo", i: Activity, on: limpiar, act: !hayFiltros },
+            { l: "Personas activas", v: equipo.length, s: "usaron el sistema", i: Users, on: undefined, act: false },
+            { l: "Para revisar", v: sensibles.length, s: "anulaciones, borrados, permisos", i: ShieldAlert, on: () => { limpiar(); setRevisar(true); }, act: revisar, alerta: sensibles.length > 0 },
+            { l: "Fuera de horario", v: nocturnos, s: "entre 9 p. m. y 6 a. m.", i: Clock, on: () => { limpiar(); setNoche(true); }, act: noche, alerta: nocturnos > 0 },
           ].map((k) => (
-            <button key={k.l} type="button" onClick={k.on} disabled={!k.on} className="rounded-2xl bg-white/10 p-4 text-left ring-1 ring-white/15 backdrop-blur transition enabled:hover:bg-white/15">
-              <div className="flex items-center justify-between"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/65">{k.l}</p><k.i className="size-4 text-white/70" /></div>
-              <p className="mt-2 font-display text-3xl font-semibold tabular-nums">{k.v}</p>
-              <p className="text-[11px] text-white/60">{k.s}</p>
+            <button key={k.l} type="button" onClick={k.on} disabled={!k.on} className={`group rounded-2xl p-4 text-left ring-1 backdrop-blur transition ${k.act ? "bg-white text-[#1E3A8A] ring-white" : "bg-white/10 ring-white/15 enabled:hover:bg-white/[.16]"}`}>
+              <div className="flex items-center justify-between">
+                <p className={`text-[11px] font-bold uppercase tracking-[0.14em] ${k.act ? "text-[#1E3A8A]/70" : "text-white/65"}`}>{k.l}</p>
+                <span className={`grid size-8 place-items-center rounded-lg ${k.act ? "bg-[#1E3A8A]/10" : k.alerta ? "bg-amber-300/20 text-amber-100" : "bg-white/10 text-white/80"}`}><k.i className="size-4" /></span>
+              </div>
+              <p className="mt-2 font-display text-[32px] font-semibold leading-none tabular-nums">{k.v}</p>
+              <p className={`mt-1.5 text-[11px] ${k.act ? "text-[#1E3A8A]/60" : "text-white/60"}`}>{k.s}</p>
             </button>
           ))}
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Seccion icon={ClipboardList} titulo="Registro de eventos" sub={`${lista.length} evento${lista.length === 1 ? "" : "s"}${sensibles ? " sensibles" : ""} · ${rangoTxt}`}
-          acciones={<button type="button" onClick={() => void exportar()} disabled={excel} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Exportar a Excel</button>}>
-          <div className="mb-4 space-y-3">
-            <div className="flex flex-wrap gap-2">
-              <div className="relative min-w-[200px] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input placeholder="Buscar paciente, acción, detalle…" value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9"} />
-              </div>
-              <div className="w-full sm:w-64"><select value={usuario} onChange={(e) => setUsuario(e.target.value)} className={inp + " h-10"} aria-label="Usuario">
-                <option value="Todos">Todos los usuarios</option>
-                {usuarios.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select></div>
-              <button type="button" onClick={() => setSensibles((v) => !v)} className={`inline-flex h-10 items-center gap-2 rounded-xl px-3.5 text-xs font-semibold transition ${sensibles ? "bg-[#1E3A8A] text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"}`}><ShieldAlert className="size-3.5" /> Solo sensibles</button>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setCat("todas")} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === "todas" ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}>Todas</button>
-              {porCat.map((c) => (
-                <button key={c.id} onClick={() => setCat(c.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${cat === c.id ? "bg-[#1E3A8A] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300"}`}><c.icon className="size-3.5" /> {c.l} <span className="opacity-70">{c.v}</span></button>
-              ))}
-            </div>
+      {/* Cómo leer */}
+      <div className="pn-card overflow-hidden">
+        <button type="button" onClick={() => setAyuda((v) => !v)} className="flex w-full items-center gap-3 px-5 py-3.5 text-left">
+          <span className="grid size-8 place-items-center rounded-lg bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><Eye className="size-4" /></span>
+          <span className="flex-1 text-sm font-semibold">¿Cómo leer esta pantalla?</span>
+          <ChevronDown className={`size-4 text-muted-foreground transition-transform ${ayuda ? "rotate-180" : ""}`} />
+        </button>
+        {ayuda && (
+          <div className="grid gap-4 border-t border-border/60 px-5 py-4 text-sm text-muted-foreground sm:grid-cols-3">
+            <p><b className="text-foreground">1. Cada fila es una acción.</b> Dice la hora, la persona que la hizo, qué hizo y sobre qué (paciente, cita, cobro…).</p>
+            <p><b className="text-foreground">2. Lo marcado en ámbar es para revisar.</b> Son acciones delicadas: anular cobros, borrar datos, cambiar permisos o ingresos fallidos.</p>
+            <p><b className="text-foreground">3. Toque cualquier fila</b> para ver el detalle completo, o use los filtros para ver solo una persona, un área o un día.</p>
           </div>
-          {lista.length === 0 ? <Vacio icon={ClipboardList} titulo="Sin eventos" texto="No hay eventos con estos filtros." /> : (
-            <div className="space-y-5">
-              {dias.map((g) => (
-                <div key={g.dia}>
-                  <div className="mb-2 flex items-center gap-3">
-                    <span className="inline-block rounded-full bg-[#1E3A8A] px-3 py-1 text-[11px] font-semibold text-white first-letter:uppercase dark:bg-white/15">{diaTxt(g.dia)}</span>
-                    <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
-                    <span className="text-[11px] text-muted-foreground">{g.items.length} evento{g.items.length === 1 ? "" : "s"}</span>
+        )}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
+          {/* Para revisar */}
+          {sensibles.length > 0 && !revisar && (
+            <section className="pn-card pn-up overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200/70 bg-amber-50/70 px-5 py-3.5 dark:border-amber-400/20 dark:bg-amber-400/[.06]">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-9 place-items-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200"><ShieldAlert className="size-4" /></span>
+                  <div><p className="text-sm font-semibold">Para revisar</p><p className="text-xs text-muted-foreground">Acciones delicadas de {rangoTxt}</p></div>
+                </div>
+                <button type="button" onClick={() => { limpiar(); setRevisar(true); }} className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E3A8A] hover:underline dark:text-sky-200">Ver las {sensibles.length} <ChevronRight className="size-3.5" /></button>
+              </div>
+              <ul className="divide-y divide-border/60">
+                {sensibles.slice(0, 3).map((e) => (
+                  <li key={e.id}>
+                    <button type="button" onClick={() => setAbierto(e)} className="flex w-full items-start gap-3 px-5 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-white/5">
+                      <AvatarAud nombre={e.usuario} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm"><b>{nombreCorto(e.usuario)}</b> <span className="text-muted-foreground">·</span> {capAud(e.accion)}</p>
+                        <p className="mt-0.5 text-xs text-amber-800/90 dark:text-amber-200/90">{motivoAud(e.accion)}</p>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">{haceAud(e.fecha)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Registro */}
+          <Seccion icon={ClipboardList} titulo="Registro de actividad" sub={`${lista.length} acción${lista.length === 1 ? "" : "es"}${hayFiltros ? " con los filtros elegidos" : ` · ${rangoTxt}`}`}
+            acciones={<button type="button" onClick={() => void exportar()} disabled={excel || !lista.length} className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">{excel ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} Exportar a Excel</button>}>
+            <div className="mb-5 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <div className="relative min-w-[220px] flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input placeholder="Buscar un paciente, una cédula o una acción…" value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9"} />
+                </div>
+                <div className="w-full sm:w-60"><select value={usuario} onChange={(e) => setUsuario(e.target.value)} className={inp + " h-10"} aria-label="Persona">
+                  <option value="Todos">Todas las personas</option>
+                  {usuarios.map((u) => <option key={u} value={u}>{nombreCorto(u)}</option>)}
+                </select></div>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <button onClick={() => setCat("todas")} className={chip(cat === "todas")}>Todas las áreas</button>
+                {porCat.map((c) => (
+                  <button key={c.id} onClick={() => setCat(cat === c.id ? "todas" : c.id)} className={chip(cat === c.id)} title={c.desc}>
+                    <span className="size-2 rounded-full" style={{ background: cat === c.id ? "#fff" : c.dot }} /> {c.l} <span className="tabular-nums opacity-60">{c.v}</span>
+                  </button>
+                ))}
+              </div>
+              {hayFiltros && (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs dark:bg-white/5">
+                  <span className="font-semibold text-muted-foreground">Mostrando:</span>
+                  {usuario !== "Todos" && <FiltroAud t={nombreCorto(usuario)} quitar={() => setUsuario("Todos")} />}
+                  {cat !== "todas" && <FiltroAud t={CATS_AUD.find((c) => c.id === cat)?.l ?? "Otros"} quitar={() => setCat("todas")} />}
+                  {revisar && <FiltroAud t="Solo para revisar" quitar={() => setRevisar(false)} />}
+                  {noche && <FiltroAud t="Fuera de horario" quitar={() => setNoche(false)} />}
+                  {dia && <FiltroAud t={diaTxt(dia)} quitar={() => setDia(null)} />}
+                  {q && <FiltroAud t={`“${q}”`} quitar={() => setQ("")} />}
+                  <button type="button" onClick={limpiar} className="ml-auto inline-flex items-center gap-1 font-semibold text-[#1E3A8A] hover:underline dark:text-sky-200"><RotateCcw className="size-3" /> Limpiar filtros</button>
+                </div>
+              )}
+            </div>
+
+            {lista.length === 0 ? (
+              <Vacio icon={ClipboardList} titulo={hayFiltros ? "Nada con estos filtros" : "Sin actividad"} texto={hayFiltros ? "Pruebe quitando algún filtro o ampliando el período." : "Cuando alguien use el panel, cada acción aparecerá aquí."} />
+            ) : (
+              <div className="space-y-6">
+                <div className="hidden grid-cols-[84px_minmax(0,1fr)_150px] gap-4 border-b border-border/60 px-3 pb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground md:grid">
+                  <span>Hora</span><span>Quién y qué hizo</span><span>Área</span>
+                </div>
+                {dias.map((g) => (
+                  <div key={g.dia}>
+                    <div className="mb-2 flex items-center gap-3">
+                      <button type="button" onClick={() => setDia(dia === g.dia ? null : g.dia)} className="rounded-full bg-[#1E3A8A] px-3 py-1 text-[11px] font-semibold text-white transition hover:bg-[#172E6E] dark:bg-white/15">{diaTxt(g.dia)}</button>
+                      <span className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
+                      <span className="text-[11px] text-muted-foreground">{g.items.length} acción{g.items.length === 1 ? "" : "es"}</span>
+                    </div>
+                    <ul className="space-y-1">
+                      {g.items.map((e) => {
+                        const c = catAud(e.accion);
+                        const sens = esSensible(e.accion);
+                        const noc = fueraHorario(e.fecha);
+                        return (
+                          <li key={e.id}>
+                            <button type="button" onClick={() => setAbierto(e)} className={`grid w-full grid-cols-[minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-xl px-3 py-2.5 text-left transition md:grid-cols-[84px_minmax(0,1fr)_150px] ${sens ? "bg-amber-50/70 ring-1 ring-amber-200/70 hover:bg-amber-50 dark:bg-amber-400/[.06] dark:ring-amber-400/20" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+                              <span className="hidden flex-col md:flex">
+                                <span className="text-sm font-semibold tabular-nums">{horaDeIso(e.fecha)}</span>
+                                {noc && <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300"><Clock className="size-3" /> Fuera de horario</span>}
+                              </span>
+                              <span className="flex min-w-0 items-center gap-3">
+                                <AvatarAud nombre={e.usuario} />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm"><b className="font-semibold">{nombreCorto(e.usuario)}</b> <span className="text-muted-foreground">—</span> {capAud(e.accion)}</span>
+                                  {e.detalle && <span className="block truncate text-xs text-muted-foreground">{e.detalle}</span>}
+                                  <span className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground md:hidden">
+                                    <span className="tabular-nums">{horaDeIso(e.fecha)}</span>· <span style={{ color: c.dot }}>{c.l}</span>{noc && <span className="text-amber-700 dark:text-amber-300">· Fuera de horario</span>}
+                                  </span>
+                                </span>
+                                {sens && <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-300" aria-label="Para revisar" />}
+                              </span>
+                              <span className="hidden items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 md:flex">
+                                <span className="grid size-7 place-items-center rounded-lg" style={{ background: `${c.dot}14`, color: c.dot }}><c.icon className="size-3.5" /></span>
+                                <span className="truncate">{c.l}</span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <ol className="relative space-y-1 before:absolute before:bottom-3 before:left-[19px] before:top-3 before:w-px before:bg-slate-200 dark:before:bg-white/10">
-                    {g.items.map((e) => {
-                      const c = catAud(e.accion);
-                      const sens = esSensible(e.accion);
-                      return (
-                        <li key={e.id} className="relative flex gap-4 rounded-xl p-2 transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
-                          <span className={`relative z-10 grid size-10 shrink-0 place-items-center rounded-xl ring-4 ring-card ${sens ? "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300" : "bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"}`}><c.icon className="size-4" /></span>
-                          <div className="min-w-0 flex-1 pt-0.5">
-                            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                              <p className="flex flex-wrap items-center gap-2 text-sm font-semibold">{e.accion}{sens && <span className="rounded-md bg-red-50 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-red-700 ring-1 ring-red-100 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/20">Sensible</span>}</p>
-                              <p className="text-xs tabular-nums text-muted-foreground" title={fechaHora(e.fecha)}>{horaDeIso(e.fecha)}</p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              <button type="button" onClick={() => setUsuario(e.usuario)} className="font-semibold text-foreground/80 hover:underline">{e.usuario}</button>
-                              <span className="mx-1.5 text-slate-300">·</span>{c.l}
-                              {e.detalle ? <span className="block text-muted-foreground/90">{e.detalle}</span> : null}
-                            </p>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
+                ))}
+                {vmAud.boton}
+              </div>
+            )}
+          </Seccion>
+        </div>
+
+        {/* Lateral */}
+        <div className="space-y-6">
+          <Seccion icon={Users} titulo="Equipo" sub={`Actividad en ${rangoTxt}`}>
+            {equipo.length === 0 ? <p className="py-4 text-center text-sm text-muted-foreground">Sin actividad en el período.</p> : (
+              <ul className="space-y-1">
+                {equipo.slice(0, 8).map((p) => (
+                  <li key={p.nombre}>
+                    <button type="button" onClick={() => setUsuario(usuario === p.nombre ? "Todos" : p.nombre)} className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition ${usuario === p.nombre ? "bg-[#1E3A8A]/[.07] ring-1 ring-[#1E3A8A]/20 dark:bg-white/10" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+                      <AvatarAud nombre={p.nombre} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2"><span className="truncate text-sm font-semibold">{nombreCorto(p.nombre)}</span><span className="text-sm font-semibold tabular-nums">{p.v}</span></span>
+                        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10"><span className="block h-full rounded-full bg-[#1E3A8A] dark:bg-sky-400" style={{ width: `${(p.v / maxEq) * 100}%` }} /></span>
+                        <span className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground"><span>Última vez {haceAud(p.ultimo)}</span>{p.sens > 0 && <span className="font-semibold text-amber-700 dark:text-amber-300">{p.sens} para revisar</span>}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Seccion>
+
+          <Seccion icon={Clock} titulo="¿A qué hora se trabaja?" sub="Acciones por hora del día">
+            <div className="flex h-28 items-end gap-[3px]">
+              {porHora.map((v, h) => (
+                <div key={h} className="group relative flex-1" title={`${hora12(`${String(h).padStart(2, "0")}:00`)} · ${v} acción${v === 1 ? "" : "es"}`}>
+                  <div className={`w-full rounded-t-[3px] transition ${v ? (h < 6 || h >= 21 ? "bg-amber-400" : "bg-[#1E3A8A] dark:bg-sky-400") : "bg-slate-100 dark:bg-white/10"}`} style={{ height: `${v ? Math.max(8, (v / maxHora) * 100) : 4}%` }} />
                 </div>
               ))}
-              {vmAud.boton}
             </div>
-          )}
-        </Seccion>
-
-        <div className="space-y-6">
-          <Seccion icon={Users} titulo="Actividad por usuario" sub={rangoTxt}>
-            <BarrasH datos={porUsuario} max={8} />
+            <div className="mt-1.5 flex justify-between text-[10px] text-muted-foreground"><span>12 a. m.</span><span>6 a. m.</span><span>12 p. m.</span><span>6 p. m.</span><span>11 p. m.</span></div>
+            <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-[#1E3A8A] dark:bg-sky-400" /> Horario normal</span>
+              <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-amber-400" /> Fuera de horario</span>
+            </div>
           </Seccion>
-          <Seccion icon={Activity} titulo="Por categoría" sub="Toque para filtrar">
-            <ul className="space-y-1.5">
-              {porCat.sort((a, b) => b.v - a.v).map((c) => (
+
+          <Seccion icon={Activity} titulo="Por área" sub="Toque para filtrar">
+            <ul className="space-y-1">
+              {porCat.map((c) => (
                 <li key={c.id}>
-                  <button onClick={() => setCat(c.id)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-white/5">
-                    <span className="grid size-8 place-items-center rounded-lg bg-[#1E3A8A]/[.07] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><c.icon className="size-4" /></span>
-                    <span className="flex-1 text-sm font-medium">{c.l}</span>
+                  <button onClick={() => setCat(cat === c.id ? "todas" : c.id)} className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${cat === c.id ? "bg-[#1E3A8A]/[.07] dark:bg-white/10" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}>
+                    <span className="grid size-8 place-items-center rounded-lg" style={{ background: `${c.dot}14`, color: c.dot }}><c.icon className="size-4" /></span>
+                    <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{c.l}</span><span className="block truncate text-[11px] text-muted-foreground">{c.desc}</span></span>
                     <span className="text-sm font-semibold tabular-nums">{c.v}</span>
                   </button>
                 </li>
               ))}
-              {porCat.length === 0 && <li className="py-4 text-center text-sm text-muted-foreground">Sin eventos en el período.</li>}
+              {porCat.length === 0 && <li className="py-4 text-center text-sm text-muted-foreground">Sin actividad en el período.</li>}
             </ul>
           </Seccion>
         </div>
       </div>
+
+      {abierto && (() => {
+        const e = abierto;
+        const c = catAud(e.accion);
+        const motivo = motivoAud(e.accion);
+        const d = new Date(e.fecha);
+        return (
+          <Modal titulo="Detalle de la acción" onCerrar={() => setAbierto(null)} ancho="max-w-lg">
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <AvatarAud nombre={e.usuario} size="size-12" />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{nombreCorto(e.usuario)}</p>
+                  <p className="text-xs text-muted-foreground">{haceAud(e.fecha)}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4 dark:bg-white/5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Qué hizo</p>
+                <p className="mt-1 text-base font-semibold">{capAud(e.accion)}</p>
+                {e.detalle && <p className="mt-1 text-sm text-muted-foreground">{e.detalle}</p>}
+              </div>
+              {motivo && (
+                <div className="flex gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200 dark:bg-amber-400/10 dark:text-amber-100 dark:ring-amber-400/20">
+                  <ShieldAlert className="mt-0.5 size-4 shrink-0" /><p><b>Para revisar.</b> {motivo}</p>
+                </div>
+              )}
+              <dl className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl ring-1 ring-border/70 p-3"><dt className="text-[11px] text-muted-foreground">Fecha</dt><dd className="font-semibold">{capAud(d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }))}</dd></div>
+                <div className="rounded-xl ring-1 ring-border/70 p-3"><dt className="text-[11px] text-muted-foreground">Hora</dt><dd className="font-semibold">{horaDeIso(e.fecha)}{fueraHorario(e.fecha) && <span className="ml-1.5 text-xs font-medium text-amber-700 dark:text-amber-300">(fuera de horario)</span>}</dd></div>
+                <div className="rounded-xl ring-1 ring-border/70 p-3"><dt className="text-[11px] text-muted-foreground">Área</dt><dd className="flex items-center gap-1.5 font-semibold"><c.icon className="size-3.5" style={{ color: c.dot }} /> {c.l}</dd></div>
+                <div className="rounded-xl ring-1 ring-border/70 p-3"><dt className="text-[11px] text-muted-foreground">N.º de registro</dt><dd className="truncate font-mono text-xs font-semibold">{e.id}</dd></div>
+              </dl>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="size-3" /> Este registro es permanente: no se puede editar ni borrar.</p>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => { limpiar(); setUsuario(e.usuario); setAbierto(null); }} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-[#1E3A8A] px-4 text-sm font-semibold text-white hover:bg-[#172E6E]"><UserRound className="size-4" /> Todo lo de esta persona</button>
+                <button type="button" onClick={() => { limpiar(); setDia(diaLocal(e.fecha)); setRango(9999); setAbierto(null); }} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><CalendarDays className="size-4" /> Todo ese día</button>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
+  );
+}
+
+function FiltroAud({ t, quitar }: { t: string; quitar: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-lg bg-white py-1 pl-2.5 pr-1 font-semibold text-[#1E3A8A] ring-1 ring-slate-200 dark:bg-white/10 dark:text-sky-100 dark:ring-white/10">
+      {t}
+      <button type="button" onClick={quitar} aria-label={`Quitar ${t}`} className="grid size-5 place-items-center rounded-md hover:bg-slate-100 dark:hover:bg-white/10"><X className="size-3" /></button>
+    </span>
   );
 }
 
@@ -11556,32 +11783,84 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
     toast.success("Se generó un link nuevo. El anterior ya no sirve.");
   };
 
+  const resumen = {
+    total: visibles.length,
+    activos: visibles.filter((x) => x.activo && tieneClave(x.id)).length,
+    pendientes: visibles.filter((x) => x.activo && !tieneClave(x.id)).length,
+    bloqueados: visibles.filter((x) => !x.activo).length,
+  };
+  const EST = {
+    Activo: { pill: "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/25", dot: "bg-emerald-500", barra: "bg-emerald-500" },
+    "Invitación pendiente": { pill: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/25", dot: "bg-amber-500", barra: "bg-amber-400" },
+    Bloqueado: { pill: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/25", dot: "bg-red-500", barra: "bg-red-400" },
+  } as const;
+  const accSec = "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground dark:hover:bg-white/5";
+
   return (
     <Seccion
       icon={UserCog}
       titulo={areaFija ? `Personal de ${areaFija.toLowerCase()}` : "Personal y accesos"}
       sub={areaFija ? "Alta del equipo y link para que cada persona cree su contraseña" : "Cada persona entra con los permisos de su departamento"}
     >
-      <form onSubmit={agregar} className={`mb-5 grid gap-3 ${areaFija ? "sm:grid-cols-[1fr_200px_auto]" : "sm:grid-cols-2 lg:grid-cols-[1fr_180px_220px_auto]"}`}>
-        <input value={nombre} onChange={(e) => setNombre(nombrePropio(e.target.value))} placeholder="Nombre y apellido" className={inp} />
-        <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp} />
-        {!areaFija && (
-          <select value={area} onChange={(e) => setArea(e.target.value)} className={inp} aria-label="Departamento">
-            <optgroup label="Especialidades médicas (médicos invitados)">{ESPECIALIDADES_MED.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
-            <optgroup label="Áreas de la clínica">{AREAS.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
-          </select>
-        )}
-        <Button type="submit" className="h-11 rounded-xl"><Plus className="size-4" /> Dar acceso</Button>
+      {/* Resumen */}
+      {visibles.length > 0 && (
+        <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+          {[
+            { l: "En el equipo", v: resumen.total, i: Users, c: "text-[rgb(var(--acc))] bg-[rgba(var(--acc),.1)]" },
+            { l: "Activos", v: resumen.activos, i: CheckCircle2, c: "text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-500/10" },
+            { l: "Invitación pendiente", v: resumen.pendientes, i: Clock, c: "text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10" },
+            { l: "Bloqueados", v: resumen.bloqueados, i: Ban, c: "text-red-700 bg-red-50 dark:text-red-300 dark:bg-red-500/10" },
+          ].map((k) => (
+            <div key={k.l} className="flex items-center gap-3 rounded-2xl bg-card p-3 ring-1 ring-border/70 dark:ring-white/10">
+              <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${k.c}`}><k.i className="size-4" /></span>
+              <div className="min-w-0 leading-tight">
+                <p className="font-display text-xl font-semibold tabular-nums">{k.v}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{k.l}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Nuevo acceso */}
+      <form onSubmit={agregar} className="relative mb-6 overflow-hidden rounded-2xl bg-[rgba(var(--acc),.04)] p-4 ring-1 ring-[rgba(var(--acc),.15)] dark:bg-white/[.03] dark:ring-white/10">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="grid size-7 place-items-center rounded-lg bg-[rgb(var(--acc))] text-white shadow-sm"><UserPlus className="size-3.5" /></span>
+          <p className="text-sm font-semibold">Dar acceso a una persona nueva</p>
+        </div>
+        <div className={`grid gap-3 ${areaFija ? "sm:grid-cols-[1fr_210px_auto]" : "sm:grid-cols-2 lg:grid-cols-[1fr_190px_220px_auto]"}`}>
+          <div className="relative">
+            <UserRound className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={nombre} onChange={(e) => setNombre(nombrePropio(e.target.value))} placeholder="Nombre y apellido" className={inp + " bg-card pl-10"} />
+          </div>
+          <div className="relative">
+            <FileText className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={doc} onChange={(e) => setDoc(e.target.value)} placeholder="Cédula (opcional)" className={inp + " bg-card pl-10"} />
+          </div>
+          {!areaFija && (
+            <select value={area} onChange={(e) => setArea(e.target.value)} className={inp + " bg-card"} aria-label="Departamento">
+              <optgroup label="Especialidades médicas (médicos invitados)">{ESPECIALIDADES_MED.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
+              <optgroup label="Áreas de la clínica">{AREAS.map((a) => <option key={a.nombre}>{a.nombre}</option>)}</optgroup>
+            </select>
+          )}
+          <Button type="submit" disabled={!nombre.trim()} className="h-11 rounded-xl px-5 shadow-md shadow-[rgba(var(--acc),.25)]"><Plus className="size-4" /> Dar acceso</Button>
+        </div>
+        <p className="mt-2.5 flex items-center gap-1.5 text-[11px] text-muted-foreground"><Lock className="size-3" /> Se genera un link de un solo uso para que la persona cree su propia contraseña.</p>
       </form>
 
       {nuevoLink && (
-        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
-          <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Link de invitación listo</p>
-          <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-300/80">La persona lo abre, crea su contraseña y entra. Sirve una sola vez.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input readOnly value={nuevoLink} onFocus={(e) => e.currentTarget.select()} className={inp + " h-10 min-w-0 flex-1 font-mono text-xs"} />
-            <Button type="button" variant="outline" className="h-10 rounded-xl" onClick={() => { void navigator.clipboard?.writeText(nuevoLink).then(() => toast.success("Link copiado")); }}>Copiar</Button>
-            <Button type="button" variant="ghost" className="h-10 rounded-xl" onClick={() => setNuevoLink(null)}>Cerrar</Button>
+        <div className="pn-up mb-6 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/25">
+          <div className="flex items-start gap-3 p-4">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-sm"><CheckCircle2 className="size-5" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Link de invitación listo</p>
+              <p className="mt-0.5 text-xs text-emerald-800/80 dark:text-emerald-300/80">La persona lo abre, crea su contraseña y entra. Sirve una sola vez.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <input readOnly value={nuevoLink} onFocus={(e) => e.currentTarget.select()} className={inp + " h-10 min-w-0 flex-1 bg-white font-mono text-xs dark:bg-white/5"} />
+                <Button type="button" className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700" onClick={() => { void navigator.clipboard?.writeText(nuevoLink).then(() => toast.success("Link copiado")); }}><Copy className="size-4" /> Copiar</Button>
+                <Button type="button" variant="ghost" className="h-10 rounded-xl" onClick={() => setNuevoLink(null)}>Cerrar</Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -11589,71 +11868,90 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
       {visibles.length === 0 ? (
         <Vacio icon={UserCog} texto="Todavía no hay personal con acceso. Dele acceso arriba y envíele el link de invitación." />
       ) : (
-        <ul className="divide-y divide-border/60">
+        <ul className="space-y-3">
           {vmPer.items.map((n) => {
             const conClave = tieneClave(n.id);
             const estado = !n.activo ? "Bloqueado" : conClave ? "Activo" : "Invitación pendiente";
+            const est = EST[estado];
+            const abierto = verPermisos === n.id;
+            const mods = MODULOS.map((m) => ({ m, nv: nivelPersona(permisos, n.id, areaDe(n), m) })).filter((x) => x.nv !== "ninguno");
             return (
-              <li key={n.id} className="py-3">
-               <div className="flex flex-wrap items-center gap-3">
-                <Avatar nombre={n.nombre} size="size-9" />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{n.nombre} {!areaFija && <span className="ml-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{areaDe(n)}</span>}{propios(n.id) && <span className="ml-1 rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200">Permisos personalizados</span>}</p>
-                  <p className="text-xs text-muted-foreground">{n.documento ? `C.C. ${n.documento} · ` : ""}Alta {fechaHora(n.creado)} por {nombreCorto(n.creadoPor)}</p>
-                  {(() => {
-                    const mods = MODULOS.map((m) => ({ m, nv: nivelPersona(permisos, n.id, areaDe(n), m) })).filter((x) => x.nv !== "ninguno");
-                    return (
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                        {mods.length === 0 && <span className="text-[11px] text-rose-600">No ve ningún módulo</span>}
-                        {mods.map(({ m, nv }) => (
-                          <span key={m} title={nv === "editar" ? "Puede ver y modificar" : "Solo ver"} className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${nv === "editar" ? "bg-[rgba(var(--acc),.12)] text-[rgb(var(--acc))]" : "bg-secondary text-muted-foreground"}`}>
-                            {nv === "editar" ? <Pencil className="size-2.5" /> : <Eye className="size-2.5" />} {m}
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })()}
+              <li key={n.id} className={`group relative overflow-hidden rounded-2xl bg-card ring-1 transition-all ${abierto ? "shadow-lg ring-[rgba(var(--acc),.35)]" : "ring-border/70 hover:shadow-md hover:ring-[rgba(var(--acc),.25)] dark:ring-white/10"}`}>
+                <span className={`absolute inset-y-0 left-0 w-1 ${est.barra}`} />
+                <div className="flex flex-wrap items-start gap-4 p-4 pl-5">
+                  <div className={`relative ${!n.activo ? "opacity-60 grayscale" : ""}`}>
+                    <Avatar nombre={n.nombre} size="size-12" />
+                    <span className={`absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full ring-2 ring-card ${est.dot}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className={`text-[15px] font-semibold ${!n.activo ? "text-muted-foreground" : ""}`}>{n.nombre}</p>
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${est.pill}`}><span className={`size-1.5 rounded-full ${est.dot}`} />{estado}</span>
+                      {!areaFija && <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{areaDe(n)}</span>}
+                      {propios(n.id) && <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700 ring-1 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/25"><Sparkles className="size-3" /> Permisos personalizados</span>}
+                    </div>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      {n.documento && <span className="inline-flex items-center gap-1"><FileText className="size-3" /> C.C. {n.documento}</span>}
+                      <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" /> Alta {fechaHora(n.creado)}</span>
+                      <span className="inline-flex items-center gap-1"><UserRound className="size-3" /> por {nombreCorto(n.creadoPor)}</span>
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      {mods.length === 0 && <span className="text-[11px] font-medium text-rose-600">No ve ningún módulo</span>}
+                      {mods.map(({ m, nv }) => (
+                        <span key={m} title={nv === "editar" ? "Puede ver y modificar" : "Solo ver"} className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ${nv === "editar" ? "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))] ring-1 ring-[rgba(var(--acc),.2)]" : "bg-secondary/80 text-muted-foreground"}`}>
+                          {nv === "editar" ? <Pencil className="size-3" /> : <Eye className="size-3" />} {m}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button onClick={() => setVerPermisos(abierto ? null : n.id)} className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition ${abierto ? "pn-acc-tile text-white shadow-md" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.18)]"}`}>
+                      <ShieldCheck className="size-4" /> Permisos <ChevronDown className={`size-3.5 transition-transform ${abierto ? "rotate-180" : ""}`} />
+                    </button>
+                    <button
+                      onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Acceso bloqueado" : "Acceso habilitado", `${n.nombre} · ${areaDe(n)}`); }}
+                      className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold ring-1 transition ${n.activo ? "bg-card text-muted-foreground ring-border hover:bg-red-50 hover:text-red-700 hover:ring-red-200 dark:hover:bg-red-500/10" : "bg-[rgb(var(--acc))] text-white ring-transparent shadow-md shadow-[rgba(var(--acc),.25)] hover:opacity-90"}`}
+                    >
+                      {n.activo ? <><Ban className="size-3.5" /> Bloquear</> : <><CheckCircle2 className="size-3.5" /> Habilitar</>}
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => setVerPermisos(verPermisos === n.id ? null : n.id)} className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${verPermisos === n.id ? "pn-acc-tile text-white" : "bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.18)]"}`}>
-                  <ShieldCheck className="size-3.5" /> Permisos
-                </button>
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ${estado === "Activo" ? "bg-emerald-100 text-emerald-800 ring-emerald-200" : estado === "Bloqueado" ? "bg-red-100 text-red-700 ring-red-200" : "bg-amber-100 text-amber-800 ring-amber-200"}`}>{estado}</span>
-                {n.activo && !conClave && n.invitacion && (
-                  <>
-                    <button onClick={() => void copiar(n)} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Copiar link</button>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(n))}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> Enviar por WhatsApp</a>
-                  </>
+
+                {n.activo && (
+                  <div className="flex flex-wrap items-center gap-1 border-t border-border/60 bg-secondary/30 px-4 py-2 pl-5 dark:border-white/10 dark:bg-white/[.02]">
+                    {!conClave && n.invitacion && (
+                      <>
+                        <button onClick={() => void copiar(n)} className={accSec}><Copy className="size-3.5" /> Copiar link</button>
+                        <a href={`https://wa.me/?text=${encodeURIComponent(mensaje(n))}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"><Send className="size-3.5" /> Enviar por WhatsApp</a>
+                      </>
+                    )}
+                    {conClave && (
+                      <>
+                        <button onClick={() => { void navigator.clipboard?.writeText(`${origen}/login`).then(() => toast.success("Link del panel copiado")); }} className={accSec}><Copy className="size-3.5" /> Copiar link del panel</button>
+                        <a href={`https://wa.me/?text=${encodeURIComponent(`Hola ${n.nombre.split(" ")[0]}, este es el link para entrar al panel de HEGO: ${origen}/login (en "Equipo" elija su nombre y ponga su contraseña).`)}`} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/10"><Send className="size-3.5" /> WhatsApp</a>
+                        <button
+                          title="Si perdió o cambió el celular: la próxima vez que entre configura la verificación de nuevo"
+                          onClick={async () => {
+                            if (!(await preguntar({ tono: "aviso", titulo: "¿Restablecer la verificación en dos pasos?", texto: `${n.nombre} la configura de nuevo al entrar. Úselo si perdió o cambió el celular.`, aceptar: "Restablecer" }))) return;
+                            const r = await restablecer2fa(n.id);
+                            if (!r.ok) return toast.error(r.error);
+                            log("Restableció la verificación en dos pasos", n.nombre);
+                            toast.success("Listo. Ya puede entrar solo con su contraseña y volver a activarla.");
+                          }}
+                          className={accSec}
+                        >
+                          <Smartphone className="size-3.5" /> Perdió el celular
+                        </button>
+                      </>
+                    )}
+                    {(conClave || !n.invitacion) && (
+                      <button onClick={() => { nuevaInvitacion(n); refrescar((x) => x + 1); }} className={accSec}><KeyRound className="size-3.5" /> {conClave ? "Reiniciar contraseña" : "Generar link"}</button>
+                    )}
+                  </div>
                 )}
-                {n.activo && conClave && (
-                  <>
-                    <button onClick={() => { void navigator.clipboard?.writeText(`${origen}/login`).then(() => toast.success("Link del panel copiado")); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">Copiar link del panel</button>
-                    <a href={`https://wa.me/?text=${encodeURIComponent(`Hola ${n.nombre.split(" ")[0]}, este es el link para entrar al panel de HEGO: ${origen}/login (en "Equipo" elija su nombre y ponga su contraseña).`)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"><Send className="size-3.5" /> WhatsApp</a>
-                  </>
-                )}
-                {n.activo && conClave && (
-                  <button
-                    title="Si perdió o cambió el celular: la próxima vez que entre configura la verificación de nuevo"
-                    onClick={async () => {
-                      if (!(await preguntar({ tono: "aviso", titulo: "¿Restablecer la verificación en dos pasos?", texto: `${n.nombre} la configura de nuevo al entrar. Úselo si perdió o cambió el celular.`, aceptar: "Restablecer" }))) return;
-                      const r = await restablecer2fa(n.id);
-                      if (!r.ok) return toast.error(r.error);
-                      log("Restableció la verificación en dos pasos", n.nombre);
-                      toast.success("Listo. Ya puede entrar solo con su contraseña y volver a activarla.");
-                    }}
-                    className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  >
-                    Perdió el celular
-                  </button>
-                )}
-                {n.activo && (conClave || !n.invitacion) && (
-                  <button onClick={() => { nuevaInvitacion(n); refrescar((x) => x + 1); }} className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground">{conClave ? "Reiniciar contraseña" : "Generar link"}</button>
-                )}
-                <button onClick={() => { setLista((p) => p.map((x) => (x.id === n.id ? { ...x, activo: !x.activo } : x))); log(n.activo ? "Acceso bloqueado" : "Acceso habilitado", `${n.nombre} · ${areaDe(n)}`); }} className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">
-                  {n.activo ? "Bloquear" : "Habilitar"}
-                </button>
-               </div>
-                {verPermisos === n.id && (
-                  <div className="mt-3 rounded-2xl border border-border/70 bg-secondary/30 p-4 animate-in fade-in slide-in-from-top-1 duration-200 dark:border-white/10 dark:bg-white/[0.03]">
+
+                {abierto && (
+                  <div className="border-t border-border/60 bg-secondary/30 p-4 pl-5 animate-in fade-in slide-in-from-top-1 duration-200 dark:border-white/10 dark:bg-white/[0.03]">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <p className="text-sm font-semibold">Permisos de {n.nombre.split(" ")[0]}</p>
@@ -11689,7 +11987,7 @@ function PersonalEquipo({ user, log, areaFija }: { user: SessionUser; log: LogFn
           {vmPer.boton && <li className="list-none">{vmPer.boton}</li>}
         </ul>
       )}
-      <p className="mt-4 text-[11px] text-muted-foreground">{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Cada persona tiene los permisos de su departamento. Con el botón Permisos puede ver y cambiar los de una persona en particular."}</p>
+      <p className="mt-5 flex items-center gap-2 rounded-xl bg-secondary/40 px-3.5 py-2.5 text-[11px] text-muted-foreground dark:bg-white/[.03]"><ShieldCheck className="size-3.5 shrink-0 text-[rgb(var(--acc))]" />{areaFija ? `Los módulos que ve se configuran en Permisos y accesos → ${areaFija}.` : "Cada persona tiene los permisos de su departamento. Con el botón Permisos puede ver y cambiar los de una persona en particular."}</p>
     </Seccion>
   );
 }
