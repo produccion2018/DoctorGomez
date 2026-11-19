@@ -2805,6 +2805,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
   const MOTIVOS = ["Consulta", "Control", "Primera vez", "Ecocardiograma", "Electrocardiograma", "Lectura de estudios"];
   const [filtro, setFiltro] = useState<"Todos" | Estado>("Todos");
   const [q, setQ] = useState("");
+  const [diaHist, setDiaHist] = useState("");
 
   const lista = useMemo(
     () =>
@@ -2812,9 +2813,10 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
         .filter((t) => (vista === "proximas" ? t.estado === "Pendiente" || t.estado === "Confirmado" : t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida"))
         .filter((t) => filtro === "Todos" || t.estado === filtro)
         .filter((t) => !procHoy || (t.fecha === hoy() && esProcedimiento(t.motivo)))
-        .filter((t) => norm(`${t.paciente} ${t.motivo} ${t.doctor}`).includes(norm(q)))
+        .filter((t) => vista !== "historial" || !diaHist || t.fecha === diaHist)
+        .filter((t) => norm(`${t.paciente} ${t.motivo} ${t.doctor} ${t.dni ?? ""} ${t.telefono ?? ""}`).includes(norm(q)))
         .sort((a, b) => (vista === "proximas" ? (a.fecha + a.hora).localeCompare(b.fecha + b.hora) : (b.fecha + b.hora).localeCompare(a.fecha + a.hora))),
-    [turnos, filtro, q, procHoy, vista],
+    [turnos, filtro, q, procHoy, vista, diaHist],
   );
 
   const agregar = (e: FormEvent) => {
@@ -2893,6 +2895,8 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
     setEditando(null);
   };
 
+  /** El historial queda oculto: solo muestra resultados si se busca algo o se elige un día. */
+  const histOculto = vista === "historial" && !procHoy && q.trim().length < 2 && !diaHist;
   const filtros: ("Todos" | Estado)[] = ["Todos", ...(vista === "proximas" ? (["Pendiente", "Confirmado"] as Estado[]) : (["Atendido", "Cancelado", "Vencida"] as Estado[]))];
 
   return (
@@ -3061,16 +3065,16 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
       )}
 
       <div id="lista-turnos" className="scroll-mt-24" />
-      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : vista === "proximas" ? "Próximas citas" : vista === "historial" ? "Historial de citas" : "Citas eliminadas"} sub={`${lista.length} cita${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : "lista completa con filtros"}`} delay={0.08}
+      <Seccion icon={ClipboardList} titulo={procHoy ? "Procedimientos de hoy" : vista === "proximas" ? "Próximas citas" : vista === "historial" ? "Historial de citas" : "Citas eliminadas"} sub={histOculto ? "Guardado y oculto · aparece solo lo que busque" : `${lista.length} cita${lista.length === 1 ? "" : "s"} · ${procHoy ? "estudios y procedimientos del día" : vista === "historial" ? "resultado de su búsqueda" : "lista completa con filtros"}`} delay={0.08}
         acciones={
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input placeholder="Buscar paciente, motivo..." value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-64"} />
+            <input placeholder={vista === "historial" ? "Apellido, cédula o motivo…" : "Buscar paciente, motivo..."} value={q} onChange={(e) => setQ(e.target.value)} className={inp + " h-10 pl-9 sm:w-64"} />
           </div>
         }>
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1 dark:bg-white/5">
           {([["proximas", "Próximas", turnos.filter((t) => t.estado === "Pendiente" || t.estado === "Confirmado").length], ["historial", "Historial", turnos.filter((t) => t.estado === "Atendido" || t.estado === "Cancelado" || t.estado === "Vencida").length], ["eliminadas", "Eliminadas", eliminadas.length]] as const).map(([v, l, n]) => (
-            <button key={v} onClick={() => { setVista(v); setFiltro("Todos"); }} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${vista === v ? "bg-[#1E3A8A] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>
+            <button key={v} onClick={() => { setVista(v); setFiltro("Todos"); setQ(""); setDiaHist(""); setProcHoy(false); }} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition ${vista === v ? "bg-[#1E3A8A] text-white shadow-sm" : "text-slate-600 hover:bg-white dark:text-slate-300 dark:hover:bg-white/10"}`}>
               {v === "proximas" ? <CalendarDays className="size-3.5" /> : v === "historial" ? <ClipboardList className="size-3.5" /> : <Trash2 className="size-3.5" />} {l} <span className={`rounded-md px-1.5 tabular-nums ${vista === v ? "bg-white/20" : "bg-white dark:bg-white/10"}`}>{n}</span>
             </button>
           ))}
@@ -3091,7 +3095,44 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
               ))}
             </ul>
           )
+        ) : histOculto ? (
+          <div className="relative overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-[#172E6E] via-[#1E3A8A] to-[#1e3a8a] p-6 text-white shadow-elevated sm:p-8">
+            <div className="pn-cross pointer-events-none absolute inset-0 opacity-60" />
+            <div className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-sky-300/15 blur-3xl" />
+            <div className="relative mx-auto max-w-2xl text-center">
+              <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Lock className="size-6" /></span>
+              <h3 className="mt-4 text-2xl font-semibold tracking-tight">El historial está guardado</h3>
+              <p className="mt-1.5 text-sm text-white/75">Por privacidad no se muestra ningún paciente. Busque por apellido, cédula o motivo, o elija un día.</p>
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
+                  <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ej.: Gómez, 1125687700, palpitaciones…" className="h-12 w-full rounded-2xl border-0 bg-white pl-12 pr-4 text-sm text-slate-900 shadow-lg outline-none ring-2 ring-transparent placeholder:text-slate-400 focus:ring-sky-300" />
+                </div>
+                <label className="relative sm:w-48">
+                  <CalendarDays className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input type="date" value={diaHist} max={hoy()} onChange={(e) => setDiaHist(e.target.value)} aria-label="Buscar por día" className="h-12 w-full rounded-2xl border-0 bg-white pl-11 pr-3 text-sm text-slate-900 shadow-lg outline-none ring-2 ring-transparent focus:ring-sky-300" />
+                </label>
+              </div>
+              <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-3">
+                {(["Atendido", "Cancelado", "Vencida"] as Estado[]).map((e) => (
+                  <div key={e} className="rounded-2xl bg-white/10 px-3 py-3 ring-1 ring-white/15 backdrop-blur">
+                    <p className="font-display text-2xl font-semibold tabular-nums">{turnos.filter((t) => t.estado === e).length}</p>
+                    <p className="mt-0.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/65"><span className={`size-1.5 rounded-full ${ESTADO_DOT[e]}`} />{e === "Atendido" ? "Atendidas" : e === "Cancelado" ? "Canceladas" : "Vencidas"}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 text-[11px] text-white/55">Las citas que pasan su hora sin marcarse como atendidas quedan como <b className="text-white/80">Vencida</b> ({GRACIA_CITA_MIN} minutos después).</p>
+            </div>
+          </div>
         ) : (<>
+        {vista === "historial" && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl bg-[#1E3A8A]/[.05] px-4 py-3 ring-1 ring-[#1E3A8A]/15 dark:bg-white/5 dark:ring-white/10">
+            <Search className="size-4 text-[#1E3A8A] dark:text-sky-200" />
+            <p className="text-sm"><b>{lista.length}</b> resultado{lista.length === 1 ? "" : "s"}{q.trim() ? <> para «<b>{q.trim()}</b>»</> : null}{diaHist ? <> el <b>{fechaCorta(diaHist)}</b></> : null}</p>
+            <input type="date" value={diaHist} max={hoy()} onChange={(e) => setDiaHist(e.target.value)} aria-label="Día" className={inp + " h-9 w-auto bg-card text-xs"} />
+            <button type="button" onClick={() => { setQ(""); setDiaHist(""); setFiltro("Todos"); }} className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-semibold text-[#1E3A8A] ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/5 dark:text-sky-200 dark:ring-white/10"><Lock className="size-3.5" /> Ocultar historial</button>
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap gap-2">
           <button onClick={() => setProcHoy(!procHoy)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${procHoy ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-md" : "bg-violet-50 text-violet-700 ring-1 ring-violet-200 hover:bg-violet-100 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30"}`}>
             <Stethoscope className="size-3.5" /> Procedimientos de hoy
@@ -3108,15 +3149,15 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
             );
           })}
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-2xl ring-1 ring-border/70 dark:ring-white/10">
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            <thead className="bg-slate-50/90 text-[11px] uppercase tracking-wider text-muted-foreground dark:bg-white/5">
               <tr className="border-b border-border">
-                <th className="pb-3 pr-3 font-medium">Fecha</th>
-                <th className="pb-3 pr-3 font-medium">Paciente</th>
-                <th className="pb-3 pr-3 font-medium">Profesional</th>
-                <th className="pb-3 pr-3 font-medium">Estado</th>
-                <th className="pb-3" />
+                <th className="py-3 pl-4 pr-3 font-semibold">Fecha</th>
+                <th className="py-3 pr-3 font-semibold">Paciente</th>
+                <th className="py-3 pr-3 font-semibold">Profesional</th>
+                <th className="py-3 pr-3 font-semibold">Estado</th>
+                <th className="py-3 pr-4" />
               </tr>
             </thead>
             <tbody>
@@ -3131,7 +3172,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
               )}
               {lista.map((t) => (
                 <tr key={t.id} className="group border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40">
-                  <td className="py-3 pr-3">
+                  <td className="py-3.5 pl-4 pr-3">
                     <p className="whitespace-nowrap font-semibold tabular-nums">{hora12(t.hora)}</p>
                     <p className="whitespace-nowrap text-xs text-muted-foreground">{fechaCorta(t.fecha)}</p>
                   </td>
@@ -3156,7 +3197,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
                       {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="py-3 pr-4 text-right">
                     <div className="inline-flex gap-1">
                       <button onClick={() => setEditando({ ...t })} aria-label="Editar cita" title="Editar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-slate-100 hover:text-[#1E3A8A] dark:hover:bg-white/10"><Pencil className="size-4" /></button>
                       <button onClick={() => void borrar(t)} aria-label="Eliminar cita" title="Eliminar cita" className="rounded-lg p-2 text-muted-foreground transition-all hover:bg-red-50 hover:text-red-600"><Trash2 className="size-4" /></button>
@@ -3168,7 +3209,7 @@ function TurnosTab({ turnos, setTurnos, log, user, foco = null, irHorarios }: { 
           </table>
         </div>
         </>)}
-        {vista === "historial" && <p className="mt-3 text-xs text-muted-foreground">Las citas que pasan su hora sin marcarse como atendidas llegan aquí como <b>Vencida</b> ({GRACIA_CITA_MIN} minutos después). Si el paciente sí se atendió, cámbiela a <b>Atendido</b>.</p>}
+        {vista === "historial" && !histOculto && <p className="mt-3 text-xs text-muted-foreground">Las citas que pasan su hora sin marcarse como atendidas llegan aquí como <b>Vencida</b> ({GRACIA_CITA_MIN} minutos después). Si el paciente sí se atendió, cámbiela a <b>Atendido</b>.</p>}
       </Seccion>
 
       {editando && (
