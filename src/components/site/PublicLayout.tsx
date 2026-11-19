@@ -713,7 +713,6 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 
       <main>{children}</main>
 
-      <Reproductor />
 
       <footer className="relative mt-24 overflow-hidden bg-deep text-deep-foreground">
         <div className="absolute inset-0 bg-grid opacity-40 [mask-image:linear-gradient(to_bottom,#000,transparent)]" />
@@ -1254,14 +1253,14 @@ function MiniReproductor() {
   const e = useMusica();
   const [abierto, setAbierto] = useState(false);
   const t = e.lista[e.tema];
-  if (!e.sonando || !t) return null;
+  if (!t) return null;
   return (
-    <div className="fixed bottom-24 left-6 z-50 flex items-center gap-2 rounded-full border border-white/15 bg-[oklch(0.16_0.045_262)]/90 py-1.5 pl-1.5 pr-1.5 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500">
-      <span className={`relative flex size-8 items-center justify-center rounded-full bg-gradient-to-br ${t.color} spin-slow`} style={{ animationDuration: "6s" }}>
+    <div title={e.sonando ? "Música de espera" : e.pausadaPanel ? "Música en pausa" : "Toque cualquier parte de la página para escuchar"} className="fixed bottom-24 left-6 z-50 flex items-center gap-2 rounded-full border border-white/15 bg-[oklch(0.16_0.045_262)]/90 py-1.5 pl-1.5 pr-1.5 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-500">
+      <span className={`relative flex size-8 items-center justify-center rounded-full bg-gradient-to-br ${t.color} ${e.sonando ? "spin-slow" : "opacity-70"}`} style={{ animationDuration: "6s" }}>
         <span className="size-2.5 rounded-full bg-[oklch(0.16_0.045_262)] ring-1 ring-white/40" />
       </span>
-      <span className="flex h-4 items-end gap-0.5" aria-hidden="true">{[0, 1, 2, 3].map((i) => <span key={i} className="eq-bar w-0.5 rounded-full bg-white" style={{ height: "100%", animationDelay: `${i * 0.15}s` }} />)}</span>
-      <span className="max-w-[9rem] truncate text-xs font-semibold">{t.nombre}</span>
+      <span className="flex h-4 items-end gap-0.5" aria-hidden="true">{[0, 1, 2, 3].map((i) => <span key={i} className={`w-0.5 rounded-full bg-white ${e.sonando ? "eq-bar" : "opacity-50"}`} style={{ height: e.sonando ? "100%" : "35%", animationDelay: `${i * 0.15}s` }} />)}</span>
+      <span className="max-w-[9rem] truncate text-xs font-semibold">{e.sonando ? t.nombre : e.pausadaPanel ? "Música en pausa" : "Toque para escuchar"}</span>
       {abierto ? (
         <div className="animate-in fade-in slide-in-from-left-1 duration-200"><ControlVolumen volumen={e.volumen} ancho="w-20" /></div>
       ) : (
