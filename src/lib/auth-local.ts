@@ -400,6 +400,12 @@ function traerDelServidor(key: string): Promise<void> {
   return traidos.get(key)!;
 }
 
+/** Vuelve a pedir un dato al servidor (para ver cambios del panel sin recargar la página). */
+export function refrescarDelServidor(key: string): Promise<void> {
+  traidos.delete(key);
+  return traerDelServidor(key);
+}
+
 /* ---------- Colecciones fila por fila (turnos, padrón, pacientes) ---------- */
 const COLECCIONES = [
   "gb_turnos", "gb_padron", "gb_pacientes", "gb_papelera",
@@ -1245,6 +1251,13 @@ export function clasificarFevi(fevi: number): { texto: string; tono: "verde" | "
 
 export const KEY_SITIO = "gb_sitio";
 
+/** Lo que el panel ordena al reproductor de la web.
+ *  - estado: si suena o está en pausa.
+ *  - temaId: qué tema suena.
+ *  - inicio: momento (ms) en que ese tema "arrancó desde 0"; con eso todos los visitantes escuchan el mismo punto.
+ *  - pos: segundo en que quedó al pausar (para retomar desde ahí). */
+export type ControlMusica = { estado: "sonando" | "pausada"; temaId?: string; inicio?: number; pos?: number };
+
 export type PistaMusica = {
   id: string;
   nombre: string;
@@ -1266,6 +1279,8 @@ export type DatosSitio = {
   musicaActiva: boolean;
   musicaEjemplo: boolean;
   pistas: PistaMusica[];
+  /** Control en vivo desde el panel: la web lo copia (espejo). */
+  musicaControl?: ControlMusica;
   /** Redes sociales (se muestran en el pie de la web). */
   redes?: { instagram?: string; facebook?: string; tiktok?: string; youtube?: string; linkedin?: string };
   /** Aviso destacado arriba de toda la web (festivos, cambios de horario, campañas). */

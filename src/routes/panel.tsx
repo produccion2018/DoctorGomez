@@ -9,6 +9,10 @@ import fondoCorazonPanel from "@/assets/fondo-corazon.jpg";
 import type { LucideIcon } from "lucide-react";
 import {
   QrCode,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
   SlidersHorizontal,
   Mic,
   Square,
@@ -12121,6 +12125,37 @@ function SitioTab({ log }: { log: LogFn }) {
     if (!nueva.url) { toast.error("Suba un archivo o pegue un enlace de audio"); return; }
     agregarPista(nueva.url.trim(), nueva.nombre.trim() || "Tema sin nombre", nueva.sub.trim());
   };
+  // ---- Control en vivo: lo que se hace acá lo copia la web al instante (espejo) ----
+  const ctrl = d.musicaControl;
+  const temaActualId = d.pistas.some((p) => p.id === ctrl?.temaId) ? ctrl!.temaId! : d.pistas[0]?.id;
+  const temaActual = d.pistas.find((p) => p.id === temaActualId);
+  const sonandoWeb = !!temaActual && d.musicaActiva && ctrl?.estado !== "pausada";
+  const ponerTema = (id: string) => {
+    const p = d.pistas.find((x) => x.id === id);
+    if (!p) return;
+    publicarMusica(() => ({ musicaActiva: true, musicaControl: { estado: "sonando", temaId: id, inicio: Date.now() } }));
+    log("Música de la web", `Sonando: ${p.nombre}`);
+    toast.success(`Ahora suena en la web: «${p.nombre}»`);
+  };
+  const pausarReanudar = () => {
+    if (!temaActual) return;
+    if (sonandoWeb) {
+      const pos = ctrl?.temaId === temaActual.id && ctrl.inicio ? (Date.now() - ctrl.inicio) / 1000 : 0;
+      publicarMusica(() => ({ musicaControl: { estado: "pausada", temaId: temaActual.id, pos } }));
+      log("Música de la web", `Pausada: ${temaActual.nombre}`);
+      toast.success("Música pausada en la web.");
+    } else {
+      const pos = ctrl?.temaId === temaActual.id ? ctrl.pos ?? 0 : 0;
+      publicarMusica(() => ({ musicaActiva: true, musicaControl: { estado: "sonando", temaId: temaActual.id, inicio: Date.now() - pos * 1000 } }));
+      log("Música de la web", `Reanudada: ${temaActual.nombre}`);
+      toast.success("Música sonando en la web.");
+    }
+  };
+  const saltar = (k: number) => {
+    if (!d.pistas.length) return;
+    const i = Math.max(0, d.pistas.findIndex((p) => p.id === temaActualId));
+    ponerTema(d.pistas[(i + k + d.pistas.length) % d.pistas.length]!.id);
+  };
   const mover = (i: number, k: number) => {
     const l = [...d.pistas];
     const j = i + k;
@@ -12315,6 +12350,30 @@ function SitioTab({ log }: { log: LogFn }) {
           <span className="ml-auto self-center text-xs text-muted-foreground">{d.musicaActiva ? `${total} ${total === 1 ? "tema" : "temas"} en la web` : "Reproductor oculto"}</span>
         </div>
 
+        {/* Control en vivo (espejo de la web) */}
+        <div className="mt-5 overflow-hidden rounded-2xl bg-[#0f1e46] text-white shadow-lg ring-1 ring-white/10">
+          <div className="flex flex-wrap items-center gap-4 p-4 sm:p-5">
+            <span className={`relative grid size-14 shrink-0 place-items-center rounded-full bg-gradient-to-br ${temaActual?.color ?? "from-slate-500 to-slate-700"}`}>
+              <span className="size-4 rounded-full bg-[#0f1e46] ring-2 ring-white/40" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">
+                <span className={`size-2 rounded-full ${sonandoWeb ? "bg-emerald-400" : "bg-amber-400"}`} />
+                {!d.musicaActiva ? "Reproductor oculto en la web" : !temaActual ? "Sin temas cargados" : sonandoWeb ? "Sonando en la web" : "En pausa en la web"}
+              </p>
+              <p className="truncate text-lg font-semibold">{temaActual?.nombre ?? "Suba un tema para empezar"}</p>
+              <p className="text-xs text-white/60">Lo que haga acá lo ven y escuchan al instante todos los visitantes. Ellos solo pueden bajar el volumen.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => saltar(-1)} disabled={d.pistas.length < 2} aria-label="Tema anterior" className="grid size-10 place-items-center rounded-full text-white/80 transition hover:bg-white/10 disabled:opacity-30"><SkipBack className="size-4" /></button>
+              <button type="button" onClick={pausarReanudar} disabled={!temaActual} aria-label={sonandoWeb ? "Pausar en la web" : "Reproducir en la web"} className="grid size-12 place-items-center rounded-full bg-white text-[#0f1e46] shadow-lg transition hover:scale-105 disabled:opacity-40">
+                {sonandoWeb ? <Pause className="size-5" /> : <Play className="ml-0.5 size-5" />}
+              </button>
+              <button type="button" onClick={() => saltar(1)} disabled={d.pistas.length < 2} aria-label="Tema siguiente" className="grid size-10 place-items-center rounded-full text-white/80 transition hover:bg-white/10 disabled:opacity-30"><SkipForward className="size-4" /></button>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_380px]">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sus temas</p>
@@ -12323,8 +12382,10 @@ function SitioTab({ log }: { log: LogFn }) {
             ) : (
               <ol className="space-y-2">
                 {d.pistas.map((p, i) => (
-                  <li key={p.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border/70 bg-card p-3">
-                    <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} text-white`}><Music2 className="size-4" /></span>
+                  <li key={p.id} className={`flex flex-wrap items-center gap-3 rounded-2xl border bg-card p-3 ${p.id === temaActualId ? "border-[#1E3A8A]/40 ring-2 ring-[#1E3A8A]/15" : "border-border/70"}`}>
+                    <button type="button" onClick={() => ponerTema(p.id)} title="Poner este tema en la web" aria-label={`Poner «${p.nombre}» en la web`} className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${p.color} text-white transition hover:scale-105`}>
+                      {p.id === temaActualId && sonandoWeb ? <Volume2 className="size-4" /> : <Play className="ml-0.5 size-4" />}
+                    </button>
                     <div className="min-w-0 flex-1">
                       <input value={p.nombre} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, nombre: e.target.value } : y)) })} onBlur={() => publicarMusica(() => ({ pistas: d.pistas }))} className="w-full bg-transparent text-sm font-semibold outline-none" />
                       <input value={p.sub} onChange={(e) => set({ pistas: d.pistas.map((y) => (y.id === p.id ? { ...y, sub: e.target.value } : y)) })} onBlur={() => publicarMusica(() => ({ pistas: d.pistas }))} className="w-full bg-transparent text-xs text-muted-foreground outline-none" />

@@ -10,7 +10,7 @@ import { CLINICA, ESPECIALIDADES, iconoEspecialidad, imagenEspecialidad } from "
 import logoClinica from "@/assets/logo.png";
 import fondoCorazonDoc from "@/assets/fondo-corazon.jpg";
 import fondoRinonesDoc from "@/assets/fondo-rinones.jpg";
-import { KEY_SITIO, leerDato, resumenHorarioClinica, sitioDe, useDato, avisoVigente, proximosCierres, type DatosSitio } from "@/lib/auth-local";
+import { KEY_SITIO, leerDato, resumenHorarioClinica, sitioDe, useDato, avisoVigente, proximosCierres, refrescarDelServidor, type ControlMusica, type DatosSitio } from "@/lib/auth-local";
 import { Instagram, Facebook, Youtube, Linkedin, Megaphone, CalendarX } from "lucide-react";
 const LINKS = [
   { to: "/", label: "Inicio" },
@@ -878,6 +878,16 @@ const motor = (() => {
     }
   };
   const estado: EstadoMusica = { sonando: false, tema: 0, volumen: typeof window === "undefined" ? 0.6 : volGuardado, lista: [] };
+  /** Orden vigente del panel (espejo). */
+  let control: ControlMusica | null = null;
+  let firmaControl = "";
+  const pausadaPorPanel = () => control?.estado === "pausada";
+  /** Segundo en el que tiene que ir el tema según el panel (todos escuchan lo mismo). */
+  const posicionPanel = (temaId: string): number | null => {
+    if (!control || control.temaId !== temaId) return null;
+    if (control.estado === "pausada") return control.pos ?? 0;
+    return control.inicio ? Math.max(0, (Date.now() - control.inicio) / 1000) : null;
+  };
   const subs = new Set<() => void>();
   const avisar = () => subs.forEach((f) => f());
   const actual = () => estado.lista[estado.tema];
@@ -993,7 +1003,7 @@ const motor = (() => {
 
   const arrancar = async () => {
     const tema = actual();
-    if (!tema) return;
+    if (!tema || pausadaPorPanel()) return;
     if (tema.tipo === "audio") {
       fundido(0, 0.4);
       if (timer) {
@@ -1007,10 +1017,12 @@ const motor = (() => {
         a.preload = "auto";
         a.volume = 0;
         const pos = posGuardada();
-        if (pos && pos.id === tema.id && pos.t > 0) {
+        const delPanel = posicionPanel(tema.id);
+        const objetivo = delPanel ?? (pos && pos.id === tema.id ? pos.t : 0);
+        if (objetivo > 0) {
           const irA = () => {
             try {
-              a.currentTime = pos.t;
+              a.currentTime = Number.isFinite(a.duration) && a.duration > 0 ? objetivo % a.duration : objetivo;
             } catch {
               /* sin posición */
             }
@@ -1079,7 +1091,7 @@ const motor = (() => {
       if (!lista.length && !apagada) return;
       const firma = (l: Tema[]) => l.map((t) => t.id + (t.tipo === "audio" ? t.url.length : "")).join("|");
       if (firma(lista) === firma(estado.lista)) return;
-      const antes = actual()?.id ?? posGuardada()?.id;
+      const antes = control?.temaId ?? actual()?.id ?? posGuardada()?.id;
       estado.lista = lista;
       const idx = lista.findIndex((t) => t.id === antes);
       if (idx >= 0) estado.tema = idx;
@@ -1124,7 +1136,36 @@ const motor = (() => {
     },
     /** Arranca la música si todavía no suena (el navegador exige un toque o tecla del visitante). */
     intentar() {
-      if (!estado.sonando && estado.lista.length) void arrancar();
+      if (!estado.sonando && estado.lista.length && !pausadaPorPanel()) void arrancar();
+    },
+    /** Aplica lo que ordenó el panel: pausa, play o cambio de tema. */
+    aplicarControl(c: ControlMusica | undefined) {
+      const firma = c ? `${c.estado}|${c.temaId ?? ""}|${c.inicio ?? ""}|${c.pos ?? ""}` : "";
+      if (firma === firmaControl) return;
+      const primera = firmaControl === "";
+      firmaControl = firma;
+      control = c ?? null;
+      if (!c) return;
+      if (c.estado === "pausada") {
+        if (estado.sonando) this.pausa();
+        if (audio) {
+          audio.pause();
+          audio = null;
+        }
+        avisar();
+        return;
+      }
+      const idx = c.temaId ? estado.lista.findIndex((t) => t.id === c.temaId) : -1;
+      const cambiaTema = idx >= 0 && idx !== estado.tema;
+      if (cambiaTema || !primera) {
+        // Tema nuevo o reanudación: se rearma el audio en el punto que indica el panel
+        detenerTodo();
+        if (idx >= 0) estado.tema = idx;
+        paso = 0;
+        estado.sonando = false;
+      }
+      avisar();
+      void arrancar();
     },
     volumen(v: number) {
       estado.volumen = v;
@@ -1166,9 +1207,17 @@ function useMusica() {
   const apagada = crudo.musicaActiva === false;
   useEffect(() => {
     motor.fijarLista(lista, apagada);
+    motor.aplicarControl(sitio.musicaControl);
     motor.intentar();
   });
-  return { ...motor.estado, lista: apagada ? [] : motor.estado.lista.length ? motor.estado.lista : lista };
+  // Espejo del panel: cada 8 s se consulta si el panel pausó, reanudó o cambió de tema.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refrescarDelServidor(KEY_SITIO);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, []);
+  return { ...motor.estado, pausadaPanel: sitio.musicaControl?.estado === "pausada", lista: apagada ? [] : motor.estado.lista.length ? motor.estado.lista : lista };
 }
 
 /** Control de volumen: tocar el parlante silencia / devuelve el volumen. */
@@ -1254,11 +1303,11 @@ export function Reproductor() {
             {/* Tema */}
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">
-                <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/40"}`} /> {e.sonando ? "Sonando ahora" : "Música de espera"}
+                <span className={`size-1.5 rounded-full ${e.sonando ? "bg-emerald-400 pulse-dot" : "bg-white/40"}`} /> {e.sonando ? "Sonando ahora" : e.pausadaPanel ? "En pausa" : "Música de espera"}
               </p>
               <p key={t.id} className="truncate font-display text-lg font-semibold animate-in fade-in slide-in-from-bottom-1 duration-500 sm:text-xl">{t.nombre}</p>
               <div className="mt-1 flex items-center gap-2">
-                <span className="truncate text-xs text-white/55">{e.sonando ? t.sub : "Comienza al tocar cualquier parte de la página"}</span>
+                <span className="truncate text-xs text-white/55">{e.sonando ? t.sub : e.pausadaPanel ? "La música está en pausa en este momento" : "Comienza al tocar cualquier parte de la página"}</span>
                 <span className="flex h-3 items-end gap-[2px]" aria-hidden="true">
                   {[0, 1, 2, 3, 4].map((k) => (
                     <span key={k} className={`w-[3px] rounded-full bg-gradient-to-t ${t.color} ${e.sonando ? "eq-bar" : ""}`} style={{ height: e.sonando ? "100%" : "30%", animationDelay: `${k * 0.13}s` }} />
