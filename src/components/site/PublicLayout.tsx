@@ -713,6 +713,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
 
       <main>{children}</main>
 
+      <Reproductor />
+
 
       <footer className="relative mt-24 overflow-hidden bg-deep text-deep-foreground">
         <div className="absolute inset-0 bg-grid opacity-40 [mask-image:linear-gradient(to_bottom,#000,transparent)]" />
