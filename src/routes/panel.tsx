@@ -1994,6 +1994,187 @@ function waDe(tel: string, texto: string) {
   return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
 }
 
+/* ---------- Recordatorios del médico (arriba de la agenda) ---------- */
+type RecManual = { id: string; texto: string; fecha: string; hora: string; hecho?: boolean };
+type ColAgenda = { a: { id: string; nombre: string }; ag: ReturnType<typeof agendaDe> };
+type Alerta = { id: string; tono: "naranja" | "ambar" | "azul" | "verde" | "violeta"; icon: LucideIcon; titulo: string; texto: string; cuando: string; orden: string; onClick?: (() => void) | undefined; manual?: RecManual };
+
+const TONOS_ALERTA: Record<Alerta["tono"], { caja: string; ic: string; tit: string }> = {
+  naranja: { caja: "bg-orange-50 ring-orange-200 dark:bg-orange-500/10 dark:ring-orange-500/25", ic: "bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300", tit: "text-orange-700 dark:text-orange-300" },
+  ambar: { caja: "bg-amber-50 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/25", ic: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300", tit: "text-amber-800 dark:text-amber-200" },
+  azul: { caja: "bg-sky-50 ring-sky-200 dark:bg-sky-500/10 dark:ring-sky-500/25", ic: "bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300", tit: "text-sky-900 dark:text-sky-200" },
+  verde: { caja: "bg-emerald-50 ring-emerald-200 dark:bg-emerald-500/10 dark:ring-emerald-500/25", ic: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300", tit: "text-emerald-900 dark:text-emerald-200" },
+  violeta: { caja: "bg-violet-50 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/25", ic: "bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300", tit: "text-violet-900 dark:text-violet-200" },
+};
+
+function RecordatoriosMedico({ turnos, columnas, irDia, irHorarios, log }: { turnos: Turno[]; columnas: ColAgenda[]; irDia: (d: string) => void; irHorarios?: ((id: string) => void) | undefined; log: LogFn }) {
+  const yo = sesionActual();
+  const mia = columnas.find((c) => c.a.id === yo?.id);
+  const quienes = mia ? [mia] : columnas;
+  const varios = quienes.length > 1;
+  const nombres = new Set(quienes.map((c) => c.a.nombre));
+  const [manuales, setManuales] = useDato<RecManual[]>(`gb_recordatorios_${yo?.id ?? "equipo"}`, []);
+  const [nuevo, setNuevo] = useState<{ texto: string; fecha: string; hora: string } | null>(null);
+  const [verTodo, setVerTodo] = useState(false);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 60000);
+    return () => clearInterval(t);
+  }, []);
+
+  const ahora = new Date();
+  const h = hoy();
+  const maniana = isoDe(new Date(Date.now() + 86400000));
+  const hhmm = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
+  const cuandoTxt = (fecha: string, hora?: string) => `${fecha === h ? "Hoy" : fecha === maniana ? "Mañana" : new Date(`${fecha}T12:00:00`).toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }).replace(".", "")}${hora ? ` · ${hora12(hora)}` : ""}`;
+  const minutosHasta = (hora: string) => { const [a, b] = hora.split(":").map(Number); return (a ?? 0) * 60 + (b ?? 0) - (ahora.getHours() * 60 + ahora.getMinutes()); };
+  const doc = (n: string) => (varios ? ` · ${nombreCorto(n)}` : "");
+
+  const futuras = turnos
+    .filter((t) => nombres.has(t.doctor) && (t.estado === "Pendiente" || t.estado === "Confirmado") && (t.fecha > h || (t.fecha === h && t.hora >= hhmm)))
+    .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+
+  const alertas: Alerta[] = [];
+  for (const c of quienes) {
+    if (bloquesDe(c.ag).length === 0) {
+      alertas.push({ id: `hor-${c.a.id}`, tono: "naranja", icon: Clock, titulo: c.a.id === yo?.id ? "Todavía no cargó sus horarios" : `${nombreCorto(c.a.nombre)}: sin horarios`, texto: "Sin horarios no se pueden reservar citas en la web.", cuando: "Ahora", orden: "0", onClick: irHorarios ? () => irHorarios(c.a.id) : undefined });
+    }
+    const limite = isoDe(new Date(Date.now() + 14 * 86400000));
+    for (const b of c.ag.bloqueos.filter((x) => x.hasta >= h && x.desde <= limite)) {
+      alertas.push({ id: `blq-${c.a.id}-${b.desde}`, tono: "violeta", icon: CalendarDays, titulo: b.desde <= h ? "Hoy no atiende" : "Ausencia programada", texto: `${b.motivo || "Sin motivo"}${doc(c.a.nombre)}`, cuando: b.desde <= h ? `Hasta ${cuandoTxt(b.hasta)}` : cuandoTxt(b.desde), orden: `1${b.desde}` });
+    }
+  }
+  const proxima = futuras.find((t) => t.fecha === h);
+  if (proxima) {
+    const m = minutosHasta(proxima.hora);
+    alertas.push({ id: `prox-${proxima.id}`, tono: "azul", icon: Bell, titulo: m <= 60 ? `Próxima cita en ${m <= 0 ? "este momento" : `${m} min`}` : "Próxima cita de hoy", texto: `Paciente: ${nombreCorto(proxima.paciente)}${doc(proxima.doctor)}`, cuando: cuandoTxt(proxima.fecha, proxima.hora), orden: `2${proxima.hora}`, onClick: () => irDia(proxima.fecha) });
+  }
+  futuras.filter((t) => t.fecha === h && t.estado === "Pendiente" && t.id !== proxima?.id).slice(0, 3).forEach((t) =>
+    alertas.push({ id: `pend-${t.id}`, tono: "ambar", icon: AlertTriangle, titulo: "Cita sin confirmar", texto: `Paciente: ${nombreCorto(t.paciente)}${doc(t.doctor)}`, cuando: cuandoTxt(t.fecha, t.hora), orden: `3${t.hora}`, onClick: () => irDia(t.fecha) }),
+  );
+  futuras.filter((t) => t.fecha === h && t.estado === "Confirmado" && t.id !== proxima?.id).slice(0, 2).forEach((t) =>
+    alertas.push({ id: `conf-${t.id}`, tono: "verde", icon: CheckCircle2, titulo: "Cita confirmada", texto: `Paciente: ${nombreCorto(t.paciente)}${doc(t.doctor)}`, cuando: cuandoTxt(t.fecha, t.hora), orden: `4${t.hora}`, onClick: () => irDia(t.fecha) }),
+  );
+  const nManiana = futuras.filter((t) => t.fecha === maniana).length;
+  if (nManiana) alertas.push({ id: "maniana", tono: "azul", icon: CalendarCheck, titulo: `Mañana: ${nManiana} cita${nManiana === 1 ? "" : "s"}`, texto: `La primera a las ${hora12(futuras.find((t) => t.fecha === maniana)!.hora)}`, cuando: cuandoTxt(maniana), orden: "5", onClick: () => irDia(maniana) });
+  manuales.filter((r) => !r.hecho).forEach((r) =>
+    alertas.push({ id: `man-${r.id}`, tono: "violeta", icon: Bell, titulo: r.texto, texto: "Recordatorio personal", cuando: cuandoTxt(r.fecha, r.hora || undefined), orden: `1${r.fecha}${r.hora}`, manual: r }),
+  );
+  alertas.sort((a, b) => a.orden.localeCompare(b.orden));
+  const visibles = verTodo ? alertas : alertas.slice(0, 4);
+
+  const guardar = () => {
+    if (!nuevo || !nuevo.texto.trim()) { toast.error("Escriba el recordatorio."); return; }
+    const r: RecManual = { id: uid(), texto: nuevo.texto.trim().charAt(0).toUpperCase() + nuevo.texto.trim().slice(1), fecha: nuevo.fecha || h, hora: nuevo.hora };
+    setManuales((p) => [...p, r]);
+    log("Recordatorio creado", `${r.texto} · ${cuandoTxt(r.fecha, r.hora || undefined)}`);
+    toast.success("Recordatorio guardado.");
+    setNuevo(null);
+  };
+  const completar = (r: RecManual) => {
+    setManuales((p) => p.map((x) => (x.id === r.id ? { ...x, hecho: true } : x)));
+    log("Recordatorio cumplido", r.texto);
+  };
+
+  const foto = mia ? fotoDe(mia.a.id) : null;
+
+  return (
+    <div className="grid gap-4 border-b border-border/60 p-5 lg:grid-cols-2">
+      {/* Próximas citas */}
+      <div className="flex min-w-0 flex-col rounded-2xl bg-card ring-1 ring-border/70 dark:ring-white/10">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm font-semibold"><span className="grid size-8 place-items-center rounded-lg bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"><CalendarDays className="size-4" /></span> {mia ? "Mis próximas citas" : "Próximas citas"}</p>
+          <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">{futuras.length} en agenda</span>
+        </div>
+        <div className="flex-1 space-y-2 p-3">
+          {mia && (
+            <div className="flex items-center gap-3 rounded-xl px-1 pb-1">
+              {foto ? <img src={foto} alt="" className="size-12 rounded-full object-cover object-top ring-2 ring-[rgba(var(--acc),.25)]" /> : <Avatar nombre={mia.a.nombre} size="size-12" />}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{mia.a.nombre}</p>
+                <p className="truncate text-xs text-muted-foreground">{bloquesDe(mia.ag).length ? resumenAgenda(mia.ag) : "Sin horarios cargados"}</p>
+              </div>
+              {irHorarios && <button onClick={() => irHorarios(mia.a.id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[rgba(var(--acc),.1)] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] transition hover:bg-[rgba(var(--acc),.18)]"><Clock className="size-3.5" /> Mis horarios</button>}
+            </div>
+          )}
+          {futuras.length === 0 ? (
+            <p className="rounded-xl bg-secondary/50 px-4 py-6 text-center text-sm text-muted-foreground">No tiene citas pendientes por ahora.</p>
+          ) : (
+            futuras.slice(0, 3).map((t) => (
+              <button key={t.id} type="button" onClick={() => irDia(t.fecha)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 ring-border/60 transition hover:bg-secondary/50 hover:ring-[rgba(var(--acc),.3)] dark:ring-white/10">
+                <span className="grid w-14 shrink-0 text-center leading-tight">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{t.fecha === h ? "Hoy" : t.fecha === maniana ? "Mañana" : new Date(`${t.fecha}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "short" }).replace(".", "")}</span>
+                  <span className="text-sm font-semibold tabular-nums">{hora12(t.hora)}</span>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{nombreCorto(t.paciente)}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{(t.motivo || "Consulta").split(" · ")[0]}{doc(t.doctor)}</span>
+                </span>
+                <Estadito estado={t.estado} />
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Alertas y recordatorios */}
+      <div className="flex min-w-0 flex-col rounded-2xl bg-card ring-1 ring-border/70 dark:ring-white/10">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <span className="relative grid size-8 place-items-center rounded-lg bg-[rgba(var(--acc),.1)] text-[rgb(var(--acc))]"><Bell className="size-4" />{alertas.length > 0 && <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-orange-500 text-[9px] font-bold text-white">{alertas.length}</span>}</span>
+            Alertas y recordatorios
+          </p>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setNuevo(nuevo ? null : { texto: "", fecha: h, hora: "" })} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]"><Plus className="size-3.5" /> Nuevo</button>
+            {alertas.length > 4 && <button type="button" onClick={() => setVerTodo((v) => !v)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-[rgb(var(--acc))] hover:bg-[rgba(var(--acc),.08)]">{verTodo ? "Ver menos" : `Ver todos (${alertas.length})`}</button>}
+          </div>
+        </div>
+        <div className="flex-1 space-y-2 p-3">
+          {nuevo && (
+            <div className="space-y-2 rounded-xl bg-secondary/50 p-3 ring-1 ring-border/60 animate-in fade-in slide-in-from-top-1 duration-200">
+              <input autoFocus value={nuevo.texto} onChange={(e) => setNuevo({ ...nuevo, texto: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") guardar(); }} placeholder="Ej.: Llamar al laboratorio por los resultados" className={inp + " h-10 bg-card"} />
+              <div className="flex flex-wrap gap-2">
+                <input type="date" value={nuevo.fecha} min={h} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} className={inp + " h-10 w-auto flex-1 bg-card"} aria-label="Fecha" />
+                <input type="time" value={nuevo.hora} onChange={(e) => setNuevo({ ...nuevo, hora: e.target.value })} className={inp + " h-10 w-auto flex-1 bg-card"} aria-label="Hora" />
+                <Button type="button" className="h-10 rounded-xl" onClick={guardar}><Check className="size-4" /> Guardar</Button>
+              </div>
+            </div>
+          )}
+          {alertas.length === 0 && !nuevo ? (
+            <p className="rounded-xl bg-emerald-50 px-4 py-6 text-center text-sm text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/25"><CheckCircle2 className="mx-auto mb-1 size-5" /> Todo al día. No hay pendientes.</p>
+          ) : (
+            visibles.map((x) => {
+              const tn = TONOS_ALERTA[x.tono];
+              const Contenido = (
+                <>
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${tn.ic}`}><x.icon className="size-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-sm font-semibold ${tn.tit}`}>{x.titulo}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{x.texto}</span>
+                  </span>
+                  <span className="shrink-0 text-right text-[11px] font-medium text-muted-foreground">{x.cuando}</span>
+                </>
+              );
+              return (
+                <div key={x.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 ${tn.caja}`}>
+                  {x.onClick ? (
+                    <button type="button" onClick={x.onClick} className="flex min-w-0 flex-1 items-center gap-3 text-left">{Contenido}<ChevronRight className="size-4 shrink-0 text-muted-foreground" /></button>
+                  ) : (
+                    <span className="flex min-w-0 flex-1 items-center gap-3">{Contenido}</span>
+                  )}
+                  {x.manual && (
+                    <button type="button" onClick={() => completar(x.manual!)} title="Marcar como hecho" aria-label="Marcar como hecho" className="grid size-8 shrink-0 place-items-center rounded-lg bg-card text-violet-700 ring-1 ring-violet-200 transition hover:bg-violet-600 hover:text-white dark:text-violet-300 dark:ring-violet-500/30"><Check className="size-4" /></button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turnos: Turno[]; setTurnos: Dispatch<SetStateAction<Turno[]>>; log: LogFn; onCargaManual: () => void; irHorarios?: ((id: string) => void) | undefined }) {
   const yo = sesionActual();
   const [agendas] = useDato<Agendas>(KEY_AGENDA, {});
@@ -2206,6 +2387,9 @@ function AgendaDia({ turnos, setTurnos, log, onCargaManual, irHorarios }: { turn
           );
         })()}
       </div>
+
+      {/* Recordatorios del médico: próximas citas y alertas (las columnas de todos los médicos siguen abajo) */}
+      <RecordatoriosMedico turnos={turnos} columnas={columnas} irDia={(d) => { setDia(d); setAsignando(null); }} irHorarios={irHorarios} log={log} />
 
       {/* Columnas por doctor */}
       <div className="grid divide-y divide-border/60 xl:grid-cols-2 xl:divide-x xl:divide-y-0">
