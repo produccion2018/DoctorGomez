@@ -807,7 +807,6 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <span className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-30" />
         <MessageCircle className="relative size-6" />
       </a>
-      <MiniReproductor />
       <ScrollTop />
     </div>
   );
