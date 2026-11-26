@@ -792,7 +792,7 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
         <div className="relative border-t border-white/10">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pb-24 pt-5 text-xs text-deep-foreground/60 lg:px-8 lg:pl-24">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 pb-24 pr-20 pt-5 text-xs text-deep-foreground/60 sm:pr-4 lg:px-8 lg:pl-24">
             <span>© {new Date().getFullYear()} {CLINICA.nombre}. Todos los derechos reservados.</span>
           </div>
         </div>
@@ -804,10 +804,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         target="_blank"
         rel="noreferrer"
         aria-label="Escribir por WhatsApp"
-        className="group fixed bottom-6 left-6 z-50 flex size-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_12px_30px_-8px_rgba(37,211,102,.7)] transition-transform hover:scale-110"
+        className="group fixed bottom-[calc(4.25rem+env(safe-area-inset-bottom))] right-4 z-50 flex size-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-[0_10px_24px_-8px_rgba(37,211,102,.7)] ring-2 ring-white/80 transition-transform hover:scale-110 sm:bottom-6 sm:left-6 sm:right-auto sm:size-14 sm:ring-0"
       >
-        <span className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-30" />
-        <MessageCircle className="relative size-6" />
+        <span className="absolute inset-0 hidden animate-ping rounded-full bg-[#25D366] opacity-30 sm:block" />
+        <MessageCircle className="relative size-5 sm:size-6" />
       </a>
       <ScrollTop />
     </div>
