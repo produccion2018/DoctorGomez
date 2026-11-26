@@ -880,6 +880,16 @@ const motor = (() => {
   const estado: EstadoMusica = { sonando: false, tema: 0, volumen: typeof window === "undefined" ? 0.6 : volGuardado, lista: [] };
   /** Orden vigente del panel (espejo). */
   let control: ControlMusica | null = null;
+  /** El navegador bloqueó el sonido: no se reintenta hasta que el visitante toque la página
+   *  (reintentar en cada render dejaba la página trabada y sin scroll). */
+  let esperandoGesto = false;
+  const fallo = () => {
+    esperandoGesto = true;
+    if (estado.sonando) {
+      estado.sonando = false;
+      avisar();
+    }
+  };
   let firmaControl = "";
   const pausadaPorPanel = () => control?.estado === "pausada";
   /** Segundo en el que tiene que ir el tema según el panel (todos escuchan lo mismo). */
@@ -1049,8 +1059,7 @@ const motor = (() => {
       try {
         await audio.play();
       } catch {
-        estado.sonando = false;
-        avisar();
+        fallo();
         return;
       }
       fundidoAudio(estado.volumen, 1.5);
@@ -1061,8 +1070,7 @@ const motor = (() => {
       if (!ctx) return;
       await ctx.resume().catch(() => undefined);
       if (ctx.state !== "running") {
-        estado.sonando = false;
-        avisar();
+        fallo();
         return;
       }
       if (!timer) {
@@ -1135,8 +1143,11 @@ const motor = (() => {
       void arrancar();
     },
     /** Arranca la música si todavía no suena (el navegador exige un toque o tecla del visitante). */
-    intentar() {
-      if (!estado.sonando && estado.lista.length && !pausadaPorPanel()) void arrancar();
+    /** `gesto` = el visitante tocó la página (el único momento en que el navegador deja sonar). */
+    intentar(gesto = false) {
+      if (gesto) esperandoGesto = false;
+      if (esperandoGesto || estado.sonando || !estado.lista.length || pausadaPorPanel()) return;
+      void arrancar();
     },
     /** Aplica lo que ordenó el panel: pausa, play o cambio de tema. */
     aplicarControl(c: ControlMusica | undefined) {
@@ -1191,7 +1202,7 @@ function instalarArranque() {
   gestosInstalados = true;
   const ev = ["pointerdown", "keydown", "touchend"] as const;
   const f = () => {
-    motor.intentar();
+    motor.intentar(true);
     if (motor.estado.sonando) ev.forEach((n) => window.removeEventListener(n, f, true));
   };
   ev.forEach((n) => window.addEventListener(n, f, true));
