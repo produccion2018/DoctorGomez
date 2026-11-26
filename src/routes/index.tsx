@@ -623,7 +623,7 @@ function Home() {
           <div className="grid gap-12 md:grid-cols-2 lg:gap-16">
             {DOCTORS.map((d, idx) => (
               <article key={d.id} data-reveal style={{ transitionDelay: `${idx * 140}ms` }} className="group">
-                <div className="relative h-[440px] overflow-hidden rounded-[2rem] shadow-[0_50px_90px_-50px_rgba(10,25,70,.85)] ring-1 ring-black/5 sm:h-[520px]">
+                <div className="relative h-[520px] overflow-hidden rounded-[2rem] shadow-[0_50px_90px_-50px_rgba(10,25,70,.85)] ring-1 ring-black/5">
                   <img
                     src={d.foto === "alberto" ? fotoAlberto : fotoAlonso}
                     alt={d.nombre}
@@ -634,8 +634,11 @@ function Home() {
                   />
                   <FondoDoctor foto={d.foto} />
                   <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-8">
-                    <p className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white shadow-lg ring-1 ring-white/30 ${d.foto === "alonso" ? "bg-rose-600/90" : "bg-sky-600/90"}`}>{d.titulo}</p>
-                    <h3 className="mt-2 font-display text-3xl font-semibold leading-tight">{d.nombre}</h3>
+                    <h3 className="font-display text-[28px] font-semibold leading-tight sm:text-3xl">{d.nombre}</h3>
+                    <p className={`mt-2.5 flex items-center gap-2 text-[11px] font-bold uppercase leading-snug tracking-[0.12em] text-white/90 sm:inline-flex sm:rounded-full sm:px-3 sm:py-1 sm:tracking-[0.14em] sm:text-white sm:shadow-lg sm:ring-1 sm:ring-white/30 ${d.foto === "alonso" ? "sm:bg-rose-600/90" : "sm:bg-sky-600/90"}`}>
+                      <span className={`size-2 shrink-0 rounded-full sm:hidden ${d.foto === "alonso" ? "bg-rose-400" : "bg-sky-400"}`} />
+                      {d.titulo}
+                    </p>
                     <div className="mt-4 flex flex-wrap gap-1.5">
                       {d.especialidades.map((esp) => (
                         <span key={esp} className="rounded-full bg-white/12 px-3 py-1 text-xs font-medium ring-1 ring-white/20 backdrop-blur">{esp}</span>
