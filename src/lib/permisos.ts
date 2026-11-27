@@ -70,6 +70,8 @@ export const MODULO_COLECCION: Record<string, { ver: string[]; editar: string[] 
   gb_recetas: { ver: ["Recetas", "Historias clínicas"], editar: ["Recetas"] },
   gb_laboratorio: { ver: ["Laboratorio", "Estudios", "Historias clínicas"], editar: ["Laboratorio"] },
   gb_estudios: { ver: ["Estudios", "Historias clínicas"], editar: ["Estudios"] },
+  /** Estudios diagnósticos de la historia clínica (MAPA y los que se integren después). */
+  gb_estudios_dx: { ver: ["Historias clínicas", "Estudios"], editar: ["Historias clínicas", "Estudios"] },
   gb_autorizaciones: { ver: ["Pacientes", "Facturación", "Portal del paciente"], editar: ["Pacientes", "Facturación", "Portal del paciente"] },
   gb_facturas: { ver: ["Facturación", "Finanzas"], editar: ["Facturación"] },
   gb_cobros: { ver: ["Facturación", "Finanzas", "Turnos"], editar: ["Facturación", "Finanzas", "Turnos"] },

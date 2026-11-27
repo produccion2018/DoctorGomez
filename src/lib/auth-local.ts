@@ -412,7 +412,7 @@ const COLECCIONES = [
   "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs",
-  "gb_audit", "gb_mensajes", "gb_documentos", "gb_mdpa",
+  "gb_audit", "gb_mensajes", "gb_documentos", "gb_mdpa", "gb_estudios_dx",
 ];
 type ConId = { id: string };
 const hayQuien = () => !!sesionActual() || !!localStorage.getItem("gb_sesion_paciente");

@@ -9,7 +9,7 @@ export const COLECCIONES = [
   "gb_evoluciones", "gb_triage", "gb_notas_enf", "gb_recetas", "gb_laboratorio", "gb_estudios",
   "gb_controles", "gb_medicacion", "gb_autorizaciones",
   "gb_facturas", "gb_cobros", "gb_equipo", "gb_cierres", "gb_movs", "gb_mensajes",
-  "gb_audit", "gb_documentos", "gb_mdpa",
+  "gb_audit", "gb_documentos", "gb_mdpa", "gb_estudios_dx",
 ] as const;
 /** Colecciones donde el paciente ve solo sus registros. */
 export const DEL_PACIENTE: readonly string[] = ["gb_turnos", "gb_estudios", "gb_controles", "gb_medicacion", "gb_autorizaciones", "gb_cobros", "gb_recetas", "gb_laboratorio", "gb_documentos", "gb_mdpa"];

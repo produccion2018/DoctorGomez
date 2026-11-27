@@ -715,7 +715,7 @@ async function areaPermite(q: Extract<Quien, { tipo: "staff" }>, coleccion: stri
 }
 
 /** Colecciones que tienen datos de un paciente (se filtran por especialidad para los médicos invitados). */
-const COLECCIONES_CON_PACIENTE = ["gb_documentos", "gb_papelera", "gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros", "gb_mdpa"];
+const COLECCIONES_CON_PACIENTE = ["gb_documentos", "gb_papelera", "gb_padron", "gb_pacientes", "gb_turnos", "gb_triage", "gb_notas_enf", "gb_evoluciones", "gb_controles", "gb_medicacion", "gb_recetas", "gb_laboratorio", "gb_estudios", "gb_autorizaciones", "gb_cobros", "gb_mdpa", "gb_estudios_dx"];
 
 /**
  * Qué pacientes le corresponden a un médico invitado: los de su especialidad.

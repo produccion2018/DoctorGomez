@@ -130,11 +130,15 @@ import {
   ShieldAlert,
   RotateCcw,
   Archive,
+  Moon,
+  Sun,
+  Gauge,
 } from "lucide-react";
 import { buscarExamenes, examenPorNombre, normExamen, type TipoMuestra, CURACIONES, ZONAS_CUERPO, ZONA_FEMENINA, MATERIALES_CURACION, sugerir } from "@/data/examenes";
 import { MOTIVOS_CONSULTA, SINTOMAS, EXAMEN_FISICO, CONDUCTA, FRECUENCIAS, DURACIONES, VIAS, sugerirFrase, completarFrase, frasesDe, horariosDeFrecuencia, ESTUDIOS_DIAGNOSTICOS, type TipoOrden } from "@/data/sugerencias";
 import { KEY_MDPA, PROTOCOLO_ESTANDAR, MOMENTOS_MDPA, CRITERIOS_MDPA, GUIAS_MDPA, GUIA_POR_DEFECTO, type GuiaMdpa, PATRON_NOCTURNO, AVISO_IA, analizar, finDe, type MonitoreoMdpa, type MomentoMdpa, type ProtocoloMdpa } from "@/lib/mdpa";
 import { Svg, svgSerie, svgMomentos, svgDiario, htmlInformeMdpa, GuiaMedicion } from "@/components/mdpa";
+import { KEY_ESTUDIOS_DX, TIPOS_ESTUDIO_DX, CRITERIOS_MAPA, analizarMapa, esMapa, esNocturna, horaDe, lecturasDeTabla, lecturasDeTexto, svgMapa, htmlInformeMapa, type EstudioDx, type DatosMapa, type LecturaMapa, type TipoEstudioDx } from "@/lib/estudios";
 import { buscarMedicamentos, medicamentoPorNombre, MEDICAMENTOS as MEDICAMENTOS_CAT, type Medicamento as MedCatalogo } from "@/data/medicamentos";
 import { GRUPOS_NOTIF, NOTIFICACIONES, ACTIVAS_POR_DEFECTO, type CanalNotif, type ParaNotif } from "@/lib/notificaciones";
 import { toast } from "sonner";
@@ -6454,6 +6458,9 @@ function FichaHC({
   nueva: boolean; setNueva: (v: boolean) => void; onGuardar: (e: Evolucion) => void; onBorrar: (id: string) => void; user: SessionUser; soloLectura?: boolean; log?: LogFn; notasEnf?: boolean; turnosHC?: Turno[]; pacientesHC?: PacienteHC[];
 }) {
   const [ver, setVer] = useState<"todo" | "evoluciones" | "enfermeria" | "estudios" | "especialidades">("todo");
+  const [seccionHC, setSeccionHC] = useState<"historia" | "estudios">("historia");
+  const [estudiosDxTodos] = useDato<EstudioDx[]>(KEY_ESTUDIOS_DX, []);
+  const nEstudiosDx = estudiosDxTodos.filter((x) => !x.anulado && (x.pacienteId === p.id || (!!p.portalId && x.pacienteId === p.portalId))).length;
   const [notasTodas, setNotasTodas] = useDato<NotaEnfermeria[]>(KEY_NOTAS_ENF, []);
   const [labTodosHC] = useDato<PedidoLab[]>(KEY_LAB, []);
   const labsHC = labTodosHC.filter((l) => l.pacienteId === p.id || l.pacienteId === p.portalId);
@@ -6555,7 +6562,7 @@ function FichaHC({
           {soloLectura ? (
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/15 px-3 py-2 text-xs font-semibold ring-1 ring-white/25">{notasEnf ? <><Syringe className="size-4" /> Enfermería · la evolución la escribe el médico</> : <><Eye className="size-4" /> Solo lectura</>}</span>
           ) : (
-            <Button onClick={() => setNueva(!nueva)} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
+            <Button onClick={() => { setSeccionHC("historia"); setNueva(!nueva); }} className="rounded-xl !bg-white text-[var(--deep)] hover:!bg-white/90">
               {nueva ? <X className="size-4" /> : <Plus className="size-4" />} {nueva ? "Cancelar" : "Nueva evolución"}
             </Button>
           )}
@@ -6572,6 +6579,19 @@ function FichaHC({
         </div>
       </section>
 
+      {/* Pestañas de la historia clínica */}
+      <div role="tablist" aria-label="Secciones de la historia clínica" className="pn-up flex w-fit flex-wrap gap-1 rounded-2xl bg-secondary/80 p-1 ring-1 ring-border/60">
+        {([["historia", "Historia clínica", ClipboardList], ["estudios", "Estudios", Activity]] as const).map(([id, l, Icono]) => (
+          <button key={id} type="button" role="tab" aria-selected={seccionHC === id} onClick={() => setSeccionHC(id)} className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${seccionHC === id ? "bg-card text-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}>
+            <Icono className="size-4" /> {l}
+            {id === "estudios" && <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${seccionHC === id ? "bg-secondary" : "bg-card/70"}`}>{nEstudiosDx}</span>}
+          </button>
+        ))}
+      </div>
+
+      {seccionHC === "estudios" && <EstudiosHC p={p} user={user} log={log} soloLectura={soloLectura} />}
+
+      {seccionHC === "historia" && (<>
       {/* Últimos signos vitales (los registra enfermería) */}
       <div className="pn-up flex flex-wrap items-end gap-3">
         <div className="flex-1">
@@ -6861,7 +6881,421 @@ function FichaHC({
           <MedicacionPaciente p={p} user={user} soloLectura={soloLectura} log={log} />
         </div>
       </div>
+      </>)}
     </div>
+  );
+}
+
+/* ---------- Historia clínica · pestaña «Estudios» (MAPA y los estudios que se integren después) ---------- */
+const TONO_RES: Record<"verde" | "ambar" | "rojo" | "azul", string> = {
+  verde: "bg-emerald-50 text-emerald-800 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30",
+  ambar: "bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30",
+  rojo: "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-500/10 dark:text-rose-200 dark:ring-rose-500/30",
+  azul: "bg-[#EEF2FB] text-[#1E3A8A] ring-[#DBE4FB] dark:bg-white/10 dark:text-sky-200 dark:ring-white/15",
+};
+const ICONO_ESTUDIO: Record<TipoEstudioDx, LucideIcon> = { MAPA: Activity, ECG: HeartPulse, Holter: HeartPulse, Ecocardiograma: ScanLine, Otro: FileText };
+const fechaLarga = (f: string) => new Date(`${f}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+const fdhMapa = (t: string) => `${new Date(`${t.slice(0, 10)}T12:00:00`).toLocaleDateString("es-CO", { day: "2-digit", month: "short" })} · ${hora12(horaDe(t))}`;
+
+function EstudiosHC({ p, user, log, soloLectura }: { p: PacienteHC; user: SessionUser; log: LogFn; soloLectura: boolean }) {
+  const [todos, setTodos] = useDato<EstudioDx[]>(KEY_ESTUDIOS_DX, []);
+  const [firmas] = useDato<Record<string, string>>(KEY_FIRMAS, {});
+  const delPaciente = todos
+    .filter((e) => !e.anulado && (e.pacienteId === p.id || (!!p.portalId && e.pacienteId === p.portalId)))
+    .sort((a, b) => b.fecha.localeCompare(a.fecha) || b.creado.localeCompare(a.creado));
+  const [tipo, setTipo] = useState<TipoEstudioDx>("MAPA");
+  const [selId, setSelId] = useState<string | null>(null);
+  const [cargar, setCargar] = useState(false);
+  const deTipo = delPaciente.filter((e) => e.tipo === tipo);
+  const sel = deTipo.find((e) => e.id === selId) ?? deTipo[0] ?? null;
+  const puede = !soloLectura;
+
+  const cambiar = (id: string, patch: (e: EstudioDx) => Partial<EstudioDx>, accion: string) => {
+    const ahora = new Date().toISOString();
+    setTodos((l) => l.map((e) => (e.id === id ? { ...e, ...patch(e), auditoria: [...(e.auditoria ?? []), { fecha: ahora, por: user.nombre, accion }] } : e)));
+    log(accion, `${p.nombre} · ${tipo}`);
+  };
+  const botonCargar = (
+    <button type="button" onClick={() => setCargar(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-[#1E3A8A] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#172E6E]">
+      <Upload className="size-4" /> Cargar MAPA
+    </button>
+  );
+
+  return (
+    <div className="min-w-0 space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {TIPOS_ESTUDIO_DX.map((t) => {
+          const Icono = ICONO_ESTUDIO[t.id];
+          const n = delPaciente.filter((e) => e.tipo === t.id).length;
+          const activo = t.id === tipo;
+          return (
+            <button key={t.id} type="button" disabled={!t.disponible} onClick={() => { setTipo(t.id); setSelId(null); }} title={t.disponible ? t.descripcion : `${t.nombre}: se integra próximamente`}
+              className={`pn-card pn-up relative flex items-center gap-3 overflow-hidden p-4 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${activo ? "border-[#1E3A8A]/45 ring-2 ring-[#1E3A8A]/25" : "enabled:hover:border-[#1E3A8A]/30"}`}>
+              <span className={`grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm ${t.color}`}><Icono className="size-5" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold">{t.corto}</span>
+                <span className="block truncate text-xs text-muted-foreground">{t.nombre}</span>
+              </span>
+              {t.disponible
+                ? <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-semibold tabular-nums">{n}</span>
+                : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">Próximamente</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {tipo === "MAPA" && (
+        <Seccion
+          icon={Activity}
+          titulo="Monitoreo Ambulatorio de la Presión Arterial (MAPA)"
+          sub={deTipo.length ? `${deTipo.length} ${deTipo.length === 1 ? "estudio" : "estudios"} · el más reciente primero` : "Presión arterial de 24 horas"}
+          acciones={puede && deTipo.length ? botonCargar : undefined}
+        >
+          {!deTipo.length ? (
+            <Vacio icon={Activity} titulo="Todavía no hay estudios disponibles" texto="Este paciente no tiene un MAPA registrado. Cuando se cargue, aquí va a ver la gráfica, las mediciones y el informe del estudio." accion={puede ? botonCargar : undefined} />
+          ) : (
+            <div className="space-y-5">
+              {deTipo.length > 1 && (
+                <div>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Historial de estudios</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {deTipo.map((e) => {
+                      const a = esMapa(e) ? analizarMapa(e.datos) : null;
+                      const act = sel?.id === e.id;
+                      return (
+                        <button key={e.id} type="button" onClick={() => setSelId(e.id)} className={`shrink-0 rounded-2xl border px-3.5 py-2.5 text-left transition ${act ? "border-[#1E3A8A] bg-[#EEF2FB] shadow-sm dark:bg-white/10" : "border-border/70 bg-card hover:border-[#1E3A8A]/35 dark:border-white/10"}`}>
+                          <span className="block text-sm font-semibold">{fechaLarga(e.fecha)}</span>
+                          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            {a?.h24.n ? <b className="tabular-nums text-foreground">{a.h24.s}/{a.h24.d}</b> : null} 24 h
+                            {a && <span className={`size-2 rounded-full ${a.resultado.tono === "verde" ? "bg-emerald-500" : a.resultado.tono === "rojo" ? "bg-rose-500" : "bg-amber-500"}`} />}
+                            {!e.informe && <span className="text-amber-600">· sin informe</span>}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {sel && esMapa(sel) && (
+                <VistaMapa
+                  key={sel.id}
+                  e={sel}
+                  puede={puede}
+                  firma={sel.informadoPor?.id ? firmas[sel.informadoPor.id] : undefined}
+                  onExcluir={(i, motivo) => cambiar(sel.id, (e) => ({ datos: { ...(e.datos as DatosMapa), lecturas: (e.datos as DatosMapa).lecturas.map((l, j) => (j === i ? (motivo ? { ...l, excluida: { por: user.nombre, motivo } } : (() => { const { excluida: _x, ...r } = l; return r; })()) : l)) } }), motivo ? "Lectura del MAPA excluida" : "Lectura del MAPA incluida de nuevo")}
+                  onInforme={(texto) => { cambiar(sel.id, () => ({ informe: texto, informadoPor: { id: user.id, nombre: user.nombre, fecha: new Date().toISOString() } }), "Informe del MAPA guardado"); toast.success("Informe guardado en la historia clínica."); }}
+                  onAnular={(motivo) => { cambiar(sel.id, () => ({ anulado: { por: user.nombre, fecha: new Date().toISOString(), motivo } }), "MAPA anulado"); setSelId(null); toast.success("Estudio anulado. Queda guardado en la auditoría."); }}
+                />
+              )}
+            </div>
+          )}
+        </Seccion>
+      )}
+
+      {cargar && (
+        <CargarMapa
+          p={p}
+          user={user}
+          onCerrar={() => setCargar(false)}
+          onGuardar={(e) => {
+            setTodos((l) => [e, ...l]);
+            log("MAPA cargado en la historia clínica", `${p.nombre} · ${fechaLarga(e.fecha)}`);
+            setTipo("MAPA");
+            setSelId(e.id);
+            setCargar(false);
+            toast.success("MAPA guardado en la historia clínica del paciente.");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function VistaMapa({ e, puede, firma, onExcluir, onInforme, onAnular }: {
+  e: EstudioDx & { datos: DatosMapa }; puede: boolean; firma?: string | undefined;
+  onExcluir: (indice: number, motivo: string | null) => void; onInforme: (texto: string) => void; onAnular: (motivo: string) => void;
+}) {
+  const m = e.datos;
+  const a = analizarMapa(m);
+  const [verFc, setVerFc] = useState(false);
+  const [tabla, setTabla] = useState<"registro" | "hora">("registro");
+  const [editando, setEditando] = useState(!e.informe && puede);
+  const [texto, setTexto] = useState(e.informe ?? "");
+  const [abriendo, setAbriendo] = useState(false);
+  const C = CRITERIOS_MAPA;
+  const filas = m.lecturas.map((l, i) => ({ l, i })).sort((x, y) => x.l.t.localeCompare(y.l.t));
+  const sugerencia = () => [
+    `MAPA de 24 horas con ${a.validas.length} lecturas válidas de ${a.ordenadas.length} (${a.calidad.pctValidas} %).`,
+    `Promedio 24 h ${a.h24.s}/${a.h24.d} mmHg; diurno ${a.dia.s}/${a.dia.d} mmHg; nocturno ${a.noche.s}/${a.noche.d} mmHg.`,
+    a.caidaS !== null && a.patron ? `Descenso nocturno de la sistólica ${a.caidaS} %: patrón ${a.patron.nombre.toLowerCase()}.` : "",
+    `Carga hipertensiva diurna ${a.cargas.dia} % y nocturna ${a.cargas.noche} %.`,
+    `Conclusión: ${a.resultado.titulo.toLowerCase()}.`,
+  ].filter(Boolean).join("\n");
+  const kpis: { icon: LucideIcon; l: string; v: string; sub: string; alto: boolean }[] = [
+    { icon: Clock, l: "Promedio 24 h", v: a.h24.n ? `${a.h24.s}/${a.h24.d}` : "—", sub: `${a.h24.fc ? `FC ${a.h24.fc} lpm · ` : ""}umbral ${C.h24.s}/${C.h24.d}`, alto: a.elev.h24 },
+    { icon: Sun, l: "Diurno (vigilia)", v: a.dia.n ? `${a.dia.s}/${a.dia.d}` : "—", sub: `${a.dia.n} lecturas · umbral ${C.dia.s}/${C.dia.d}`, alto: a.elev.dia },
+    { icon: Moon, l: "Nocturno (sueño)", v: a.noche.n ? `${a.noche.s}/${a.noche.d}` : "—", sub: `${a.noche.n} lecturas · umbral ${C.noche.s}/${C.noche.d}`, alto: a.elev.noche },
+    { icon: TrendingDown, l: "Descenso nocturno", v: a.caidaS !== null ? `${a.caidaS} %` : "—", sub: a.patron?.nombre ?? "Faltan lecturas día/noche", alto: !!a.patron && a.patron.id !== "dipper" },
+    { icon: Gauge, l: "Carga hipertensiva", v: `${a.cargas.dia} % · ${a.cargas.noche} %`, sub: "Diurna · nocturna", alto: a.cargas.dia > 40 || a.cargas.noche > 40 },
+  ];
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-lg font-semibold">MAPA del {fechaLarga(e.fecha)}</p>
+          <p className="text-xs text-muted-foreground">
+            {[a.inicio && a.fin ? `${fdhMapa(a.inicio)} a ${fdhMapa(a.fin)}` : null, `Sueño ${hora12(m.dormir)} a ${hora12(m.despertar)}`, m.equipo ? `Equipo ${m.equipo}` : null, m.brazo ? `Brazo ${m.brazo.toLowerCase()}` : null, e.solicitadoPor ? `Solicitó ${nombreCorto(e.solicitadoPor)}` : null].filter(Boolean).join(" · ")}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ring-1 ${a.calidad.ok ? TONO_RES.verde : TONO_RES.ambar}`}>{a.calidad.ok ? "Registro válido" : "Calidad insuficiente"} · {a.calidad.pctValidas} % válidas</span>
+            <span className={`rounded-lg px-2 py-0.5 text-[11px] font-semibold ring-1 ${e.informe ? TONO_RES.azul : TONO_RES.ambar}`}>{e.informe ? `Informado${e.informadoPor ? ` por ${nombreCorto(e.informadoPor.nombre)}` : ""}` : "Pendiente de informe"}</span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {e.documentoId && (
+            <button type="button" disabled={abriendo} onClick={async () => { setAbriendo(true); const r = await abrirDocumento(e.documentoId!); setAbriendo(false); if (!r.ok) toast.error(r.error); }} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold transition hover:bg-secondary dark:border-white/10">
+              {abriendo ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />} Informe del equipo
+            </button>
+          )}
+          <button type="button" onClick={() => imprimirHtml(htmlInformeMapa(e, { firma }))} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold transition hover:bg-secondary dark:border-white/10"><Printer className="size-4" /> Imprimir / PDF</button>
+          {puede && (
+            <button type="button" onClick={async () => { const motivo = window.prompt("Motivo de la anulación (queda en la auditoría):")?.trim(); if (!motivo) return; if (await preguntar({ titulo: "¿Anular este MAPA?", texto: "Deja de mostrarse en la historia clínica, pero queda guardado en la auditoría." })) onAnular(motivo); }} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-500/10"><Ban className="size-4" /> Anular</button>
+          )}
+        </div>
+      </div>
+
+      <div className={`flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 ring-1 ${TONO_RES[a.resultado.tono]}`}>
+        <Activity className="size-5 shrink-0" />
+        <p className="min-w-0 flex-1 text-sm"><b>{a.resultado.titulo}</b>{a.patron ? ` · Patrón ${a.patron.nombre.toLowerCase()} (${a.patron.detalle.toLowerCase()})` : ""}</p>
+        <span className="text-[11px] opacity-80">Criterios {C.guias}</span>
+      </div>
+      {!a.calidad.ok && a.calidad.texto.length > 0 && <p className="-mt-2 text-xs text-amber-700 dark:text-amber-300">Atención: {a.calidad.texto.join(" · ")}. Interprete los promedios con cautela.</p>}
+
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
+        {kpis.map((k) => (
+          <div key={k.l} className="pn-card flex min-h-[104px] flex-col px-3 pb-2.5 pt-3">
+            <div className="flex items-center gap-1.5">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[#EEF2FB] text-[#1E3A8A] dark:bg-white/10 dark:text-sky-200"><k.icon className="size-3.5" /></span>
+              <p className="min-w-0 truncate text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{k.l}</p>
+            </div>
+            <p className={`mt-2 text-lg font-bold leading-tight tabular-nums tracking-tight ${k.alto ? "text-rose-700 dark:text-rose-300" : ""}`}>{k.v} {k.v !== "—" && !k.v.includes("%") ? <span className="text-[11px] font-medium text-muted-foreground">mmHg</span> : null}</p>
+            <p className="mt-auto truncate pt-1 text-[11px] text-muted-foreground">{k.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-border/70 bg-white p-3 sm:p-4 dark:border-white/10 dark:bg-white/[.03]">
+        <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+          <p className="mr-auto text-sm font-semibold text-foreground">Gráfica del monitoreo</p>
+          <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#1E3A8A]" /> Sistólica</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-4 rounded bg-[#10B981]" /> Diastólica</span>
+          <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#DC2626]" /> Sobre el umbral</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-3 w-4 rounded-sm bg-[#1E3A8A]/15" /> Sueño</span>
+          <label className="inline-flex cursor-pointer items-center gap-1.5"><input type="checkbox" checked={verFc} onChange={(ev) => setVerFc(ev.target.checked)} className="accent-[#1E3A8A]" /> Frecuencia cardíaca</label>
+        </div>
+        <div className="w-full overflow-x-auto"><div className="min-w-[640px]" dangerouslySetInnerHTML={{ __html: svgMapa(m, { fc: verFc }) }} /></div>
+        <p className="mt-1 text-[11px] text-muted-foreground">Líneas cortadas: umbrales diurnos ({C.dia.s}/{C.dia.d}) y nocturnos ({C.noche.s}/{C.noche.d}). Pase el cursor sobre un punto para ver la medición.</p>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="rounded-2xl border border-border/70 dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-3 dark:border-white/10">
+            <p className="mr-auto text-sm font-semibold">Mediciones</p>
+            <div className="flex gap-1 rounded-xl bg-secondary/80 p-1">
+              {([["registro", `Registro (${a.ordenadas.length})`], ["hora", "Promedio por hora"]] as const).map(([id, l]) => (
+                <button key={id} type="button" onClick={() => setTabla(id)} className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${tabla === id ? "bg-card shadow" : "text-muted-foreground hover:text-foreground"}`}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <div className="max-h-[26rem] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-card text-[11px] uppercase tracking-wide text-muted-foreground">
+                {tabla === "registro"
+                  ? <tr><th className="px-4 py-2 text-left">Hora</th><th className="px-2 py-2 text-left">Período</th><th className="px-2 py-2 text-right">PA (mmHg)</th><th className="px-2 py-2 text-right">FC</th><th className="px-4 py-2 text-right">{puede ? "" : "Estado"}</th></tr>
+                  : <tr><th className="px-4 py-2 text-left">Hora</th><th className="px-2 py-2 text-right">Lecturas</th><th className="px-2 py-2 text-right">PA promedio</th><th className="px-4 py-2 text-right">FC</th></tr>}
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {tabla === "registro" ? filas.map(({ l, i }) => {
+                  const noche = esNocturna(l.t, m.dormir, m.despertar);
+                  const u = noche ? C.noche : C.dia;
+                  return (
+                    <tr key={i} className={l.excluida ? "text-muted-foreground line-through decoration-slate-400/70" : ""}>
+                      <td className="px-4 py-1.5 tabular-nums">{fdhMapa(l.t)}</td>
+                      <td className="px-2 py-1.5">{noche ? <Moon className="size-3.5 text-[#1E3A8A] dark:text-sky-300" /> : <Sun className="size-3.5 text-amber-500" />}</td>
+                      <td className={`px-2 py-1.5 text-right font-semibold tabular-nums ${!l.excluida && (l.s >= u.s || l.d >= u.d) ? "text-rose-700 dark:text-rose-300" : ""}`}>{l.s}/{l.d}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{l.fc ?? "—"}</td>
+                      <td className="px-4 py-1.5 text-right no-underline">
+                        {puede ? (
+                          <button type="button" title={l.excluida ? `Excluida: ${l.excluida.motivo} (${l.excluida.por})` : "Excluir del análisis (artefacto)"} onClick={() => { if (l.excluida) onExcluir(i, null); else { const mo = window.prompt("Motivo para excluir esta lectura:", "Artefacto")?.trim(); if (mo) onExcluir(i, mo); } }} className="rounded-lg px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground">{l.excluida ? "Incluir" : "Excluir"}</button>
+                        ) : l.excluida ? <span className="text-[11px]" title={l.excluida.motivo}>Excluida</span> : null}
+                      </td>
+                    </tr>
+                  );
+                }) : a.porHora.map((h) => (
+                  <tr key={h.h}>
+                    <td className="px-4 py-1.5 tabular-nums">{hora12(`${String(h.h).padStart(2, "0")}:00`)}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums">{h.n}</td>
+                    <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{h.s}/{h.d}</td>
+                    <td className="px-4 py-1.5 text-right tabular-nums">{h.fc ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="grid grid-cols-2 gap-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground dark:border-white/10">
+            {a.max && <p>Máxima: <b className="tabular-nums text-foreground">{a.max.s}/{a.max.d}</b> · {fdhMapa(a.max.t)}</p>}
+            {a.min && <p>Mínima: <b className="tabular-nums text-foreground">{a.min.s}/{a.min.d}</b> · {fdhMapa(a.min.t)}</p>}
+            <p>Variabilidad (DE sistólica): día {a.variabilidad.dia} · noche {a.variabilidad.noche}</p>
+            <p>Descenso diastólica: {a.caidaD !== null ? `${a.caidaD} %` : "—"}</p>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border/70 dark:border-white/10">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/60 px-4 py-3 dark:border-white/10">
+            <p className="mr-auto text-sm font-semibold">Resultados e informe</p>
+            {puede && !editando && <button type="button" onClick={() => setEditando(true)} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"><Pencil className="size-3.5" /> {e.informe ? "Editar" : "Escribir informe"}</button>}
+          </div>
+          <div className="space-y-3 p-4">
+            {e.motivo && <p className="text-xs text-muted-foreground"><b className="text-foreground">Motivo del estudio:</b> {e.motivo}</p>}
+            {editando ? (
+              <>
+                <textarea value={texto} onChange={(ev) => setTexto(ev.target.value)} rows={9} placeholder="Interpretación y conclusión del médico…" className={inp + " h-auto py-3 leading-relaxed"} />
+                <div className="flex flex-wrap gap-2">
+                  <Button className="rounded-xl" disabled={!texto.trim()} onClick={() => { onInforme(texto.trim()); setEditando(false); }}><Check className="size-4" /> Guardar informe</Button>
+                  <button type="button" onClick={() => setTexto((t) => (t.trim() ? `${t.trim()}\n\n${sugerencia()}` : sugerencia()))} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary dark:border-white/10"><Sparkles className="size-4" /> Redactar con los resultados</button>
+                  {e.informe && <button type="button" onClick={() => { setTexto(e.informe ?? ""); setEditando(false); }} className="rounded-xl px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary">Cancelar</button>}
+                </div>
+                <p className="text-[11px] text-muted-foreground">El texto sugerido sale de los promedios calculados; revíselo antes de guardar.</p>
+              </>
+            ) : e.informe ? (
+              <>
+                <p className="whitespace-pre-line text-sm leading-relaxed">{e.informe}</p>
+                {e.informadoPor && <p className="text-[11px] text-muted-foreground">{e.informadoPor.nombre} · {fechaHora(e.informadoPor.fecha)}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Todavía no tiene informe médico.</p>
+            )}
+            {e.documentoNombre && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Paperclip className="size-3.5" /> Archivo original: {e.documentoNombre} (también está en los documentos del paciente)</p>}
+            <p className="text-[11px] text-muted-foreground">Cargado por {nombreCorto(e.cargadoPor)} · {fechaHora(e.creado)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CargarMapa({ p, user, onCerrar, onGuardar }: { p: PacienteHC; user: SessionUser; onCerrar: () => void; onGuardar: (e: EstudioDx) => void }) {
+  const [fecha, setFecha] = useState(hoy());
+  const [dormir, setDormir] = useState("22:00");
+  const [despertar, setDespertar] = useState("06:00");
+  const [equipo, setEquipo] = useState("");
+  const [brazo, setBrazo] = useState<"" | "Derecho" | "Izquierdo">("");
+  const [solicitadoPor, setSolicitadoPor] = useState(user.nombre);
+  const [motivo, setMotivo] = useState("");
+  const [informe, setInforme] = useState("");
+  const [fuente, setFuente] = useState<{ nombre: string; filas: unknown[][] } | null>(null);
+  const [pegado, setPegado] = useState("");
+  const [archivoInforme, setArchivoInforme] = useState<File | null>(null);
+  const [leyendo, setLeyendo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const lecturas: LecturaMapa[] = useMemo(() => (fuente ? lecturasDeTabla(fuente.filas, fecha) : pegado.trim() ? lecturasDeTexto(pegado, fecha) : []), [fuente, pegado, fecha]);
+  const datos: DatosMapa = { dormir, despertar, lecturas, ...(equipo.trim() ? { equipo: equipo.trim() } : {}), ...(brazo ? { brazo } : {}) };
+  const a = lecturas.length ? analizarMapa(datos) : null;
+
+  const leerArchivo = async (f: File | undefined) => {
+    if (!f) return;
+    setLeyendo(true);
+    try {
+      const XLSX = await import("@e965/xlsx");
+      const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]!];
+      const filas = ws ? (XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: "yyyy-mm-dd hh:mm", defval: "" }) as unknown[][]) : [];
+      const prueba = lecturasDeTabla(filas, fecha);
+      if (!prueba.length) toast.error("No se encontraron mediciones en el archivo. Revise que tenga hora, sistólica y diastólica.");
+      else { setFuente({ nombre: f.name, filas }); setPegado(""); toast.success(`${prueba.length} mediciones leídas de ${f.name}.`); }
+    } catch {
+      toast.error("No se pudo leer el archivo. Expórtelo desde el equipo como CSV o Excel.");
+    }
+    setLeyendo(false);
+  };
+
+  const guardar = async () => {
+    if (!lecturas.length) { toast.error("Cargue las mediciones del MAPA (archivo del equipo o pegadas)."); return; }
+    setGuardando(true);
+    let doc: { id: string; nombre: string } | null = null;
+    if (archivoInforme) {
+      const r = await subirDocumento(archivoInforme, { categoria: "Holter / MAPA", fechaEstudio: fecha, pacienteId: p.id, nota: "Informe del MAPA" });
+      if (r.ok) doc = { id: r.doc.id, nombre: r.doc.nombre };
+      else if (!(await preguntar({ titulo: "No se pudo subir el informe del equipo", texto: `${r.error} ¿Guardar el MAPA igual, sin el archivo?` }))) { setGuardando(false); return; }
+    }
+    const ahora = new Date().toISOString();
+    const nuevo: EstudioDx = {
+      id: nuevoId(), pacienteId: p.id, paciente: p.nombre, ...(p.dni ? { dni: p.dni } : {}), tipo: "MAPA", fecha,
+      ...(solicitadoPor.trim() ? { solicitadoPor: solicitadoPor.trim() } : {}), ...(motivo.trim() ? { motivo: motivo.trim() } : {}),
+      datos,
+      ...(informe.trim() ? { informe: informe.trim(), informadoPor: { id: user.id, nombre: user.nombre, fecha: ahora } } : {}),
+      ...(doc ? { documentoId: doc.id, documentoNombre: doc.nombre } : {}),
+      cargadoPor: user.nombre, creado: ahora,
+      auditoria: [{ fecha: ahora, por: user.nombre, accion: `Cargó el MAPA (${lecturas.length} mediciones${fuente ? ` · ${fuente.nombre}` : ""})` }],
+    };
+    setGuardando(false);
+    onGuardar(JSON.parse(JSON.stringify(nuevo)) as EstudioDx);
+  };
+
+  return (
+    <Modal titulo="Cargar MAPA de 24 horas" onCerrar={onCerrar} ancho="max-w-3xl">
+      <div className="space-y-5">
+        <p className="text-sm text-muted-foreground">Paciente: <b className="text-foreground">{nombrePropio(p.nombre)}</b>{p.dni ? ` · C.C. ${p.dni}` : ""}. El estudio queda guardado en su historia clínica.</p>
+        <div className="grid gap-3 sm:grid-cols-4">
+          <Campo label="Fecha de colocación"><input type="date" value={fecha} onChange={(ev) => setFecha(ev.target.value)} className={inp} /></Campo>
+          <Campo label="Se acostó"><input type="time" value={dormir} onChange={(ev) => setDormir(ev.target.value)} className={inp} /></Campo>
+          <Campo label="Se levantó"><input type="time" value={despertar} onChange={(ev) => setDespertar(ev.target.value)} className={inp} /></Campo>
+          <Campo label="Brazo">
+            <select value={brazo} onChange={(ev) => setBrazo(ev.target.value as typeof brazo)} className={inp}><option value="">—</option><option>Derecho</option><option>Izquierdo</option></select>
+          </Campo>
+          <Campo label="Equipo" className="sm:col-span-2"><input value={equipo} onChange={(ev) => setEquipo(ev.target.value)} placeholder="Marca y modelo del monitor" className={inp} /></Campo>
+          <Campo label="Solicitado por" className="sm:col-span-2"><input value={solicitadoPor} onChange={(ev) => setSolicitadoPor(ev.target.value)} className={inp} /></Campo>
+          <Campo label="Motivo del estudio" className="sm:col-span-4"><input value={motivo} onChange={(ev) => setMotivo(ev.target.value)} placeholder="Ej.: control de hipertensión, sospecha de bata blanca" className={inp} /></Campo>
+        </div>
+
+        <div className="rounded-2xl border border-dashed border-[#1E3A8A]/30 bg-[#EEF2FB]/50 p-4 dark:border-white/15 dark:bg-white/5">
+          <p className="text-sm font-semibold">Mediciones del monitor</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Suba el archivo que exporta el software del equipo (CSV o Excel con hora, sistólica, diastólica y pulso) o pegue las mediciones, una por línea: <span className="font-mono">14:30 128/82 74</span></p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-md transition gradient-deep ${leyendo ? "pointer-events-none opacity-70" : "hover:-translate-y-0.5"}`}>
+              {leyendo ? <Loader2 className="size-4 animate-spin" /> : <FileSpreadsheet className="size-4" />} {leyendo ? "Leyendo…" : "Subir archivo de mediciones"}
+              <input type="file" hidden accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain" onChange={(ev) => { void leerArchivo(ev.target.files?.[0]); ev.target.value = ""; }} />
+            </label>
+            {fuente && <span className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1 text-xs font-semibold ring-1 ring-border">{fuente.nombre}<button type="button" onClick={() => setFuente(null)} aria-label="Quitar archivo" className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button></span>}
+          </div>
+          {!fuente && <textarea value={pegado} onChange={(ev) => setPegado(ev.target.value)} rows={4} placeholder={"08:00 132/84 76\n08:30 128/80 74\n…"} className={inp + " mt-3 h-auto py-2.5 font-mono text-xs"} />}
+          {a && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs"><b>{a.ordenadas.length}</b> mediciones · <b>{a.validas.length}</b> válidas{a.ordenadas.length - a.validas.length ? ` · ${a.ordenadas.length - a.validas.length} excluidas automáticamente (artefactos)` : ""} · {a.diur.length} diurnas · {a.noct.length} nocturnas{a.inicio && a.fin ? ` · ${fdhMapa(a.inicio)} a ${fdhMapa(a.fin)}` : ""}</p>
+              <p className="text-xs">Promedio 24 h <b>{a.h24.s}/{a.h24.d}</b> · diurno <b>{a.dia.s}/{a.dia.d}</b> · nocturno <b>{a.noche.s}/{a.noche.d}</b> mmHg</p>
+              <div className="overflow-x-auto rounded-xl bg-white p-2 dark:bg-white/[.03]"><div className="min-w-[560px]" dangerouslySetInnerHTML={{ __html: svgMapa(datos) }} /></div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Campo label="Informe del equipo (PDF, opcional)">
+            <label className="flex h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-300 px-3.5 text-sm hover:bg-secondary dark:border-white/10">
+              <Paperclip className="size-4 text-muted-foreground" /><span className="truncate">{archivoInforme ? archivoInforme.name : "Elegir archivo…"}</span>
+              <input type="file" hidden accept="application/pdf,image/*" onChange={(ev) => setArchivoInforme(ev.target.files?.[0] ?? null)} />
+            </label>
+          </Campo>
+          <Campo label="Informe del médico (puede escribirlo después)">
+            <textarea value={informe} onChange={(ev) => setInforme(ev.target.value)} rows={2} placeholder="Conclusión del estudio…" className={inp + " h-auto py-2.5"} />
+          </Campo>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onCerrar} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-secondary">Cancelar</button>
+          <Button className="rounded-xl" disabled={!lecturas.length || guardando} onClick={() => void guardar()}>{guardando ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Guardar en la historia clínica</Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
